@@ -1,4 +1,4 @@
-# 使用 Sails.js - LogRocket 博客构建 Node.js web API
+# 使用 Sails.js 构建 Node.js web API
 
 > 原文：<https://blog.logrocket.com/building-a-node-js-web-api-with-sails-js/>
 

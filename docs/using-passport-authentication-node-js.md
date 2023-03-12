@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 Passport 进行身份验证
+# 在 Node.js 中使用 Passport 进行身份验证
 
 > 原文：<https://blog.logrocket.com/using-passport-authentication-node-js/>
 

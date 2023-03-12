@@ -1,4 +1,4 @@
-# MUI 网格系统指南- LogRocket 博客
+# MUI 网格系统指南
 
 > 原文：<https://blog.logrocket.com/guide-mui-grid-system/>
 

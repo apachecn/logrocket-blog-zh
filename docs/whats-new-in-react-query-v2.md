@@ -1,4 +1,4 @@
-# react-query v2 - LogRocket 博客中的新内容
+# react-query v2 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-react-query-v2/>
 

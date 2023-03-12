@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用 SVGs
+# 如何在 React 中使用 SVGs
 
 > 原文：<https://blog.logrocket.com/how-to-use-svgs-react/>
 

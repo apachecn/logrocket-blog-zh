@@ -1,4 +1,4 @@
-# 何时使用 HTML5 的 canvas - LogRocket 博客
+# 何时使用 HTML5 的 canvas 
 
 > 原文：<https://blog.logrocket.com/when-to-use-html5s-canvas-ce992b100ee8/>
 

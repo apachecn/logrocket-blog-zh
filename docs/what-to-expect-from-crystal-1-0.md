@@ -1,4 +1,4 @@
-# 对 Crystal 1.0 - LogRocket 博客有什么期待
+# 对 Crystal 1.0 有什么期待
 
 > 原文：<https://blog.logrocket.com/what-to-expect-from-crystal-1-0/>
 

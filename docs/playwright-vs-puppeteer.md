@@ -1,4 +1,4 @@
-# 剧作家和木偶师:你应该选择哪一个？- LogRocket 博客
+# 剧作家和木偶师:你应该选择哪一个？
 
 > 原文：<https://blog.logrocket.com/playwright-vs-puppeteer/>
 

@@ -1,4 +1,4 @@
-# BigInt - LogRocket 博客使用指南
+# BigInt 使用指南
 
 > 原文：<https://blog.logrocket.com/why-and-how-to-use-bigint/>
 

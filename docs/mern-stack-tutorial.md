@@ -1,4 +1,4 @@
-# MERN 堆栈教程- LogRocket 博客
+# MERN 堆栈教程
 
 > 原文：<https://blog.logrocket.com/mern-stack-tutorial/>
 

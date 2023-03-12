@@ -1,4 +1,4 @@
-# Go - LogRocket 博客的 5 个结构化日志包
+# Go 的 5 个结构化日志包
 
 > 原文：<https://blog.logrocket.com/5-structured-logging-packages-for-go/>
 

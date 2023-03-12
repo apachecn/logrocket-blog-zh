@@ -1,4 +1,4 @@
-# Express.js 5 迁移指南- LogRocket 博客
+# Express.js 5 迁移指南
 
 > 原文：<https://blog.logrocket.com/express-js-5-migration-guide/>
 

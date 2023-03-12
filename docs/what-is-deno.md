@@ -1,4 +1,4 @@
-# Deno 是什么，和 Node.js 有什么不同？- LogRocket 博客
+# Deno 是什么，和 Node.js 有什么不同？
 
 > 原文：<https://blog.logrocket.com/what-is-deno/>
 

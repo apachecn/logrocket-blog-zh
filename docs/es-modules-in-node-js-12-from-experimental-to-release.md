@@ -1,4 +1,4 @@
-# Node.js 12 中的 ES 模块，从实验到发布- LogRocket 博客
+# Node.js 12 中的 ES 模块，从实验到发布
 
 > 原文：<https://blog.logrocket.com/es-modules-in-node-js-12-from-experimental-to-release/>
 

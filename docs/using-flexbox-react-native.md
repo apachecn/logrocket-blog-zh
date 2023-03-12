@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用 flexbox
+# 在 React Native 中使用 flexbox
 
 > 原文：<https://blog.logrocket.com/using-flexbox-react-native/>
 

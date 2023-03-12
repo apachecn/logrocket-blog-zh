@@ -1,4 +1,4 @@
-# 用 React 和 8base - LogRocket 博客建立一个电子商务网站
+# 用 React 和 8base 建立一个电子商务网站
 
 > 原文：<https://blog.logrocket.com/building-an-e-commerce-website-with-react-and-8base/>
 

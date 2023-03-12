@@ -1,4 +1,4 @@
-# 如何用 Vue - LogRocket 博客创建密码强度检查器
+# 如何用 Vue 创建密码强度检查器
 
 > 原文：<https://blog.logrocket.com/create-password-strength-checker-vue/>
 

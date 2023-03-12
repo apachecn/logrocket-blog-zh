@@ -1,4 +1,4 @@
-# 如何在 Corda - LogRocket 博客上写 DApps
+# 如何在 Corda 上写 DApps
 
 > 原文：<https://blog.logrocket.com/how-to-write-dapps-corda/>
 

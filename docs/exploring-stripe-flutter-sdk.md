@@ -1,4 +1,4 @@
-# 探索 Stripe Flutter SDK - LogRocket 博客
+# 探索 Stripe Flutter SDK 
 
 > 原文：<https://blog.logrocket.com/exploring-stripe-flutter-sdk/>
 

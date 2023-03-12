@@ -1,4 +1,4 @@
-# 在 React apps - LogRocket 博客中使用 Firebase 处理用户认证
+# 在 React apps 中使用 Firebase 处理用户认证
 
 > 原文：<https://blog.logrocket.com/user-authentication-firebase-react-apps/>
 

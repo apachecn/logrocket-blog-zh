@@ -1,4 +1,4 @@
-# NumPy - LogRocket 博客介绍数据科学
+# NumPy 介绍数据科学
 
 > 原文：<https://blog.logrocket.com/introduction-data-science-numpy/>
 

@@ -1,4 +1,4 @@
-# 使用 BootstrapVue - LogRocket 博客在 Vue.js 中构建定价组件
+# 使用 BootstrapVue 在 Vue.js 中构建定价组件
 
 > 原文：<https://blog.logrocket.com/building-a-pricing-component-in-vue-js-with-bootstrapvue/>
 

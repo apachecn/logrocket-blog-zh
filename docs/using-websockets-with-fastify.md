@@ -1,4 +1,4 @@
-# 在 Fastify - LogRocket 博客中使用 WebSockets
+# 在 Fastify 中使用 WebSockets
 
 > 原文：<https://blog.logrocket.com/using-websockets-with-fastify/>
 

@@ -1,4 +1,4 @@
-# 了解 Python 数据类- LogRocket 博客
+# 了解 Python 数据类
 
 > 原文：<https://blog.logrocket.com/understanding-python-dataclasses/>
 

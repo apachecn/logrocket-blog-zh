@@ -1,4 +1,4 @@
-# 用 Flipper - LogRocket 博客调试 React 原生应用
+# 用 Flipper 调试 React 原生应用
 
 > 原文：<https://blog.logrocket.com/debugging-react-native-apps-flipper/>
 

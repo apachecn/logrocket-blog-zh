@@ -1,4 +1,4 @@
-# 构建一个苗条的原生 iOS 应用程序- LogRocket 博客
+# 构建一个苗条的原生 iOS 应用程序
 
 > 原文：<https://blog.logrocket.com/building-svelte-native-ios-app/>
 

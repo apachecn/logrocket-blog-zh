@@ -1,4 +1,4 @@
-# gRPC-Gateway - LogRocket 博客一体化指南
+# gRPC-Gateway 一体化指南
 
 > 原文：<https://blog.logrocket.com/guide-to-grpc-gateway/>
 

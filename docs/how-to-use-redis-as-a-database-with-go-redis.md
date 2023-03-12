@@ -1,4 +1,4 @@
-# 如何使用 Redis 作为 go-redis - LogRocket 博客的数据库
+# 如何使用 Redis 作为 go-redis 的数据库
 
 > 原文：<https://blog.logrocket.com/how-to-use-redis-as-a-database-with-go-redis/>
 

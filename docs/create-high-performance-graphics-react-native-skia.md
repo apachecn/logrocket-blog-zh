@@ -1,4 +1,4 @@
-# 使用 React Native Skia - LogRocket 博客创建高性能图形
+# 使用 React Native Skia 创建高性能图形
 
 > 原文：<https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/>
 

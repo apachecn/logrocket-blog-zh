@@ -1,4 +1,4 @@
-# 如何使用 Flask - LogRocket 博客构建和部署电报机器人
+# 如何使用 Flask 构建和部署电报机器人
 
 > 原文：<https://blog.logrocket.com/build-deploy-telegram-bot-with-flask/>
 

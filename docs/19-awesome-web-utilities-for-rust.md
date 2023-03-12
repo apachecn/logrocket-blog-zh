@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客的 19 个令人敬畏的 web 实用程序
+# Rust 的 19 个令人敬畏的 web 实用程序
 
 > 原文：<https://blog.logrocket.com/19-awesome-web-utilities-for-rust/>
 

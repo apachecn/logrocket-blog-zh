@@ -1,4 +1,4 @@
-# 窗口战争:React-虚拟化与 react-window - LogRocket 博客
+# 窗口战争:React-虚拟化与 react-window 
 
 > 原文：<https://blog.logrocket.com/windowing-wars-react-virtualized-vs-react-window/>
 

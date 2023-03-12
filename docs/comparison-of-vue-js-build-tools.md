@@ -1,4 +1,4 @@
-# Vue.js 构建工具对比- LogRocket 博客
+# Vue.js 构建工具对比
 
 > 原文：<https://blog.logrocket.com/comparison-of-vue-js-build-tools/>
 

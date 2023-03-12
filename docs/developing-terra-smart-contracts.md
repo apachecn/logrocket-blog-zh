@@ -1,4 +1,4 @@
-# 开发 Terra 智能合同- LogRocket 博客
+# 开发 Terra 智能合同
 
 > 原文：<https://blog.logrocket.com/developing-terra-smart-contracts/>
 

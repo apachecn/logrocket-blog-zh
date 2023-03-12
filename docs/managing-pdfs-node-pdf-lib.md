@@ -1,4 +1,4 @@
-# 使用 pdf-lib - LogRocket 博客管理节点中的 pdf
+# 使用 pdf-lib 管理节点中的 pdf
 
 > 原文：<https://blog.logrocket.com/managing-pdfs-node-pdf-lib/>
 

@@ -1,4 +1,4 @@
-# 用 warp - LogRocket 博客在 Rust 中构建 REST API
+# 用 warp 在 Rust 中构建 REST API
 
 > 原文：<https://blog.logrocket.com/building-rest-api-rust-warp/>
 

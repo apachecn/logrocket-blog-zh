@@ -1,4 +1,4 @@
-# 如何使用 VuePress 和 Markdown - LogRocket 博客创建作品集和博客
+# 如何使用 VuePress 和 Markdown 创建作品集和博客
 
 > 原文：<https://blog.logrocket.com/how-create-portfolio-blog-using-vuepress-markdown/>
 

@@ -1,4 +1,4 @@
-# 如何在 Remix - LogRocket 博客中验证表单
+# 如何在 Remix 中验证表单
 
 > 原文：<https://blog.logrocket.com/how-to-validate-forms-remix/>
 

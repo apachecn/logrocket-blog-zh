@@ -1,4 +1,4 @@
-# 用 Svelte 和 D3 - LogRocket 博客实现数据可视化
+# 用 Svelte 和 D3 实现数据可视化
 
 > 原文：<https://blog.logrocket.com/data-visualization-svelte-d3/>
 

@@ -1,4 +1,4 @@
-# 如何使用 Axios POST requests - LogRocket 博客
+# 如何使用 Axios POST requests 
 
 > 原文：<https://blog.logrocket.com/how-to-use-axios-post-requests/>
 

@@ -1,4 +1,4 @@
-# JAMstack - LogRocket 博客中的动态和异步功能
+# JAMstack 中的动态和异步功能
 
 > 原文：<https://blog.logrocket.com/dynamic-and-async-functionality-in-jamstack/>
 

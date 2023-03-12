@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中使用水合 BLoC 保持应用状态
+# 在 Flutter 中使用水合 BLoC 保持应用状态
 
 > 原文：<https://blog.logrocket.com/persisting-application-state-hydrated-bloc-flutter/>
 

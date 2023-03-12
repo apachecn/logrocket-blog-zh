@@ -1,4 +1,4 @@
-# BootstrapVue - LogRocket 博客入门
+# BootstrapVue 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-bootstrapvue/>
 

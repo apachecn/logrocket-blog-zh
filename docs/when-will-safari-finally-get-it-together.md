@@ -1,4 +1,4 @@
-# Safari 什么时候才能最终整合起来？- LogRocket 博客
+# Safari 什么时候才能最终整合起来？
 
 > 原文：<https://blog.logrocket.com/when-will-safari-finally-get-it-together/>
 

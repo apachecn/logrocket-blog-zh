@@ -1,4 +1,4 @@
-# 如何在 Vue.js - LogRocket 博客中使表单元素动态化
+# 如何在 Vue.js 中使表单元素动态化
 
 > 原文：<https://blog.logrocket.com/make-form-elements-dynamic-vue-js/>
 

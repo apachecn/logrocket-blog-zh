@@ -1,4 +1,4 @@
-# React Native vs. Ionic - LogRocket 博客
+# React Native vs. Ionic 
 
 > 原文：<https://blog.logrocket.com/react-native-vs-ionic/>
 

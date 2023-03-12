@@ -1,4 +1,4 @@
-# 理解 Python - LogRocket 博客中的类型注释
+# 理解 Python 中的类型注释
 
 > 原文：<https://blog.logrocket.com/understanding-type-annotation-python/>
 

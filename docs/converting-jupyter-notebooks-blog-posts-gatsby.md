@@ -1,4 +1,4 @@
-# 使用 Gatsby - LogRocket 博客将 Jupyter 笔记本转换为博客文章
+# 使用 Gatsby 将 Jupyter 笔记本转换为博客文章
 
 > 原文：<https://blog.logrocket.com/converting-jupyter-notebooks-blog-posts-gatsby/>
 

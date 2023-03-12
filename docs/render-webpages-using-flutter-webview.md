@@ -1,4 +1,4 @@
-# 使用 Flutter WebView - LogRocket 博客渲染网页
+# 使用 Flutter WebView 渲染网页
 
 > 原文：<https://blog.logrocket.com/render-webpages-using-flutter-webview/>
 

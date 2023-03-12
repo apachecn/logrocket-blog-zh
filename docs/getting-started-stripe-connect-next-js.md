@@ -1,4 +1,4 @@
-# 使用 Next.js - LogRocket 博客开始使用条带连接
+# 使用 Next.js 开始使用条带连接
 
 > 原文：<https://blog.logrocket.com/getting-started-stripe-connect-next-js/>
 

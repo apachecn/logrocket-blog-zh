@@ -1,4 +1,4 @@
-# 通过 React 和 Node.js API - LogRocket 博客与智能合约进行交互
+# 通过 React 和 Node.js API 与智能合约进行交互
 
 > 原文：<https://blog.logrocket.com/interacting-smart-contracts-via-nodejs-api/>
 

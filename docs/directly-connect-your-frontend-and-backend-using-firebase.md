@@ -1,4 +1,4 @@
-# 使用 Firebase - LogRocket 博客直接连接您的前端和后端
+# 使用 Firebase 直接连接您的前端和后端
 
 > 原文：<https://blog.logrocket.com/directly-connect-your-frontend-and-backend-using-firebase/>
 

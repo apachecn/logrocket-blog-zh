@@ -1,4 +1,4 @@
-# Babylon.js - LogRocket 博客入门
+# Babylon.js 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-babylon-js/>
 

@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中创建一个新的进度条
+# 在 React 中创建一个新的进度条
 
 > 原文：<https://blog.logrocket.com/create-neumorphic-progress-bar-react/>
 

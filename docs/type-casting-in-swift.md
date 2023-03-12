@@ -1,4 +1,4 @@
-# Swift - LogRocket 博客中的类型转换
+# Swift 中的类型转换
 
 > 原文：<https://blog.logrocket.com/type-casting-in-swift/>
 

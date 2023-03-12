@@ -1,4 +1,4 @@
-# React Native v0.65 - LogRocket 博客的新特性
+# React Native v0.65 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-react-native-0-65/>
 

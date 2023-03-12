@@ -1,4 +1,4 @@
-# 颤振模态底板教程示例- LogRocket 博客
+# 颤振模态底板教程示例
 
 > 原文：<https://blog.logrocket.com/flutter-modal-bottom-sheet-tutorial-with-examples/>
 

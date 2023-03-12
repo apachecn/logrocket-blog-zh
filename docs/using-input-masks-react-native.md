@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用输入掩码
+# 在 React Native 中使用输入掩码
 
 > 原文：<https://blog.logrocket.com/using-input-masks-react-native/>
 

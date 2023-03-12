@@ -1,4 +1,4 @@
-# 构建 Next.js 购物车应用程序- LogRocket 博客
+# 构建 Next.js 购物车应用程序
 
 > 原文：<https://blog.logrocket.com/building-a-next-js-shopping-cart-app/>
 

@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用样式化组件的好处
+# 在 React 中使用样式化组件的好处
 
 > 原文：<https://blog.logrocket.com/benefits-using-styled-components-react/>
 

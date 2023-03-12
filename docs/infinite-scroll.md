@@ -1,4 +1,4 @@
-# 不要再用无限滚动建网站了！- LogRocket 博客
+# 不要再用无限滚动建网站了！
 
 > 原文：<https://blog.logrocket.com/infinite-scroll/>
 

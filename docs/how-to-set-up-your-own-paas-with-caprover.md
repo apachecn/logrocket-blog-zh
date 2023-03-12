@@ -1,4 +1,4 @@
-# 如何用 CapRover - LogRocket 博客建立自己的 PaaS
+# 如何用 CapRover 建立自己的 PaaS
 
 > 原文：<https://blog.logrocket.com/how-to-set-up-your-own-paas-with-caprover/>
 

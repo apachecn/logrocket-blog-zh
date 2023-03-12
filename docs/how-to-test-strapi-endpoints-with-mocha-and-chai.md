@@ -1,4 +1,4 @@
-# 如何用 Mocha 和 Chai - LogRocket 博客测试 Strapi 端点
+# 如何用 Mocha 和 Chai 测试 Strapi 端点
 
 > 原文：<https://blog.logrocket.com/how-to-test-strapi-endpoints-with-mocha-and-chai/>
 

@@ -1,4 +1,4 @@
-# 为 Angular - LogRocket 博客发布 LogRocket
+# 为 Angular 发布 LogRocket
 
 > 原文：<https://blog.logrocket.com/announcing-support-for-angular-and-ngrx-6ec55224454/>
 

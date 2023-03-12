@@ -1,4 +1,4 @@
-# Rust、SolidJS 和 Tauri:创建一个跨平台的桌面应用程序- LogRocket 博客
+# Rust、SolidJS 和 Tauri:创建一个跨平台的桌面应用程序
 
 > 原文：<https://blog.logrocket.com/rust-solid-js-tauri-desktop-app/>
 

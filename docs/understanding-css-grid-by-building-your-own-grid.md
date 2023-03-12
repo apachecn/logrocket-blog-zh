@@ -1,4 +1,4 @@
-# 如何用 SASS - LogRocket 博客构建自定义网格
+# 如何用 SASS 构建自定义网格
 
 > 原文：<https://blog.logrocket.com/understanding-css-grid-by-building-your-own-grid/>
 

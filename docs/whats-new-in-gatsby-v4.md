@@ -1,4 +1,4 @@
-# 盖茨比 v4 - LogRocket 博客中的新内容
+# 盖茨比 v4 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-gatsby-v4/>
 

@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客中的文本输入完整指南
+# React Native 中的文本输入完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-textinput-react-native/>
 

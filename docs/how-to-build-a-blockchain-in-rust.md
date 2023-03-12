@@ -1,4 +1,4 @@
-# 如何在 Rust - LogRocket 博客中建立一个区块链
+# 如何在 Rust 中建立一个区块链
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-blockchain-in-rust/>
 

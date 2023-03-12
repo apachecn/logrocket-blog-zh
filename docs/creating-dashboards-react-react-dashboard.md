@@ -1,4 +1,4 @@
-# 使用 React Dashboard - LogRocket 博客在 React 中创建仪表板
+# 使用 React Dashboard 在 React 中创建仪表板
 
 > 原文：<https://blog.logrocket.com/creating-dashboards-react-react-dashboard/>
 

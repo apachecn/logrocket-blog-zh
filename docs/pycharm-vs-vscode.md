@@ -1,4 +1,4 @@
-# PyCharm vs. VS Code:选择最好的 Python IDE - LogRocket 博客
+# PyCharm vs. VS Code:选择最好的 Python IDE 
 
 > 原文：<https://blog.logrocket.com/pycharm-vs-vscode/>
 

@@ -1,4 +1,4 @@
-# 可变字体:性能权衡值得吗？- LogRocket 博客
+# 可变字体:性能权衡值得吗？
 
 > 原文：<https://blog.logrocket.com/variable-fonts-is-the-performance-trade-off-worth-it/>
 

@@ -1,4 +1,4 @@
-# 比较 Vue.js 日期选择器- LogRocket 博客
+# 比较 Vue.js 日期选择器
 
 > 原文：<https://blog.logrocket.com/comparing-vue-js-date-pickers/>
 

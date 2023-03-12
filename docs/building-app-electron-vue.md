@@ -1,4 +1,4 @@
-# 用电子和 Vue - LogRocket 博客构建一个应用程序
+# 用电子和 Vue 构建一个应用程序
 
 > 原文：<https://blog.logrocket.com/building-app-electron-vue/>
 

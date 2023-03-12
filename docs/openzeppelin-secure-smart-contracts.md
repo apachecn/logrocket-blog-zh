@@ -1,4 +1,4 @@
-# 使用 OpenZeppelin - LogRocket 博客构建安全的智能合约
+# 使用 OpenZeppelin 构建安全的智能合约
 
 > 原文：<https://blog.logrocket.com/openzeppelin-secure-smart-contracts/>
 

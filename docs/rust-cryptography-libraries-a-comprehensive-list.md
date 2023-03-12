@@ -1,4 +1,4 @@
-# Rust cryptography 库:一个全面的列表- LogRocket 博客
+# Rust cryptography 库:一个全面的列表
 
 > 原文：<https://blog.logrocket.com/rust-cryptography-libraries-a-comprehensive-list/>
 

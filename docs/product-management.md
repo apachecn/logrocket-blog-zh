@@ -1,4 +1,4 @@
-# 产品管理- LogRocket 博客
+# 产品管理
 
 > 原文：<https://blog.logrocket.com/product-management/>
 

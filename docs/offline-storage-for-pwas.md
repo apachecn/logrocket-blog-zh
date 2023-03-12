@@ -1,4 +1,4 @@
-# PWAs - LogRocket 博客的离线存储
+# PWAs 的离线存储
 
 > 原文：<https://blog.logrocket.com/offline-storage-for-pwas/>
 

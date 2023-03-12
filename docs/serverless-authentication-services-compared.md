@@ -1,4 +1,4 @@
-# 无服务器认证服务比较- LogRocket 博客
+# 无服务器认证服务比较
 
 > 原文：<https://blog.logrocket.com/serverless-authentication-services-compared/>
 

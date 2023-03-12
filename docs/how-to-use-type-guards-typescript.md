@@ -1,4 +1,4 @@
-# 如何在 TypeScript - LogRocket 博客中使用类型保护
+# 如何在 TypeScript 中使用类型保护
 
 > 原文：<https://blog.logrocket.com/how-to-use-type-guards-typescript/>
 

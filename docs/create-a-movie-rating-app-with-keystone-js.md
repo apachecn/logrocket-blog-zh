@@ -1,4 +1,4 @@
-# 使用 Keystone.js - LogRocket 博客创建电影分级应用程序
+# 使用 Keystone.js 创建电影分级应用程序
 
 > 原文：<https://blog.logrocket.com/create-a-movie-rating-app-with-keystone-js/>
 

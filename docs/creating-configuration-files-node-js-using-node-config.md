@@ -1,4 +1,4 @@
-# 使用 node-config - LogRocket 博客在 Node.js 中创建配置文件
+# 使用 node-config 在 Node.js 中创建配置文件
 
 > 原文：<https://blog.logrocket.com/creating-configuration-files-node-js-using-node-config/>
 

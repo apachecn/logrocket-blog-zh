@@ -1,4 +1,4 @@
-# 了解 React 片段- LogRocket 博客
+# 了解 React 片段
 
 > 原文：<https://blog.logrocket.com/understanding-react-fragments/>
 

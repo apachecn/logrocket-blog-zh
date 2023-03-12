@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中实现拆分视图和响应式布局
+# 在 React Native 中实现拆分视图和响应式布局
 
 > 原文：<https://blog.logrocket.com/implementing-split-view-responsive-layout-react-native/>
 

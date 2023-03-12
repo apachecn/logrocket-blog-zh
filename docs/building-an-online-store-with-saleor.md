@@ -1,4 +1,4 @@
-# 用 Saleor - LogRocket 博客建立网上商店
+# 用 Saleor 建立网上商店
 
 > 原文：<https://blog.logrocket.com/building-an-online-store-with-saleor/>
 

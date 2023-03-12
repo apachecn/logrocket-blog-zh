@@ -1,4 +1,4 @@
-# 了解 axios.create - LogRocket 博客
+# 了解 axios.create 
 
 > 原文：<https://blog.logrocket.com/understanding-axios-create/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中应用框阴影
+# 在 React Native 中应用框阴影
 
 > 原文：<https://blog.logrocket.com/applying-box-shadows-in-react-native/>
 

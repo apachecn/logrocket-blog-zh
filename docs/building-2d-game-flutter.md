@@ -1,4 +1,4 @@
-# 用 Flutter - LogRocket 博客构建 2D 游戏
+# 用 Flutter 构建 2D 游戏
 
 > 原文：<https://blog.logrocket.com/building-2d-game-flutter/>
 

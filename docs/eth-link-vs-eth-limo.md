@@ -1,4 +1,4 @@
-# . eth.link vs .eth.limo:比较。eth 域名解析- LogRocket 博客
+# . eth.link vs .eth.limo:比较。eth 域名解析
 
 > 原文：<https://blog.logrocket.com/eth-link-vs-eth-limo/>
 

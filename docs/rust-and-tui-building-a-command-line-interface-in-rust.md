@@ -1,4 +1,4 @@
-# Rust 和 TUI:在 Rust - LogRocket 博客中构建命令行界面
+# Rust 和 TUI:在 Rust 中构建命令行界面
 
 > 原文：<https://blog.logrocket.com/rust-and-tui-building-a-command-line-interface-in-rust/>
 

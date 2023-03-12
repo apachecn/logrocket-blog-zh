@@ -1,4 +1,4 @@
-# 使用 GPU.js 提高 JavaScript 性能- LogRocket 博客
+# 使用 GPU.js 提高 JavaScript 性能
 
 > 原文：<https://blog.logrocket.com/improving-javascript-performance-with-gpu-js/>
 

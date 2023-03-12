@@ -1,4 +1,4 @@
-# 在 Svelte - LogRocket 博客中使用 REST APIs
+# 在 Svelte 中使用 REST APIs
 
 > 原文：<https://blog.logrocket.com/consuming-rest-apis-in-svelte/>
 

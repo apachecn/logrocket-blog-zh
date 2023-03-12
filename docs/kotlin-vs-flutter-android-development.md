@@ -1,4 +1,4 @@
-# Kotlin vs. Flutter for Android 开发- LogRocket 博客
+# Kotlin vs. Flutter for Android 开发
 
 > 原文：<https://blog.logrocket.com/kotlin-vs-flutter-android-development/>
 

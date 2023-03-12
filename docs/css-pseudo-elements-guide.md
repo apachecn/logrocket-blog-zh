@@ -1,4 +1,4 @@
-# CSS 伪元素指南- LogRocket 博客
+# CSS 伪元素指南
 
 > 原文：<https://blog.logrocket.com/css-pseudo-elements-guide/>
 

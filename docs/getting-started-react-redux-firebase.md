@@ -1,4 +1,4 @@
-# react-redux-firebase - LogRocket 博客入门
+# react-redux-firebase 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-react-redux-firebase/>
 

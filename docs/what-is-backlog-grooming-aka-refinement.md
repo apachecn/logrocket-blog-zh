@@ -1,4 +1,4 @@
-# 什么是积压整理(又名积压精化)？- LogRocket 博客
+# 什么是积压整理(又名积压精化)？
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-backlog-grooming-aka-refinement/>
 

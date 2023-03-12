@@ -1,4 +1,4 @@
-# 深入 CSS 模块- LogRocket 博客
+# 深入 CSS 模块
 
 > 原文：<https://blog.logrocket.com/a-deep-dive-into-css-modules/>
 

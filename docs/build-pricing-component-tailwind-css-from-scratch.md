@@ -1,4 +1,4 @@
-# 使用 Tailwind CSS - LogRocket 博客从头开始构建定价组件
+# 使用 Tailwind CSS 从头开始构建定价组件
 
 > 原文：<https://blog.logrocket.com/build-pricing-component-tailwind-css-from-scratch/>
 

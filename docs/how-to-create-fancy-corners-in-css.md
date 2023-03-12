@@ -1,4 +1,4 @@
-# 如何用 CSS - LogRocket 博客创建别致的角落
+# 如何用 CSS 创建别致的角落
 
 > 原文：<https://blog.logrocket.com/how-to-create-fancy-corners-in-css/>
 

@@ -1,4 +1,4 @@
-# 用 Python - LogRocket 博客构建一个机器学习的垃圾邮件检测器
+# 用 Python 构建一个机器学习的垃圾邮件检测器
 
 > 原文：<https://blog.logrocket.com/email-spam-detector-python-machine-learning/>
 

@@ -1,4 +1,4 @@
-# 用普通的 JavaScript - LogRocket 博客从头开始编写一个音频可视化工具
+# 用普通的 JavaScript 从头开始编写一个音频可视化工具
 
 > 原文：<https://blog.logrocket.com/audio-visualizer-from-scratch-javascript/>
 

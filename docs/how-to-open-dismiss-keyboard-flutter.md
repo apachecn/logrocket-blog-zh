@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中打开或关闭键盘
+# 如何在 Flutter 中打开或关闭键盘
 
 > 原文：<https://blog.logrocket.com/how-to-open-dismiss-keyboard-flutter/>
 

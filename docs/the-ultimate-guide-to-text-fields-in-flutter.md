@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中文本字段的最终指南
+# Flutter 中文本字段的最终指南
 
 > 原文：<https://blog.logrocket.com/the-ultimate-guide-to-text-fields-in-flutter/>
 

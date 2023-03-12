@@ -1,4 +1,4 @@
-# 使用 React 和 Firebase - LogRocket 博客推送通知
+# 使用 React 和 Firebase 推送通知
 
 > 原文：<https://blog.logrocket.com/push-notifications-react-firebase/>
 

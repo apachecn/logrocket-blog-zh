@@ -1,4 +1,4 @@
-# Node.js 网页抓取教程- LogRocket 博客
+# Node.js 网页抓取教程
 
 > 原文：<https://blog.logrocket.com/node-js-web-scraping-tutorial/>
 

@@ -1,4 +1,4 @@
-# 在 Deno - LogRocket 博客中设置 cron 作业
+# 在 Deno 中设置 cron 作业
 
 > 原文：<https://blog.logrocket.com/setting-up-cron-jobs-in-deno/>
 

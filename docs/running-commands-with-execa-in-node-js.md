@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 execa 运行命令
+# 在 Node.js 中使用 execa 运行命令
 
 > 原文：<https://blog.logrocket.com/running-commands-with-execa-in-node-js/>
 

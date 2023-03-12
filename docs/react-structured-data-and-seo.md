@@ -1,4 +1,4 @@
-# React、结构化数据和 SEO - LogRocket 博客
+# React、结构化数据和 SEO 
 
 > 原文：<https://blog.logrocket.com/react-structured-data-and-seo/>
 

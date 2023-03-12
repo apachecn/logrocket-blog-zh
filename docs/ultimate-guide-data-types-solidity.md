@@ -1,4 +1,4 @@
-# Solidity - LogRocket 博客中的数据类型终极指南
+# Solidity 中的数据类型终极指南
 
 > 原文：<https://blog.logrocket.com/ultimate-guide-data-types-solidity/>
 

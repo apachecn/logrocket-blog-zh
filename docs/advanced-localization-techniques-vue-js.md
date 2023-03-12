@@ -1,4 +1,4 @@
-# Vue.js 中的本地化与 vue-i18n - LogRocket 博客
+# Vue.js 中的本地化与 vue-i18n 
 
 > 原文：<https://blog.logrocket.com/advanced-localization-techniques-vue-js/>
 

@@ -1,4 +1,4 @@
-# CI/CD 和 React:使用 Heroku 和 CircleCI - LogRocket 博客创建管道
+# CI/CD 和 React:使用 Heroku 和 CircleCI 创建管道
 
 > 原文：<https://blog.logrocket.com/ci-cd-and-react-create-a-pipeline-using-heroku-and-circleci/>
 

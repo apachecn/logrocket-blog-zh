@@ -1,4 +1,4 @@
-# 在 Rust 中使用 Reqwest - LogRocket 博客发出 HTTP 请求
+# 在 Rust 中使用 Reqwest 发出 HTTP 请求
 
 > 原文：<https://blog.logrocket.com/making-http-requests-rust-reqwest/>
 

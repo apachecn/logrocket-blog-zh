@@ -1,4 +1,4 @@
-# 用 Jest - LogRocket 博客对 NestJS 应用程序进行单元测试
+# 用 Jest 对 NestJS 应用程序进行单元测试
 
 > 原文：<https://blog.logrocket.com/unit-testing-nestjs-applications-with-jest/>
 

@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中构建类型安全字典
+# 在 TypeScript 中构建类型安全字典
 
 > 原文：<https://blog.logrocket.com/building-type-safe-dictionary-typescript/>
 

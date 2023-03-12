@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中建立底部导航栏
+# 如何在 Flutter 中建立底部导航栏
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-bottom-navigation-bar-in-flutter/>
 

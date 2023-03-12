@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中创建自定义警告对话框
+# 如何在 React Native 中创建自定义警告对话框
 
 > 原文：<https://blog.logrocket.com/create-custom-alert-dialog-react-native/>
 

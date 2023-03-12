@@ -1,4 +1,4 @@
-# 何时以及如何在 TypeScript - LogRocket 博客中使用接口和类
+# 何时以及如何在 TypeScript 中使用接口和类
 
 > 原文：<https://blog.logrocket.com/when-how-use-interfaces-classes-typescript/>
 

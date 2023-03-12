@@ -1,4 +1,4 @@
-# 用 json-graphql-server - LogRocket 博客模仿 GraphQL API
+# 用 json-graphql-server 模仿 GraphQL API
 
 > 原文：<https://blog.logrocket.com/mocking-graphql-api-server-using-json-graphql-server/>
 

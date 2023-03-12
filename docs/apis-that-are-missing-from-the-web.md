@@ -1,4 +1,4 @@
-# web - LogRocket 博客中缺失的 API
+# web 中缺失的 API
 
 > 原文：<https://blog.logrocket.com/apis-that-are-missing-from-the-web/>
 

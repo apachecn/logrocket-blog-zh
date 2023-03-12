@@ -1,4 +1,4 @@
-# 使用 Rust - LogRocket 博客进行网络抓取
+# 使用 Rust 进行网络抓取
 
 > 原文：<https://blog.logrocket.com/web-scraping-rust/>
 

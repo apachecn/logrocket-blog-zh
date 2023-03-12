@@ -1,4 +1,4 @@
-# 用 React 和 Sandpack - LogRocket 博客创建一个交互式博客
+# 用 React 和 Sandpack 创建一个交互式博客
 
 > 原文：<https://blog.logrocket.com/build-interactive-blog-with-react-sandpack/>
 

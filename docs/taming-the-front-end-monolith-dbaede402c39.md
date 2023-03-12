@@ -1,4 +1,4 @@
-# 驯服前端 monolith - LogRocket 博客
+# 驯服前端 monolith 
 
 > 原文：<https://blog.logrocket.com/taming-the-front-end-monolith-dbaede402c39/>
 

@@ -1,4 +1,4 @@
-# 深入了解 CSS - LogRocket 博客中的裁剪图像
+# 深入了解 CSS 中的裁剪图像
 
 > 原文：<https://blog.logrocket.com/cropping-images-css-in-depth/>
 

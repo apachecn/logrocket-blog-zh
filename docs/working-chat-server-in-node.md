@@ -1,4 +1,4 @@
-# 在 Node - LogRocket 博客中编写一个工作的聊天服务器
+# 在 Node 中编写一个工作的聊天服务器
 
 > 原文：<https://blog.logrocket.com/working-chat-server-in-node/>
 

@@ -1,4 +1,4 @@
-# 探索 Jetpack Compose - LogRocket 博客中的主题
+# 探索 Jetpack Compose 中的主题
 
 > 原文：<https://blog.logrocket.com/exploring-theming-jetpack-compose/>
 

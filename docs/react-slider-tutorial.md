@@ -1,4 +1,4 @@
-# 使用 react-slider - LogRocket 博客的 React slider 教程
+# 使用 react-slider 的 React slider 教程
 
 > 原文：<https://blog.logrocket.com/react-slider-tutorial/>
 

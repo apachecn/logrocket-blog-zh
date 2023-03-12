@@ -1,4 +1,4 @@
-# 了解 SharedArrayBuffer 和跨源隔离- LogRocket 博客
+# 了解 SharedArrayBuffer 和跨源隔离
 
 > 原文：<https://blog.logrocket.com/understanding-sharedarraybuffer-and-cross-origin-isolation/>
 

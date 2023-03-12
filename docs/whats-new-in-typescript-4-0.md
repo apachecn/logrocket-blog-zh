@@ -1,4 +1,4 @@
-# TypeScript 4.0 中的新特性- LogRocket 博客
+# TypeScript 4.0 中的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-typescript-4-0/>
 

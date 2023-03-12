@@ -1,4 +1,4 @@
-# 使用 WebRTC - LogRocket 博客创建聊天应用程序
+# 使用 WebRTC 创建聊天应用程序
 
 > 原文：<https://blog.logrocket.com/creating-chat-application-with-webrtc/>
 

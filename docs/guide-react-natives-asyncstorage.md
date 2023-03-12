@@ -1,4 +1,4 @@
-# React Native 的 AsyncStorage - LogRocket 博客指南
+# React Native 的 AsyncStorage 指南
 
 > 原文：<https://blog.logrocket.com/guide-react-natives-asyncstorage/>
 

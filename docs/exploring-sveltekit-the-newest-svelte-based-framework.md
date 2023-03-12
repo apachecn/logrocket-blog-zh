@@ -1,4 +1,4 @@
-# 探索 SvelteKit，最新的基于 Svelte 的框架- LogRocket 博客
+# 探索 SvelteKit，最新的基于 Svelte 的框架
 
 > 原文：<https://blog.logrocket.com/exploring-sveltekit-the-newest-svelte-based-framework/>
 

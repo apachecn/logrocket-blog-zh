@@ -1,4 +1,4 @@
-# React 地图库比较- LogRocket 博客
+# React 地图库比较
 
 > 原文：<https://blog.logrocket.com/react-map-library-comparison/>
 

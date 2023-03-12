@@ -1,4 +1,4 @@
-# cookie 通知的 UI/UX 最佳实践- LogRocket 博客
+# cookie 通知的 UI/UX 最佳实践
 
 > 原文：<https://blog.logrocket.com/ui-ux-best-practices-cookie-notifications/>
 

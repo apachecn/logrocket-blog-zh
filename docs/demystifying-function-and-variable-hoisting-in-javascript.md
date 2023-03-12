@@ -1,4 +1,4 @@
-# 揭秘 JavaScript - LogRocket 博客中的函数和变量提升
+# 揭秘 JavaScript 中的函数和变量提升
 
 > 原文：<https://blog.logrocket.com/demystifying-function-and-variable-hoisting-in-javascript/>
 

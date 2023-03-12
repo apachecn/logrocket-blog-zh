@@ -1,4 +1,4 @@
-# React 中的渐进式图像加载:教程- LogRocket 博客
+# React 中的渐进式图像加载:教程
 
 > 原文：<https://blog.logrocket.com/progressive-image-loading-react-tutorial/>
 

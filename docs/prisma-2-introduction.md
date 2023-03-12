@@ -1,4 +1,4 @@
-# Prisma 2 - LogRocket 博客简介
+# Prisma 2 简介
 
 > 原文：<https://blog.logrocket.com/prisma-2-introduction/>
 

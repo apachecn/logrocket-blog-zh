@@ -1,4 +1,4 @@
-# JavaScript tiling - LogRocket 博客中的实验
+# JavaScript tiling 中的实验
 
 > 原文：<https://blog.logrocket.com/experiments-in-javascript-tiling/>
 

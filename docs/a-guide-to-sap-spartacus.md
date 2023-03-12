@@ -1,4 +1,4 @@
-# SAP Spartacus 指南- LogRocket 博客
+# SAP Spartacus 指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-sap-spartacus/>
 

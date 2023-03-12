@@ -1,4 +1,4 @@
-# 不要低估 MVC - LogRocket 博客中的模型
+# 不要低估 MVC 中的模型
 
 > 原文：<https://blog.logrocket.com/dont-underestimate-the-model-in-mvc/>
 

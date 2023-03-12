@@ -1,4 +1,4 @@
-# GSAP 3 - LogRocket 博客中的新内容
+# GSAP 3 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-gsap-3/>
 

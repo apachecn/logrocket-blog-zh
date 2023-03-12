@@ -1,4 +1,4 @@
-# PostgreSQL v14 - LogRocket 博客中 JSON 的新特性
+# PostgreSQL v14 中 JSON 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-json-postgresql-v14/>
 

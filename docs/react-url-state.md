@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中维护状态变量
+# 在 React 中维护状态变量
 
 > 原文：<https://blog.logrocket.com/react-url-state/>
 

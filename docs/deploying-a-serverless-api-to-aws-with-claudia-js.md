@@ -1,4 +1,4 @@
-# 使用 Claudia.js - LogRocket 博客将无服务器 API 部署到 AWS
+# 使用 Claudia.js 将无服务器 API 部署到 AWS
 
 > 原文：<https://blog.logrocket.com/deploying-a-serverless-api-to-aws-with-claudia-js/>
 

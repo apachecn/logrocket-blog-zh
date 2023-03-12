@@ -1,4 +1,4 @@
-# 使用 react-three-fiber - LogRocket 博客配置 3D 模型
+# 使用 react-three-fiber 配置 3D 模型
 
 > 原文：<https://blog.logrocket.com/configure-3d-models-react-three-fiber/>
 

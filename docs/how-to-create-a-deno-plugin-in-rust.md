@@ -1,4 +1,4 @@
-# 如何在 Rust - LogRocket 博客中创建 Deno 插件
+# 如何在 Rust 中创建 Deno 插件
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-deno-plugin-in-rust/>
 

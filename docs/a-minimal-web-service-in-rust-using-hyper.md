@@ -1,4 +1,4 @@
-# 使用 hyper - LogRocket 博客在 Rust 中编写一个简单的 web 服务
+# 使用 hyper 在 Rust 中编写一个简单的 web 服务
 
 > 原文：<https://blog.logrocket.com/a-minimal-web-service-in-rust-using-hyper/>
 

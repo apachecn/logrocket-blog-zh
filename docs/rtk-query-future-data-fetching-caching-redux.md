@@ -1,4 +1,4 @@
-# RTK 查询:Redux - LogRocket 博客数据获取和缓存的未来
+# RTK 查询:Redux 数据获取和缓存的未来
 
 > 原文：<https://blog.logrocket.com/rtk-query-future-data-fetching-caching-redux/>
 

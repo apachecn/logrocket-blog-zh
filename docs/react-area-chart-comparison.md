@@ -1,4 +1,4 @@
-# 反应面积图比较- LogRocket 博客
+# 反应面积图比较
 
 > 原文：<https://blog.logrocket.com/react-area-chart-comparison/>
 

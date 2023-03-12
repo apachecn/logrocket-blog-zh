@@ -1,4 +1,4 @@
-# 如何用 React Spring - LogRocket 博客制作五彩纸屑炮
+# 如何用 React Spring 制作五彩纸屑炮
 
 > 原文：<https://blog.logrocket.com/how-to-make-a-confetti-cannon-with-react-spring/>
 

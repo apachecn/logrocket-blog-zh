@@ -1,4 +1,4 @@
-# 使用 Docker - LogRocket 博客打包 Rust web 服务
+# 使用 Docker 打包 Rust web 服务
 
 > 原文：<https://blog.logrocket.com/packaging-a-rust-web-service-using-docker/>
 

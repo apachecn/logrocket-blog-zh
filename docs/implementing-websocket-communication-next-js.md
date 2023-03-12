@@ -1,4 +1,4 @@
-# 在 Next.js - LogRocket 博客中实现 WebSocket 通信
+# 在 Next.js 中实现 WebSocket 通信
 
 > 原文：<https://blog.logrocket.com/implementing-websocket-communication-next-js/>
 

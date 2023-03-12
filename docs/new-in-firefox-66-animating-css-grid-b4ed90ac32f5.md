@@ -1,4 +1,4 @@
-# Firefox 66 的新特性:动画 CSS 网格- LogRocket 博客
+# Firefox 66 的新特性:动画 CSS 网格
 
 > 原文：<https://blog.logrocket.com/new-in-firefox-66-animating-css-grid-b4ed90ac32f5/>
 

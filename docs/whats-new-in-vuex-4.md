@@ -1,4 +1,4 @@
-# Vuex 4 - LogRocket 博客中的新内容
+# Vuex 4 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-vuex-4/>
 

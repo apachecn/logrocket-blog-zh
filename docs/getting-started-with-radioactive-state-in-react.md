@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的放射性状态入门
+# React 中的放射性状态入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-radioactive-state-in-react/>
 

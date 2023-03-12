@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的错误处理
+# Node.js 中的错误处理
 
 > 原文：<https://blog.logrocket.com/error-handling-node-js/>
 

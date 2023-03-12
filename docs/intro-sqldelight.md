@@ -1,4 +1,4 @@
-# SQLDelight - LogRocket 博客简介
+# SQLDelight 简介
 
 > 原文：<https://blog.logrocket.com/intro-sqldelight/>
 

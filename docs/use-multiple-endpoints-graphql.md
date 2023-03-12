@@ -1,4 +1,4 @@
-# 何时在 GraphQL - LogRocket 博客中使用多个端点
+# 何时在 GraphQL 中使用多个端点
 
 > 原文：<https://blog.logrocket.com/use-multiple-endpoints-graphql/>
 

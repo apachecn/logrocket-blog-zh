@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的承诺指南
+# Node.js 中的承诺指南
 
 > 原文：<https://blog.logrocket.com/guide-promises-node-js/>
 

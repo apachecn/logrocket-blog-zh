@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的文件上传和下载
+# Rust 中的文件上传和下载
 
 > 原文：<https://blog.logrocket.com/file-upload-and-download-in-rust/>
 

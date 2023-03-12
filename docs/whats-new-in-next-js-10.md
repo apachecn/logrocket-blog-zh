@@ -1,4 +1,4 @@
-# Next.js 10 - LogRocket 博客中的新内容
+# Next.js 10 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-next-js-10/>
 

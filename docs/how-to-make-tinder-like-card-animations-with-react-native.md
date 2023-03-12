@@ -1,4 +1,4 @@
-# 如何用 React Native - LogRocket 博客制作类似 Tinder 的卡片动画
+# 如何用 React Native 制作类似 Tinder 的卡片动画
 
 > 原文：<https://blog.logrocket.com/how-to-make-tinder-like-card-animations-with-react-native/>
 

@@ -1,4 +1,4 @@
-# 在 Nuxt.js - LogRocket 博客中使用上下文、助手和高级属性
+# 在 Nuxt.js 中使用上下文、助手和高级属性
 
 > 原文：<https://blog.logrocket.com/working-with-context-helpers-and-advanced-properties-in-nuxt-js/>
 

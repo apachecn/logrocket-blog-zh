@@ -1,4 +1,4 @@
-# 验证 Laravel - LogRocket 博客中的数组和嵌套值
+# 验证 Laravel 中的数组和嵌套值
 
 > 原文：<https://blog.logrocket.com/validating-arrays-nested-values-laravel/>
 

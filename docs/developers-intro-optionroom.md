@@ -1,4 +1,4 @@
-# 开发人员介绍 OptionRoom - LogRocket 博客
+# 开发人员介绍 OptionRoom 
 
 > 原文：<https://blog.logrocket.com/developers-intro-optionroom/>
 

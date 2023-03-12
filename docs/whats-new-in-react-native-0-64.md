@@ -1,4 +1,4 @@
-# React 原生 0.64 - LogRocket 博客的新特性
+# React 原生 0.64 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-react-native-0-64/>
 

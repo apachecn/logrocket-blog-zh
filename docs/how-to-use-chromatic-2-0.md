@@ -1,4 +1,4 @@
-# 如何使用 Chromatic 2.0 - LogRocket 博客
+# 如何使用 Chromatic 2.0 
 
 > 原文：<https://blog.logrocket.com/how-to-use-chromatic-2-0/>
 

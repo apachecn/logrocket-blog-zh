@@ -1,4 +1,4 @@
-# 为什么你应该使用 useWorker - LogRocket 博客
+# 为什么你应该使用 useWorker 
 
 > 原文：<https://blog.logrocket.com/why-you-should-be-using-useworker/>
 

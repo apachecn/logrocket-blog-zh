@@ -1,4 +1,4 @@
-# 比较 SolidJS 和 Voby - LogRocket 博客
+# 比较 SolidJS 和 Voby 
 
 > 原文：<https://blog.logrocket.com/comparing-solid-js-voby/>
 

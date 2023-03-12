@@ -1,4 +1,4 @@
-# 在 JavaScript - LogRocket 博客中了解 Intl API
+# 在 JavaScript 中了解 Intl API
 
 > 原文：<https://blog.logrocket.com/getting-to-know-the-intl-api-in-javascript/>
 

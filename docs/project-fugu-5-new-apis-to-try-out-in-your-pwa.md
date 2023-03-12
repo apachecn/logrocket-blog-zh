@@ -1,4 +1,4 @@
-# 河豚项目:在你的 PWA - LogRocket 博客中尝试 5 种新的 API
+# 河豚项目:在你的 PWA 中尝试 5 种新的 API
 
 > 原文：<https://blog.logrocket.com/project-fugu-5-new-apis-to-try-out-in-your-pwa/>
 

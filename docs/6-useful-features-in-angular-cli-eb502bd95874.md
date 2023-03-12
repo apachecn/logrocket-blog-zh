@@ -1,4 +1,4 @@
-# Angular CLI - LogRocket 博客中的 6 个有用特性
+# Angular CLI 中的 6 个有用特性
 
 > 原文：<https://blog.logrocket.com/6-useful-features-in-angular-cli-eb502bd95874/>
 

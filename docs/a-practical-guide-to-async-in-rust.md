@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的异步实用指南
+# Rust 中的异步实用指南
 
 > 原文：<https://blog.logrocket.com/a-practical-guide-to-async-in-rust/>
 

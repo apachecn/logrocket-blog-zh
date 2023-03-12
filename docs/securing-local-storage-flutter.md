@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中保护本地存储
+# 在 Flutter 中保护本地存储
 
 > 原文：<https://blog.logrocket.com/securing-local-storage-flutter/>
 

@@ -1,4 +1,4 @@
-# 使用 FastAPI 从 GitHub 获取 Telegram - LogRocket 博客的更新
+# 使用 FastAPI 从 GitHub 获取 Telegram 的更新
 
 > 原文：<https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/>
 

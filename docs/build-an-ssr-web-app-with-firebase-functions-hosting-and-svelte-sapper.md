@@ -1,4 +1,4 @@
-# 建立一个具有 Firebase 功能的 SSR web 应用程序，托管和苗条的 Sapper - LogRocket 博客
+# 建立一个具有 Firebase 功能的 SSR web 应用程序，托管和苗条的 Sapper 
 
 > 原文：<https://blog.logrocket.com/build-an-ssr-web-app-with-firebase-functions-hosting-and-svelte-sapper/>
 

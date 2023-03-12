@@ -1,4 +1,4 @@
-# 介绍 RE:JAMstack - LogRocket 博客
+# 介绍 RE:JAMstack 
 
 > 原文：<https://blog.logrocket.com/introducing-the-rejamstack/>
 

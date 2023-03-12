@@ -1,4 +1,4 @@
-# UnoCSS 中的新特性:一个顺风 CSS 替代方案- LogRocket 博客
+# UnoCSS 中的新特性:一个顺风 CSS 替代方案
 
 > 原文：<https://blog.logrocket.com/new-features-unocss-tailwind-css-alternative/>
 

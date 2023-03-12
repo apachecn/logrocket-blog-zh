@@ -1,4 +1,4 @@
-# Flutter 2.5 - LogRocket 博客中的新内容
+# Flutter 2.5 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-flutter-2-5/>
 

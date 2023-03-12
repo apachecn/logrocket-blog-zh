@@ -1,4 +1,4 @@
-# 使用 Tippy - LogRocket 博客在 React 中定位工具提示
+# 使用 Tippy 在 React 中定位工具提示
 
 > 原文：<https://blog.logrocket.com/positioning-a-tooltip-in-react-using-tippy/>
 

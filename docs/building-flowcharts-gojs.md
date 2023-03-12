@@ -1,4 +1,4 @@
-# 用 GoJS - LogRocket 博客构建流程图
+# 用 GoJS 构建流程图
 
 > 原文：<https://blog.logrocket.com/building-flowcharts-gojs/>
 

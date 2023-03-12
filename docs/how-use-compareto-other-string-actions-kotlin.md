@@ -1,4 +1,4 @@
-# 如何在 Kotlin - LogRocket 博客中使用 compareTo()和其他字符串操作
+# 如何在 Kotlin 中使用 compareTo()和其他字符串操作
 
 > 原文：<https://blog.logrocket.com/how-use-compareto-other-string-actions-kotlin/>
 

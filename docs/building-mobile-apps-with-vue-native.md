@@ -1,4 +1,4 @@
-# 使用 Vue Native - LogRocket 博客构建移动应用
+# 使用 Vue Native 构建移动应用
 
 > 原文：<https://blog.logrocket.com/building-mobile-apps-with-vue-native/>
 

@@ -1,4 +1,4 @@
-# 用 SVG - LogRocket 博客创建更酷的加载动画
+# 用 SVG 创建更酷的加载动画
 
 > 原文：<https://blog.logrocket.com/cooler-loading-animations-svg/>
 

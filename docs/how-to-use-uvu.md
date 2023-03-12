@@ -1,4 +1,4 @@
-# 如何使用 uvu:一个快速轻量级的测试跑步者- LogRocket 博客
+# 如何使用 uvu:一个快速轻量级的测试跑步者
 
 > 原文：<https://blog.logrocket.com/how-to-use-uvu/>
 

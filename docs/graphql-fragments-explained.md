@@ -1,4 +1,4 @@
-# GraphQL 片段解释- LogRocket 博客
+# GraphQL 片段解释
 
 > 原文：<https://blog.logrocket.com/graphql-fragments-explained/>
 

@@ -1,4 +1,4 @@
-# 使用 gretchen - LogRocket 博客进行类型安全获取
+# 使用 gretchen 进行类型安全获取
 
 > 原文：<https://blog.logrocket.com/type-safe-fetching-with-gretchen/>
 

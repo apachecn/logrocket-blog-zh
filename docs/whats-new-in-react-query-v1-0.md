@@ -1,4 +1,4 @@
-# react-query 1.0 版的新特性- LogRocket 博客
+# react-query 1.0 版的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-react-query-v1-0/>
 

@@ -1,4 +1,4 @@
-# Firefox 70 - LogRocket 博客中的新内容
+# Firefox 70 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-firefox-70/>
 

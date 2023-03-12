@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中构建一个内嵌的可编辑 UI
+# 如何在 React 中构建一个内嵌的可编辑 UI
 
 > 原文：<https://blog.logrocket.com/build-inline-editable-ui-react/>
 

@@ -1,4 +1,4 @@
-# 关于 GraphQL enums - LogRocket 博客你需要知道什么
+# 关于 GraphQL enums 你需要知道什么
 
 > 原文：<https://blog.logrocket.com/what-you-need-to-know-about-graphql-enums/>
 

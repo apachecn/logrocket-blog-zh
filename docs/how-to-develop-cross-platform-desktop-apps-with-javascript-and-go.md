@@ -1,4 +1,4 @@
-# 如何用 JavaScript 和 Go - LogRocket 博客开发跨平台桌面应用
+# 如何用 JavaScript 和 Go 开发跨平台桌面应用
 
 > 原文：<https://blog.logrocket.com/how-to-develop-cross-platform-desktop-apps-with-javascript-and-go/>
 

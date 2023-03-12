@@ -1,4 +1,4 @@
-# 使用 SAP Spartacus 构建店面- LogRocket 博客
+# 使用 SAP Spartacus 构建店面
 
 > 原文：<https://blog.logrocket.com/building-storefronts-with-sap-spartacus/>
 

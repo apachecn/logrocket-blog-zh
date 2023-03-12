@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中实现微光效果
+# 如何在 Flutter 中实现微光效果
 
 > 原文：<https://blog.logrocket.com/implement-shimmer-effect-flutter/>
 

@@ -1,4 +1,4 @@
-# 使用 React Native 和 Firestore - LogRocket 博客模仿 WhatsApp 的故事
+# 使用 React Native 和 Firestore 模仿 WhatsApp 的故事
 
 > 原文：<https://blog.logrocket.com/whatsapp-stories-using-react-native-firestore/>
 

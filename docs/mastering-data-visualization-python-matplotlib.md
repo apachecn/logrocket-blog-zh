@@ -1,4 +1,4 @@
-# 使用 Matplotlib - LogRocket 博客掌握 Python 中的数据可视化
+# 使用 Matplotlib 掌握 Python 中的数据可视化
 
 > 原文：<https://blog.logrocket.com/mastering-data-visualization-python-matplotlib/>
 

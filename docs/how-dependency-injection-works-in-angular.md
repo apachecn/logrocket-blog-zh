@@ -1,4 +1,4 @@
-# 依赖注入在 Angular - LogRocket 博客中是如何工作的
+# 依赖注入在 Angular 中是如何工作的
 
 > 原文：<https://blog.logrocket.com/how-dependency-injection-works-in-angular/>
 

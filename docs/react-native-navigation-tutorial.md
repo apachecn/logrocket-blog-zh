@@ -1,4 +1,4 @@
-# React 本地导航:示例教程- LogRocket 博客
+# React 本地导航:示例教程
 
 > 原文：<https://blog.logrocket.com/react-native-navigation-tutorial/>
 

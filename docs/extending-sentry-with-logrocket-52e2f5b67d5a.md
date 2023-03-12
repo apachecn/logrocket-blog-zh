@@ -1,4 +1,4 @@
-# 用 LogRocket - LogRocket 博客扩展哨兵
+# 用 LogRocket 扩展哨兵
 
 > 原文：<https://blog.logrocket.com/extending-sentry-with-logrocket-52e2f5b67d5a/>
 

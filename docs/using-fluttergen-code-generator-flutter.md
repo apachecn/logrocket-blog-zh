@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中使用 FlutterGen 代码生成器
+# 在 Flutter 中使用 FlutterGen 代码生成器
 
 > 原文：<https://blog.logrocket.com/using-fluttergen-code-generator-flutter/>
 

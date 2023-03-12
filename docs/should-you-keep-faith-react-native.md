@@ -1,4 +1,4 @@
-# 你应该保持对当地人的信任吗？- LogRocket 博客
+# 你应该保持对当地人的信任吗？
 
 > 原文：<https://blog.logrocket.com/should-you-keep-faith-react-native/>
 

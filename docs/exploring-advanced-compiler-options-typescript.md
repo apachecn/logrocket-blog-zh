@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中探索高级编译器选项
+# 在 TypeScript 中探索高级编译器选项
 
 > 原文：<https://blog.logrocket.com/exploring-advanced-compiler-options-typescript/>
 

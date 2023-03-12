@@ -1,4 +1,4 @@
-# CSS 参考指南:背景- LogRocket 博客
+# CSS 参考指南:背景
 
 > 原文：<https://blog.logrocket.com/css-reference-guide-background/>
 

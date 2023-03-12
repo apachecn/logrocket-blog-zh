@@ -1,4 +1,4 @@
-# React 参考指南:上下文 API - LogRocket 博客
+# React 参考指南:上下文 API 
 
 > 原文：<https://blog.logrocket.com/react-reference-guide-context-api/>
 

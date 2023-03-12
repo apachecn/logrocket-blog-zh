@@ -1,4 +1,4 @@
-# 用 zx - LogRocket 博客编写基于 JS 的 Bash 脚本
+# 用 zx 编写基于 JS 的 Bash 脚本
 
 > 原文：<https://blog.logrocket.com/writing-js-based-bash-scripts-zx/>
 

@@ -1,4 +1,4 @@
-# GraphQL - LogRocket 博客中的 HTTP 缓存
+# GraphQL 中的 HTTP 缓存
 
 > 原文：<https://blog.logrocket.com/http-caching-graphql/>
 

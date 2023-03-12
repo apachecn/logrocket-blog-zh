@@ -1,4 +1,4 @@
-# 联邦 GraphQL - LogRocket 博客的内容、时间、原因和方式
+# 联邦 GraphQL 的内容、时间、原因和方式
 
 > 原文：<https://blog.logrocket.com/the-what-when-why-and-how-of-federated-graphql/>
 

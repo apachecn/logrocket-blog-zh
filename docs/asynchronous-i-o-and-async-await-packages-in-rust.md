@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的异步 I/O 和异步/等待包
+# Rust 中的异步 I/O 和异步/等待包
 
 > 原文：<https://blog.logrocket.com/asynchronous-i-o-and-async-await-packages-in-rust/>
 

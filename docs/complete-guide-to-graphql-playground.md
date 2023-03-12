@@ -1,4 +1,4 @@
-# GraphQL Playground - LogRocket 博客完全指南
+# GraphQL Playground 完全指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-to-graphql-playground/>
 

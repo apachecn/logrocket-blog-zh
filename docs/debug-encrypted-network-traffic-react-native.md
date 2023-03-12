@@ -1,4 +1,4 @@
-# 如何调试 React Native - LogRocket 博客中的加密网络流量
+# 如何调试 React Native 中的加密网络流量
 
 > 原文：<https://blog.logrocket.com/debug-encrypted-network-traffic-react-native/>
 

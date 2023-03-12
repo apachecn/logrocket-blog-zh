@@ -1,4 +1,4 @@
-# 如何在 Node.js - LogRocket 博客中实现健康检查
+# 如何在 Node.js 中实现健康检查
 
 > 原文：<https://blog.logrocket.com/how-to-implement-a-health-check-in-node-js/>
 

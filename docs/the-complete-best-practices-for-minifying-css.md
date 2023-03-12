@@ -1,4 +1,4 @@
-# 缩小 CSS - LogRocket 博客的最佳实践
+# 缩小 CSS 的最佳实践
 
 > 原文：<https://blog.logrocket.com/the-complete-best-practices-for-minifying-css/>
 

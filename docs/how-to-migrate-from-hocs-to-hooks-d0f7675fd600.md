@@ -1,4 +1,4 @@
-# 如何从 HOCs 迁移到 Hooks - LogRocket 博客
+# 如何从 HOCs 迁移到 Hooks 
 
 > 原文：<https://blog.logrocket.com/how-to-migrate-from-hocs-to-hooks-d0f7675fd600/>
 

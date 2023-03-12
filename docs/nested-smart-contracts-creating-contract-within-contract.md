@@ -1,4 +1,4 @@
-# 嵌套智能合同指南- LogRocket 博客
+# 嵌套智能合同指南
 
 > 原文：<https://blog.logrocket.com/nested-smart-contracts-creating-contract-within-contract/>
 

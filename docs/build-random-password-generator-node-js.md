@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中构建一个随机密码生成器
+# 在 Node.js 中构建一个随机密码生成器
 
 > 原文：<https://blog.logrocket.com/build-random-password-generator-node-js/>
 

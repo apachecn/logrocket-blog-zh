@@ -1,4 +1,4 @@
-# SQL 没有死，也不是恐龙。你应该把它用在你的网络应用上。- LogRocket 博客
+# SQL 没有死，也不是恐龙。你应该把它用在你的网络应用上。
 
 > 原文：<https://blog.logrocket.com/sql-isnt-a-dinosaur-and-it-s-not-dead-you-should-use-it-4e18c4fc5fb2/>
 

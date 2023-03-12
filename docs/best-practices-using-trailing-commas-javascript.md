@@ -1,4 +1,4 @@
-# 在 JavaScript - LogRocket 博客中使用尾部逗号的最佳实践
+# 在 JavaScript 中使用尾部逗号的最佳实践
 
 > 原文：<https://blog.logrocket.com/best-practices-using-trailing-commas-javascript/>
 

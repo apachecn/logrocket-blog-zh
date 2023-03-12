@@ -1,4 +1,4 @@
-# 将引导组件用于定制 JavaScript - LogRocket 博客
+# 将引导组件用于定制 JavaScript 
 
 > 原文：<https://blog.logrocket.com/using-bootstrap-components-with-custom-javascript/>
 

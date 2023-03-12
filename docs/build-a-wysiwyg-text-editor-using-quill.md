@@ -1,4 +1,4 @@
-# 使用 Quill - LogRocket 博客创建一个所见即所得的文本编辑器
+# 使用 Quill 创建一个所见即所得的文本编辑器
 
 > 原文：<https://blog.logrocket.com/build-a-wysiwyg-text-editor-using-quill/>
 

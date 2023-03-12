@@ -1,4 +1,4 @@
-# MDX v2 中的新功能- LogRocket 博客
+# MDX v2 中的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-mdx-v2/>
 

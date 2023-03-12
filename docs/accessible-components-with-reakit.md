@@ -1,4 +1,4 @@
-# 使用 Reakit - LogRocket 博客访问组件
+# 使用 Reakit 访问组件
 
 > 原文：<https://blog.logrocket.com/accessible-components-with-reakit/>
 

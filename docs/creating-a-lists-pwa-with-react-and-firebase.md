@@ -1,4 +1,4 @@
-# 用 React 和 Firebase - LogRocket 博客创建一个“列表”PWA
+# 用 React 和 Firebase 创建一个“列表”PWA
 
 > 原文：<https://blog.logrocket.com/creating-a-lists-pwa-with-react-and-firebase/>
 

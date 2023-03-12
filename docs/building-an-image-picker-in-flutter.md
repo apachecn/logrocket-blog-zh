@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建图像拾取器
+# 在 Flutter 中构建图像拾取器
 
 > 原文：<https://blog.logrocket.com/building-an-image-picker-in-flutter/>
 

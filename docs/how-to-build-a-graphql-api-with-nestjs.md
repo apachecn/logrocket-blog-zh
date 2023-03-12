@@ -1,4 +1,4 @@
-# 如何用 NestJS - LogRocket 博客构建一个 GraphQL API
+# 如何用 NestJS 构建一个 GraphQL API
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-graphql-api-with-nestjs/>
 

@@ -1,4 +1,4 @@
-# Neo4j 入门- LogRocket 博客
+# Neo4j 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-neo4j/>
 

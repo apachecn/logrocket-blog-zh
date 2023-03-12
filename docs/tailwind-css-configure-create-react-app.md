@@ -1,4 +1,4 @@
-# 如何在 React 中使用 Tailwind CSS 配置创建 React App - LogRocket 博客
+# 如何在 React 中使用 Tailwind CSS 配置创建 React App 
 
 > 原文：<https://blog.logrocket.com/tailwind-css-configure-create-react-app/>
 

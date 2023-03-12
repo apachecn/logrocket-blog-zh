@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的并行性、并发性和异步编程
+# Node.js 中的并行性、并发性和异步编程
 
 > 原文：<https://blog.logrocket.com/parallelism-concurrency-and-async-programming-in-node-js/>
 

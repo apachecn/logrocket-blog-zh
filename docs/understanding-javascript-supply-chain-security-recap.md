@@ -1,4 +1,4 @@
-# 了解 JavaScript 供应链安全概述- LogRocket 博客
+# 了解 JavaScript 供应链安全概述
 
 > 原文：<https://blog.logrocket.com/meetups/understanding-javascript-supply-chain-security-recap/>
 

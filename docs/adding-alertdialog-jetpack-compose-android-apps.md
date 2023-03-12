@@ -1,4 +1,4 @@
-# 将带有 Jetpack Compose 的 AlertDialog 添加到 Android apps - LogRocket 博客
+# 将带有 Jetpack Compose 的 AlertDialog 添加到 Android apps 
 
 > 原文：<https://blog.logrocket.com/adding-alertdialog-jetpack-compose-android-apps/>
 

@@ -1,4 +1,4 @@
-# Django v4.0 中的新内容- LogRocket 博客
+# Django v4.0 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-django-v4/>
 

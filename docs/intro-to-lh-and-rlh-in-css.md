@@ -1,4 +1,4 @@
-# CSS - LogRocket 博客中的 lh 和 rlh 介绍
+# CSS 中的 lh 和 rlh 介绍
 
 > 原文：<https://blog.logrocket.com/intro-to-lh-and-rlh-in-css/>
 

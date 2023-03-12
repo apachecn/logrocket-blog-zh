@@ -1,4 +1,4 @@
-# 使用 Strapi 和 Nuxt - LogRocket 博客交付内容
+# 使用 Strapi 和 Nuxt 交付内容
 
 > 原文：<https://blog.logrocket.com/delivering-content-with-strapi-and-nuxt/>
 

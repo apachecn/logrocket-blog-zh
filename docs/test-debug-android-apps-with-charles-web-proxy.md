@@ -1,4 +1,4 @@
-# 使用 Charles Web Proxy - LogRocket 博客像专家一样测试和调试 Android 应用程序
+# 使用 Charles Web Proxy 像专家一样测试和调试 Android 应用程序
 
 > 原文：<https://blog.logrocket.com/test-debug-android-apps-with-charles-web-proxy/>
 

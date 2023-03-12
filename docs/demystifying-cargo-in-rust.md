@@ -1,4 +1,4 @@
-# 揭开 Rust - LogRocket 博客中货物的神秘面纱
+# 揭开 Rust 中货物的神秘面纱
 
 > 原文：<https://blog.logrocket.com/demystifying-cargo-in-rust/>
 

@@ -1,4 +1,4 @@
-# CSS 参考指南:calc() - LogRocket 博客
+# CSS 参考指南:calc() 
 
 > 原文：<https://blog.logrocket.com/css-reference-guide-calc/>
 

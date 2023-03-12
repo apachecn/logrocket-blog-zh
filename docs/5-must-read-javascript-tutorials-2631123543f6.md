@@ -1,4 +1,4 @@
-# 5 个必读的 JavaScript 教程- LogRocket 博客
+# 5 个必读的 JavaScript 教程
 
 > 原文：<https://blog.logrocket.com/5-must-read-javascript-tutorials-2631123543f6/>
 

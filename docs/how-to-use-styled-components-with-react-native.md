@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中使用样式化组件
+# 如何在 React Native 中使用样式化组件
 
 > 原文：<https://blog.logrocket.com/how-to-use-styled-components-with-react-native/>
 

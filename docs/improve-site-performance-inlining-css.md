@@ -1,4 +1,4 @@
-# 通过内嵌你的 CSS - LogRocket 博客来提高网站性能
+# 通过内嵌你的 CSS 来提高网站性能
 
 > 原文：<https://blog.logrocket.com/improve-site-performance-inlining-css/>
 

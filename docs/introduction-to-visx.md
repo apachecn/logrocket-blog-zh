@@ -1,4 +1,4 @@
-# Visx - LogRocket 博客简介
+# Visx 简介
 
 > 原文：<https://blog.logrocket.com/introduction-to-visx/>
 

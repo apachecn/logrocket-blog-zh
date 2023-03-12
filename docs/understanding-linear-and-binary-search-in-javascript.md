@@ -1,4 +1,4 @@
-# 在 JavaScript - LogRocket 博客中理解线性和二分搜索法
+# 在 JavaScript 中理解线性和二分搜索法
 
 > 原文：<https://blog.logrocket.com/understanding-linear-and-binary-search-in-javascript/>
 

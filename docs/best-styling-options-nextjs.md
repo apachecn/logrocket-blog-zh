@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客的最佳样式选项
+# Next.js 的最佳样式选项
 
 > 原文：<https://blog.logrocket.com/best-styling-options-nextjs/>
 

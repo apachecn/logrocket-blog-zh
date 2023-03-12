@@ -1,4 +1,4 @@
-# 什么是缓存？- LogRocket 博客
+# 什么是缓存？
 
 > 原文：<https://blog.logrocket.com/what-is-a-cache/>
 

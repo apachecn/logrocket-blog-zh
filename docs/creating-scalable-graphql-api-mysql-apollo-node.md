@@ -1,4 +1,4 @@
-# 用 MySQL、Node.js 和 Apollo - LogRocket 博客创建可伸缩的 GraphQL API
+# 用 MySQL、Node.js 和 Apollo 创建可伸缩的 GraphQL API
 
 > 原文：<https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/>
 

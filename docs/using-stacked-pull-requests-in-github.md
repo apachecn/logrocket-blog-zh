@@ -1,4 +1,4 @@
-# 在 GitHub - LogRocket 博客中使用堆叠拉取请求
+# 在 GitHub 中使用堆叠拉取请求
 
 > 原文：<https://blog.logrocket.com/using-stacked-pull-requests-in-github/>
 

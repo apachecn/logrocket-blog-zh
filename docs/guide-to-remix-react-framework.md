@@ -1,4 +1,4 @@
-# Remix:关于 Next.js - LogRocket 博客的 React 框架指南
+# Remix:关于 Next.js 的 React 框架指南
 
 > 原文：<https://blog.logrocket.com/guide-to-remix-react-framework/>
 

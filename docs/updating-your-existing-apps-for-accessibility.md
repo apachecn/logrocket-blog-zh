@@ -1,4 +1,4 @@
-# 更新您现有的应用程序的可访问性- LogRocket 博客
+# 更新您现有的应用程序的可访问性
 
 > 原文：<https://blog.logrocket.com/updating-your-existing-apps-for-accessibility/>
 

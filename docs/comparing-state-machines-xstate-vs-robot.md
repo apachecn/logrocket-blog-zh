@@ -1,4 +1,4 @@
-# 比较状态机:XState 与 Robot - LogRocket 博客
+# 比较状态机:XState 与 Robot 
 
 > 原文：<https://blog.logrocket.com/comparing-state-machines-xstate-vs-robot/>
 

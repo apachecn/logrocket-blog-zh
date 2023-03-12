@@ -1,4 +1,4 @@
-# 使用 Mockall - LogRocket 博客在 Rust 中嘲讽的指南
+# 使用 Mockall 在 Rust 中嘲讽的指南
 
 > 原文：<https://blog.logrocket.com/guide-mocking-rust-mockall/>
 

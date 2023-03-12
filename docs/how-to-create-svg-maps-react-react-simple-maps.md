@@ -1,4 +1,4 @@
-# 如何在 react-simple-maps - LogRocket 博客中创建 SVG 地图
+# 如何在 react-simple-maps 中创建 SVG 地图
 
 > 原文：<https://blog.logrocket.com/how-to-create-svg-maps-react-react-simple-maps/>
 

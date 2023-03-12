@@ -1,4 +1,4 @@
-# React 中的不变性:应该改变对象吗？- LogRocket 博客
+# React 中的不变性:应该改变对象吗？
 
 > 原文：<https://blog.logrocket.com/immutability-react-should-you-mutate-objects/>
 

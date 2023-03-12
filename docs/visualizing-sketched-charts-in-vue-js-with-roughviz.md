@@ -1,4 +1,4 @@
-# 使用 roughViz - LogRocket 博客在 Vue.js 中可视化草图
+# 使用 roughViz 在 Vue.js 中可视化草图
 
 > 原文：<https://blog.logrocket.com/visualizing-sketched-charts-in-vue-js-with-roughviz/>
 

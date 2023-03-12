@@ -1,4 +1,4 @@
-# 使用 LoopBack - LogRocket 博客创建动态应用程序
+# 使用 LoopBack 创建动态应用程序
 
 > 原文：<https://blog.logrocket.com/creating-a-dynamic-application-with-loopback/>
 

@@ -1,4 +1,4 @@
-# React 与 web 组件- LogRocket 博客
+# React 与 web 组件
 
 > 原文：<https://blog.logrocket.com/react-vs-web-components/>
 

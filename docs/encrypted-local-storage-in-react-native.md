@@ -1,4 +1,4 @@
-# React Native 和 Expo SecureStore:加密本地数据- LogRocket 博客
+# React Native 和 Expo SecureStore:加密本地数据
 
 > 原文：<https://blog.logrocket.com/encrypted-local-storage-in-react-native/>
 

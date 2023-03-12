@@ -1,4 +1,4 @@
-# 理解 JavaScript - LogRocket 博客中的延迟加载
+# 理解 JavaScript 中的延迟加载
 
 > 原文：<https://blog.logrocket.com/understanding-lazy-loading-in-javascript/>
 

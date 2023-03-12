@@ -1,4 +1,4 @@
-# 使用 forever - LogRocket 博客持续运行 Node.js 脚本
+# 使用 forever 持续运行 Node.js 脚本
 
 > 原文：<https://blog.logrocket.com/running-node-js-scripts-continuously-forever/>
 

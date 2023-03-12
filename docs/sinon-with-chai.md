@@ -1,4 +1,4 @@
-# 如何在 Chai - LogRocket 博客上最好地使用 Sinon
+# 如何在 Chai 上最好地使用 Sinon
 
 > 原文：<https://blog.logrocket.com/sinon-with-chai/>
 

@@ -1,4 +1,4 @@
-# Swift 扩展:示例概述- LogRocket 博客
+# Swift 扩展:示例概述
 
 > 原文：<https://blog.logrocket.com/swift-extensions-an-overview-with-examples/>
 

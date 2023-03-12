@@ -1,4 +1,4 @@
-# 使用 Lunchbox.js - LogRocket 博客在 Vue 中构建 3D 视觉效果
+# 使用 Lunchbox.js 在 Vue 中构建 3D 视觉效果
 
 > 原文：<https://blog.logrocket.com/build-3d-visuals-vue-lunchbox-js/>
 

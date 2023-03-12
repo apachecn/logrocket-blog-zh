@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中创建玻璃形态效果
+# 如何在 React 中创建玻璃形态效果
 
 > 原文：<https://blog.logrocket.com/how-to-create-glassmorphism-effect-react/>
 

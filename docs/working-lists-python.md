@@ -1,4 +1,4 @@
-# 在 Python - LogRocket 博客中使用列表
+# 在 Python 中使用列表
 
 > 原文：<https://blog.logrocket.com/working-lists-python/>
 

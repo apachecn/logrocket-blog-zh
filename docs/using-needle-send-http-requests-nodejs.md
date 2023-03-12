@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 Needle 发送 HTTP 请求
+# 在 Node.js 中使用 Needle 发送 HTTP 请求
 
 > 原文：<https://blog.logrocket.com/using-needle-send-http-requests-nodejs/>
 

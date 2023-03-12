@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中使用自定义字体
+# 如何在 Flutter 中使用自定义字体
 
 > 原文：<https://blog.logrocket.com/use-custom-fonts-flutter/>
 

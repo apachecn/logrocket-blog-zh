@@ -1,4 +1,4 @@
-# 探索区块链视频流平台- LogRocket 博客
+# 探索区块链视频流平台
 
 > 原文：<https://blog.logrocket.com/exploring-blockchain-video-streaming-platforms/>
 

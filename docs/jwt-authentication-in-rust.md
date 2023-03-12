@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的 JWT 认证
+# Rust 中的 JWT 认证
 
 > 原文：<https://blog.logrocket.com/jwt-authentication-in-rust/>
 

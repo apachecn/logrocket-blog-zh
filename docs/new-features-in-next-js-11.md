@@ -1,4 +1,4 @@
-# Next.js 11 - LogRocket 博客中的新特性
+# Next.js 11 中的新特性
 
 > 原文：<https://blog.logrocket.com/new-features-in-next-js-11/>
 

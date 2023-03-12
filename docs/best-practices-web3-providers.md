@@ -1,4 +1,4 @@
-# Web3 提供商的最佳实践- LogRocket 博客
+# Web3 提供商的最佳实践
 
 > 原文：<https://blog.logrocket.com/best-practices-web3-providers/>
 

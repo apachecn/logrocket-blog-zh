@@ -1,4 +1,4 @@
-# GraphQL Codegen 摘要- LogRocket 博客
+# GraphQL Codegen 摘要
 
 > 原文：<https://blog.logrocket.com/meetups/graphql-codgen-meetup-recap/>
 

@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的延迟加载组件和代码拆分
+# Vue.js 中的延迟加载组件和代码拆分
 
 > 原文：<https://blog.logrocket.com/vue-lazy-loading-components-code-splitting/>
 

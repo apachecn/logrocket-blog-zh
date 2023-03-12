@@ -1,4 +1,4 @@
-# 安静的革命:JSON 如何取代 XML - LogRocket 博客
+# 安静的革命:JSON 如何取代 XML 
 
 > 原文：<https://blog.logrocket.com/the-quiet-revolution-how-json-displaced-xml-1e1f3e8552f7/>
 

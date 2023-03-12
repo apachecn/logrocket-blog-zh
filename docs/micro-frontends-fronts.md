@@ -1,4 +1,4 @@
-# 用 Fronts 构建渐进式微前端- LogRocket 博客
+# 用 Fronts 构建渐进式微前端
 
 > 原文：<https://blog.logrocket.com/micro-frontends-fronts/>
 

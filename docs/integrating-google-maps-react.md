@@ -1,4 +1,4 @@
-# 整合谷歌地图和 React - LogRocket 博客
+# 整合谷歌地图和 React 
 
 > 原文：<https://blog.logrocket.com/integrating-google-maps-react/>
 

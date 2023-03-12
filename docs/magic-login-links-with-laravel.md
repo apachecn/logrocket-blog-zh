@@ -1,4 +1,4 @@
-# 与 Laravel - LogRocket 博客的神奇登录链接
+# 与 Laravel 的神奇登录链接
 
 > 原文：<https://blog.logrocket.com/magic-login-links-with-laravel/>
 

@@ -1,4 +1,4 @@
-# React DevTools - LogRocket 博客中的特性和更新指南
+# React DevTools 中的特性和更新指南
 
 > 原文：<https://blog.logrocket.com/guide-features-updates-react-devtools/>
 

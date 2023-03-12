@@ -1,4 +1,4 @@
-# 利用 Stripe - LogRocket 博客实现 React 原生应用的货币化
+# 利用 Stripe 实现 React 原生应用的货币化
 
 > 原文：<https://blog.logrocket.com/monetizing-react-native-app-stripe/>
 

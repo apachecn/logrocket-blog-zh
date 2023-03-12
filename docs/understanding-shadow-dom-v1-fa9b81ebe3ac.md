@@ -1,4 +1,4 @@
-# 了解 Shadow DOM v1 - LogRocket 博客
+# 了解 Shadow DOM v1 
 
 > 原文：<https://blog.logrocket.com/understanding-shadow-dom-v1-fa9b81ebe3ac/>
 

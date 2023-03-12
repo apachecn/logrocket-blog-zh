@@ -1,4 +1,4 @@
-# Snowpack v3 中的新内容- LogRocket 博客
+# Snowpack v3 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-snowpack-v3/>
 

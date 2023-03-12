@@ -1,4 +1,4 @@
-# React Native app - LogRocket 博客的最佳日期选择
+# React Native app 的最佳日期选择
 
 > 原文：<https://blog.logrocket.com/best-date-pickers-react-native-app/>
 

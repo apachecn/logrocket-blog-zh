@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中添加自定义字体
+# 如何在 React Native 中添加自定义字体
 
 > 原文：<https://blog.logrocket.com/adding-custom-fonts-react-native/>
 

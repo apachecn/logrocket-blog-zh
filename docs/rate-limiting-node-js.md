@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中理解和实现速率限制
+# 在 Node.js 中理解和实现速率限制
 
 > 原文：<https://blog.logrocket.com/rate-limiting-node-js/>
 

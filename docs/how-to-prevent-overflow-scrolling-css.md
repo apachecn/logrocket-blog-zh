@@ -1,4 +1,4 @@
-# 如何防止 CSS - LogRocket 博客溢出滚动
+# 如何防止 CSS 溢出滚动
 
 > 原文：<https://blog.logrocket.com/how-to-prevent-overflow-scrolling-css/>
 

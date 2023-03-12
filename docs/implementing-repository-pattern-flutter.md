@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现存储库模式
+# 在 Flutter 中实现存储库模式
 
 > 原文：<https://blog.logrocket.com/implementing-repository-pattern-flutter/>
 

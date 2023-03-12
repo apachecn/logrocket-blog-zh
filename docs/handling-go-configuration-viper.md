@@ -1,4 +1,4 @@
-# 用 Viper - LogRocket 博客处理 Go 配置
+# 用 Viper 处理 Go 配置
 
 > 原文：<https://blog.logrocket.com/handling-go-configuration-viper/>
 

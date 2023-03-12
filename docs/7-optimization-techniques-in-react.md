@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的 7 个优化技巧
+# React 中的 7 个优化技巧
 
 > 原文：<https://blog.logrocket.com/7-optimization-techniques-in-react/>
 

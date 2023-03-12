@@ -1,4 +1,4 @@
-# WebSockets 教程:如何实时使用 Node 和 React - LogRocket 博客
+# WebSockets 教程:如何实时使用 Node 和 React 
 
 > 原文：<https://blog.logrocket.com/websocket-tutorial-real-time-node-react/>
 

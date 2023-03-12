@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中构建 Google Analytics dashboard 克隆
+# 在 Node.js 中构建 Google Analytics dashboard 克隆
 
 > 原文：<https://blog.logrocket.com/build-google-analytics-dashboard-clone-node/>
 

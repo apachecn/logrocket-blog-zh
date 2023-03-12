@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客的编码和解码包
+# Rust 的编码和解码包
 
 > 原文：<https://blog.logrocket.com/encoding-and-decoding-packages-for-rust/>
 

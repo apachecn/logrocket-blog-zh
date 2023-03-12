@@ -1,4 +1,4 @@
-# 2019 年十大 React UI 套件概述- LogRocket 博客
+# 2019 年十大 React UI 套件概述
 
 > 原文：<https://blog.logrocket.com/top-10-react-ui-kits-in-2019/>
 

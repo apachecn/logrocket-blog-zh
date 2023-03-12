@@ -1,4 +1,4 @@
-# 向 React app - LogRocket 博客添加微调器和通知
+# 向 React app 添加微调器和通知
 
 > 原文：<https://blog.logrocket.com/spinners-notifications-react-app/>
 

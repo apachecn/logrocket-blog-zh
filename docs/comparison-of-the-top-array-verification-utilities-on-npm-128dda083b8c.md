@@ -1,4 +1,4 @@
-# npm - LogRocket 博客上的顶级阵列验证实用程序比较
+# npm 上的顶级阵列验证实用程序比较
 
 > 原文：<https://blog.logrocket.com/comparison-of-the-top-array-verification-utilities-on-npm-128dda083b8c/>
 

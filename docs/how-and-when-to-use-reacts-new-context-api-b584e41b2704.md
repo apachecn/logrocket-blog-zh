@@ -1,4 +1,4 @@
-# 如何(以及何时)使用 React 的新上下文 API - LogRocket 博客
+# 如何(以及何时)使用 React 的新上下文 API 
 
 > 原文：<https://blog.logrocket.com/how-and-when-to-use-reacts-new-context-api-b584e41b2704/>
 

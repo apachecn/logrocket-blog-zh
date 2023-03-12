@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现本地通知
+# 在 Flutter 中实现本地通知
 
 > 原文：<https://blog.logrocket.com/implementing-local-notifications-in-flutter/>
 

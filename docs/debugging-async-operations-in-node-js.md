@@ -1,4 +1,4 @@
-# 调试 Node.js - LogRocket 博客中的异步操作
+# 调试 Node.js 中的异步操作
 
 > 原文：<https://blog.logrocket.com/debugging-async-operations-in-node-js/>
 

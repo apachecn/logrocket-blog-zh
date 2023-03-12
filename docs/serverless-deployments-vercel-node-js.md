@@ -1,4 +1,4 @@
-# 使用 Node.js - LogRocket 博客通过 Vercel 进行无服务器部署
+# 使用 Node.js 通过 Vercel 进行无服务器部署
 
 > 原文：<https://blog.logrocket.com/serverless-deployments-vercel-node-js/>
 

@@ -1,4 +1,4 @@
-# 哪些 UI 库支持黑暗模式？- LogRocket 博客
+# 哪些 UI 库支持黑暗模式？
 
 > 原文：<https://blog.logrocket.com/which-ui-libraries-support-dark-mode/>
 

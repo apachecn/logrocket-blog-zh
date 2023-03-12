@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现覆盖
+# 在 Flutter 中实现覆盖
 
 > 原文：<https://blog.logrocket.com/complete-guide-implementing-overlays-flutter/>
 

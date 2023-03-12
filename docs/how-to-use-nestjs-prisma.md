@@ -1,4 +1,4 @@
-# 如何在 Prisma - LogRocket 博客中使用 NestJS
+# 如何在 Prisma 中使用 NestJS
 
 > 原文：<https://blog.logrocket.com/how-to-use-nestjs-prisma/>
 

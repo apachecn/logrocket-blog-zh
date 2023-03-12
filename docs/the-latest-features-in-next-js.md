@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客中的最新特性
+# Next.js 中的最新特性
 
 > 原文：<https://blog.logrocket.com/the-latest-features-in-next-js/>
 

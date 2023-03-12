@@ -1,4 +1,4 @@
-# 什么是冲刺回顾？模板和最佳实践- LogRocket 博客
+# 什么是冲刺回顾？模板和最佳实践
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-a-sprint-retrospective-templates-and-best-practices/>
 

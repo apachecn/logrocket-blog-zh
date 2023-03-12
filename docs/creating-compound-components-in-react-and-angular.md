@@ -1,4 +1,4 @@
-# 在 React 和 Angular - LogRocket 博客中创建复合组件
+# 在 React 和 Angular 中创建复合组件
 
 > 原文：<https://blog.logrocket.com/creating-compound-components-in-react-and-angular/>
 

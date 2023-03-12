@@ -1,4 +1,4 @@
-# 使用 Next.js 和 Netlify - LogRocket 博客进行表单验证
+# 使用 Next.js 和 Netlify 进行表单验证
 
 > 原文：<https://blog.logrocket.com/form-validation-next-js-netlify/>
 

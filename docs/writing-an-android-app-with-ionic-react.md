@@ -1,4 +1,4 @@
-# 用 Ionic React - LogRocket 博客编写 Android 应用程序
+# 用 Ionic React 编写 Android 应用程序
 
 > 原文：<https://blog.logrocket.com/writing-an-android-app-with-ionic-react/>
 

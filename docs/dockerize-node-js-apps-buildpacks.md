@@ -1,4 +1,4 @@
-# Dockerize Node.js 应用程序与 Buildpacks - LogRocket 博客
+# Dockerize Node.js 应用程序与 Buildpacks 
 
 > 原文：<https://blog.logrocket.com/dockerize-node-js-apps-buildpacks/>
 

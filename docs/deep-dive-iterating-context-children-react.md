@@ -1,4 +1,4 @@
-# React - LogRocket 博客中对迭代、上下文和子元素的深入探究
+# React 中对迭代、上下文和子元素的深入探究
 
 > 原文：<https://blog.logrocket.com/deep-dive-iterating-context-children-react/>
 

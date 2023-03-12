@@ -1,4 +1,4 @@
-# 是什么让理性如此伟大？- LogRocket 博客
+# 是什么让理性如此伟大？
 
 > 原文：<https://blog.logrocket.com/what-makes-reasonml-so-great-c2c2fc215ccb/>
 

@@ -1,4 +1,4 @@
-# 了解 SwiftUI 网格布局- LogRocket 博客
+# 了解 SwiftUI 网格布局
 
 > 原文：<https://blog.logrocket.com/understanding-the-swiftui-grid-layout/>
 

@@ -1,4 +1,4 @@
-# 在 Flutter app - LogRocket 博客中添加语音到文本和文本到语音的支持
+# 在 Flutter app 中添加语音到文本和文本到语音的支持
 
 > 原文：<https://blog.logrocket.com/adding-speech-to-text-text-to-speech-support-flutter-app/>
 

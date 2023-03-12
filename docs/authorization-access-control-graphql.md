@@ -1,4 +1,4 @@
-# 在 GraphQL - LogRocket 博客中通过访问控制进行授权
+# 在 GraphQL 中通过访问控制进行授权
 
 > 原文：<https://blog.logrocket.com/authorization-access-control-graphql/>
 

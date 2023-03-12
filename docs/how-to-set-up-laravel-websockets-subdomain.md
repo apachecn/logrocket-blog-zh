@@ -1,4 +1,4 @@
-# 如何在子域名- LogRocket 博客上设置 Laravel WebSockets
+# 如何在子域名上设置 Laravel WebSockets
 
 > 原文：<https://blog.logrocket.com/how-to-set-up-laravel-websockets-subdomain/>
 

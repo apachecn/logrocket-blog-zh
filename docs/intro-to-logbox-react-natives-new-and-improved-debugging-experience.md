@@ -1,4 +1,4 @@
-# 介绍 LogBox，React Native 的新的和改进的调试体验- LogRocket 博客
+# 介绍 LogBox，React Native 的新的和改进的调试体验
 
 > 原文：<https://blog.logrocket.com/intro-to-logbox-react-natives-new-and-improved-debugging-experience/>
 

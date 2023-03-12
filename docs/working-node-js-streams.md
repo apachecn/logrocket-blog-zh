@@ -1,4 +1,4 @@
-# 使用 Node.js streams - LogRocket 博客
+# 使用 Node.js streams 
 
 > 原文：<https://blog.logrocket.com/working-node-js-streams/>
 

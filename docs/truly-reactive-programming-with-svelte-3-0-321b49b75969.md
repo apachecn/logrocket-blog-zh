@@ -1,4 +1,4 @@
-# 用苗条的 3.0 - LogRocket 博客进行真正的反应式编程
+# 用苗条的 3.0 进行真正的反应式编程
 
 > 原文：<https://blog.logrocket.com/truly-reactive-programming-with-svelte-3-0-321b49b75969/>
 

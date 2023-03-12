@@ -1,4 +1,4 @@
-# Relay v11 - LogRocket 博客中的新内容
+# Relay v11 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-relay-v11/>
 

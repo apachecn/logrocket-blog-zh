@@ -1,4 +1,4 @@
-# 用 Mocha 和 Chai - LogRocket 博客测试 Node.js
+# 用 Mocha 和 Chai 测试 Node.js
 
 > 原文：<https://blog.logrocket.com/testing-node-js-mocha-chai/>
 

@@ -1,4 +1,4 @@
-# js 加密模块:教程- LogRocket 博客
+# js 加密模块:教程
 
 > 原文：<https://blog.logrocket.com/node-js-crypto-module-a-tutorial/>
 

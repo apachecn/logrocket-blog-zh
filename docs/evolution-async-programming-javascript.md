@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中异步编程的演变
+# JavaScript 中异步编程的演变
 
 > 原文：<https://blog.logrocket.com/evolution-async-programming-javascript/>
 

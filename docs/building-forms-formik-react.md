@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中用 Formik 构建表单
+# 在 React 中用 Formik 构建表单
 
 > 原文：<https://blog.logrocket.com/building-forms-formik-react/>
 

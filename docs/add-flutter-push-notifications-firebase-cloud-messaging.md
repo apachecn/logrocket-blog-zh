@@ -1,4 +1,4 @@
-# 使用 Firebase 云消息添加 Flutter 推送通知- LogRocket 博客
+# 使用 Firebase 云消息添加 Flutter 推送通知
 
 > 原文：<https://blog.logrocket.com/add-flutter-push-notifications-firebase-cloud-messaging/>
 

@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客为您的 CLIs 添加交互性
+# 使用 React 为您的 CLIs 添加交互性
 
 > 原文：<https://blog.logrocket.com/add-interactivity-to-your-clis-with-react/>
 

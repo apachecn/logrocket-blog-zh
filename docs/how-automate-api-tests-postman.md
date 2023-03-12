@@ -1,4 +1,4 @@
-# 如何用 Postman - LogRocket 博客自动化 API 测试
+# 如何用 Postman 自动化 API 测试
 
 > 原文：<https://blog.logrocket.com/how-automate-api-tests-postman/>
 

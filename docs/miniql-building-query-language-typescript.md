@@ -1,4 +1,4 @@
-# MiniQL:在 TypeScript - LogRocket 博客中构建查询语言
+# MiniQL:在 TypeScript 中构建查询语言
 
 > 原文：<https://blog.logrocket.com/miniql-building-query-language-typescript/>
 

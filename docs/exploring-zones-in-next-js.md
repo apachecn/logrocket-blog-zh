@@ -1,4 +1,4 @@
-# 在 Next.js - LogRocket 博客中探索区域
+# 在 Next.js 中探索区域
 
 > 原文：<https://blog.logrocket.com/exploring-zones-in-next-js/>
 

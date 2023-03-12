@@ -1,4 +1,4 @@
-# 使用 Share Plus - LogRocket 博客在 Flutter 应用程序中共享内容
+# 使用 Share Plus 在 Flutter 应用程序中共享内容
 
 > 原文：<https://blog.logrocket.com/sharing-content-flutter-apps-share-plus/>
 

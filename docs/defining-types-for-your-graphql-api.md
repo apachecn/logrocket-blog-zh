@@ -1,4 +1,4 @@
-# 为您的 GraphQL API - LogRocket 博客定义类型
+# 为您的 GraphQL API 定义类型
 
 > 原文：<https://blog.logrocket.com/defining-types-for-your-graphql-api/>
 

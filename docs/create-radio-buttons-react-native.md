@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中创建和定制单选按钮
+# 在 React Native 中创建和定制单选按钮
 
 > 原文：<https://blog.logrocket.com/create-radio-buttons-react-native/>
 

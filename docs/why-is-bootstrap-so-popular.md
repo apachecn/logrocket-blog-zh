@@ -1,4 +1,4 @@
-# Bootstrap 为什么这么受欢迎？- LogRocket 博客
+# Bootstrap 为什么这么受欢迎？
 
 > 原文：<https://blog.logrocket.com/why-is-bootstrap-so-popular/>
 

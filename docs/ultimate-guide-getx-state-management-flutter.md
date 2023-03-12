@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中的 GetX 状态管理终极指南
+# Flutter 中的 GetX 状态管理终极指南
 
 > 原文：<https://blog.logrocket.com/ultimate-guide-getx-state-management-flutter/>
 

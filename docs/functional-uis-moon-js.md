@@ -1,4 +1,4 @@
-# Moon.js - LogRocket 博客的功能用户界面
+# Moon.js 的功能用户界面
 
 > 原文：<https://blog.logrocket.com/functional-uis-moon-js/>
 

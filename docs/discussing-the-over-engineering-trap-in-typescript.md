@@ -1,4 +1,4 @@
-# 讨论 TypeScript - LogRocket 博客中的过度工程化陷阱
+# 讨论 TypeScript 中的过度工程化陷阱
 
 > 原文：<https://blog.logrocket.com/discussing-the-over-engineering-trap-in-typescript/>
 

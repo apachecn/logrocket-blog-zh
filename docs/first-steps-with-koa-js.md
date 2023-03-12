@@ -1,4 +1,4 @@
-# Koa.js - LogRocket 博客的第一步
+# Koa.js 的第一步
 
 > 原文：<https://blog.logrocket.com/first-steps-with-koa-js/>
 

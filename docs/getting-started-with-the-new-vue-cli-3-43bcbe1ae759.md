@@ -1,4 +1,4 @@
-# 开始使用新的 Vue CLI 3 - LogRocket 博客
+# 开始使用新的 Vue CLI 3 
 
 > 原文：<https://blog.logrocket.com/getting-started-with-the-new-vue-cli-3-43bcbe1ae759/>
 

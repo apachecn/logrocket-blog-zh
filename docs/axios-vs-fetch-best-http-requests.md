@@ -1,4 +1,4 @@
-# Axios 与 fetch():哪个最适合做 HTTP 请求？- LogRocket 博客
+# Axios 与 fetch():哪个最适合做 HTTP 请求？
 
 > 原文：<https://blog.logrocket.com/axios-vs-fetch-best-http-requests/>
 

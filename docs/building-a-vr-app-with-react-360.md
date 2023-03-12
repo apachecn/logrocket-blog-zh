@@ -1,4 +1,4 @@
-# 用 React 360 - LogRocket 博客构建 VR 应用
+# 用 React 360 构建 VR 应用
 
 > 原文：<https://blog.logrocket.com/building-a-vr-app-with-react-360/>
 

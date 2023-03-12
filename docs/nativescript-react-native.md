@@ -1,4 +1,4 @@
-# NativeScript 与 React Native - LogRocket 博客
+# NativeScript 与 React Native 
 
 > 原文：<https://blog.logrocket.com/nativescript-react-native/>
 

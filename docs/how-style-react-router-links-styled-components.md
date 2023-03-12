@@ -1,4 +1,4 @@
-# 如何用 styled-components - LogRocket 博客设计 React 路由器链接
+# 如何用 styled-components 设计 React 路由器链接
 
 > 原文：<https://blog.logrocket.com/how-style-react-router-links-styled-components/>
 

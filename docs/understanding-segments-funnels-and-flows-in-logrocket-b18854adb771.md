@@ -1,4 +1,4 @@
-# 了解 LogRocket - LogRocket 博客中的片段、漏斗和流
+# 了解 LogRocket 中的片段、漏斗和流
 
 > 原文：<https://blog.logrocket.com/understanding-segments-funnels-and-flows-in-logrocket-b18854adb771/>
 

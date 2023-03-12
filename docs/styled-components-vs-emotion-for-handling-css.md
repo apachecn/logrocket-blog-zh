@@ -1,4 +1,4 @@
-# 风格化组件与情感处理 CSS - LogRocket 博客
+# 风格化组件与情感处理 CSS 
 
 > 原文：<https://blog.logrocket.com/styled-components-vs-emotion-for-handling-css/>
 

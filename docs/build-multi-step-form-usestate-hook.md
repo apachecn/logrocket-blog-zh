@@ -1,4 +1,4 @@
-# 如何只用 useState Hook - LogRocket 博客构建多步表单
+# 如何只用 useState Hook 构建多步表单
 
 > 原文：<https://blog.logrocket.com/build-multi-step-form-usestate-hook/>
 

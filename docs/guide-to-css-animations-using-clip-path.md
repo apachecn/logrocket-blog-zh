@@ -1,4 +1,4 @@
-# 使用 clip-path() - LogRocket 博客的 CSS 动画指南
+# 使用 clip-path() 的 CSS 动画指南
 
 > 原文：<https://blog.logrocket.com/guide-to-css-animations-using-clip-path/>
 

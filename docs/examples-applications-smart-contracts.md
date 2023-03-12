@@ -1,4 +1,4 @@
-# 智能合同的 6 个示例和用例- LogRocket 博客
+# 智能合同的 6 个示例和用例
 
 > 原文：<https://blog.logrocket.com/examples-applications-smart-contracts/>
 

@@ -1,4 +1,4 @@
-# 使用 JavaScript 缓存 API - LogRocket 博客
+# 使用 JavaScript 缓存 API 
 
 > 原文：<https://blog.logrocket.com/javascript-cache-api/>
 

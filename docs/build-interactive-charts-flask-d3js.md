@@ -1,4 +1,4 @@
-# 用 Flask 和 D3.js - LogRocket 博客构建交互式图表
+# 用 Flask 和 D3.js 构建交互式图表
 
 > 原文：<https://blog.logrocket.com/build-interactive-charts-flask-d3js/>
 

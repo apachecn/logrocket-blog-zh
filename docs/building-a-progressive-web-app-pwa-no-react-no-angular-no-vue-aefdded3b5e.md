@@ -1,4 +1,4 @@
-# 构建一个进步的网络应用(PWA):没有反应，没有棱角，没有 Vue - LogRocket 博客
+# 构建一个进步的网络应用(PWA):没有反应，没有棱角，没有 Vue 
 
 > 原文：<https://blog.logrocket.com/building-a-progressive-web-app-pwa-no-react-no-angular-no-vue-aefdded3b5e/>
 

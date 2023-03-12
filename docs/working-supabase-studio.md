@@ -1,4 +1,4 @@
-# 使用 Supabase Studio - LogRocket 博客
+# 使用 Supabase Studio 
 
 > 原文：<https://blog.logrocket.com/working-supabase-studio/>
 

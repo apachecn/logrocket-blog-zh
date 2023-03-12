@@ -1,4 +1,4 @@
-# 缩小你的 CSS - LogRocket 博客的有用工具和技术
+# 缩小你的 CSS 的有用工具和技术
 
 > 原文：<https://blog.logrocket.com/useful-tools-and-techniques-to-minify-your-css-bee9b539e074/>
 

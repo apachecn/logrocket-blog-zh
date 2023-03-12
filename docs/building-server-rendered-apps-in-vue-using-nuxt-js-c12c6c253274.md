@@ -1,4 +1,4 @@
-# 使用 Nuxt.js - LogRocket 博客在 Vue 中构建服务器渲染的应用程序
+# 使用 Nuxt.js 在 Vue 中构建服务器渲染的应用程序
 
 > 原文：<https://blog.logrocket.com/building-server-rendered-apps-in-vue-using-nuxt-js-c12c6c253274/>
 

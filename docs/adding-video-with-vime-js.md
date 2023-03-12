@@ -1,4 +1,4 @@
-# 用 Vime.js - LogRocket 博客添加视频
+# 用 Vime.js 添加视频
 
 > 原文：<https://blog.logrocket.com/adding-video-with-vime-js/>
 

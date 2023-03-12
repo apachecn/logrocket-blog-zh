@@ -1,4 +1,4 @@
-# React Query 3 - LogRocket 博客的新特性
+# React Query 3 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-react-query-3/>
 

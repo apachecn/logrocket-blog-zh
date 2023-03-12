@@ -1,4 +1,4 @@
-# 如何为 React Native - LogRocket 博客选择最好的 IDE
+# 如何为 React Native 选择最好的 IDE
 
 > 原文：<https://blog.logrocket.com/how-choose-best-ide-react-native/>
 

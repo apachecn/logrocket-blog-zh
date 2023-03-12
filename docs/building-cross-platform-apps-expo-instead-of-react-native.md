@@ -1,4 +1,4 @@
-# 用 Expo 而不是 React Native - LogRocket 博客构建跨平台应用
+# 用 Expo 而不是 React Native 构建跨平台应用
 
 > 原文：<https://blog.logrocket.com/building-cross-platform-apps-expo-instead-of-react-native/>
 

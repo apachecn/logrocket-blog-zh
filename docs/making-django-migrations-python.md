@@ -1,4 +1,4 @@
-# 在 Python - LogRocket 博客中进行 Django 迁移
+# 在 Python 中进行 Django 迁移
 
 > 原文：<https://blog.logrocket.com/making-django-migrations-python/>
 

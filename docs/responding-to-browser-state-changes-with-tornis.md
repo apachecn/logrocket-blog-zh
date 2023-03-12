@@ -1,4 +1,4 @@
-# 用 Tornis - LogRocket 博客响应浏览器状态变化
+# 用 Tornis 响应浏览器状态变化
 
 > 原文：<https://blog.logrocket.com/responding-to-browser-state-changes-with-tornis/>
 

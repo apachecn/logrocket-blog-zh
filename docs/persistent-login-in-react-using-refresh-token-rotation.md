@@ -1,4 +1,4 @@
-# React 中的持久登录使用刷新令牌循环- LogRocket 博客
+# React 中的持久登录使用刷新令牌循环
 
 > 原文：<https://blog.logrocket.com/persistent-login-in-react-using-refresh-token-rotation/>
 

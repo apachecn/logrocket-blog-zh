@@ -1,4 +1,4 @@
-# 通过 XState 和 React - LogRocket 博客使用状态机
+# 通过 XState 和 React 使用状态机
 
 > 原文：<https://blog.logrocket.com/using-state-machines-with-xstate-and-react/>
 

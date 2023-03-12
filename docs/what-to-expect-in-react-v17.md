@@ -1,4 +1,4 @@
-# React v17 - LogRocket 博客有什么值得期待的
+# React v17 有什么值得期待的
 
 > 原文：<https://blog.logrocket.com/what-to-expect-in-react-v17/>
 

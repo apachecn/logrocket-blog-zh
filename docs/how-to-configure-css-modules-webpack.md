@@ -1,4 +1,4 @@
-# 如何为 webpack - LogRocket 博客配置 CSS 模块
+# 如何为 webpack 配置 CSS 模块
 
 > 原文：<https://blog.logrocket.com/how-to-configure-css-modules-webpack/>
 

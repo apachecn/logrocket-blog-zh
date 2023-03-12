@@ -1,4 +1,4 @@
-# 使用 Redux - LogRocket 博客进行日志驱动的开发
+# 使用 Redux 进行日志驱动的开发
 
 > 原文：<https://blog.logrocket.com/log-driven-development-with-redux-5a5468b7f2e/>
 

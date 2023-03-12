@@ -1,4 +1,4 @@
-# 用 Elementary - LogRocket 博客构建一个原生音频插件
+# 用 Elementary 构建一个原生音频插件
 
 > 原文：<https://blog.logrocket.com/build-native-audio-plugin-elementary/>
 

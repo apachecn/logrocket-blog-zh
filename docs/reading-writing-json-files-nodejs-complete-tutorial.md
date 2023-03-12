@@ -1,4 +1,4 @@
-# 在 Node.js 中读写 JSON 文件:完整教程- LogRocket 博客
+# 在 Node.js 中读写 JSON 文件:完整教程
 
 > 原文：<https://blog.logrocket.com/reading-writing-json-files-nodejs-complete-tutorial/>
 

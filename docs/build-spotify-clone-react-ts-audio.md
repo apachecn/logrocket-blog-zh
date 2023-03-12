@@ -1,4 +1,4 @@
-# 用 React 和 ts-audio - LogRocket 博客构建一个 Spotify 克隆
+# 用 React 和 ts-audio 构建一个 Spotify 克隆
 
 > 原文：<https://blog.logrocket.com/build-spotify-clone-react-ts-audio/>
 

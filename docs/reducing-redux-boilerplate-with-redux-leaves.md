@@ -1,4 +1,4 @@
-# 用 Redux-Leaves - LogRocket 博客减少 Redux 样板文件
+# 用 Redux-Leaves 减少 Redux 样板文件
 
 > 原文：<https://blog.logrocket.com/reducing-redux-boilerplate-with-redux-leaves/>
 

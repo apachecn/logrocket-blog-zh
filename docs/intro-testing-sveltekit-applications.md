@@ -1,4 +1,4 @@
-# 测试 SvelteKit 应用程序简介- LogRocket 博客
+# 测试 SvelteKit 应用程序简介
 
 > 原文：<https://blog.logrocket.com/intro-testing-sveltekit-applications/>
 

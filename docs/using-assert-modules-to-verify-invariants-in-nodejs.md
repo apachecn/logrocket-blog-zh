@@ -1,4 +1,4 @@
-# 使用 Assert 模块验证 Node.js - LogRocket 博客中的不变量
+# 使用 Assert 模块验证 Node.js 中的不变量
 
 > 原文：<https://blog.logrocket.com/using-assert-modules-to-verify-invariants-in-nodejs/>
 

@@ -1,4 +1,4 @@
-# 用 Firebase - LogRocket 博客在 Next.js 中实现认证
+# 用 Firebase 在 Next.js 中实现认证
 
 > 原文：<https://blog.logrocket.com/implementing-authentication-in-next-js-with-firebase/>
 

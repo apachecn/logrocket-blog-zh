@@ -1,4 +1,4 @@
-# 5 大 Go web 框架- LogRocket 博客
+# 5 大 Go web 框架
 
 > 原文：<https://blog.logrocket.com/5-top-go-web-frameworks/>
 

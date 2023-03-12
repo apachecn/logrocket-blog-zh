@@ -1,4 +1,4 @@
-# 如何在顺风 CSS - LogRocket 博客中使用自定义字体
+# 如何在顺风 CSS 中使用自定义字体
 
 > 原文：<https://blog.logrocket.com/how-to-use-custom-fonts-tailwind-css/>
 

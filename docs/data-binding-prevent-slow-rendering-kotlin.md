@@ -1,4 +1,4 @@
-# 在 Kotlin - LogRocket 博客中使用数据绑定防止渲染缓慢
+# 在 Kotlin 中使用数据绑定防止渲染缓慢
 
 > 原文：<https://blog.logrocket.com/data-binding-prevent-slow-rendering-kotlin/>
 

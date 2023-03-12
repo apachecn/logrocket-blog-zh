@@ -1,4 +1,4 @@
-# 构建一个可重用的 React 组件，将数组导出到 Excel - LogRocket 博客
+# 构建一个可重用的 React 组件，将数组导出到 Excel 
 
 > 原文：<https://blog.logrocket.com/reusable-react-component-export-arrays-excel/>
 

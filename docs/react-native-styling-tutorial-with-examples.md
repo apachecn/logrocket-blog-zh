@@ -1,4 +1,4 @@
-# React 原生样式教程示例- LogRocket 博客
+# React 原生样式教程示例
 
 > 原文：<https://blog.logrocket.com/react-native-styling-tutorial-with-examples/>
 

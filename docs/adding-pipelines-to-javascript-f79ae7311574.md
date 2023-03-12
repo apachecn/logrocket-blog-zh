@@ -1,4 +1,4 @@
-# 向 JavaScript - LogRocket 博客添加管道
+# 向 JavaScript 添加管道
 
 > 原文：<https://blog.logrocket.com/adding-pipelines-to-javascript-f79ae7311574/>
 

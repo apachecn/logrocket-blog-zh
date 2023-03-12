@@ -1,4 +1,4 @@
-# 在 React app - LogRocket 博客中实现 Okta 认证
+# 在 React app 中实现 Okta 认证
 
 > 原文：<https://blog.logrocket.com/implementing-okta-authentication-react-app/>
 

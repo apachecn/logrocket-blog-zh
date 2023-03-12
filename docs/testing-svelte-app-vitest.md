@@ -1,4 +1,4 @@
-# 用 Vitest - LogRocket 博客测试一个苗条的应用程序
+# 用 Vitest 测试一个苗条的应用程序
 
 > 原文：<https://blog.logrocket.com/testing-svelte-app-vitest/>
 

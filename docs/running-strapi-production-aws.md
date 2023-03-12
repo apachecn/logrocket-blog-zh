@@ -1,4 +1,4 @@
-# 使用 AWS - LogRocket 博客在生产环境中运行 Strapi
+# 使用 AWS 在生产环境中运行 Strapi
 
 > 原文：<https://blog.logrocket.com/running-strapi-production-aws/>
 

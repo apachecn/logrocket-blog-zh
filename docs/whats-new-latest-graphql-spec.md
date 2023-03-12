@@ -1,4 +1,4 @@
-# 最新的 GraphQL spec - LogRocket 博客中有什么新内容
+# 最新的 GraphQL spec 中有什么新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-latest-graphql-spec/>
 

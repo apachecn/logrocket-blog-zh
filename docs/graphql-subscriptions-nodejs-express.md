@@ -1,4 +1,4 @@
-# Node.js 和 Express - LogRocket 博客的 GraphQL 订阅
+# Node.js 和 Express 的 GraphQL 订阅
 
 > 原文：<https://blog.logrocket.com/graphql-subscriptions-nodejs-express/>
 

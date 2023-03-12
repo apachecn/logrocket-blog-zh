@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中用 Cloudinary 处理图像
+# 在 React 中用 Cloudinary 处理图像
 
 > 原文：<https://blog.logrocket.com/handling-images-with-cloudinary-in-react/>
 

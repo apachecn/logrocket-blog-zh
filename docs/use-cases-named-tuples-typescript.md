@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中命名元组的真实用例
+# TypeScript 中命名元组的真实用例
 
 > 原文：<https://blog.logrocket.com/use-cases-named-tuples-typescript/>
 

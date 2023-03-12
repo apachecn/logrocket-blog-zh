@@ -1,4 +1,4 @@
-# CSS 参考指南:padding - LogRocket 博客
+# CSS 参考指南:padding 
 
 > 原文：<https://blog.logrocket.com/css-reference-guide-padding/>
 

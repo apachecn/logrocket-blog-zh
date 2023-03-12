@@ -1,4 +1,4 @@
-# 在 Android - LogRocket 博客上实现画中画模式
+# 在 Android 上实现画中画模式
 
 > 原文：<https://blog.logrocket.com/implementing-picture-in-picture-mode-android/>
 

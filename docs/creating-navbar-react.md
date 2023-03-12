@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中创建导航栏
+# 在 React 中创建导航栏
 
 > 原文：<https://blog.logrocket.com/creating-navbar-react/>
 

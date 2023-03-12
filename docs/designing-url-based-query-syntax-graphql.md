@@ -1,4 +1,4 @@
-# 为 GraphQL - LogRocket 博客设计基于 URL 的查询语法
+# 为 GraphQL 设计基于 URL 的查询语法
 
 > 原文：<https://blog.logrocket.com/designing-url-based-query-syntax-graphql/>
 

@@ -1,4 +1,4 @@
-# 面向游戏开发者的 Three.js 简介- LogRocket 博客
+# 面向游戏开发者的 Three.js 简介
 
 > 原文：<https://blog.logrocket.com/intro-to-three-js-for-game-developers/>
 

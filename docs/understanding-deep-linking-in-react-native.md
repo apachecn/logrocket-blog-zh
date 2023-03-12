@@ -1,4 +1,4 @@
-# 了解 React Native - LogRocket 博客中的深层链接
+# 了解 React Native 中的深层链接
 
 > 原文：<https://blog.logrocket.com/understanding-deep-linking-in-react-native/>
 

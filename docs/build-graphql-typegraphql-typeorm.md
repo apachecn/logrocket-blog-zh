@@ -1,4 +1,4 @@
-# 用 TypeGraphQL 和 TypeORM - LogRocket 博客构建 GraphQL APIs
+# 用 TypeGraphQL 和 TypeORM 构建 GraphQL APIs
 
 > 原文：<https://blog.logrocket.com/build-graphql-typegraphql-typeorm/>
 

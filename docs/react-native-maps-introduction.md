@@ -1,4 +1,4 @@
-# React 原生地图介绍- LogRocket 博客
+# React 原生地图介绍
 
 > 原文：<https://blog.logrocket.com/react-native-maps-introduction/>
 

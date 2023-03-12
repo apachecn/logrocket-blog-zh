@@ -1,4 +1,4 @@
-# 配置 Go HTTP 客户端- LogRocket 博客
+# 配置 Go HTTP 客户端
 
 > 原文：<https://blog.logrocket.com/configuring-the-go-http-client/>
 

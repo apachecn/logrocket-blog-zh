@@ -1,4 +1,4 @@
-# 使用 React 和 Tesseract.js OCR - LogRocket 博客构建一个图像到文本的转换应用程序
+# 使用 React 和 Tesseract.js OCR 构建一个图像到文本的转换应用程序
 
 > 原文：<https://blog.logrocket.com/build-image-text-conversion-app-react-tesseractjs/>
 

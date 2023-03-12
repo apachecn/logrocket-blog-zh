@@ -1,4 +1,4 @@
-# 何时(何时)使用 Redux - LogRocket 博客
+# 何时(何时)使用 Redux 
 
 > 原文：<https://blog.logrocket.com/when-and-when-not-to-use-redux-41807f29a7fb/>
 

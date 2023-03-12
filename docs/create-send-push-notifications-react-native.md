@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中创建和发送推送通知
+# 如何在 React Native 中创建和发送推送通知
 
 > 原文：<https://blog.logrocket.com/create-send-push-notifications-react-native/>
 

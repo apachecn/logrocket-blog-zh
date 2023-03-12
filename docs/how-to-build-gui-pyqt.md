@@ -1,4 +1,4 @@
-# 如何用 PyQt - LogRocket 博客构建一个 GUI
+# 如何用 PyQt 构建一个 GUI
 
 > 原文：<https://blog.logrocket.com/how-to-build-gui-pyqt/>
 

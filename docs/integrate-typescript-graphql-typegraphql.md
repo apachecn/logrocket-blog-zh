@@ -1,4 +1,4 @@
-# 使用 TypeGraphQL - LogRocket 博客将 TypeScript 与 GraphQL 集成
+# 使用 TypeGraphQL 将 TypeScript 与 GraphQL 集成
 
 > 原文：<https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/>
 

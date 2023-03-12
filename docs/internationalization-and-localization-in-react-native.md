@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客的国际化和本地化
+# React Native 的国际化和本地化
 
 > 原文：<https://blog.logrocket.com/internationalization-and-localization-in-react-native/>
 

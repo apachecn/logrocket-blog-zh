@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中实现无限滚动分页
+# 如何在 Flutter 中实现无限滚动分页
 
 > 原文：<https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/>
 

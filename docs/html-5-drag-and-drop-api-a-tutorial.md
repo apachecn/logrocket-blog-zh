@@ -1,4 +1,4 @@
-# HTML 5 拖放 API:教程- LogRocket 博客
+# HTML 5 拖放 API:教程
 
 > 原文：<https://blog.logrocket.com/html-5-drag-and-drop-api-a-tutorial/>
 

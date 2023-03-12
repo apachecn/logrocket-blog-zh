@@ -1,4 +1,4 @@
-# AdonisJs vs. Django:应该使用哪个 web 框架？- LogRocket 博客
+# AdonisJs vs. Django:应该使用哪个 web 框架？
 
 > 原文：<https://blog.logrocket.com/adonisjs-vs-django-which-web-framework-should-you-use/>
 

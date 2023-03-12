@@ -1,4 +1,4 @@
-# 了解 Rust 借用检查器- LogRocket 博客
+# 了解 Rust 借用检查器
 
 > 原文：<https://blog.logrocket.com/introducing-the-rust-borrow-checker/>
 

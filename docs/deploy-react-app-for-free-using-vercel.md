@@ -1,4 +1,4 @@
-# 使用 Vercel - LogRocket 博客免费部署 React 应用程序
+# 使用 Vercel 免费部署 React 应用程序
 
 > 原文：<https://blog.logrocket.com/deploy-react-app-for-free-using-vercel/>
 

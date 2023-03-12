@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客的基本 VS 代码扩展
+# Flutter 的基本 VS 代码扩展
 
 > 原文：<https://blog.logrocket.com/essential-vs-code-extensions-for-flutter/>
 

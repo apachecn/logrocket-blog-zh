@@ -1,4 +1,4 @@
-# 用 useSound Hook - LogRocket 博客反思网络音频反馈
+# 用 useSound Hook 反思网络音频反馈
 
 > 原文：<https://blog.logrocket.com/rethinking-audio-feedback-usesound-hook/>
 

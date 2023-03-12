@@ -1,4 +1,4 @@
-# Frontity - LogRocket 博客入门
+# Frontity 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-frontity/>
 

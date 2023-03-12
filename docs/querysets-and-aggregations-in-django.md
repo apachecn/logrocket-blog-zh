@@ -1,4 +1,4 @@
-# Django - LogRocket 博客中的查询集和聚合
+# Django 中的查询集和聚合
 
 > 原文：<https://blog.logrocket.com/querysets-and-aggregations-in-django/>
 

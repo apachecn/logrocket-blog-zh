@@ -1,4 +1,4 @@
-# 使用 Deno 的 SMTP 客户端- LogRocket 博客
+# 使用 Deno 的 SMTP 客户端
 
 > 原文：<https://blog.logrocket.com/using-denos-smtp-client/>
 

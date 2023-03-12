@@ -1,4 +1,4 @@
-# 如何用 Rust - LogRocket 博客构建 WebSocket 服务器
+# 如何用 Rust 构建 WebSocket 服务器
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-websocket-server-with-rust/>
 

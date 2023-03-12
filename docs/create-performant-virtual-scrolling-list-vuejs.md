@@ -1,4 +1,4 @@
-# 在 Vue.js - LogRocket 博客中创建一个高性能的虚拟滚动列表
+# 在 Vue.js 中创建一个高性能的虚拟滚动列表
 
 > 原文：<https://blog.logrocket.com/create-performant-virtual-scrolling-list-vuejs/>
 

@@ -1,4 +1,4 @@
-# React、结构化数据和 SEO 概述- LogRocket 博客
+# React、结构化数据和 SEO 概述
 
 > 原文：<https://blog.logrocket.com/meetups/react-structured-data-and-seo-meetup-reacap/>
 

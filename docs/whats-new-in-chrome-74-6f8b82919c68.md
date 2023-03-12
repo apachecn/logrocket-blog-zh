@@ -1,4 +1,4 @@
-# Chrome 74 - LogRocket 博客中的新内容
+# Chrome 74 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-chrome-74-6f8b82919c68/>
 

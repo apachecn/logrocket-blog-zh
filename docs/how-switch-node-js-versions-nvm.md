@@ -1,4 +1,4 @@
-# 如何用 NVM - LogRocket 博客切换 Node.js 版本
+# 如何用 NVM 切换 Node.js 版本
 
 > 原文：<https://blog.logrocket.com/how-switch-node-js-versions-nvm/>
 

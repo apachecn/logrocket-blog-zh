@@ -1,4 +1,4 @@
-# 为什么你应该在 Flutter - LogRocket 博客中使用 Go 后端
+# 为什么你应该在 Flutter 中使用 Go 后端
 
 > 原文：<https://blog.logrocket.com/why-use-go-backend-flutter/>
 

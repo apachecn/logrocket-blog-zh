@@ -1,4 +1,4 @@
-# 使用 Mocha、Chai 和 Sinon - LogRocket 博客进行 Node.js 单元测试
+# 使用 Mocha、Chai 和 Sinon 进行 Node.js 单元测试
 
 > 原文：<https://blog.logrocket.com/node-js-unit-testing-mocha-chai-sinon/>
 

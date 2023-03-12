@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中检测和呈现设备类型
+# 如何在 React 中检测和呈现设备类型
 
 > 原文：<https://blog.logrocket.com/how-to-detect-render-device-types-react/>
 

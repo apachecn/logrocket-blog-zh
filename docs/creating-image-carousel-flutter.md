@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中创建图片轮播
+# 在 Flutter 中创建图片轮播
 
 > 原文：<https://blog.logrocket.com/creating-image-carousel-flutter/>
 

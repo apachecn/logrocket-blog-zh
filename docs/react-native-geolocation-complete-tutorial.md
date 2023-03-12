@@ -1,4 +1,4 @@
-# React Native geolocation:完整教程- LogRocket 博客
+# React Native geolocation:完整教程
 
 > 原文：<https://blog.logrocket.com/react-native-geolocation-complete-tutorial/>
 

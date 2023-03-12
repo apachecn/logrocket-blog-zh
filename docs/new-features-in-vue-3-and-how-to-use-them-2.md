@@ -1,4 +1,4 @@
-# Vue 3 - LogRocket 博客中的新内容
+# Vue 3 中的新内容
 
 > 原文：<https://blog.logrocket.com/new-features-in-vue-3-and-how-to-use-them-2/>
 

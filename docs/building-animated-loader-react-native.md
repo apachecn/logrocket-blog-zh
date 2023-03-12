@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中构建动画加载器
+# 在 React Native 中构建动画加载器
 
 > 原文：<https://blog.logrocket.com/building-animated-loader-react-native/>
 

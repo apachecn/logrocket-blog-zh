@@ -1,4 +1,4 @@
-# Pro Node.js 技巧- LogRocket 博客
+# Pro Node.js 技巧
 
 > 原文：<https://blog.logrocket.com/pro-node-js-tips-378a1f86a896/>
 

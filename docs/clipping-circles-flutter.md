@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中剪贴圆圈(以及更多)
+# 在 Flutter 中剪贴圆圈(以及更多)
 
 > 原文：<https://blog.logrocket.com/clipping-circles-flutter/>
 

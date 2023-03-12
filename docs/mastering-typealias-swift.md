@@ -1,4 +1,4 @@
-# 在 Swift - LogRocket 博客中掌握 typealias
+# 在 Swift 中掌握 typealias
 
 > 原文：<https://blog.logrocket.com/mastering-typealias-swift/>
 

@@ -1,4 +1,4 @@
-# 在 Go - LogRocket 博客中将文本文件转换为 PDF
+# 在 Go 中将文本文件转换为 PDF
 
 > 原文：<https://blog.logrocket.com/converting-text-file-pdf-go/>
 

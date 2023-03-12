@@ -1,4 +1,4 @@
-# 比较最佳 Node.js 调度程序- LogRocket 博客
+# 比较最佳 Node.js 调度程序
 
 > 原文：<https://blog.logrocket.com/comparing-best-node-js-schedulers/>
 

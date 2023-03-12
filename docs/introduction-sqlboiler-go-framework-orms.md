@@ -1,4 +1,4 @@
-# SQLBoiler 简介:ORMs 的 Go 框架- LogRocket 博客
+# SQLBoiler 简介:ORMs 的 Go 框架
 
 > 原文：<https://blog.logrocket.com/introduction-sqlboiler-go-framework-orms/>
 

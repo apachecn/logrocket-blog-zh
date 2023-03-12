@@ -1,4 +1,4 @@
-# 了解 Angular 10 - LogRocket 博客中的 ViewChild 和 ViewChildren 装饰器
+# 了解 Angular 10 中的 ViewChild 和 ViewChildren 装饰器
 
 > 原文：<https://blog.logrocket.com/understanding-the-viewchild-and-viewchildren-decorators-in-angular-10/>
 

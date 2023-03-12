@@ -1,4 +1,4 @@
-# 使用 NestJS 和 Redis - LogRocket 博客的可伸缩 WebSockets
+# 使用 NestJS 和 Redis 的可伸缩 WebSockets
 
 > 原文：<https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/>
 

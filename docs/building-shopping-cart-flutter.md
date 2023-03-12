@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建购物车
+# 在 Flutter 中构建购物车
 
 > 原文：<https://blog.logrocket.com/building-shopping-cart-flutter/>
 

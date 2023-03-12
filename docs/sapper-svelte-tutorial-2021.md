@@ -1,4 +1,4 @@
-# Sapper 和 Svelte:快速教程- LogRocket 博客
+# Sapper 和 Svelte:快速教程
 
 > 原文：<https://blog.logrocket.com/sapper-svelte-tutorial-2021/>
 

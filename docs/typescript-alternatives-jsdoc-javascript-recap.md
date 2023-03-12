@@ -1,4 +1,4 @@
-# 类型脚本替代 JSDoc JavaScript 摘要- LogRocket 博客
+# 类型脚本替代 JSDoc JavaScript 摘要
 
 > 原文：<https://blog.logrocket.com/meetups/typescript-alternatives-jsdoc-javascript-recap/>
 

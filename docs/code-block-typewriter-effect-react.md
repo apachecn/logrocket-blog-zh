@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客为代码块创建打字机效果
+# 使用 React 为代码块创建打字机效果
 
 > 原文：<https://blog.logrocket.com/code-block-typewriter-effect-react/>
 

@@ -1,4 +1,4 @@
-# 用 CSS 绘画- LogRocket 博客
+# 用 CSS 绘画
 
 > 原文：<https://blog.logrocket.com/painting-with-css-644cd4e67fad/>
 

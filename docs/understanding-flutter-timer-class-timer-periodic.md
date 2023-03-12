@@ -1,4 +1,4 @@
-# 了解 Flutter 的定时器类和 Timer.periodic - LogRocket 博客
+# 了解 Flutter 的定时器类和 Timer.periodic 
 
 > 原文：<https://blog.logrocket.com/understanding-flutter-timer-class-timer-periodic/>
 

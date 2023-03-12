@@ -1,4 +1,4 @@
-# 现在是 2018 年——你不应该写普通的 CSS - LogRocket 博客
+# 现在是 2018 年——你不应该写普通的 CSS 
 
 > 原文：<https://blog.logrocket.com/its-2018-you-shouldn-t-be-writing-vanilla-css-b3d09b9c2c41/>
 

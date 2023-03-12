@@ -1,4 +1,4 @@
-# 比较模式验证库:Zod 与 Yup - LogRocket 博客
+# 比较模式验证库:Zod 与 Yup 
 
 > 原文：<https://blog.logrocket.com/comparing-schema-validation-libraries-zod-vs-yup/>
 

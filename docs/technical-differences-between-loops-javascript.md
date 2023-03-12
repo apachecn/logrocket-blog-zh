@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中循环之间的技术差异概述
+# JavaScript 中循环之间的技术差异概述
 
 > 原文：<https://blog.logrocket.com/technical-differences-between-loops-javascript/>
 

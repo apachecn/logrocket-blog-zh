@@ -1,4 +1,4 @@
-# CSS 边距与填充- LogRocket 博客
+# CSS 边距与填充
 
 > 原文：<https://blog.logrocket.com/css-margin-vs-padding/>
 

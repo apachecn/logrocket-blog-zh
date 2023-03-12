@@ -1,4 +1,4 @@
-# 带有 Chakra UI 和 Next.js - LogRocket 博客的黑客新闻客户端
+# 带有 Chakra UI 和 Next.js 的黑客新闻客户端
 
 > 原文：<https://blog.logrocket.com/hacker-news-client-chakra-ui-next-js/>
 

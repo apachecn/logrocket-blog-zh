@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的 AbortController 完整指南
+# Node.js 中的 AbortController 完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-abortcontroller-node-js/>
 

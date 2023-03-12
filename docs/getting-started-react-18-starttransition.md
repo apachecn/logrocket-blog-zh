@@ -1,4 +1,4 @@
-# React 18 - LogRocket 博客中的 startTransition 入门
+# React 18 中的 startTransition 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-react-18-starttransition/>
 

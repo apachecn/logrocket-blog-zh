@@ -1,4 +1,4 @@
-# 如何将 React useReducer 挂钩放入 web workers - LogRocket 博客
+# 如何将 React useReducer 挂钩放入 web workers 
 
 > 原文：<https://blog.logrocket.com/react-usereducer-hooks-web-workers/>
 

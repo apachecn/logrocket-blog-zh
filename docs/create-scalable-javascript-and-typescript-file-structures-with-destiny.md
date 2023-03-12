@@ -1,4 +1,4 @@
-# 使用 Destiny - LogRocket 博客创建可伸缩的 JavaScript 和 TypeScript 文件结构
+# 使用 Destiny 创建可伸缩的 JavaScript 和 TypeScript 文件结构
 
 > 原文：<https://blog.logrocket.com/create-scalable-javascript-and-typescript-file-structures-with-destiny/>
 

@@ -1,4 +1,4 @@
-# SVGO 值得吗？- LogRocket 博客
+# SVGO 值得吗？
 
 > 原文：<https://blog.logrocket.com/svgo-cost-benefit-analysis/>
 

@@ -1,4 +1,4 @@
-# React - LogRocket 博客中受控与非受控组件
+# React 中受控与非受控组件
 
 > 原文：<https://blog.logrocket.com/controlled-vs-uncontrolled-components-in-react/>
 

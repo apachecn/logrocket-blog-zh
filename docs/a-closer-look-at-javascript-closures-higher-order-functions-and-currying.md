@@ -1,4 +1,4 @@
-# 仔细看看 JavaScript 闭包、高阶函数和 currying - LogRocket 博客
+# 仔细看看 JavaScript 闭包、高阶函数和 currying 
 
 > 原文：<https://blog.logrocket.com/a-closer-look-at-javascript-closures-higher-order-functions-and-currying/>
 

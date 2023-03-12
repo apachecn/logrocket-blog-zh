@@ -1,4 +1,4 @@
-# JavaScript 测试:Chai(第 1 部分)- LogRocket 博客
+# JavaScript 测试:Chai(第 1 部分)
 
 > 原文：<https://blog.logrocket.com/javascript-testing-chai-part-1-c7d0496a17c1/>
 

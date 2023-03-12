@@ -1,4 +1,4 @@
-# 在 Deno - LogRocket 博客中设置 MongoDB
+# 在 Deno 中设置 MongoDB
 
 > 原文：<https://blog.logrocket.com/setting-up-mongodb-in-deno/>
 

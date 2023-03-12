@@ -1,4 +1,4 @@
-# Vite 2.0 中的新功能- LogRocket 博客
+# Vite 2.0 中的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-in-vite-2-0/>
 

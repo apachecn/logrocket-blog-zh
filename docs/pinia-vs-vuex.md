@@ -1,4 +1,4 @@
-# Pinia vs. Vuex:哪个状态管理库最适合 Vue？- LogRocket 博客
+# Pinia vs. Vuex:哪个状态管理库最适合 Vue？
 
 > 原文：<https://blog.logrocket.com/pinia-vs-vuex/>
 

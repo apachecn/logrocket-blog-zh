@@ -1,4 +1,4 @@
-# 在顺风 CSS - LogRocket 博客中探索 JIT 模式
+# 在顺风 CSS 中探索 JIT 模式
 
 > 原文：<https://blog.logrocket.com/exploring-jit-mode-tailwind-css/>
 

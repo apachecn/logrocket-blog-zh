@@ -1,4 +1,4 @@
-# Rust 为什么这么受欢迎？- LogRocket 博客
+# Rust 为什么这么受欢迎？
 
 > 原文：<https://blog.logrocket.com/why-is-rust-popular/>
 

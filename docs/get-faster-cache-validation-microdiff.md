@@ -1,4 +1,4 @@
-# 通过 MicroDiff - LogRocket 博客获得更快的缓存验证
+# 通过 MicroDiff 获得更快的缓存验证
 
 > 原文：<https://blog.logrocket.com/get-faster-cache-validation-microdiff/>
 

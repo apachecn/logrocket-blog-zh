@@ -1,4 +1,4 @@
-# 使用 node-canvas - LogRocket 博客创建和保存图像
+# 使用 node-canvas 创建和保存图像
 
 > 原文：<https://blog.logrocket.com/creating-saving-images-node-canvas/>
 

@@ -1,4 +1,4 @@
-# Vue 路由器终极指南- LogRocket 博客
+# Vue 路由器终极指南
 
 > 原文：<https://blog.logrocket.com/ultimate-guide-vue-router/>
 

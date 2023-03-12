@@ -1,4 +1,4 @@
-# 使用 React Native - LogRocket 博客从头开始构建电子商务应用程序
+# 使用 React Native 从头开始构建电子商务应用程序
 
 > 原文：<https://blog.logrocket.com/build-ecommerce-app-from-scratch-with-react-native/>
 

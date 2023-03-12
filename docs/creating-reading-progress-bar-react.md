@@ -1,4 +1,4 @@
-# 用 React - LogRocket 博客创建阅读进度条
+# 用 React 创建阅读进度条
 
 > 原文：<https://blog.logrocket.com/creating-reading-progress-bar-react/>
 

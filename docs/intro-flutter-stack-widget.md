@@ -1,4 +1,4 @@
-# Flutter Stack widget - LogRocket 博客简介
+# Flutter Stack widget 简介
 
 > 原文：<https://blog.logrocket.com/intro-flutter-stack-widget/>
 

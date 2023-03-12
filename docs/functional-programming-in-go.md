@@ -1,4 +1,4 @@
-# Go - LogRocket 博客中的函数式编程
+# Go 中的函数式编程
 
 > 原文：<https://blog.logrocket.com/functional-programming-in-go/>
 

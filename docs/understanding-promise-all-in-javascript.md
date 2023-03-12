@@ -1,4 +1,4 @@
-# 理解 Promise.all 在 JavaScript - LogRocket 博客中
+# 理解 Promise.all 在 JavaScript 中
 
 > 原文：<https://blog.logrocket.com/understanding-promise-all-in-javascript/>
 

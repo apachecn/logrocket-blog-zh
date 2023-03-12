@@ -1,4 +1,4 @@
-# 用 lottie-react-native - LogRocket 博客创作动画
+# 用 lottie-react-native 创作动画
 
 > 原文：<https://blog.logrocket.com/creating-animations-lottie-react-native/>
 

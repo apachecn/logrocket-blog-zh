@@ -1,4 +1,4 @@
-# 理解 Rust - LogRocket 博客中的所有权
+# 理解 Rust 中的所有权
 
 > 原文：<https://blog.logrocket.com/understanding-ownership-in-rust/>
 

@@ -1,4 +1,4 @@
-# Vue 生命周期钩子介绍- LogRocket 博客
+# Vue 生命周期钩子介绍
 
 > 原文：<https://blog.logrocket.com/introduction-to-vue-lifecycle-hooks/>
 

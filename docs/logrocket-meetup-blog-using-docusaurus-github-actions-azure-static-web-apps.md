@@ -1,4 +1,4 @@
-# 找不到页面- LogRocket 博客
+# 找不到页面
 
 > 原文：<https://blog.logrocket.com/logrocket-meetup-blog-using-docusaurus-github-actions-azure-static-web-apps/>
 

@@ -1,4 +1,4 @@
-# 在 NestJS - LogRocket 博客中了解使用 Joi 进行对象验证
+# 在 NestJS 中了解使用 Joi 进行对象验证
 
 > 原文：<https://blog.logrocket.com/understanding-object-validation-joi-nestjs/>
 

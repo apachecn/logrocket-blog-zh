@@ -1,4 +1,4 @@
-# React Table v7 有什么新特性？- LogRocket 博客
+# React Table v7 有什么新特性？
 
 > 原文：<https://blog.logrocket.com/building-styling-tables-react-table-v7/>
 

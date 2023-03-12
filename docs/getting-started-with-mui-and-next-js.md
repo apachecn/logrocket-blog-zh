@@ -1,4 +1,4 @@
-# MUI 和 Next.js 入门- LogRocket 博客
+# MUI 和 Next.js 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-mui-and-next-js/>
 

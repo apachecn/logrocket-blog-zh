@@ -1,4 +1,4 @@
-# Alchemy vs. Infura:哪个节点提供商最好？- LogRocket 博客
+# Alchemy vs. Infura:哪个节点提供商最好？
 
 > 原文：<https://blog.logrocket.com/alchemy-vs-infura-which-node-provider-best/>
 

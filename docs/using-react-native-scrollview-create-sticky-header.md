@@ -1,4 +1,4 @@
-# 使用 React Native ScrollView 创建粘性 header - LogRocket 博客
+# 使用 React Native ScrollView 创建粘性 header 
 
 > 原文：<https://blog.logrocket.com/using-react-native-scrollview-create-sticky-header/>
 

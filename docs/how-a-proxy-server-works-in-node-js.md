@@ -1,4 +1,4 @@
-# 什么是代理，它在 Node.js 中是如何工作的？- LogRocket 博客
+# 什么是代理，它在 Node.js 中是如何工作的？
 
 > 原文：<https://blog.logrocket.com/how-a-proxy-server-works-in-node-js/>
 

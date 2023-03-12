@@ -1,4 +1,4 @@
-# 如何在 Next.js - LogRocket 博客中使用代理
+# 如何在 Next.js 中使用代理
 
 > 原文：<https://blog.logrocket.com/how-to-use-proxy-next-js/>
 

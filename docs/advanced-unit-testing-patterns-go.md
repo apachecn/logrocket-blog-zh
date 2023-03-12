@@ -1,4 +1,4 @@
-# Go - LogRocket 博客中的高级单元测试模式
+# Go 中的高级单元测试模式
 
 > 原文：<https://blog.logrocket.com/advanced-unit-testing-patterns-go/>
 

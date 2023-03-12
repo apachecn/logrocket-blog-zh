@@ -1,4 +1,4 @@
-# 使用 React 和 Nx Recap 构建应用程序- LogRocket 博客
+# 使用 React 和 Nx Recap 构建应用程序
 
 > 原文：<https://blog.logrocket.com/logrocket-react-meetup-building-an-application-with-react-and-nx/>
 

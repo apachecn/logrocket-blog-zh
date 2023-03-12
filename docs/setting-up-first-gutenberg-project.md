@@ -1,4 +1,4 @@
-# 建立你的第一个古腾堡项目- LogRocket 博客
+# 建立你的第一个古腾堡项目
 
 > 原文：<https://blog.logrocket.com/setting-up-first-gutenberg-project/>
 

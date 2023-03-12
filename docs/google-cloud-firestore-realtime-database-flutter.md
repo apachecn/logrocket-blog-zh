@@ -1,4 +1,4 @@
-# Google Cloud Firestore 和 Flutter - LogRocket 博客中的实时数据库
+# Google Cloud Firestore 和 Flutter 中的实时数据库
 
 > 原文：<https://blog.logrocket.com/google-cloud-firestore-realtime-database-flutter/>
 

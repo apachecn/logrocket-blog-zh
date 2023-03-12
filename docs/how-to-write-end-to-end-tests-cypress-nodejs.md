@@ -1,4 +1,4 @@
-# 如何用 Cypress 和 Node.js 编写端到端的测试- LogRocket 博客
+# 如何用 Cypress 和 Node.js 编写端到端的测试
 
 > 原文：<https://blog.logrocket.com/how-to-write-end-to-end-tests-cypress-nodejs/>
 

@@ -1,4 +1,4 @@
-# 使用 Prettier 和 ESLint 自动格式化和修复 JavaScript - LogRocket 博客
+# 使用 Prettier 和 ESLint 自动格式化和修复 JavaScript 
 
 > 原文：<https://blog.logrocket.com/using-prettier-eslint-automate-formatting-fixing-javascript/>
 

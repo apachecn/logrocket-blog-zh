@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客实现垂直对齐的 15 种方法
+# 用 CSS 实现垂直对齐的 15 种方法
 
 > 原文：<https://blog.logrocket.com/15-ways-implement-vertical-alignment-css/>
 

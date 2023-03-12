@@ -1,4 +1,4 @@
-# Oracle CX 商务与 Salesforce 商务云:比较指南- LogRocket 博客
+# Oracle CX 商务与 Salesforce 商务云:比较指南
 
 > 原文：<https://blog.logrocket.com/oracle-cx-commerce-vs-salesforce-commerce-cloud/>
 

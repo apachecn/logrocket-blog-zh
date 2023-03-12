@@ -1,4 +1,4 @@
-# 有趣的 ECMAScript 2017 提案未被采纳- LogRocket 博客
+# 有趣的 ECMAScript 2017 提案未被采纳
 
 > 原文：<https://blog.logrocket.com/interesting-ecmascript-2017-proposals-163b787cf27c/>
 

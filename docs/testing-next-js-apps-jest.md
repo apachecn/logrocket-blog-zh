@@ -1,4 +1,4 @@
-# 使用 Jest - LogRocket 博客测试 Next.js 应用程序
+# 使用 Jest 测试 Next.js 应用程序
 
 > 原文：<https://blog.logrocket.com/testing-next-js-apps-jest/>
 

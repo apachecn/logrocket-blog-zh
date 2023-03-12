@@ -1,4 +1,4 @@
-# 在 Vue.js 3 中使用 provide/inject 与组合 API - LogRocket 博客
+# 在 Vue.js 3 中使用 provide/inject 与组合 API 
 
 > 原文：<https://blog.logrocket.com/provide-inject-vue-js-3-composition-api/>
 

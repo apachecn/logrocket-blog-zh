@@ -1,4 +1,4 @@
-# 如何在 Three.js - LogRocket 博客中使用光照和 WebGLRenderer
+# 如何在 Three.js 中使用光照和 WebGLRenderer
 
 > 原文：<https://blog.logrocket.com/how-to-use-lighting-and-renderers-in-three-js/>
 

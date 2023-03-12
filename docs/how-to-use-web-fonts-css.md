@@ -1,4 +1,4 @@
-# 如何在 CSS - LogRocket 博客中使用 web 字体
+# 如何在 CSS 中使用 web 字体
 
 > 原文：<https://blog.logrocket.com/how-to-use-web-fonts-css/>
 

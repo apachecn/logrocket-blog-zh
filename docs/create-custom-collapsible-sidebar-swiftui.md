@@ -1,4 +1,4 @@
-# 如何在 SwiftUI - LogRocket 博客中创建自定义的可折叠侧边栏
+# 如何在 SwiftUI 中创建自定义的可折叠侧边栏
 
 > 原文：<https://blog.logrocket.com/create-custom-collapsible-sidebar-swiftui/>
 

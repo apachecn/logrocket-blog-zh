@@ -1,4 +1,4 @@
-# 开始使用 Create React App 和 TypeScript - LogRocket 博客
+# 开始使用 Create React App 和 TypeScript 
 
 > 原文：<https://blog.logrocket.com/getting-started-create-react-app-typescript/>
 

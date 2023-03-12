@@ -1,4 +1,4 @@
-# Node - LogRocket 博客中的云发布/订阅入门
+# Node 中的云发布/订阅入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-cloud-pub-sub-in-node/>
 

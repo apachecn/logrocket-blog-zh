@@ -1,4 +1,4 @@
-# Web3.py 教程:用 Python - LogRocket 博客开发以太坊区块链的指南
+# Web3.py 教程:用 Python 开发以太坊区块链的指南
 
 > 原文：<https://blog.logrocket.com/web3-py-tutorial-guide-ethereum-blockchain-development-with-python/>
 

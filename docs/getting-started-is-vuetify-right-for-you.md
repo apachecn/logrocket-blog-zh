@@ -1,4 +1,4 @@
-# Vuetify 入门:Vuetify 适合你吗？- LogRocket 博客
+# Vuetify 入门:Vuetify 适合你吗？
 
 > 原文：<https://blog.logrocket.com/getting-started-is-vuetify-right-for-you/>
 

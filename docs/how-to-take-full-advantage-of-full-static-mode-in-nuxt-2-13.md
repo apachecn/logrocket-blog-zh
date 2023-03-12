@@ -1,4 +1,4 @@
-# 如何在 Nuxt.js 2.13 - LogRocket 博客中充分利用全静态模式
+# 如何在 Nuxt.js 2.13 中充分利用全静态模式
 
 > 原文：<https://blog.logrocket.com/how-to-take-full-advantage-of-full-static-mode-in-nuxt-2-13/>
 

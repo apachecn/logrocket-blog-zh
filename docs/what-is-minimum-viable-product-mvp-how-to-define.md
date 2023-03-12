@@ -1,4 +1,4 @@
-# 什么是最小可行产品(MVP ),你如何定义它？- LogRocket 博客
+# 什么是最小可行产品(MVP ),你如何定义它？
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-minimum-viable-product-mvp-how-to-define/>
 

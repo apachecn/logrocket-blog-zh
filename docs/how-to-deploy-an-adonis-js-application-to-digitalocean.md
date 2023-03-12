@@ -1,4 +1,4 @@
-# 如何将 AdonisJs 应用程序部署到 DigitalOcean - LogRocket 博客
+# 如何将 AdonisJs 应用程序部署到 DigitalOcean 
 
 > 原文：<https://blog.logrocket.com/how-to-deploy-an-adonis-js-application-to-digitalocean/>
 

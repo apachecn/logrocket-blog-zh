@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现 InkWell 类
+# 在 Flutter 中实现 InkWell 类
 
 > 原文：<https://blog.logrocket.com/implementing-inkwell-class-flutter/>
 

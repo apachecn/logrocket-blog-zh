@@ -1,4 +1,4 @@
-# StateNotifier:改进 Flutter - LogRocket 博客中的状态变化通知程序
+# StateNotifier:改进 Flutter 中的状态变化通知程序
 
 > 原文：<https://blog.logrocket.com/statenotifier-improving-state-change-notifiers-flutter/>
 

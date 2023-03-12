@@ -1,4 +1,4 @@
-# 扩展 CSS when/else 链:第一个 look - LogRocket 博客
+# 扩展 CSS when/else 链:第一个 look 
 
 > 原文：<https://blog.logrocket.com/extending-css-when-else-chains-first-look/>
 

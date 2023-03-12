@@ -1,4 +1,4 @@
-# webpack 5 - LogRocket 博客中的新特性
+# webpack 5 中的新特性
 
 > 原文：<https://blog.logrocket.com/new-features-in-webpack-5-2559755adf5e/>
 

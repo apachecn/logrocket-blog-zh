@@ -1,4 +1,4 @@
-# 5 带示例的 React Motion 用例- LogRocket 博客
+# 5 带示例的 React Motion 用例
 
 > 原文：<https://blog.logrocket.com/5-react-motion-use-cases-with-examples-78fc07104d58/>
 

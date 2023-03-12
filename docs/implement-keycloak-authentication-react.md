@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中实现 Keycloak 认证
+# 如何在 React 中实现 Keycloak 认证
 
 > 原文：<https://blog.logrocket.com/implement-keycloak-authentication-react/>
 

@@ -1,4 +1,4 @@
-# Popper vs .浮动 UI - LogRocket 博客
+# Popper vs .浮动 UI 
 
 > 原文：<https://blog.logrocket.com/popper-vs-floating-ui/>
 

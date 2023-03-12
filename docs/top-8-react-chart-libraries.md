@@ -1,4 +1,4 @@
-# 前 8 名 React 图表库- LogRocket 博客
+# 前 8 名 React 图表库
 
 > 原文：<https://blog.logrocket.com/top-8-react-chart-libraries/>
 

@@ -1,4 +1,4 @@
-# Redux 没有死- LogRocket 博客
+# Redux 没有死
 
 > 原文：<https://blog.logrocket.com/redux-isnt-dead/>
 

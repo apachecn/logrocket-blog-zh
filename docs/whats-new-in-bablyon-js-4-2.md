@@ -1,4 +1,4 @@
-# Bablyon.js 4.2 中的新功能- LogRocket 博客
+# Bablyon.js 4.2 中的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-in-bablyon-js-4-2/>
 

@@ -1,4 +1,4 @@
-# 使用 react-native-video - LogRocket 博客添加 React Native 视频
+# 使用 react-native-video 添加 React Native 视频
 
 > 原文：<https://blog.logrocket.com/adding-videos-react-native-react-native-video/>
 

@@ -1,4 +1,4 @@
-# 使用 Glide - LogRocket 博客创建一个 Android 照片应用程序
+# 使用 Glide 创建一个 Android 照片应用程序
 
 > 原文：<https://blog.logrocket.com/create-android-photo-app-using-glide/>
 

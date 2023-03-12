@@ -1,4 +1,4 @@
-# 蚂蚁设计介绍- LogRocket 博客
+# 蚂蚁设计介绍
 
 > 原文：<https://blog.logrocket.com/introduction-to-ant-design/>
 

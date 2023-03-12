@@ -1,4 +1,4 @@
-# 什么是冲刺规划？指南和会议议程备忘单- LogRocket 博客
+# 什么是冲刺规划？指南和会议议程备忘单
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-sprint-planning-guide-meeting-agenda-cheat-sheet/>
 

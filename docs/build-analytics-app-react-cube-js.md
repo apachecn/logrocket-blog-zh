@@ -1,4 +1,4 @@
-# 使用 React 和 Cube.js - LogRocket 博客构建一个分析应用程序
+# 使用 React 和 Cube.js 构建一个分析应用程序
 
 > 原文：<https://blog.logrocket.com/build-analytics-app-react-cube-js/>
 

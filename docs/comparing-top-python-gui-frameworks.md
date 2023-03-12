@@ -1,4 +1,4 @@
-# 比较顶级 Python GUI 框架- LogRocket 博客
+# 比较顶级 Python GUI 框架
 
 > 原文：<https://blog.logrocket.com/comparing-top-python-gui-frameworks/>
 

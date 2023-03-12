@@ -1,4 +1,4 @@
-# 如何使用 AVIF、Squoosh 和 go-avif - LogRocket 博客格式化高质量的图像
+# 如何使用 AVIF、Squoosh 和 go-avif 格式化高质量的图像
 
 > 原文：<https://blog.logrocket.com/how-to-format-quality-images-using-avif-squoosh-and-go-avif/>
 

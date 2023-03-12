@@ -1,4 +1,4 @@
-# 使用 Colly - LogRocket 博客构建 web scraper
+# 使用 Colly 构建 web scraper
 
 > 原文：<https://blog.logrocket.com/building-web-scraper-go-colly/>
 

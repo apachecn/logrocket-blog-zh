@@ -1,4 +1,4 @@
-# DApps - LogRocket 博客的许可与非许可区块链
+# DApps 的许可与非许可区块链
 
 > 原文：<https://blog.logrocket.com/permissioned-vs-permissionless-blockchains-dapps/>
 

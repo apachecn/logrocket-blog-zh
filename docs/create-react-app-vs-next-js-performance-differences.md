@@ -1,4 +1,4 @@
-# 比较 Create React App 与 Next.js 的性能差异- LogRocket 博客
+# 比较 Create React App 与 Next.js 的性能差异
 
 > 原文：<https://blog.logrocket.com/create-react-app-vs-next-js-performance-differences/>
 

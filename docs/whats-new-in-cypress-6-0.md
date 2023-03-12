@@ -1,4 +1,4 @@
-# Cypress 6.0 的新特性- LogRocket 博客
+# Cypress 6.0 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-cypress-6-0/>
 

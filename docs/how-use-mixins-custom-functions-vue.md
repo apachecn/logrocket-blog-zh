@@ -1,4 +1,4 @@
-# 如何在 Vue - LogRocket 博客中使用 mixins 和自定义函数
+# 如何在 Vue 中使用 mixins 和自定义函数
 
 > 原文：<https://blog.logrocket.com/how-use-mixins-custom-functions-vue/>
 

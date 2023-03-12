@@ -1,4 +1,4 @@
-# 使用 JavaScript 的。at()方法- LogRocket 博客
+# 使用 JavaScript 的。at()方法
 
 > 原文：<https://blog.logrocket.com/using-javascript-at-method/>
 

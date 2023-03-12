@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客中的单元测试指南
+# React Native 中的单元测试指南
 
 > 原文：<https://blog.logrocket.com/unit-testing-react-native/>
 

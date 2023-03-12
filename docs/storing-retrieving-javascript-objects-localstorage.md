@@ -1,4 +1,4 @@
-# 在 localStorage - LogRocket 博客中存储和检索 JavaScript 对象
+# 在 localStorage 中存储和检索 JavaScript 对象
 
 > 原文：<https://blog.logrocket.com/storing-retrieving-javascript-objects-localstorage/>
 

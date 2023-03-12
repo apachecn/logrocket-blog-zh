@@ -1,4 +1,4 @@
-# 理解 JavaScript - LogRocket 博客中的符号
+# 理解 JavaScript 中的符号
 
 > 原文：<https://blog.logrocket.com/understanding-symbols-in-javascript/>
 

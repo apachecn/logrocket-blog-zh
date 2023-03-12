@@ -1,4 +1,4 @@
-# 使用 RecyclerView - LogRocket 博客在 Android 中创建动态列表
+# 使用 RecyclerView 在 Android 中创建动态列表
 
 > 原文：<https://blog.logrocket.com/create-dynamic-lists-in-android-with-recyclerview/>
 

@@ -1,4 +1,4 @@
-# 用 warp - LogRocket 博客在 Rust 中创建一个异步 CRUD web 服务
+# 用 warp 在 Rust 中创建一个异步 CRUD web 服务
 
 > 原文：<https://blog.logrocket.com/create-an-async-crud-web-service-in-rust-with-warp/>
 

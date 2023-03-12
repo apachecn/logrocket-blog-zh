@@ -1,4 +1,4 @@
-# 最有争议的 HTML5 扩展- LogRocket 博客
+# 最有争议的 HTML5 扩展
 
 > 原文：<https://blog.logrocket.com/the-most-controversial-html5-extension-7adc66bbc291/>
 

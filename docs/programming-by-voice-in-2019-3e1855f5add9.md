@@ -1,4 +1,4 @@
-# 2019 年语音编程- LogRocket 博客
+# 2019 年语音编程
 
 > 原文：<https://blog.logrocket.com/programming-by-voice-in-2019-3e1855f5add9/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中管理网络连接状态
+# 在 React Native 中管理网络连接状态
 
 > 原文：<https://blog.logrocket.com/managing-network-connection-status-in-react-native/>
 

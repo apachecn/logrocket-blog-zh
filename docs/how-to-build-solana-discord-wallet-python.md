@@ -1,4 +1,4 @@
-# 如何用 Python - LogRocket 博客构建一个 Solana Discord 钱包
+# 如何用 Python 构建一个 Solana Discord 钱包
 
 > 原文：<https://blog.logrocket.com/how-to-build-solana-discord-wallet-python/>
 

@@ -1,4 +1,4 @@
-# 介绍反冲:React - LogRocket 博客的简化状态管理
+# 介绍反冲:React 的简化状态管理
 
 > 原文：<https://blog.logrocket.com/simple-state-management-react-recoil/>
 

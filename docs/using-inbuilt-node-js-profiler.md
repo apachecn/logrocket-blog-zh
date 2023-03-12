@@ -1,4 +1,4 @@
-# 使用内置的 Node.js profiler - LogRocket 博客
+# 使用内置的 Node.js profiler 
 
 > 原文：<https://blog.logrocket.com/using-inbuilt-node-js-profiler/>
 

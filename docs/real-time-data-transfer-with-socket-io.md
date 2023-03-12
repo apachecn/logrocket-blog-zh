@@ -1,4 +1,4 @@
-# 使用 Socket.io - LogRocket 博客进行实时数据传输
+# 使用 Socket.io 进行实时数据传输
 
 > 原文：<https://blog.logrocket.com/real-time-data-transfer-with-socket-io/>
 

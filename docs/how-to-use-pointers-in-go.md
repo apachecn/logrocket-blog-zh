@@ -1,4 +1,4 @@
-# 如何在 Go - LogRocket 博客中使用指针
+# 如何在 Go 中使用指针
 
 > 原文：<https://blog.logrocket.com/how-to-use-pointers-in-go/>
 

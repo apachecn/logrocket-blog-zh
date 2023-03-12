@@ -1,4 +1,4 @@
-# 用 React Konva - LogRocket 博客构建一个框架生成器
+# 用 React Konva 构建一个框架生成器
 
 > 原文：<https://blog.logrocket.com/build-profile-frame-generator-react-konva/>
 

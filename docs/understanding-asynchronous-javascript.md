@@ -1,4 +1,4 @@
-# 理解(并有效地使用)异步 JavaScript - LogRocket 博客
+# 理解(并有效地使用)异步 JavaScript 
 
 > 原文：<https://blog.logrocket.com/understanding-asynchronous-javascript/>
 

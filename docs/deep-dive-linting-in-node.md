@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客对林挺的深度探究
+# Node.js 对林挺的深度探究
 
 > 原文：<https://blog.logrocket.com/deep-dive-linting-in-node/>
 

@@ -1,4 +1,4 @@
-# React 参考指南:Refs 和 DOM - LogRocket 博客
+# React 参考指南:Refs 和 DOM 
 
 > 原文：<https://blog.logrocket.com/react-reference-guide-refs-dom/>
 

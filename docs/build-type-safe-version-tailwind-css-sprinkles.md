@@ -1,4 +1,4 @@
-# 用 Sprinkles - LogRocket 博客构建你自己的类型安全版本的 Tailwind CSS
+# 用 Sprinkles 构建你自己的类型安全版本的 Tailwind CSS
 
 > 原文：<https://blog.logrocket.com/build-type-safe-version-tailwind-css-sprinkles/>
 

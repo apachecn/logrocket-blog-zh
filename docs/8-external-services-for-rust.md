@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客的 8 个外部服务
+# Rust 的 8 个外部服务
 
 > 原文：<https://blog.logrocket.com/8-external-services-for-rust/>
 

@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的过程宏
+# Rust 中的过程宏
 
 > 原文：<https://blog.logrocket.com/procedural-macros-in-rust/>
 

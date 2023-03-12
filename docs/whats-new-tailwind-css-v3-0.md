@@ -1,4 +1,4 @@
-# 顺风 CSS v3.0 版的新功能- LogRocket 博客
+# 顺风 CSS v3.0 版的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-tailwind-css-v3-0/>
 

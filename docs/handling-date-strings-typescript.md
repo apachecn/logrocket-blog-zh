@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中处理日期字符串
+# 在 TypeScript 中处理日期字符串
 
 > 原文：<https://blog.logrocket.com/handling-date-strings-typescript/>
 

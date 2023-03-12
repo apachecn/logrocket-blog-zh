@@ -1,4 +1,4 @@
-# Lighthouse 遇见 GitHub Actions:如何在 CI - LogRocket 博客中使用 Lighthouse
+# Lighthouse 遇见 GitHub Actions:如何在 CI 中使用 Lighthouse
 
 > 原文：<https://blog.logrocket.com/lighthouse-meets-github-actions-use-lighthouse-ci/>
 

@@ -1,4 +1,4 @@
-# 使用 Web3 钱包改进用户认证- LogRocket 博客
+# 使用 Web3 钱包改进用户认证
 
 > 原文：<https://blog.logrocket.com/improve-user-authentication-web3-wallets/>
 

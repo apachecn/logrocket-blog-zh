@@ -1,4 +1,4 @@
-# 关于新的 Next.js router - LogRocket 博客，你需要知道什么
+# 关于新的 Next.js router ，你需要知道什么
 
 > 原文：<https://blog.logrocket.com/what-you-need-know-new-next-js-router/>
 

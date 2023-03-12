@@ -1,4 +1,4 @@
-# 理解 CSS - LogRocket 博客中的最小内容、最大内容和适合内容
+# 理解 CSS 中的最小内容、最大内容和适合内容
 
 > 原文：<https://blog.logrocket.com/understanding-min-content-max-content-fit-content-css/>
 

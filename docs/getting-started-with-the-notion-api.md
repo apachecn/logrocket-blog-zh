@@ -1,4 +1,4 @@
-# 概念 API - LogRocket 博客入门
+# 概念 API 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-the-notion-api/>
 

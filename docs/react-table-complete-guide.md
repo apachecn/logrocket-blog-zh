@@ -1,4 +1,4 @@
-# React Table:一个完整的指南，包含对 TanStack Table - LogRocket 博客的更新
+# React Table:一个完整的指南，包含对 TanStack Table 的更新
 
 > 原文：<https://blog.logrocket.com/react-table-complete-guide/>
 

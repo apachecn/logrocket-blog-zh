@@ -1,4 +1,4 @@
-# 如何组织你的 nut.js 开发工作流- LogRocket 博客
+# 如何组织你的 nut.js 开发工作流
 
 > 原文：<https://blog.logrocket.com/how-to-organize-your-nut-js-development-workflow/>
 

@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中的可选链接和 nullish 合并
+# TypeScript 中的可选链接和 nullish 合并
 
 > 原文：<https://blog.logrocket.com/optional-chaining-nullish-coalescing-typescript/>
 

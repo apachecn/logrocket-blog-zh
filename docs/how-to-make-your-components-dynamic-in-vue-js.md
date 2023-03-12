@@ -1,4 +1,4 @@
-# 如何在 Vue.js - LogRocket 博客中让你的组件动态化
+# 如何在 Vue.js 中让你的组件动态化
 
 > 原文：<https://blog.logrocket.com/how-to-make-your-components-dynamic-in-vue-js/>
 

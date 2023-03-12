@@ -1,4 +1,4 @@
-# 是 Go 超车 Node.js？- LogRocket 博客
+# 是 Go 超车 Node.js？
 
 > 原文：<https://blog.logrocket.com/go-overtaking-node-js/>
 

@@ -1,4 +1,4 @@
-# 面向 Vue 开发者的 Alpine.js 简介- LogRocket 博客
+# 面向 Vue 开发者的 Alpine.js 简介
 
 > 原文：<https://blog.logrocket.com/intro-to-alpine-js-for-vue-developers/>
 

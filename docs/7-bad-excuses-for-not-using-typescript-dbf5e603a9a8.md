@@ -1,4 +1,4 @@
-# 不使用 TypeScript - LogRocket 博客的 7 个糟糕借口
+# 不使用 TypeScript 的 7 个糟糕借口
 
 > 原文：<https://blog.logrocket.com/7-bad-excuses-for-not-using-typescript-dbf5e603a9a8/>
 

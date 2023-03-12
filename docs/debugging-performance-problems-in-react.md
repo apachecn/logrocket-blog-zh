@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中调试性能问题
+# 在 React 中调试性能问题
 
 > 原文：<https://blog.logrocket.com/debugging-performance-problems-in-react/>
 

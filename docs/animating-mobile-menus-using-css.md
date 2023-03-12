@@ -1,4 +1,4 @@
-# 使用 CSS - LogRocket 博客制作移动菜单动画
+# 使用 CSS 制作移动菜单动画
 
 > 原文：<https://blog.logrocket.com/animating-mobile-menus-using-css/>
 

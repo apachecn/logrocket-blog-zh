@@ -1,4 +1,4 @@
-# 使用 SQLite - LogRocket 博客加速您的开发环境
+# 使用 SQLite 加速您的开发环境
 
 > 原文：<https://blog.logrocket.com/speeding-up-development-environment-sqlite/>
 

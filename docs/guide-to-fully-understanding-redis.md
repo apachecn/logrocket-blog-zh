@@ -1,4 +1,4 @@
-# 完全理解 Redis - LogRocket 博客的指南
+# 完全理解 Redis 的指南
 
 > 原文：<https://blog.logrocket.com/guide-to-fully-understanding-redis/>
 

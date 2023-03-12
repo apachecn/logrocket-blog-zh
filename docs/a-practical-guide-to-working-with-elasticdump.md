@@ -1,4 +1,4 @@
-# 使用 Elasticdump - LogRocket 博客的实用指南
+# 使用 Elasticdump 的实用指南
 
 > 原文：<https://blog.logrocket.com/a-practical-guide-to-working-with-elasticdump/>
 

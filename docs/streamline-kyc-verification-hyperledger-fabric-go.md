@@ -1,4 +1,4 @@
-# 使用 Hyperledger Fabric 和 Go - LogRocket 博客进行 KYC 验证
+# 使用 Hyperledger Fabric 和 Go 进行 KYC 验证
 
 > 原文：<https://blog.logrocket.com/streamline-kyc-verification-hyperledger-fabric-go/>
 

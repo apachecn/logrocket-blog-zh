@@ -1,4 +1,4 @@
-# 用 TestCafe - LogRocket 博客编写可重用的端到端测试
+# 用 TestCafe 编写可重用的端到端测试
 
 > 原文：<https://blog.logrocket.com/writing-reusable-end-to-end-tests-with-testcafe/>
 

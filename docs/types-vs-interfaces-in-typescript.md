@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中的类型与接口
+# TypeScript 中的类型与接口
 
 > 原文：<https://blog.logrocket.com/types-vs-interfaces-in-typescript/>
 

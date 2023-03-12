@@ -1,4 +1,4 @@
-# 与 RxJS 的反应:force press - LogRocket 博客
+# 与 RxJS 的反应:force press 
 
 > 原文：<https://blog.logrocket.com/reactivity-with-rxjs-force-press-63bfc907f295/>
 

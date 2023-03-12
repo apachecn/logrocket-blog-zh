@@ -1,4 +1,4 @@
-# Angular - LogRocket 博客中的表单组和表单控件
+# Angular 中的表单组和表单控件
 
 > 原文：<https://blog.logrocket.com/reactive-form-controls-form-groups-angular/>
 

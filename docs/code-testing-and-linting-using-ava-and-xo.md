@@ -1,4 +1,4 @@
-# 代码测试和林挺使用 AVA 和 XO - LogRocket 博客
+# 代码测试和林挺使用 AVA 和 XO 
 
 > 原文：<https://blog.logrocket.com/code-testing-and-linting-using-ava-and-xo/>
 

@@ -1,4 +1,4 @@
-# 用 Vue Demi - LogRocket 博客构建一个通用的 Vue 组件库
+# 用 Vue Demi 构建一个通用的 Vue 组件库
 
 > 原文：<https://blog.logrocket.com/build-universal-vue-component-library-vue-demi/>
 

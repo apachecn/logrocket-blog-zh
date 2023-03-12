@@ -1,4 +1,4 @@
-# Nodemon 教程:使用 Nodemon - LogRocket 博客自动重启 Node.js 应用程序
+# Nodemon 教程:使用 Nodemon 自动重启 Node.js 应用程序
 
 > 原文：<https://blog.logrocket.com/nodemon-tutorial-automatically-restart-node-js-apps-with-nodemon/>
 

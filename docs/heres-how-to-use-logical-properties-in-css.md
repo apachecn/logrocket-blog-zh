@@ -1,4 +1,4 @@
-# 以下是如何在 CSS - LogRocket 博客中使用逻辑属性
+# 以下是如何在 CSS 中使用逻辑属性
 
 > 原文：<https://blog.logrocket.com/heres-how-to-use-logical-properties-in-css/>
 

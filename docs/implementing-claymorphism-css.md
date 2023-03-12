@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客实现 claymorphism
+# 用 CSS 实现 claymorphism
 
 > 原文：<https://blog.logrocket.com/implementing-claymorphism-css/>
 

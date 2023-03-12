@@ -1,4 +1,4 @@
-# 发现影子 DOM - LogRocket 博客
+# 发现影子 DOM 
 
 > 原文：<https://blog.logrocket.com/discovering-the-shadow-dom-e541d74aefb3/>
 

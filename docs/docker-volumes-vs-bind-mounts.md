@@ -1,4 +1,4 @@
-# Docker 卷与绑定装载- LogRocket 博客
+# Docker 卷与绑定装载
 
 > 原文：<https://blog.logrocket.com/docker-volumes-vs-bind-mounts/>
 

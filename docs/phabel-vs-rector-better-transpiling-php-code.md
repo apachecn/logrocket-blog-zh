@@ -1,4 +1,4 @@
-# Phabel vs. Rector:哪个更适合传输 PHP 代码？- LogRocket 博客
+# Phabel vs. Rector:哪个更适合传输 PHP 代码？
 
 > 原文：<https://blog.logrocket.com/phabel-vs-rector-better-transpiling-php-code/>
 

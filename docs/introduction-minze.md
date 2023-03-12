@@ -1,4 +1,4 @@
-# Minze - LogRocket 博客简介
+# Minze 简介
 
 > 原文：<https://blog.logrocket.com/introduction-minze/>
 

@@ -1,4 +1,4 @@
-# 使用 Seaborn - LogRocket 博客在 Python 中实现数据可视化
+# 使用 Seaborn 在 Python 中实现数据可视化
 
 > 原文：<https://blog.logrocket.com/data-visualization-python-seaborn/>
 

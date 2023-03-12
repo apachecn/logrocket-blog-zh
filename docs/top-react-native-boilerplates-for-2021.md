@@ -1,4 +1,4 @@
-# 2021 年顶级 React 原生样板- LogRocket 博客
+# 2021 年顶级 React 原生样板
 
 > 原文：<https://blog.logrocket.com/top-react-native-boilerplates-for-2021/>
 

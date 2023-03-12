@@ -1,4 +1,4 @@
-# 2020 年最抢手的前端框架有哪些？- LogRocket 博客
+# 2020 年最抢手的前端框架有哪些？
 
 > 原文：<https://blog.logrocket.com/state-of-javascript-what-are-the-most-in-demand-frontend-frameworks-in-2020/>
 

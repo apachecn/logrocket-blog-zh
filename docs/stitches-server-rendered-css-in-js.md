@@ -1,4 +1,4 @@
-# Stitches:一个现代的、服务器渲染的 CSS-in-JS 库- LogRocket 博客
+# Stitches:一个现代的、服务器渲染的 CSS-in-JS 库
 
 > 原文：<https://blog.logrocket.com/stitches-server-rendered-css-in-js/>
 

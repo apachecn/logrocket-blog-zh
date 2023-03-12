@@ -1,4 +1,4 @@
-# 巴别塔 8 - LogRocket 博客有什么消息
+# 巴别塔 8 有什么消息
 
 > 原文：<https://blog.logrocket.com/whats-coming-in-babel-8/>
 

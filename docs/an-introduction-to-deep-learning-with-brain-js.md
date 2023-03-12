@@ -1,4 +1,4 @@
-# Brain.js - LogRocket 博客深度学习介绍
+# Brain.js 深度学习介绍
 
 > 原文：<https://blog.logrocket.com/an-introduction-to-deep-learning-with-brain-js/>
 

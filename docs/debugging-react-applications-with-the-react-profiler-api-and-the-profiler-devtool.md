@@ -1,4 +1,4 @@
-# 使用 React Profiler API 和 Profiler DevTool - LogRocket 博客调试 React 应用程序
+# 使用 React Profiler API 和 Profiler DevTool 调试 React 应用程序
 
 > 原文：<https://blog.logrocket.com/debugging-react-applications-with-the-react-profiler-api-and-the-profiler-devtool/>
 

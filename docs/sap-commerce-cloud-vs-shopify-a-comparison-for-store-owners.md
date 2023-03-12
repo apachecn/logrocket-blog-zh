@@ -1,4 +1,4 @@
-# SAP 商务云与 Shopify:商店所有者的比较- LogRocket 博客
+# SAP 商务云与 Shopify:商店所有者的比较
 
 > 原文：<https://blog.logrocket.com/sap-commerce-cloud-vs-shopify-a-comparison-for-store-owners/>
 

@@ -1,4 +1,4 @@
-# 顶级 Docker 和 Docker 桌面替代品- LogRocket 博客
+# 顶级 Docker 和 Docker 桌面替代品
 
 > 原文：<https://blog.logrocket.com/docker-desktop-alternatives/>
 

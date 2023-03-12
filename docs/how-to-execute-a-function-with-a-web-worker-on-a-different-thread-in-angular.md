@@ -1,4 +1,4 @@
-# 如何在 Angular - LogRocket 博客中用不同线程上的 web worker 执行函数
+# 如何在 Angular 中用不同线程上的 web worker 执行函数
 
 > 原文：<https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/>
 

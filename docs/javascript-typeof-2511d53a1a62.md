@@ -1,4 +1,4 @@
-# JavaScript typeof:理解 JavaScript - LogRocket 博客中的类型检查
+# JavaScript typeof:理解 JavaScript 中的类型检查
 
 > 原文：<https://blog.logrocket.com/javascript-typeof-2511d53a1a62/>
 

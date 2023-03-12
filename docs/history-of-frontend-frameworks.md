@@ -1,4 +1,4 @@
-# 前端框架的历史- LogRocket 博客
+# 前端框架的历史
 
 > 原文：<https://blog.logrocket.com/history-of-frontend-frameworks/>
 

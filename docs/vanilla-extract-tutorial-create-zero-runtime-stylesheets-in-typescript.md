@@ -1,4 +1,4 @@
-# 精华教程:在 TypeScript - LogRocket 博客中创建零运行时样式表
+# 精华教程:在 TypeScript 中创建零运行时样式表
 
 > 原文：<https://blog.logrocket.com/vanilla-extract-tutorial-create-zero-runtime-stylesheets-in-typescript/>
 

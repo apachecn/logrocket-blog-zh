@@ -1,4 +1,4 @@
-# XState - LogRocket 博客的状态驱动界面
+# XState 的状态驱动界面
 
 > 原文：<https://blog.logrocket.com/state-driven-interfaces-with-xstate/>
 

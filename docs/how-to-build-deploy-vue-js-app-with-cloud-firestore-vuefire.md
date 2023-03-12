@@ -1,4 +1,4 @@
-# 如何使用 Cloud Firestore 和 Vuefire - LogRocket 博客构建和部署 Vue.js 应用程序
+# 如何使用 Cloud Firestore 和 Vuefire 构建和部署 Vue.js 应用程序
 
 > 原文：<https://blog.logrocket.com/how-to-build-deploy-vue-js-app-with-cloud-firestore-vuefire/>
 

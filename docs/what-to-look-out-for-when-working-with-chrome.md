@@ -1,4 +1,4 @@
-# 使用 Chrome - LogRocket 博客时要注意什么
+# 使用 Chrome 时要注意什么
 
 > 原文：<https://blog.logrocket.com/what-to-look-out-for-when-working-with-chrome/>
 

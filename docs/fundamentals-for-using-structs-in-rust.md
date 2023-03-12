@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中使用结构的基础
+# Rust 中使用结构的基础
 
 > 原文：<https://blog.logrocket.com/fundamentals-for-using-structs-in-rust/>
 

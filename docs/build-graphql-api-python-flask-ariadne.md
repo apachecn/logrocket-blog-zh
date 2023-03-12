@@ -1,4 +1,4 @@
-# 用 Python、Flask 和 Ariadne - LogRocket 博客构建一个 GraphQL API
+# 用 Python、Flask 和 Ariadne 构建一个 GraphQL API
 
 > 原文：<https://blog.logrocket.com/build-graphql-api-python-flask-ariadne/>
 

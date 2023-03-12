@@ -1,4 +1,4 @@
-# TensorFlow.js:用例介绍和分析- LogRocket 博客
+# TensorFlow.js:用例介绍和分析
 
 > 原文：<https://blog.logrocket.com/tensorflow-js-an-intro-and-analysis-with-use-cases-8e1f9a973183/>
 

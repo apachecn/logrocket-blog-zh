@@ -1,4 +1,4 @@
-# CSS 网格还是 CSS 框架？- LogRocket 博客
+# CSS 网格还是 CSS 框架？
 
 > 原文：<https://blog.logrocket.com/css-grid-or-css-frameworks/>
 

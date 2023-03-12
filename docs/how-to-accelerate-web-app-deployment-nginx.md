@@ -1,4 +1,4 @@
-# 如何用 Nginx - LogRocket 博客加速 web 应用部署
+# 如何用 Nginx 加速 web 应用部署
 
 > 原文：<https://blog.logrocket.com/how-to-accelerate-web-app-deployment-nginx/>
 

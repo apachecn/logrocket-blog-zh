@@ -1,4 +1,4 @@
-# 使用 Node.js 的自然语言处理- LogRocket 博客
+# 使用 Node.js 的自然语言处理
 
 > 原文：<https://blog.logrocket.com/natural-language-processing-node-js/>
 

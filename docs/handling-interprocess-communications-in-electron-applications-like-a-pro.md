@@ -1,4 +1,4 @@
-# 处理电子应用程序中的进程间通信，如 pro - LogRocket 博客
+# 处理电子应用程序中的进程间通信，如 pro 
 
 > 原文：<https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/>
 

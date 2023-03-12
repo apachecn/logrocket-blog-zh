@@ -1,4 +1,4 @@
-# Swift defer 声明完全指南- LogRocket 博客
+# Swift defer 声明完全指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-swift-defer-statement/>
 

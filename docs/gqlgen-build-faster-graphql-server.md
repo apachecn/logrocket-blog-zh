@@ -1,4 +1,4 @@
-# gqlgen:构建更快的 GraphQL 服务器- LogRocket 博客
+# gqlgen:构建更快的 GraphQL 服务器
 
 > 原文：<https://blog.logrocket.com/gqlgen-build-faster-graphql-server/>
 

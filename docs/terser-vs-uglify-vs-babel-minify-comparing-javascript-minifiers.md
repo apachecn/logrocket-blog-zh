@@ -1,4 +1,4 @@
-# Terser vs. Uglify vs. babel-minify:比较 JavaScript minifiers - LogRocket 博客
+# Terser vs. Uglify vs. babel-minify:比较 JavaScript minifiers 
 
 > 原文：<https://blog.logrocket.com/terser-vs-uglify-vs-babel-minify-comparing-javascript-minifiers/>
 

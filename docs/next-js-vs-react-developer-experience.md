@@ -1,4 +1,4 @@
-# Next.js vs. React:开发者体验- LogRocket 博客
+# Next.js vs. React:开发者体验
 
 > 原文：<https://blog.logrocket.com/next-js-vs-react-developer-experience/>
 

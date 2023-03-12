@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中构建电影搜索应用
+# 在 React 中构建电影搜索应用
 
 > 原文：<https://blog.logrocket.com/building-a-movie-search-app-in-react/>
 

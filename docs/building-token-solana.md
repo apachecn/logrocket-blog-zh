@@ -1,4 +1,4 @@
-# 用 Solana - LogRocket 博客构建自己的令牌
+# 用 Solana 构建自己的令牌
 
 > 原文：<https://blog.logrocket.com/building-token-solana/>
 

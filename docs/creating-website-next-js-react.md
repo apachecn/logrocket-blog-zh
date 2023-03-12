@@ -1,4 +1,4 @@
-# 用 Next.js 和 React - LogRocket 博客创建网站
+# 用 Next.js 和 React 创建网站
 
 > 原文：<https://blog.logrocket.com/creating-website-next-js-react/>
 

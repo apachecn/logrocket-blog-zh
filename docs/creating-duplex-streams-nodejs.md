@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中创建双工流
+# 在 Node.js 中创建双工流
 
 > 原文：<https://blog.logrocket.com/creating-duplex-streams-nodejs/>
 

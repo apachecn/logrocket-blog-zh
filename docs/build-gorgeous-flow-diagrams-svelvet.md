@@ -1,4 +1,4 @@
-# 用 Svelvet - LogRocket 博客构建华丽的流程图
+# 用 Svelvet 构建华丽的流程图
 
 > 原文：<https://blog.logrocket.com/build-gorgeous-flow-diagrams-svelvet/>
 

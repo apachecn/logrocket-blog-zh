@@ -1,4 +1,4 @@
-# 处理 Next.js - LogRocket 博客中的链接
+# 处理 Next.js 中的链接
 
 > 原文：<https://blog.logrocket.com/dealing-with-links-in-next-js/>
 

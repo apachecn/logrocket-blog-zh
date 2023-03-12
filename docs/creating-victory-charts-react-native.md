@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中创建胜利图表
+# 在 React Native 中创建胜利图表
 
 > 原文：<https://blog.logrocket.com/creating-victory-charts-react-native/>
 

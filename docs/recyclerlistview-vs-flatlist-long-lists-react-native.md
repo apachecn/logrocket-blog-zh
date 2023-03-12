@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客中长列表的 RecyclerListView 与 FlatList
+# React Native 中长列表的 RecyclerListView 与 FlatList
 
 > 原文：<https://blog.logrocket.com/recyclerlistview-vs-flatlist-long-lists-react-native/>
 

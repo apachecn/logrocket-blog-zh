@@ -1,4 +1,4 @@
-# 以太坊区块链开发使用 Web3.js - LogRocket 博客
+# 以太坊区块链开发使用 Web3.js 
 
 > 原文：<https://blog.logrocket.com/ethereum-blockchain-development-using-web3-js/>
 

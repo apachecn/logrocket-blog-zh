@@ -1,4 +1,4 @@
-# Nim vs Python:你该选哪个？- LogRocket 博客
+# Nim vs Python:你该选哪个？
 
 > 原文：<https://blog.logrocket.com/nim-vs-python-which-should-you-choose/>
 

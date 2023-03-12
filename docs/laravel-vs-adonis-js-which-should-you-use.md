@@ -1,4 +1,4 @@
-# Laravel vs. AdonisJs:应该用哪个？- LogRocket 博客
+# Laravel vs. AdonisJs:应该用哪个？
 
 > 原文：<https://blog.logrocket.com/laravel-vs-adonis-js-which-should-you-use/>
 

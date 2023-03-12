@@ -1,4 +1,4 @@
-# Netlify vs. Cloudflare 页面- LogRocket 博客
+# Netlify vs. Cloudflare 页面
 
 > 原文：<https://blog.logrocket.com/netlify-vs-cloudflare-pages/>
 

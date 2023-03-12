@@ -1,4 +1,4 @@
-# 使用 Vizzu - LogRocket 博客通过图表构建数据故事
+# 使用 Vizzu 通过图表构建数据故事
 
 > 原文：<https://blog.logrocket.com/building-data-stories-through-charts-vizzu/>
 

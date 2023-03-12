@@ -1,4 +1,4 @@
-# 用 React DnD - LogRocket 博客构建一个特雷罗克隆
+# 用 React DnD 构建一个特雷罗克隆
 
 > 原文：<https://blog.logrocket.com/building-trello-clone-react-dnd/>
 

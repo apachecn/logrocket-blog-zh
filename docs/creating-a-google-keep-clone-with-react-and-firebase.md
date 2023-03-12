@@ -1,4 +1,4 @@
-# 用 React 和 Firebase - LogRocket 博客创建 Google Keep 克隆
+# 用 React 和 Firebase 创建 Google Keep 克隆
 
 > 原文：<https://blog.logrocket.com/creating-a-google-keep-clone-with-react-and-firebase/>
 

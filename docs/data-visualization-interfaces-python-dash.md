@@ -1,4 +1,4 @@
-# 用 Python Dash - LogRocket 博客实现数据可视化
+# 用 Python Dash 实现数据可视化
 
 > 原文：<https://blog.logrocket.com/data-visualization-interfaces-python-dash/>
 

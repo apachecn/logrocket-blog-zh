@@ -1,4 +1,4 @@
-# Next.js Commerce:概述和教程- LogRocket 博客
+# Next.js Commerce:概述和教程
 
 > 原文：<https://blog.logrocket.com/next-js-commerce-an-overview-and-tutorial/>
 

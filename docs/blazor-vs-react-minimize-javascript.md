@@ -1,4 +1,4 @@
-# React vs. Blazor:在你的 SPAs - LogRocket 博客中最小化 JavaScript
+# React vs. Blazor:在你的 SPAs 中最小化 JavaScript
 
 > 原文：<https://blog.logrocket.com/blazor-vs-react-minimize-javascript/>
 

@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用 Firebase 时自定义电子邮件模板
+# 在 React 中使用 Firebase 时自定义电子邮件模板
 
 > 原文：<https://blog.logrocket.com/send-custom-email-templates-firebase-react-express/>
 

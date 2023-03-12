@@ -1,4 +1,4 @@
-# 在 NestJS - LogRocket 博客中用 GraphQL 实现分页
+# 在 NestJS 中用 GraphQL 实现分页
 
 > 原文：<https://blog.logrocket.com/implementing-pagination-graphql-nestjs/>
 

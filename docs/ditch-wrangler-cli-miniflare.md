@@ -1,4 +1,4 @@
-# 抛弃 Miniflare - LogRocket 博客的牧马人 CLI
+# 抛弃 Miniflare 的牧马人 CLI
 
 > 原文：<https://blog.logrocket.com/ditch-wrangler-cli-miniflare/>
 

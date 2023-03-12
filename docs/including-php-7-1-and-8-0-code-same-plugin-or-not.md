@@ -1,4 +1,4 @@
-# 在同一个插件中包含 PHP 7.1 和 8.0 代码…或者不包含？- LogRocket 博客
+# 在同一个插件中包含 PHP 7.1 和 8.0 代码…或者不包含？
 
 > 原文：<https://blog.logrocket.com/including-php-7-1-and-8-0-code-same-plugin-or-not/>
 

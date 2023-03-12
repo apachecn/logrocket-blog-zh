@@ -1,4 +1,4 @@
-# 如何用 PostgreSQL 和 GraphQL 创建 React 本地应用程序:第 2 部分- LogRocket 博客
+# 如何用 PostgreSQL 和 GraphQL 创建 React 本地应用程序:第 2 部分
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-react-native-app-with-postgresql-and-graphql-part-2/>
 

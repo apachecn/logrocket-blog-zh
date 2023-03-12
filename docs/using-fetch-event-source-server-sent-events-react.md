@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中为服务器发送的事件使用 Fetch 事件源
+# 在 React 中为服务器发送的事件使用 Fetch 事件源
 
 > 原文：<https://blog.logrocket.com/using-fetch-event-source-server-sent-events-react/>
 

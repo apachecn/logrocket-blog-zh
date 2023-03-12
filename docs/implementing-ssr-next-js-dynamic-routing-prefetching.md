@@ -1,4 +1,4 @@
-# 在 Next.js 中实现 SSR:动态路由和预取- LogRocket 博客
+# 在 Next.js 中实现 SSR:动态路由和预取
 
 > 原文：<https://blog.logrocket.com/implementing-ssr-next-js-dynamic-routing-prefetching/>
 

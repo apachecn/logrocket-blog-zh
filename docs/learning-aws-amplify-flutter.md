@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中学习如何使用 AWS Amplify
+# 在 Flutter 中学习如何使用 AWS Amplify
 
 > 原文：<https://blog.logrocket.com/learning-aws-amplify-flutter/>
 

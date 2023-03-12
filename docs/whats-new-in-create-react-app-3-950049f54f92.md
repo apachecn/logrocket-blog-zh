@@ -1,4 +1,4 @@
-# Create React App 3 - LogRocket 博客的新特性
+# Create React App 3 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-create-react-app-3-950049f54f92/>
 

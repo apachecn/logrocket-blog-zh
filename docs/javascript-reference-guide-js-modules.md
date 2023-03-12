@@ -1,4 +1,4 @@
-# JavaScript 参考指南:JS 模块生态系统- LogRocket 博客
+# JavaScript 参考指南:JS 模块生态系统
 
 > 原文：<https://blog.logrocket.com/javascript-reference-guide-js-modules/>
 

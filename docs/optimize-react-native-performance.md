@@ -1,4 +1,4 @@
-# 优化 React 本机性能- LogRocket 博客
+# 优化 React 本机性能
 
 > 原文：<https://blog.logrocket.com/optimize-react-native-performance/>
 

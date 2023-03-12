@@ -1,4 +1,4 @@
-# 了解 React 复合组件- LogRocket 博客
+# 了解 React 复合组件
 
 > 原文：<https://blog.logrocket.com/understanding-react-compound-components/>
 

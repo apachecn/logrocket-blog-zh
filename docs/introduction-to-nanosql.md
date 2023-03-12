@@ -1,4 +1,4 @@
-# nanoSQL - LogRocket 博客简介
+# nanoSQL 简介
 
 > 原文：<https://blog.logrocket.com/introduction-to-nanosql/>
 

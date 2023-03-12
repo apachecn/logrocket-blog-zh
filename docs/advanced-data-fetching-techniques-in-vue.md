@@ -1,4 +1,4 @@
-# Vue - LogRocket 博客中的高级数据获取技术
+# Vue 中的高级数据获取技术
 
 > 原文：<https://blog.logrocket.com/advanced-data-fetching-techniques-in-vue/>
 

@@ -1,4 +1,4 @@
-# 使用 React 本地图表工具包来可视化数据- LogRocket 博客
+# 使用 React 本地图表工具包来可视化数据
 
 > 原文：<https://blog.logrocket.com/using-react-native-chart-kit-visualize-data/>
 

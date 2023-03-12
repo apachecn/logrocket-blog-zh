@@ -1,4 +1,4 @@
-# React 中的客户端路由与 React Location - LogRocket 博客
+# React 中的客户端路由与 React Location 
 
 > 原文：<https://blog.logrocket.com/client-side-routing-react-react-location/>
 

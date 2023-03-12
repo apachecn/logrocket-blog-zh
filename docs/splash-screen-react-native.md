@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中构建闪屏
+# 在 React Native 中构建闪屏
 
 > 原文：<https://blog.logrocket.com/splash-screen-react-native/>
 

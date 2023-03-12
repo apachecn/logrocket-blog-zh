@@ -1,4 +1,4 @@
-# webpack 或 esbuild:为什么不能两者兼得？- LogRocket 博客
+# webpack 或 esbuild:为什么不能两者兼得？
 
 > 原文：<https://blog.logrocket.com/webpack-or-esbuild-why-not-both/>
 

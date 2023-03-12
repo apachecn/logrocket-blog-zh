@@ -1,4 +1,4 @@
-# React Native WebView:一个完整的指南- LogRocket 博客
+# React Native WebView:一个完整的指南
 
 > 原文：<https://blog.logrocket.com/react-native-webview-a-complete-guide/>
 

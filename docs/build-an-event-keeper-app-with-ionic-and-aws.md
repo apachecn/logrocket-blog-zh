@@ -1,4 +1,4 @@
-# 用 Ionic 和 AWS - LogRocket 博客构建一个事件管理器应用程序
+# 用 Ionic 和 AWS 构建一个事件管理器应用程序
 
 > 原文：<https://blog.logrocket.com/build-an-event-keeper-app-with-ionic-and-aws/>
 

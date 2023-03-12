@@ -1,4 +1,4 @@
-# 用 Gin - LogRocket 博客构建 Go 中的微服务
+# 用 Gin 构建 Go 中的微服务
 
 > 原文：<https://blog.logrocket.com/building-microservices-go-gin/>
 

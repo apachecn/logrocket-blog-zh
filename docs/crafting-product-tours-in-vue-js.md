@@ -1,4 +1,4 @@
-# 在 Vue.js - LogRocket 博客中制作产品游览
+# 在 Vue.js 中制作产品游览
 
 > 原文：<https://blog.logrocket.com/crafting-product-tours-in-vue-js/>
 

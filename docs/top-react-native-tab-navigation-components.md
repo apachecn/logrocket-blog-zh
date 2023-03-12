@@ -1,4 +1,4 @@
-# Top React 本地选项卡导航组件- LogRocket 博客
+# Top React 本地选项卡导航组件
 
 > 原文：<https://blog.logrocket.com/top-react-native-tab-navigation-components/>
 

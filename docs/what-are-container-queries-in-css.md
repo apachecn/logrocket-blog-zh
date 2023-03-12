@@ -1,4 +1,4 @@
-# CSS 中的容器查询是什么？- LogRocket 博客
+# CSS 中的容器查询是什么？
 
 > 原文：<https://blog.logrocket.com/what-are-container-queries-in-css/>
 

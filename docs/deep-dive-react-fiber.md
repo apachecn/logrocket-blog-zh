@@ -1,4 +1,4 @@
-# React Fiber - LogRocket 博客的深度探讨
+# React Fiber 的深度探讨
 
 > 原文：<https://blog.logrocket.com/deep-dive-react-fiber/>
 

@@ -1,4 +1,4 @@
-# 用 React Slick - LogRocket 博客创建一个旋转木马
+# 用 React Slick 创建一个旋转木马
 
 > 原文：<https://blog.logrocket.com/create-carousel-react-slick/>
 

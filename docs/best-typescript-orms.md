@@ -1,4 +1,4 @@
-# 最佳打字稿 ORMs - LogRocket 博客
+# 最佳打字稿 ORMs 
 
 > 原文：<https://blog.logrocket.com/best-typescript-orms/>
 

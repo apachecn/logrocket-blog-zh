@@ -1,4 +1,4 @@
-# Go 1.16 的新功能- LogRocket 博客
+# Go 1.16 的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-in-go-1-16/>
 

@@ -1,4 +1,4 @@
-# React - LogRocket 博客的酶入门
+# React 的酶入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-enzyme-for-react-a106b58fc53b/>
 

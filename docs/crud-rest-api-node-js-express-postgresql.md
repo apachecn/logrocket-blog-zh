@@ -1,4 +1,4 @@
-# 带有 Node.js、Express 和 PostgreSQL - LogRocket 博客的 CRUD REST API
+# 带有 Node.js、Express 和 PostgreSQL 的 CRUD REST API
 
 > 原文：<https://blog.logrocket.com/crud-rest-api-node-js-express-postgresql/>
 

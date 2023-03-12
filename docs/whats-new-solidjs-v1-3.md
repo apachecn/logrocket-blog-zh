@@ -1,4 +1,4 @@
-# SolidJS v1.3 有什么新功能？- LogRocket 博客
+# SolidJS v1.3 有什么新功能？
 
 > 原文：<https://blog.logrocket.com/whats-new-solidjs-v1-3/>
 

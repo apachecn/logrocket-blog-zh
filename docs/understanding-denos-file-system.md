@@ -1,4 +1,4 @@
-# 了解 Deno 的文件系统- LogRocket 博客
+# 了解 Deno 的文件系统
 
 > 原文：<https://blog.logrocket.com/understanding-denos-file-system/>
 

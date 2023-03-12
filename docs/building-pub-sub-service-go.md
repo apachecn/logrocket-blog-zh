@@ -1,4 +1,4 @@
-# 在 Go - LogRocket 博客中构建发布/订阅服务
+# 在 Go 中构建发布/订阅服务
 
 > 原文：<https://blog.logrocket.com/building-pub-sub-service-go/>
 

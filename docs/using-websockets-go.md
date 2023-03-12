@@ -1,4 +1,4 @@
-# 在 Golang - LogRocket 博客中使用 WebSockets
+# 在 Golang 中使用 WebSockets
 
 > 原文：<https://blog.logrocket.com/using-websockets-go/>
 

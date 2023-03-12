@@ -1,4 +1,4 @@
-# 带有 Vite + React、Tailwind CSS 和 Solidity - LogRocket 博客的全栈 DApp 教程
+# 带有 Vite + React、Tailwind CSS 和 Solidity 的全栈 DApp 教程
 
 > 原文：<https://blog.logrocket.com/full-stack-dapp-tutorial-vite-react-tailwind-css-solidity/>
 

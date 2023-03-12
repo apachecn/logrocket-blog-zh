@@ -1,4 +1,4 @@
-# Kotlin - LogRocket 博客中的正则表达式指南
+# Kotlin 中的正则表达式指南
 
 > 原文：<https://blog.logrocket.com/guide-regular-expression-kotlin/>
 

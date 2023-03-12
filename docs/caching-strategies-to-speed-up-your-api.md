@@ -1,4 +1,4 @@
-# 加速 API - LogRocket 博客的缓存策略
+# 加速 API 的缓存策略
 
 > 原文：<https://blog.logrocket.com/caching-strategies-to-speed-up-your-api/>
 

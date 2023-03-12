@@ -1,4 +1,4 @@
-# 使用 Vue 3 和 Firebase - LogRocket 博客进行认证
+# 使用 Vue 3 和 Firebase 进行认证
 
 > 原文：<https://blog.logrocket.com/authentication-vue-3-firebase/>
 

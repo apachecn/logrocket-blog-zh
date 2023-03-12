@@ -1,4 +1,4 @@
-# 使用 Docker - LogRocket 博客将 React 应用程序部署到 Kubernetes
+# 使用 Docker 将 React 应用程序部署到 Kubernetes
 
 > 原文：<https://blog.logrocket.com/deploy-react-app-kubernetes-using-docker/>
 

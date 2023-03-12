@@ -1,4 +1,4 @@
-# 构建一个颤动的视频播放器- LogRocket 博客
+# 构建一个颤动的视频播放器
 
 > 原文：<https://blog.logrocket.com/flutter-video-player/>
 

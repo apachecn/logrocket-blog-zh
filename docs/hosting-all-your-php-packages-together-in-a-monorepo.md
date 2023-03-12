@@ -1,4 +1,4 @@
-# 在 monorepo - LogRocket 博客中托管所有 PHP 包
+# 在 monorepo 中托管所有 PHP 包
 
 > 原文：<https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/>
 

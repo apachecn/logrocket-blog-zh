@@ -1,4 +1,4 @@
-# 用 Docker - LogRocket 博客制作管道
+# 用 Docker 制作管道
 
 > 原文：<https://blog.logrocket.com/crafting-build-pipelines-with-docker/>
 

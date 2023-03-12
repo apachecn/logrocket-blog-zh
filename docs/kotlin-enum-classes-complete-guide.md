@@ -1,4 +1,4 @@
-# Kotlin - LogRocket 博客中的枚举类完整指南
+# Kotlin 中的枚举类完整指南
 
 > 原文：<https://blog.logrocket.com/kotlin-enum-classes-complete-guide/>
 

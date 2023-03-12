@@ -1,4 +1,4 @@
-# NestJS vs. LoopBack 4:哪个最好？- LogRocket 博客
+# NestJS vs. LoopBack 4:哪个最好？
 
 > 原文：<https://blog.logrocket.com/nestjs-vs-loopback-which-is-best/>
 

@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现人脸识别和认证
+# 在 Flutter 中实现人脸识别和认证
 
 > 原文：<https://blog.logrocket.com/implementing-face-recognition-authentication-flutter/>
 

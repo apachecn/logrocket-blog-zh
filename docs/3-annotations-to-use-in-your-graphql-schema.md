@@ -1,4 +1,4 @@
-# 在 GraphQL schema - LogRocket 博客中使用的 3 个注释
+# 在 GraphQL schema 中使用的 3 个注释
 
 > 原文：<https://blog.logrocket.com/3-annotations-to-use-in-your-graphql-schema/>
 

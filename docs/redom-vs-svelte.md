@@ -1,4 +1,4 @@
-# 回复:DOM vs. Svelte - LogRocket 博客
+# 回复:DOM vs. Svelte 
 
 > 原文：<https://blog.logrocket.com/redom-vs-svelte/>
 

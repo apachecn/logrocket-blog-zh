@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用 React Query 进行状态管理
+# 在 React Native 中使用 React Query 进行状态管理
 
 > 原文：<https://blog.logrocket.com/react-query-state-management-react-native/>
 

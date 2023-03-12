@@ -1,4 +1,4 @@
-# 用 Sortable.js 和 React - LogRocket 博客创建重新排序的列表
+# 用 Sortable.js 和 React 创建重新排序的列表
 
 > 原文：<https://blog.logrocket.com/creating-reordered-lists-with-sortable-js-and-react/>
 

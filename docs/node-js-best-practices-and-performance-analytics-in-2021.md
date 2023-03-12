@@ -1,4 +1,4 @@
-# Node.js best 年最佳实践和性能分析- LogRocket 博客
+# Node.js best 年最佳实践和性能分析
 
 > 原文：<https://blog.logrocket.com/node-js-best-practices-and-performance-analytics-in-2021/>
 

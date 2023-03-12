@@ -1,4 +1,4 @@
-# 用 Zustand - LogRocket 博客管理反应状态
+# 用 Zustand 管理反应状态
 
 > 原文：<https://blog.logrocket.com/managing-react-state-zustand/>
 

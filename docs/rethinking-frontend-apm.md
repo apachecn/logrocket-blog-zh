@@ -1,4 +1,4 @@
-# 反思前端 APM - LogRocket 博客
+# 反思前端 APM 
 
 > 原文：<https://blog.logrocket.com/rethinking-frontend-apm/>
 

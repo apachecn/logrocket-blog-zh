@@ -1,4 +1,4 @@
-# 这是一个陷阱-ezoid: CSS 形状不是你所期望的- LogRocket 博客
+# 这是一个陷阱-ezoid: CSS 形状不是你所期望的
 
 > 原文：<https://blog.logrocket.com/its-a-trap-ezoid-css-shapes-aren-t-what-you-d-expect-fe27a210001e/>
 

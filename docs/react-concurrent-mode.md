@@ -1,4 +1,4 @@
-# React 并发模式- LogRocket 博客
+# React 并发模式
 
 > 原文：<https://blog.logrocket.com/react-concurrent-mode/>
 

@@ -1,4 +1,4 @@
-# Alpine - LogRocket 博客入门
+# Alpine 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-alpine/>
 

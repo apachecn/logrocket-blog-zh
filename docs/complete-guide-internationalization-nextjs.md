@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客中的国际化完整指南
+# Next.js 中的国际化完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-internationalization-nextjs/>
 

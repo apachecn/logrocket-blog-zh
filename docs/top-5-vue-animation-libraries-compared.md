@@ -1,4 +1,4 @@
-# 五大 Vue 动画库比较- LogRocket 博客
+# 五大 Vue 动画库比较
 
 > 原文：<https://blog.logrocket.com/top-5-vue-animation-libraries-compared/>
 

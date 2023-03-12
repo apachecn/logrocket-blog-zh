@@ -1,4 +1,4 @@
-# 如何使用 Hardhat - LogRocket 博客开发 Solidity 智能合约
+# 如何使用 Hardhat 开发 Solidity 智能合约
 
 > 原文：<https://blog.logrocket.com/develop-solidity-smart-contracts-hardhat/>
 

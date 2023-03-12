@@ -1,4 +1,4 @@
-# 使用 NW.js - LogRocket 博客创建跨平台应用程序
+# 使用 NW.js 创建跨平台应用程序
 
 > 原文：<https://blog.logrocket.com/creating-cross-platform-apps-nw-js/>
 

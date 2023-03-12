@@ -1,4 +1,4 @@
-# 使用基础 Web 和 React - LogRocket 博客构建响应式仪表板
+# 使用基础 Web 和 React 构建响应式仪表板
 
 > 原文：<https://blog.logrocket.com/building-responsive-dashboard-base-web-react/>
 

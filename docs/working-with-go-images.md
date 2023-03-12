@@ -1,4 +1,4 @@
-# 使用 Go images - LogRocket 博客
+# 使用 Go images 
 
 > 原文：<https://blog.logrocket.com/working-with-go-images/>
 

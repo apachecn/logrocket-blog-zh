@@ -1,4 +1,4 @@
-# 渐进式增强的快速介绍- LogRocket 博客
+# 渐进式增强的快速介绍
 
 > 原文：<https://blog.logrocket.com/a-quick-introduction-to-progressive-enhancement/>
 

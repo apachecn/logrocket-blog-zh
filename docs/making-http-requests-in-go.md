@@ -1,4 +1,4 @@
-# 在 Go - LogRocket 博客中发出 HTTP 请求
+# 在 Go 中发出 HTTP 请求
 
 > 原文：<https://blog.logrocket.com/making-http-requests-in-go/>
 

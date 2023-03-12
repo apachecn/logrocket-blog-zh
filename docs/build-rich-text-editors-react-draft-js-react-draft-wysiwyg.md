@@ -1,4 +1,4 @@
-# 使用 Draft.js 和 react-draft-wysiwyg - LogRocket 博客在 React 中构建富文本编辑器
+# 使用 Draft.js 和 react-draft-wysiwyg 在 React 中构建富文本编辑器
 
 > 原文：<https://blog.logrocket.com/build-rich-text-editors-react-draft-js-react-draft-wysiwyg/>
 

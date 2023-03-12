@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用 D3.js v6
+# 在 React 中使用 D3.js v6
 
 > 原文：<https://blog.logrocket.com/using-d3-js-v6-with-react/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中构建原生 UI 组件
+# 在 React Native 中构建原生 UI 组件
 
 > 原文：<https://blog.logrocket.com/build-native-ui-components-react-native/>
 

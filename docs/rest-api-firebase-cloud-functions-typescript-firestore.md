@@ -1,4 +1,4 @@
-# 用 Firebase cloud 函数、TypeScript 和 Firestore - LogRocket 博客构建 REST API
+# 用 Firebase cloud 函数、TypeScript 和 Firestore 构建 REST API
 
 > 原文：<https://blog.logrocket.com/rest-api-firebase-cloud-functions-typescript-firestore/>
 

@@ -1,4 +1,4 @@
-# 你可能错过的 ES2021 新功能- LogRocket 博客
+# 你可能错过的 ES2021 新功能
 
 > 原文：<https://blog.logrocket.com/new-es2021-features-you-may-have-missed/>
 

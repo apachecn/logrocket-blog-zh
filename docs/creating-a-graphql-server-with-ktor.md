@@ -1,4 +1,4 @@
-# 用 Ktor - LogRocket 博客创建 GraphQL 服务器
+# 用 Ktor 创建 GraphQL 服务器
 
 > 原文：<https://blog.logrocket.com/creating-a-graphql-server-with-ktor/>
 

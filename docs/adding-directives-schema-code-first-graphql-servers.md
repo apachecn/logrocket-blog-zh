@@ -1,4 +1,4 @@
-# 在代码优先的 GraphQL 服务器- LogRocket 博客中向模式添加指令
+# 在代码优先的 GraphQL 服务器中向模式添加指令
 
 > 原文：<https://blog.logrocket.com/adding-directives-schema-code-first-graphql-servers/>
 

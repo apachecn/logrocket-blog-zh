@@ -1,4 +1,4 @@
-# Next.js 中的内容管理与 Sanity CMS - LogRocket 博客
+# Next.js 中的内容管理与 Sanity CMS 
 
 > 原文：<https://blog.logrocket.com/content-management-in-next-js-with-sanity-cms/>
 

@@ -1,4 +1,4 @@
-# 前端债务是如何增长的？- LogRocket 博客
+# 前端债务是如何增长的？
 
 > 原文：<https://blog.logrocket.com/how-does-front-end-debt-grow/>
 

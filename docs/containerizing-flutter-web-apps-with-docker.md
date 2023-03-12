@@ -1,4 +1,4 @@
-# 用 Docker - LogRocket 博客容器化 Flutter web 应用程序
+# 用 Docker 容器化 Flutter web 应用程序
 
 > 原文：<https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/>
 

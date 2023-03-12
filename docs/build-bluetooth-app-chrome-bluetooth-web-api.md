@@ -1,4 +1,4 @@
-# 用 Chrome Web 蓝牙 API - LogRocket 博客构建一个蓝牙应用
+# 用 Chrome Web 蓝牙 API 构建一个蓝牙应用
 
 > 原文：<https://blog.logrocket.com/build-bluetooth-app-chrome-bluetooth-web-api/>
 

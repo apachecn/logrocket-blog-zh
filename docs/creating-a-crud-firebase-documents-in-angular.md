@@ -1,4 +1,4 @@
-# 在 Angular - LogRocket 博客中创建 CRUD Firebase 文档
+# 在 Angular 中创建 CRUD Firebase 文档
 
 > 原文：<https://blog.logrocket.com/creating-a-crud-firebase-documents-in-angular/>
 

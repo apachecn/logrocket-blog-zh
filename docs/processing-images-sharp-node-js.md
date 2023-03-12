@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中用 sharp 处理图像
+# 在 Node.js 中用 sharp 处理图像
 
 > 原文：<https://blog.logrocket.com/processing-images-sharp-node-js/>
 

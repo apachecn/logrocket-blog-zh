@@ -1,4 +1,4 @@
-# 使用 i18next - LogRocket 博客对本地化做出反应
+# 使用 i18next 对本地化做出反应
 
 > 原文：<https://blog.logrocket.com/react-localization-with-i18next/>
 

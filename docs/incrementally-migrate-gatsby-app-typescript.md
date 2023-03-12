@@ -1,4 +1,4 @@
-# 如何将 Gatsby 应用程序增量迁移到 TypeScript - LogRocket 博客
+# 如何将 Gatsby 应用程序增量迁移到 TypeScript 
 
 > 原文：<https://blog.logrocket.com/incrementally-migrate-gatsby-app-typescript/>
 

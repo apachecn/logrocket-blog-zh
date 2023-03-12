@@ -1,4 +1,4 @@
-# 什么是面向铁路的编程？- LogRocket 博客
+# 什么是面向铁路的编程？
 
 > 原文：<https://blog.logrocket.com/what-is-railway-oriented-programming/>
 

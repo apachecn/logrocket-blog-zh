@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的竞技场使用指南
+# Rust 中的竞技场使用指南
 
 > 原文：<https://blog.logrocket.com/guide-using-arenas-rust/>
 

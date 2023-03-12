@@ -1,4 +1,4 @@
-# Ember Octane - LogRocket 博客有什么新内容
+# Ember Octane 有什么新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-ember-octane/>
 

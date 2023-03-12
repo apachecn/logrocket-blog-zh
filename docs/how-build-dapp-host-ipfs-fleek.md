@@ -1,4 +1,4 @@
-# 如何使用 Fleek - LogRocket 博客创建一个 DApp 并将其托管在 IPFS
+# 如何使用 Fleek 创建一个 DApp 并将其托管在 IPFS
 
 > 原文：<https://blog.logrocket.com/how-build-dapp-host-ipfs-fleek/>
 

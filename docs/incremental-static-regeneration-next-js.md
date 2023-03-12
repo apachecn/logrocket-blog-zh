@@ -1,4 +1,4 @@
-# 使用 Next.js - LogRocket 博客进行增量静态再生
+# 使用 Next.js 进行增量静态再生
 
 > 原文：<https://blog.logrocket.com/incremental-static-regeneration-next-js/>
 

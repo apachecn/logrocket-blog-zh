@@ -1,4 +1,4 @@
-# AssemblyScript - LogRocket 博客入门指南
+# AssemblyScript 入门指南
 
 > 原文：<https://blog.logrocket.com/the-introductory-guide-to-assemblyscript/>
 

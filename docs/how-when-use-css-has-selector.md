@@ -1,4 +1,4 @@
-# 如何以及何时使用 CSS :has selector - LogRocket 博客
+# 如何以及何时使用 CSS :has selector 
 
 > 原文：<https://blog.logrocket.com/how-when-use-css-has-selector/>
 

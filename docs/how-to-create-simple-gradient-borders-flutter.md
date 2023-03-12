@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中创建简单的渐变边框
+# 如何在 Flutter 中创建简单的渐变边框
 
 > 原文：<https://blog.logrocket.com/how-to-create-simple-gradient-borders-flutter/>
 

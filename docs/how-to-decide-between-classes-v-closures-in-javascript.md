@@ -1,4 +1,4 @@
-# 如何在 JavaScript - LogRocket 博客中决定类还是闭包
+# 如何在 JavaScript 中决定类还是闭包
 
 > 原文：<https://blog.logrocket.com/how-to-decide-between-classes-v-closures-in-javascript/>
 

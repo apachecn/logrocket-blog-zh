@@ -1,4 +1,4 @@
-# GraphQL - LogRocket 博客中的版本控制字段
+# GraphQL 中的版本控制字段
 
 > 原文：<https://blog.logrocket.com/versioning-fields-graphql/>
 

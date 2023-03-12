@@ -1,4 +1,4 @@
-# 如何在 Rust 中使用 Substrate - LogRocket 博客构建自定义区块链实现
+# 如何在 Rust 中使用 Substrate 构建自定义区块链实现
 
 > 原文：<https://blog.logrocket.com/custom-blockchain-implementation-rust-substrate/>
 

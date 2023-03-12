@@ -1,4 +1,4 @@
-# 肮脏的 Terraform hacks - LogRocket 博客
+# 肮脏的 Terraform hacks 
 
 > 原文：<https://blog.logrocket.com/dirty-terraform-hacks/>
 

@@ -1,4 +1,4 @@
-# 在 React Native apps 中使用 Auth0 实现安全的无密码认证- LogRocket 博客
+# 在 React Native apps 中使用 Auth0 实现安全的无密码认证
 
 > 原文：<https://blog.logrocket.com/secure-passwordless-authentication-react-native-auth0/>
 

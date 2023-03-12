@@ -1,4 +1,4 @@
-# 比较 Tailwind CSS 和 Bootstrap:是时候抛弃 UI 套件了吗？- LogRocket 博客
+# 比较 Tailwind CSS 和 Bootstrap:是时候抛弃 UI 套件了吗？
 
 > 原文：<https://blog.logrocket.com/comparing-tailwind-css-bootstrap-time-ditch-ui-kits/>
 

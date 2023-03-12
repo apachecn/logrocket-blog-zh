@@ -1,4 +1,4 @@
-# 用顺风 CSS - LogRocket 博客对 React 组件进行主题化
+# 用顺风 CSS 对 React 组件进行主题化
 
 > 原文：<https://blog.logrocket.com/theming-react-components-tailwind-css/>
 

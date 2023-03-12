@@ -1,4 +1,4 @@
-# 利用 n8n.io - LogRocket 博客实现工作流自动化
+# 利用 n8n.io 实现工作流自动化
 
 > 原文：<https://blog.logrocket.com/workflow-automation-with-n8n-io/>
 

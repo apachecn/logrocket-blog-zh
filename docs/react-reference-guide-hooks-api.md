@@ -1,4 +1,4 @@
-# React 参考指南:Hooks API - LogRocket 博客
+# React 参考指南:Hooks API 
 
 > 原文：<https://blog.logrocket.com/react-reference-guide-hooks-api/>
 

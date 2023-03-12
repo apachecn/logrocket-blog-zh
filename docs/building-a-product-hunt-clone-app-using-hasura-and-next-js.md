@@ -1,4 +1,4 @@
-# 使用 Hasura 和 Next.js - LogRocket 博客构建产品搜索克隆应用程序
+# 使用 Hasura 和 Next.js 构建产品搜索克隆应用程序
 
 > 原文：<https://blog.logrocket.com/building-a-product-hunt-clone-app-using-hasura-and-next-js/>
 

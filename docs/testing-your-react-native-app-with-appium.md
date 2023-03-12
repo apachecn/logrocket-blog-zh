@@ -1,4 +1,4 @@
-# 用 Appium - LogRocket 博客测试你的 React 原生应用
+# 用 Appium 测试你的 React 原生应用
 
 > 原文：<https://blog.logrocket.com/testing-your-react-native-app-with-appium/>
 

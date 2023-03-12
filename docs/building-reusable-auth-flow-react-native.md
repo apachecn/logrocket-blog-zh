@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中构建可重用的认证流
+# 在 React Native 中构建可重用的认证流
 
 > 原文：<https://blog.logrocket.com/building-reusable-auth-flow-react-native/>
 

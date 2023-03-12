@@ -1,4 +1,4 @@
-# ES6 键控集合:地图和集合- LogRocket 博客
+# ES6 键控集合:地图和集合
 
 > 原文：<https://blog.logrocket.com/es6-keyed-collections-maps-and-sets/>
 

@@ -1,4 +1,4 @@
-# 用 p5.js - LogRocket 博客创建动画
+# 用 p5.js 创建动画
 
 > 原文：<https://blog.logrocket.com/creating-animations-p5-js/>
 

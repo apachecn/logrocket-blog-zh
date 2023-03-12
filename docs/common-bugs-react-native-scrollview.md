@@ -1,4 +1,4 @@
-# React Native ScrollView 中的常见 bug 及修复方法- LogRocket 博客
+# React Native ScrollView 中的常见 bug 及修复方法
 
 > 原文：<https://blog.logrocket.com/common-bugs-react-native-scrollview/>
 

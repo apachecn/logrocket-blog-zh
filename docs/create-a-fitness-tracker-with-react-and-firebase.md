@@ -1,4 +1,4 @@
-# 用 React 和 Firebase - LogRocket 博客创建一个健身追踪器
+# 用 React 和 Firebase 创建一个健身追踪器
 
 > 原文：<https://blog.logrocket.com/create-a-fitness-tracker-with-react-and-firebase/>
 

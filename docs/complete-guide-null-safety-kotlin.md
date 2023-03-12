@@ -1,4 +1,4 @@
-# Kotlin - LogRocket 博客中的零安全完全指南
+# Kotlin 中的零安全完全指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-null-safety-kotlin/>
 

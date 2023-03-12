@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的服务器端渲染
+# Vue.js 中的服务器端渲染
 
 > 原文：<https://blog.logrocket.com/server-side-rendering-in-vue-js-cf9a9587b92b/>
 

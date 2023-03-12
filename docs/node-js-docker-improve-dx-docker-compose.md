@@ -1,4 +1,4 @@
-# Node.js 和 Docker:用 Docker Compose - LogRocket 博客改进 DX
+# Node.js 和 Docker:用 Docker Compose 改进 DX
 
 > 原文：<https://blog.logrocket.com/node-js-docker-improve-dx-docker-compose/>
 

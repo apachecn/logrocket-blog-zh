@@ -1,4 +1,4 @@
-# 用 React-Router - LogRocket 博客构建 React 的模态模块
+# 用 React-Router 构建 React 的模态模块
 
 > 原文：<https://blog.logrocket.com/building-a-modal-module-for-react-with-react-router/>
 

@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中的跨浏览器原生延迟加载
+# JavaScript 中的跨浏览器原生延迟加载
 
 > 原文：<https://blog.logrocket.com/cross-browser-native-lazy-loading-javascript/>
 

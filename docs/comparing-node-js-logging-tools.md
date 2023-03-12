@@ -1,4 +1,4 @@
-# 比较 Node.js 日志工具- LogRocket 博客
+# 比较 Node.js 日志工具
 
 > 原文：<https://blog.logrocket.com/comparing-node-js-logging-tools/>
 

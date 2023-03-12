@@ -1,4 +1,4 @@
-# SWR v1 在这里:有什么新的？- LogRocket 博客
+# SWR v1 在这里:有什么新的？
 
 > 原文：<https://blog.logrocket.com/whats-new-swr-v1/>
 

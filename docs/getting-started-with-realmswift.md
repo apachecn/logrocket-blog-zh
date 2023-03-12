@@ -1,4 +1,4 @@
-# RealmSwift - LogRocket 博客入门
+# RealmSwift 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-realmswift/>
 

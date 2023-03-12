@@ -1,4 +1,4 @@
-# 在 Deno - LogRocket 博客中使用 Redis
+# 在 Deno 中使用 Redis
 
 > 原文：<https://blog.logrocket.com/using-redis-in-deno/>
 

@@ -1,4 +1,4 @@
-# 如何使用 Rockpack - LogRocket 博客
+# 如何使用 Rockpack 
 
 > 原文：<https://blog.logrocket.com/how-to-use-rockpack/>
 

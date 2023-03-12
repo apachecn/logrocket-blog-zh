@@ -1,4 +1,4 @@
-# 用 GraphQL - LogRocket 博客让 REST 更人性化
+# 用 GraphQL 让 REST 更人性化
 
 > 原文：<https://blog.logrocket.com/making-rest-more-human-with-graphql/>
 

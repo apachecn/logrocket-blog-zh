@@ -1,4 +1,4 @@
-# LogRocket - LogRocket 博客的智能支持
+# LogRocket 的智能支持
 
 > 原文：<https://blog.logrocket.com/intelligent-support-with-logrocket-bd4bfd18c580/>
 

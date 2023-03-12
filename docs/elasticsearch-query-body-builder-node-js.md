@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中了解 Elasticsearch 查询 body builder
+# 在 Node.js 中了解 Elasticsearch 查询 body builder
 
 > 原文：<https://blog.logrocket.com/elasticsearch-query-body-builder-node-js/>
 

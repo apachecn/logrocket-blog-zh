@@ -1,4 +1,4 @@
-# 使用 ImageKit 和 Vue.js - LogRocket 博客进行图像品牌推广
+# 使用 ImageKit 和 Vue.js 进行图像品牌推广
 
 > 原文：<https://blog.logrocket.com/image-branding-imagekit-vuejs/>
 

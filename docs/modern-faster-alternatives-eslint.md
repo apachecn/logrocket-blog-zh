@@ -1,4 +1,4 @@
-# ESLint - LogRocket 博客的现代、快速替代方案
+# ESLint 的现代、快速替代方案
 
 > 原文：<https://blog.logrocket.com/modern-faster-alternatives-eslint/>
 

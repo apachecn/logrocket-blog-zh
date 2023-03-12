@@ -1,4 +1,4 @@
-# 使用 Go 和 Node - LogRocket 博客介绍 RPC
+# 使用 Go 和 Node 介绍 RPC
 
 > 原文：<https://blog.logrocket.com/introduction-to-rpc-using-go-and-node/>
 

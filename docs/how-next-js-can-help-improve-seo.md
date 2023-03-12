@@ -1,4 +1,4 @@
-# js 如何帮助改进 SEO - LogRocket 博客
+# js 如何帮助改进 SEO 
 
 > 原文：<https://blog.logrocket.com/how-next-js-can-help-improve-seo/>
 

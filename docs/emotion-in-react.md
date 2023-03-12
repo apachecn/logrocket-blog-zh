@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的情感
+# React 中的情感
 
 > 原文：<https://blog.logrocket.com/emotion-in-react/>
 

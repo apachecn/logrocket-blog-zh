@@ -1,4 +1,4 @@
-# 理解和使用 TypeScript - LogRocket 博客中的接口
+# 理解和使用 TypeScript 中的接口
 
 > 原文：<https://blog.logrocket.com/understanding-using-interfaces-typescript/>
 

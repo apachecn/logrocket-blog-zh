@@ -1,4 +1,4 @@
-# React 错误处理与 react-error-boundary - LogRocket 博客
+# React 错误处理与 react-error-boundary 
 
 > 原文：<https://blog.logrocket.com/react-error-handling-react-error-boundary/>
 

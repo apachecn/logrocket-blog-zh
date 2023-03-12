@@ -1,4 +1,4 @@
-# GraphQL - LogRocket 博客中代码优先与模式优先的开发
+# GraphQL 中代码优先与模式优先的开发
 
 > 原文：<https://blog.logrocket.com/code-first-vs-schema-first-development-graphql/>
 

@@ -1,4 +1,4 @@
-# 如何在 RxJS - LogRocket 博客中使用主题多播观察者
+# 如何在 RxJS 中使用主题多播观察者
 
 > 原文：<https://blog.logrocket.com/how-to-use-subjects-to-multicast-observers-in-rxjs/>
 

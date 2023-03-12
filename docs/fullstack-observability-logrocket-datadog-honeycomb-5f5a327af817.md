@@ -1,4 +1,4 @@
-# 全栈可观测性:LogRocket，DataDog，Honeycomb - LogRocket 博客
+# 全栈可观测性:LogRocket，DataDog，Honeycomb 
 
 > 原文：<https://blog.logrocket.com/fullstack-observability-logrocket-datadog-honeycomb-5f5a327af817/>
 

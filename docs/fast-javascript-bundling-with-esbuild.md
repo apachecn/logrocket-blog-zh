@@ -1,4 +1,4 @@
-# 比 webpack 更快:与 esbuild - LogRocket 博客的 JavaScript 捆绑
+# 比 webpack 更快:与 esbuild 的 JavaScript 捆绑
 
 > 原文：<https://blog.logrocket.com/fast-javascript-bundling-with-esbuild/>
 

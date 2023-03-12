@@ -1,4 +1,4 @@
-# 比较 JavaScript 动画库- LogRocket 博客
+# 比较 JavaScript 动画库
 
 > 原文：<https://blog.logrocket.com/comparing-javascript-animation-libraries/>
 

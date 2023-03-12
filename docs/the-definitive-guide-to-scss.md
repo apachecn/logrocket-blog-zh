@@ -1,4 +1,4 @@
-# SCSS 的权威指南- LogRocket 博客
+# SCSS 的权威指南
 
 > 原文：<https://blog.logrocket.com/the-definitive-guide-to-scss/>
 

@@ -1,4 +1,4 @@
-# 如何在 React 18 alpha - LogRocket 博客中使用 TypeScript
+# 如何在 React 18 alpha 中使用 TypeScript
 
 > 原文：<https://blog.logrocket.com/how-to-use-typescript-with-react-18-alpha/>
 

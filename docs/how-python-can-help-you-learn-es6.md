@@ -1,4 +1,4 @@
-# Python 如何帮助你学习 ES6 - LogRocket 博客
+# Python 如何帮助你学习 ES6 
 
 > 原文：<https://blog.logrocket.com/how-python-can-help-you-learn-es6/>
 

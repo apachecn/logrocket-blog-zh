@@ -1,4 +1,4 @@
-# 在 Unity - LogRocket 博客中制作带有运动传感器的手机游戏
+# 在 Unity 中制作带有运动传感器的手机游戏
 
 > 原文：<https://blog.logrocket.com/making-mobile-game-motion-sensors-unity/>
 

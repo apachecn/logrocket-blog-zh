@@ -1,4 +1,4 @@
-# 如何用 Vue 的 composition API 构建应用程序- LogRocket 博客
+# 如何用 Vue 的 composition API 构建应用程序
 
 > 原文：<https://blog.logrocket.com/how-to-build-applications-with-vues-composition-api/>
 

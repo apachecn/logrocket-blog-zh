@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客创建和定制 HTML5 视频播放器
+# 用 CSS 创建和定制 HTML5 视频播放器
 
 > 原文：<https://blog.logrocket.com/creating-customizing-html5-video-player-css/>
 

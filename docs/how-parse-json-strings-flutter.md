@@ -1,4 +1,4 @@
-# 如何解析 Flutter - LogRocket 博客中的 JSON 字符串
+# 如何解析 Flutter 中的 JSON 字符串
 
 > 原文：<https://blog.logrocket.com/how-parse-json-strings-flutter/>
 

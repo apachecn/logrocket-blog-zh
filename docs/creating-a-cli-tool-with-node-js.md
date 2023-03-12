@@ -1,4 +1,4 @@
-# 使用 Node.js - LogRocket 博客创建 CLI 工具
+# 使用 Node.js 创建 CLI 工具
 
 > 原文：<https://blog.logrocket.com/creating-a-cli-tool-with-node-js/>
 

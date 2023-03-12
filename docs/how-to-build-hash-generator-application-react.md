@@ -1,4 +1,4 @@
-# 如何用 React - LogRocket 博客构建一个哈希生成器应用程序
+# 如何用 React 构建一个哈希生成器应用程序
 
 > 原文：<https://blog.logrocket.com/how-to-build-hash-generator-application-react/>
 

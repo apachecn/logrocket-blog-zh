@@ -1,4 +1,4 @@
-# 如何运行图网络的 Rinkeby 索引器(免费)- LogRocket 博客
+# 如何运行图网络的 Rinkeby 索引器(免费)
 
 > 原文：<https://blog.logrocket.com/run-rinkeby-indexer-graph-network-for-free/>
 

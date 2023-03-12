@@ -1,4 +1,4 @@
-# 如何用 Zag - LogRocket 博客让你的设计系统干巴巴
+# 如何用 Zag 让你的设计系统干巴巴
 
 > 原文：<https://blog.logrocket.com/make-your-design-system-dry-with-zag/>
 

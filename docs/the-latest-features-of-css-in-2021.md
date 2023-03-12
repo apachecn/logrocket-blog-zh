@@ -1,4 +1,4 @@
-# 2021 年 CSS 的最新特性- LogRocket 博客
+# 2021 年 CSS 的最新特性
 
 > 原文：<https://blog.logrocket.com/the-latest-features-of-css-in-2021/>
 

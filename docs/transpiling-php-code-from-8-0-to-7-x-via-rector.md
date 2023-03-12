@@ -1,4 +1,4 @@
-# 通过 Rector - LogRocket 博客将 PHP 代码从 8.0 移植到 7.x
+# 通过 Rector 将 PHP 代码从 8.0 移植到 7.x
 
 > 原文：<https://blog.logrocket.com/transpiling-php-code-from-8-0-to-7-x-via-rector/>
 

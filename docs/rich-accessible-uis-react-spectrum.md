@@ -1,4 +1,4 @@
-# React Spectrum - LogRocket 博客提供更丰富、更易访问的用户界面
+# React Spectrum 提供更丰富、更易访问的用户界面
 
 > 原文：<https://blog.logrocket.com/rich-accessible-uis-react-spectrum/>
 

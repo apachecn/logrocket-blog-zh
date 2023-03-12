@@ -1,4 +1,4 @@
-# Swift - LogRocket 博客中的错误处理
+# Swift 中的错误处理
 
 > 原文：<https://blog.logrocket.com/error-handling-in-swift/>
 

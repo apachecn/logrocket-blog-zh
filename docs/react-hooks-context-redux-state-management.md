@@ -1,4 +1,4 @@
-# React 钩子 vs. Redux:钩子和上下文会取代 Redux 吗？- LogRocket 博客
+# React 钩子 vs. Redux:钩子和上下文会取代 Redux 吗？
 
 > 原文：<https://blog.logrocket.com/react-hooks-context-redux-state-management/>
 

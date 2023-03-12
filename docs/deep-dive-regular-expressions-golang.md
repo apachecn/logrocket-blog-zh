@@ -1,4 +1,4 @@
-# 使用 Golang - LogRocket 博客深入研究正则表达式
+# 使用 Golang 深入研究正则表达式
 
 > 原文：<https://blog.logrocket.com/deep-dive-regular-expressions-golang/>
 

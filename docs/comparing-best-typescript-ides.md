@@ -1,4 +1,4 @@
-# 比较最佳类型脚本 IDEs - LogRocket 博客
+# 比较最佳类型脚本 IDEs 
 
 > 原文：<https://blog.logrocket.com/comparing-best-typescript-ides/>
 

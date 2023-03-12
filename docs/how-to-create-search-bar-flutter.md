@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中创建搜索栏
+# 如何在 Flutter 中创建搜索栏
 
 > 原文：<https://blog.logrocket.com/how-to-create-search-bar-flutter/>
 

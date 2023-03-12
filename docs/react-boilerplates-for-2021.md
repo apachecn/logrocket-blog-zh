@@ -1,4 +1,4 @@
-# 2021 年顶级 React 样板文件- LogRocket 博客
+# 2021 年顶级 React 样板文件
 
 > 原文：<https://blog.logrocket.com/react-boilerplates-for-2021/>
 

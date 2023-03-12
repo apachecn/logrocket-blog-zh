@@ -1,4 +1,4 @@
-# Nuxt.js 如何解决 Vue.js - LogRocket 博客中的 SEO 问题
+# Nuxt.js 如何解决 Vue.js 中的 SEO 问题
 
 > 原文：<https://blog.logrocket.com/how-nuxt-js-solves-the-seo-problems-in-vue-js/>
 

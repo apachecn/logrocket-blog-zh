@@ -1,4 +1,4 @@
-# 与 Golang 和 CockroachDB - LogRocket 博客的 CRUD
+# 与 Golang 和 CockroachDB 的 CRUD
 
 > 原文：<https://blog.logrocket.com/crud-golang-cockroachdb/>
 

@@ -1,4 +1,4 @@
-# Rust 中使用 Linfa - LogRocket 博客的机器学习
+# Rust 中使用 Linfa 的机器学习
 
 > 原文：<https://blog.logrocket.com/machine-learning-in-rust-using-linfa/>
 

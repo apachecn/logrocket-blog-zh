@@ -1,4 +1,4 @@
-# 哪些 Chrome DevTools 提高了可访问性？- LogRocket 博客
+# 哪些 Chrome DevTools 提高了可访问性？
 
 > 原文：<https://blog.logrocket.com/which-chrome-devtools-improve-accessibility/>
 

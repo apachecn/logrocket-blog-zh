@@ -1,4 +1,4 @@
-# 使用 FileReader API 预览 React - LogRocket 博客中的图像
+# 使用 FileReader API 预览 React 中的图像
 
 > 原文：<https://blog.logrocket.com/using-filereader-api-preview-images-react/>
 

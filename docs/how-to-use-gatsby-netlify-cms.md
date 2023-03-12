@@ -1,4 +1,4 @@
-# 如何使用盖茨比与 Netlify CMS - LogRocket 博客
+# 如何使用盖茨比与 Netlify CMS 
 
 > 原文：<https://blog.logrocket.com/how-to-use-gatsby-netlify-cms/>
 

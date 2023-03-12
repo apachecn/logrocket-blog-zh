@@ -1,4 +1,4 @@
-# TypeScript 4.1:新特性和改进- LogRocket 博客
+# TypeScript 4.1:新特性和改进
 
 > 原文：<https://blog.logrocket.com/typescript-4-1-new-features-and-improvements/>
 

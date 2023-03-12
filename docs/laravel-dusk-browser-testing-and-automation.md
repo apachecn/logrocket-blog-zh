@@ -1,4 +1,4 @@
-# Laravel 黄昏浏览器测试和自动化- LogRocket 博客
+# Laravel 黄昏浏览器测试和自动化
 
 > 原文：<https://blog.logrocket.com/laravel-dusk-browser-testing-and-automation/>
 

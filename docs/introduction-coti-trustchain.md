@@ -1,4 +1,4 @@
-# COTI 和 Trustchain - LogRocket 博客简介
+# COTI 和 Trustchain 简介
 
 > 原文：<https://blog.logrocket.com/introduction-coti-trustchain/>
 

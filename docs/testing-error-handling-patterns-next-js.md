@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客中的测试和错误处理模式
+# Next.js 中的测试和错误处理模式
 
 > 原文：<https://blog.logrocket.com/testing-error-handling-patterns-next-js/>
 

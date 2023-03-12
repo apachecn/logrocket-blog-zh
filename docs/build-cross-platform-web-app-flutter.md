@@ -1,4 +1,4 @@
-# 用 Flutter - LogRocket 博客构建一个跨平台的 web 应用
+# 用 Flutter 构建一个跨平台的 web 应用
 
 > 原文：<https://blog.logrocket.com/build-cross-platform-web-app-flutter/>
 

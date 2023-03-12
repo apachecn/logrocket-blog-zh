@@ -1,4 +1,4 @@
-# 使用 Stylelint - LogRocket 博客提升你的 CSS 林挺
+# 使用 Stylelint 提升你的 CSS 林挺
 
 > 原文：<https://blog.logrocket.com/using-stylelint-improve-lint-css-scss-sass/>
 

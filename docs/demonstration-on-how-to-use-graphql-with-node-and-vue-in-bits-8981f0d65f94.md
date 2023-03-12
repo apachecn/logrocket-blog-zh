@@ -1,4 +1,4 @@
-# 在 bits - LogRocket 博客中演示如何将 GraphQL 与 Node 和 Vue 结合使用
+# 在 bits 中演示如何将 GraphQL 与 Node 和 Vue 结合使用
 
 > 原文：<https://blog.logrocket.com/demonstration-on-how-to-use-graphql-with-node-and-vue-in-bits-8981f0d65f94/>
 

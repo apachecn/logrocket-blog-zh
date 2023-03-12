@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中实现动画祝酒
+# 在 React 中实现动画祝酒
 
 > 原文：<https://blog.logrocket.com/implementing-animated-toasts-in-react/>
 

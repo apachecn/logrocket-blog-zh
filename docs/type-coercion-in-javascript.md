@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中的类型强制
+# JavaScript 中的类型强制
 
 > 原文：<https://blog.logrocket.com/type-coercion-in-javascript/>
 

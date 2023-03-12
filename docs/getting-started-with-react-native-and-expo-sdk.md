@@ -1,4 +1,4 @@
-# React Native 和 Expo SDK 入门- LogRocket 博客
+# React Native 和 Expo SDK 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-react-native-and-expo-sdk/>
 

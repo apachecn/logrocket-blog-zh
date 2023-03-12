@@ -1,4 +1,4 @@
-# 用 Flutter 和 Go - LogRocket 博客构建一个图像生成器
+# 用 Flutter 和 Go 构建一个图像生成器
 
 > 原文：<https://blog.logrocket.com/build-image-generator-flutter-go/>
 

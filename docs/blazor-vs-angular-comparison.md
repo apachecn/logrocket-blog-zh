@@ -1,4 +1,4 @@
-# Blazor vs. Angular 比较指南- LogRocket 博客
+# Blazor vs. Angular 比较指南
 
 > 原文：<https://blog.logrocket.com/blazor-vs-angular-comparison/>
 

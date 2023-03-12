@@ -1,4 +1,4 @@
-# 将 Flutter 移动应用程序迁移到 web:示例教程- LogRocket 博客
+# 将 Flutter 移动应用程序迁移到 web:示例教程
 
 > 原文：<https://blog.logrocket.com/how-to-migrate-a-flutter-mobile-app-to-the-web/>
 

@@ -1,4 +1,4 @@
-# Square Node.js SDK - LogRocket 博客入门
+# Square Node.js SDK 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-square-node-js-sdk/>
 

@@ -1,4 +1,4 @@
-# 介绍新的 Create Next 应用程序- LogRocket 博客
+# 介绍新的 Create Next 应用程序
 
 > 原文：<https://blog.logrocket.com/introducing-the-new-create-next-app/>
 

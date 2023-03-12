@@ -1,4 +1,4 @@
-# 关于 react-scripts - LogRocket 博客你需要知道的一切
+# 关于 react-scripts 你需要知道的一切
 
 > 原文：<https://blog.logrocket.com/everything-you-need-know-about-react-scripts/>
 

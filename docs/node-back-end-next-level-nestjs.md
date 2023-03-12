@@ -1,4 +1,4 @@
-# 使用 NestJS - LogRocket 博客将您的节点后端提升到一个新的水平
+# 使用 NestJS 将您的节点后端提升到一个新的水平
 
 > 原文：<https://blog.logrocket.com/node-back-end-next-level-nestjs/>
 

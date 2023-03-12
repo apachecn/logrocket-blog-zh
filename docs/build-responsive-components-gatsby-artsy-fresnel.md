@@ -1,4 +1,4 @@
-# 用 artsy/fresnel - LogRocket 博客在 Gatsby 中构建响应式组件
+# 用 artsy/fresnel 在 Gatsby 中构建响应式组件
 
 > 原文：<https://blog.logrocket.com/build-responsive-components-gatsby-artsy-fresnel/>
 

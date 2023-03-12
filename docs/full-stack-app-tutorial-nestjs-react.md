@@ -1,4 +1,4 @@
-# NestJS 和 React - LogRocket 博客的全栈应用教程
+# NestJS 和 React 的全栈应用教程
 
 > 原文：<https://blog.logrocket.com/full-stack-app-tutorial-nestjs-react/>
 

@@ -1,4 +1,4 @@
-# 用 Altair - LogRocket 博客调试 GraphQL
+# 用 Altair 调试 GraphQL
 
 > 原文：<https://blog.logrocket.com/debugging-graphql-with-altair/>
 

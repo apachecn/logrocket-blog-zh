@@ -1,4 +1,4 @@
-# 理解 Rust - LogRocket 博客中的生命周期
+# 理解 Rust 中的生命周期
 
 > 原文：<https://blog.logrocket.com/understanding-lifetimes-in-rust/>
 

@@ -1,4 +1,4 @@
-# 为什么 TypeScript 要超越 Python？- LogRocket 博客
+# 为什么 TypeScript 要超越 Python？
 
 > 原文：<https://blog.logrocket.com/why-is-typescript-surpassing-python/>
 

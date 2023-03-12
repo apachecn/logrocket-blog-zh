@@ -1,4 +1,4 @@
-# 仅用 CSS - LogRocket 博客创建漂亮的工具提示
+# 仅用 CSS 创建漂亮的工具提示
 
 > 原文：<https://blog.logrocket.com/creating-beautiful-tooltips-with-only-css/>
 

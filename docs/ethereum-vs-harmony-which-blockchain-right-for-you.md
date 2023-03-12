@@ -1,4 +1,4 @@
-# 以太坊与和谐:哪个区块链适合你？- LogRocket 博客
+# 以太坊与和谐:哪个区块链适合你？
 
 > 原文：<https://blog.logrocket.com/ethereum-vs-harmony-which-blockchain-right-for-you/>
 

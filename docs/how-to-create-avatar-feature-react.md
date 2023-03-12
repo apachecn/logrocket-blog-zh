@@ -1,4 +1,4 @@
-# 如何用 React - LogRocket 博客创建头像功能
+# 如何用 React 创建头像功能
 
 > 原文：<https://blog.logrocket.com/how-to-create-avatar-feature-react/>
 

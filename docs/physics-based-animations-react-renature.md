@@ -1,4 +1,4 @@
-# 在 React with renature - LogRocket 博客中创建基于物理的动画
+# 在 React with renature 中创建基于物理的动画
 
 > 原文：<https://blog.logrocket.com/physics-based-animations-react-renature/>
 

@@ -1,4 +1,4 @@
-# 理解 TypeScript - LogRocket 博客中的依赖倒置原则
+# 理解 TypeScript 中的依赖倒置原则
 
 > 原文：<https://blog.logrocket.com/dependency-inversion-principle-typescript/>
 

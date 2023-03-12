@@ -1,4 +1,4 @@
-# React Cosmos - LogRocket 博客入门
+# React Cosmos 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-react-cosmos/>
 

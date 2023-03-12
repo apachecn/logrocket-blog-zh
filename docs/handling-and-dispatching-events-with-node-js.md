@@ -1,4 +1,4 @@
-# 使用 Node.js - LogRocket 博客处理和调度事件
+# 使用 Node.js 处理和调度事件
 
 > 原文：<https://blog.logrocket.com/handling-and-dispatching-events-with-node-js/>
 

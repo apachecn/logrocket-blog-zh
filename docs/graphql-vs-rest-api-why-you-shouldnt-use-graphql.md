@@ -1,4 +1,4 @@
-# GraphQL 与 REST APIs:为什么你不应该使用 GraphQL - LogRocket 博客
+# GraphQL 与 REST APIs:为什么你不应该使用 GraphQL 
 
 > 原文：<https://blog.logrocket.com/graphql-vs-rest-api-why-you-shouldnt-use-graphql/>
 

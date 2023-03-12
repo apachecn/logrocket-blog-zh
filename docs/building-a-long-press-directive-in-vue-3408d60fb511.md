@@ -1,4 +1,4 @@
-# 在 Vue - LogRocket 博客中构建一个长按指令
+# 在 Vue 中构建一个长按指令
 
 > 原文：<https://blog.logrocket.com/building-a-long-press-directive-in-vue-3408d60fb511/>
 

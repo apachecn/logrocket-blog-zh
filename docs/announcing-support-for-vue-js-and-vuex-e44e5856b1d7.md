@@ -1,4 +1,4 @@
-# 为 Vue.js - LogRocket 博客发布 LogRocket
+# 为 Vue.js 发布 LogRocket
 
 > 原文：<https://blog.logrocket.com/announcing-support-for-vue-js-and-vuex-e44e5856b1d7/>
 

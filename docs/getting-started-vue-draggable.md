@@ -1,4 +1,4 @@
-# vue.draggable - LogRocket 博客入门
+# vue.draggable 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-vue-draggable/>
 

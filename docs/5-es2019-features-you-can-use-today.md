@@ -1,4 +1,4 @@
-# 今天您可以使用的 5 个 ES2019 功能- LogRocket 博客
+# 今天您可以使用的 5 个 ES2019 功能
 
 > 原文：<https://blog.logrocket.com/5-es2019-features-you-can-use-today/>
 

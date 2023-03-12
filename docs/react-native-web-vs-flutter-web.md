@@ -1,4 +1,4 @@
-# React 原生 Web vs. Flutter web - LogRocket 博客
+# React 原生 Web vs. Flutter web 
 
 > 原文：<https://blog.logrocket.com/react-native-web-vs-flutter-web/>
 

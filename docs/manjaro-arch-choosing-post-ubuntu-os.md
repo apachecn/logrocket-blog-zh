@@ -1,4 +1,4 @@
-# Manjaro vs. Arch:选择你的后 Ubuntu OS - LogRocket 博客
+# Manjaro vs. Arch:选择你的后 Ubuntu OS 
 
 > 原文：<https://blog.logrocket.com/manjaro-arch-choosing-post-ubuntu-os/>
 

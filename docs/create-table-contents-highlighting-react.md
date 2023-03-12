@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中创建一个突出显示的目录
+# 在 React 中创建一个突出显示的目录
 
 > 原文：<https://blog.logrocket.com/create-table-contents-highlighting-react/>
 

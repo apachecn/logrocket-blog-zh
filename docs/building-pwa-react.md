@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客构建一个渐进式 web 应用程序(PWA)
+# 使用 React 构建一个渐进式 web 应用程序(PWA)
 
 > 原文：<https://blog.logrocket.com/building-pwa-react/>
 

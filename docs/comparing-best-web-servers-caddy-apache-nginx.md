@@ -1,4 +1,4 @@
-# 比较最好的 web 服务器:Caddy、Apache 和 Nginx - LogRocket 博客
+# 比较最好的 web 服务器:Caddy、Apache 和 Nginx 
 
 > 原文：<https://blog.logrocket.com/comparing-best-web-servers-caddy-apache-nginx/>
 

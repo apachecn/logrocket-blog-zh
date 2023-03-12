@@ -1,4 +1,4 @@
-# 用 Blitz.js - LogRocket 博客构建全栈 React 应用
+# 用 Blitz.js 构建全栈 React 应用
 
 > 原文：<https://blog.logrocket.com/building-a-fullstack-react-application-with-blitz-js/>
 

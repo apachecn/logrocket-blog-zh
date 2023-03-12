@@ -1,4 +1,4 @@
-# React apps - LogRocket 博客中使用的顶级 JS 动画库比较
+# React apps 中使用的顶级 JS 动画库比较
 
 > 原文：<https://blog.logrocket.com/comparing-the-top-js-animation-libraries-for-use-in-react-apps-2/>
 

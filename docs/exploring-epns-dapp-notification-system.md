@@ -1,4 +1,4 @@
-# 探索 EPNS，一个 DApp 友好的通知系统- LogRocket 博客
+# 探索 EPNS，一个 DApp 友好的通知系统
 
 > 原文：<https://blog.logrocket.com/exploring-epns-dapp-notification-system/>
 

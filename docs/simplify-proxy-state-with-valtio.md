@@ -1,4 +1,4 @@
-# 使用 Valtio - LogRocket 博客简化代理状态
+# 使用 Valtio 简化代理状态
 
 > 原文：<https://blog.logrocket.com/simplify-proxy-state-with-valtio/>
 

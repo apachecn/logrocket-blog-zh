@@ -1,4 +1,4 @@
-# 让 GraphQL 服务器兼容 Relay - LogRocket 博客
+# 让 GraphQL 服务器兼容 Relay 
 
 > 原文：<https://blog.logrocket.com/making-a-graphql-server-compatible-with-relay/>
 

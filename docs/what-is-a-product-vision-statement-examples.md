@@ -1,4 +1,4 @@
-# 什么是产品愿景陈述？示例概述- LogRocket 博客
+# 什么是产品愿景陈述？示例概述
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-a-product-vision-statement-examples/>
 

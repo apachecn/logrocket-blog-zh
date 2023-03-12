@@ -1,4 +1,4 @@
-# Python 字典介绍- LogRocket 博客
+# Python 字典介绍
 
 > 原文：<https://blog.logrocket.com/intro-python-dictionaries/>
 

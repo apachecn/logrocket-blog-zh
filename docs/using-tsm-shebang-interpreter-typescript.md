@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中使用 tsm 作为 shebang 解释器
+# 在 TypeScript 中使用 tsm 作为 shebang 解释器
 
 > 原文：<https://blog.logrocket.com/using-tsm-shebang-interpreter-typescript/>
 

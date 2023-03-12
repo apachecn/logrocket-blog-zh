@@ -1,4 +1,4 @@
-# 从 Gatsby 迁移到 Next.js - LogRocket 博客
+# 从 Gatsby 迁移到 Next.js 
 
 > 原文：<https://blog.logrocket.com/migrating-from-gatsby-to-next-js/>
 

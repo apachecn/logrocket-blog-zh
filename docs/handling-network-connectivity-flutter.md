@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中处理网络连接
+# 在 Flutter 中处理网络连接
 
 > 原文：<https://blog.logrocket.com/handling-network-connectivity-flutter/>
 

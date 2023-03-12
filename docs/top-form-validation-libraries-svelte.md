@@ -1,4 +1,4 @@
-# Svelte - LogRocket 博客中的顶级表单验证库
+# Svelte 中的顶级表单验证库
 
 > 原文：<https://blog.logrocket.com/top-form-validation-libraries-svelte/>
 

@@ -1,4 +1,4 @@
-# 用 HTML、CSS 和 Swiper - LogRocket 博客构建现代滑块
+# 用 HTML、CSS 和 Swiper 构建现代滑块
 
 > 原文：<https://blog.logrocket.com/building-modern-sliders-html-css-swiper/>
 

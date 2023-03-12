@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中的可选链接和 nullish 合并
+# JavaScript 中的可选链接和 nullish 合并
 
 > 原文：<https://blog.logrocket.com/optional-chaining-and-nullish-coalescing-in-javascript/>
 

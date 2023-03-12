@@ -1,4 +1,4 @@
-# 从前端开发人员到开发人员:CI/CD - LogRocket 博客简介
+# 从前端开发人员到开发人员:CI/CD 简介
 
 > 原文：<https://blog.logrocket.com/from-front-end-developer-to-a-devops-an-intro-to-ci-cd-7a8a8713fb34/>
 

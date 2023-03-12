@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用谷歌图表
+# 如何在 React 中使用谷歌图表
 
 > 原文：<https://blog.logrocket.com/use-google-charts-react/>
 

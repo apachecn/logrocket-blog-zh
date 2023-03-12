@@ -1,4 +1,4 @@
-# Python - LogRocket 博客中的 for 和 while 循环
+# Python 中的 for 和 while 循环
 
 > 原文：<https://blog.logrocket.com/for-while-loops-python/>
 

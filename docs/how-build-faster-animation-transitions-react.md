@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中构建更快的动画过渡
+# 如何在 React 中构建更快的动画过渡
 
 > 原文：<https://blog.logrocket.com/how-build-faster-animation-transitions-react/>
 

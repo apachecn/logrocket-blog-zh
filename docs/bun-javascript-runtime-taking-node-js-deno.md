@@ -1,4 +1,4 @@
-# bun:JavaScript 运行时采用 Node.js 和 Deno - LogRocket 博客
+# bun:JavaScript 运行时采用 Node.js 和 Deno 
 
 > 原文：<https://blog.logrocket.com/bun-javascript-runtime-taking-node-js-deno/>
 

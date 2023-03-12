@@ -1,4 +1,4 @@
-# 掌握 Node.js 路径模块- LogRocket 博客
+# 掌握 Node.js 路径模块
 
 > 原文：<https://blog.logrocket.com/mastering-node-js-path-module/>
 

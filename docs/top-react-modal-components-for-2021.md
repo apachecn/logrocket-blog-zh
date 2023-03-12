@@ -1,4 +1,4 @@
-# 2021 年的顶级 React 模态组件- LogRocket 博客
+# 2021 年的顶级 React 模态组件
 
 > 原文：<https://blog.logrocket.com/top-react-modal-components-for-2021/>
 

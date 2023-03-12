@@ -1,4 +1,4 @@
-# 实现跨来源资源共享的最终指南(CORS) - LogRocket 博客
+# 实现跨来源资源共享的最终指南(CORS) 
 
 > 原文：<https://blog.logrocket.com/the-ultimate-guide-to-enabling-cross-origin-resource-sharing-cors/>
 

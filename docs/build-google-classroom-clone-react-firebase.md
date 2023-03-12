@@ -1,4 +1,4 @@
-# 用 React 和 Firebase - LogRocket 博客构建一个谷歌教室的克隆
+# 用 React 和 Firebase 构建一个谷歌教室的克隆
 
 > 原文：<https://blog.logrocket.com/build-google-classroom-clone-react-firebase/>
 

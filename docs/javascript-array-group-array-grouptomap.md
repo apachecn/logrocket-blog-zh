@@ -1,4 +1,4 @@
-# 理解 JavaScript 的数组。组和数组。GroupToMap - LogRocket 博客
+# 理解 JavaScript 的数组。组和数组。GroupToMap 
 
 > 原文：<https://blog.logrocket.com/javascript-array-group-array-grouptomap/>
 

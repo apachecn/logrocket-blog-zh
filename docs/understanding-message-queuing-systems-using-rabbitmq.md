@@ -1,4 +1,4 @@
-# 使用 RabbitMQ - LogRocket 博客了解消息队列系统
+# 使用 RabbitMQ 了解消息队列系统
 
 > 原文：<https://blog.logrocket.com/understanding-message-queuing-systems-using-rabbitmq/>
 

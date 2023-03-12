@@ -1,4 +1,4 @@
-# 在 Stripe - LogRocket 博客中实现 3D 安全
+# 在 Stripe 中实现 3D 安全
 
 > 原文：<https://blog.logrocket.com/implementing-3d-secure-in-stripe/>
 

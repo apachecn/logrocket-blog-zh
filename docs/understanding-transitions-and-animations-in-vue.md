@@ -1,4 +1,4 @@
-# 理解 Vue - LogRocket 博客中的过渡和动画
+# 理解 Vue 中的过渡和动画
 
 > 原文：<https://blog.logrocket.com/understanding-transitions-and-animations-in-vue/>
 

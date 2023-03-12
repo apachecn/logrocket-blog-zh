@@ -1,4 +1,4 @@
-# 如何从你的 Nuxt.js PWA - LogRocket 博客中构建一个 TWA Android 应用程序
+# 如何从你的 Nuxt.js PWA 中构建一个 TWA Android 应用程序
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-twa-android-app-out-of-your-nuxt-js-pwa/>
 

@@ -1,4 +1,4 @@
-# Refine 入门，基于 React 的框架- LogRocket 博客
+# Refine 入门，基于 React 的框架
 
 > 原文：<https://blog.logrocket.com/getting-started-refine-react-based-framework/>
 

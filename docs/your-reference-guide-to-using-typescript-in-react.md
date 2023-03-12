@@ -1,4 +1,4 @@
-# React - LogRocket 博客中使用 TypeScript 的参考指南
+# React 中使用 TypeScript 的参考指南
 
 > 原文：<https://blog.logrocket.com/your-reference-guide-to-using-typescript-in-react/>
 

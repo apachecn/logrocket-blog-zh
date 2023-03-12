@@ -1,4 +1,4 @@
-# Node.js buffer:完整的指南- LogRocket 博客
+# Node.js buffer:完整的指南
 
 > 原文：<https://blog.logrocket.com/node-js-buffer-complete-guide/>
 

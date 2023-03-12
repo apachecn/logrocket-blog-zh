@@ -1,4 +1,4 @@
-# 服务器发送的事件与 WebSockets - LogRocket 博客
+# 服务器发送的事件与 WebSockets 
 
 > 原文：<https://blog.logrocket.com/server-sent-events-vs-websockets/>
 

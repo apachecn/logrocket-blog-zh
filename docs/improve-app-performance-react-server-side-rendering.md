@@ -1,4 +1,4 @@
-# React 服务器端渲染的 Amp 性能- LogRocket 博客
+# React 服务器端渲染的 Amp 性能
 
 > 原文：<https://blog.logrocket.com/improve-app-performance-react-server-side-rendering/>
 

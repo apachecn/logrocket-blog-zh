@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中处理手势
+# 在 Flutter 中处理手势
 
 > 原文：<https://blog.logrocket.com/handling-gestures-flutter-gesturedetector/>
 

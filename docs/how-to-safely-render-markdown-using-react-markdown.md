@@ -1,4 +1,4 @@
-# 如何使用 react-markdown - LogRocket 博客安全地呈现 Markdown
+# 如何使用 react-markdown 安全地呈现 Markdown
 
 > 原文：<https://blog.logrocket.com/how-to-safely-render-markdown-using-react-markdown/>
 

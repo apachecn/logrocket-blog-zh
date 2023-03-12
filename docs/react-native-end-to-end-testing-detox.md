@@ -1,4 +1,4 @@
-# 利用 Detox - LogRocket 博客对本地端到端测试做出反应
+# 利用 Detox 对本地端到端测试做出反应
 
 > 原文：<https://blog.logrocket.com/react-native-end-to-end-testing-detox/>
 

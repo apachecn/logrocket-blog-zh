@@ -1,4 +1,4 @@
-# Jest - LogRocket 博客的自动化可视化回归测试
+# Jest 的自动化可视化回归测试
 
 > 原文：<https://blog.logrocket.com/automated-visual-regression-testing-with-jest/>
 

@@ -1,4 +1,4 @@
-# React refs - LogRocket 博客完全指南
+# React refs 完全指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-react-refs/>
 

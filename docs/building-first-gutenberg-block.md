@@ -1,4 +1,4 @@
-# 建立你的第一个古腾堡 block - LogRocket 博客的要点
+# 建立你的第一个古腾堡 block 的要点
 
 > 原文：<https://blog.logrocket.com/building-first-gutenberg-block/>
 

@@ -1,4 +1,4 @@
-# 理解 Node.js - LogRocket 博客中的 glob 模式
+# 理解 Node.js 中的 glob 模式
 
 > 原文：<https://blog.logrocket.com/understanding-using-globs-node-js/>
 

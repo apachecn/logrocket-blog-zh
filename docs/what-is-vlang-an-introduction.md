@@ -1,4 +1,4 @@
-# Vlang 是什么？介绍- LogRocket 博客
+# Vlang 是什么？介绍
 
 > 原文：<https://blog.logrocket.com/what-is-vlang-an-introduction/>
 

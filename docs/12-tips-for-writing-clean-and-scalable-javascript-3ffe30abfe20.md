@@ -1,4 +1,4 @@
-# 写干净和可伸缩的 JavaScript - LogRocket 博客的 12 个技巧
+# 写干净和可伸缩的 JavaScript 的 12 个技巧
 
 > 原文：<https://blog.logrocket.com/12-tips-for-writing-clean-and-scalable-javascript-3ffe30abfe20/>
 

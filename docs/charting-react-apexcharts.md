@@ -1,4 +1,4 @@
-# 使用 ApexCharts - LogRocket 博客制作图表
+# 使用 ApexCharts 制作图表
 
 > 原文：<https://blog.logrocket.com/charting-react-apexcharts/>
 

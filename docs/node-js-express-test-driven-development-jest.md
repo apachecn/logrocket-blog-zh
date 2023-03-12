@@ -1,4 +1,4 @@
-# Node.js 使用 Jest - LogRocket 博客表达测试驱动开发
+# Node.js 使用 Jest 表达测试驱动开发
 
 > 原文：<https://blog.logrocket.com/node-js-express-test-driven-development-jest/>
 

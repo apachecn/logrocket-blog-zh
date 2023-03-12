@@ -1,4 +1,4 @@
-# 十大 Vue 管理仪表板- LogRocket 博客
+# 十大 Vue 管理仪表板
 
 > 原文：<https://blog.logrocket.com/top-vue-admin-dashboards/>
 

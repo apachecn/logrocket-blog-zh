@@ -1,4 +1,4 @@
-# 用 Plop.js - LogRocket 博客自动生成 React 组件
+# 用 Plop.js 自动生成 React 组件
 
 > 原文：<https://blog.logrocket.com/automatically-generate-react-components-plop-js/>
 

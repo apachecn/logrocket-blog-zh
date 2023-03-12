@@ -1,4 +1,4 @@
-# 教一个 13 岁的孩子如何在 Netlify - LogRocket 博客上创建网页
+# 教一个 13 岁的孩子如何在 Netlify 上创建网页
 
 > 原文：<https://blog.logrocket.com/teaching-13-year-old-host-webpage-netlify/>
 

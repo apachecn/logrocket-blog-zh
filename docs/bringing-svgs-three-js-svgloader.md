@@ -1,4 +1,4 @@
-# 使用 SVGLoader - LogRocket 博客将 SVG 引入 Three.js
+# 使用 SVGLoader 将 SVG 引入 Three.js
 
 > 原文：<https://blog.logrocket.com/bringing-svgs-three-js-svgloader/>
 

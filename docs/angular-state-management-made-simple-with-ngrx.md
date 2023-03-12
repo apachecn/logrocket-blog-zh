@@ -1,4 +1,4 @@
-# NgRx - LogRocket 博客简化了角度状态管理
+# NgRx 简化了角度状态管理
 
 > 原文：<https://blog.logrocket.com/angular-state-management-made-simple-with-ngrx/>
 

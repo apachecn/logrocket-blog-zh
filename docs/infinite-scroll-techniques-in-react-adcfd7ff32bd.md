@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的无限滚动技术
+# React 中的无限滚动技术
 
 > 原文：<https://blog.logrocket.com/infinite-scroll-techniques-in-react-adcfd7ff32bd/>
 

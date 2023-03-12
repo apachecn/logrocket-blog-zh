@@ -1,4 +1,4 @@
-# 使用 Yew - LogRocket 博客构建 Rust + WebAssembly 前端 web 应用程序
+# 使用 Yew 构建 Rust + WebAssembly 前端 web 应用程序
 
 > 原文：<https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/>
 

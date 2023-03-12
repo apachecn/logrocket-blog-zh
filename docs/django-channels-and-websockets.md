@@ -1,4 +1,4 @@
-# Django 频道和 WebSockets - LogRocket 博客
+# Django 频道和 WebSockets 
 
 > 原文：<https://blog.logrocket.com/django-channels-and-websockets/>
 

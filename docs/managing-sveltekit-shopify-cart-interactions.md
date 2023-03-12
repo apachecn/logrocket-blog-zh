@@ -1,4 +1,4 @@
-# 管理 SvelteKit 和 Shopify 购物车交互- LogRocket 博客
+# 管理 SvelteKit 和 Shopify 购物车交互
 
 > 原文：<https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/>
 

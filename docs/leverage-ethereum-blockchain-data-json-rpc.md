@@ -1,4 +1,4 @@
-# 通过 JSON-RPC - LogRocket 博客利用以太坊区块链数据
+# 通过 JSON-RPC 利用以太坊区块链数据
 
 > 原文：<https://blog.logrocket.com/leverage-ethereum-blockchain-data-json-rpc/>
 

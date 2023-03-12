@@ -1,4 +1,4 @@
-# 在 Next.js 中使用 styled-components 和 useDarkMode - LogRocket 博客进行主题化
+# 在 Next.js 中使用 styled-components 和 useDarkMode 进行主题化
 
 > 原文：<https://blog.logrocket.com/theming-in-next-js-with-styled-components-and-usedarkmode/>
 

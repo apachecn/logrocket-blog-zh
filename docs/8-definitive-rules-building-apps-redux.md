@@ -1,4 +1,4 @@
-# 使用 Redux - LogRocket 博客构建应用程序的 8 条明确规则
+# 使用 Redux 构建应用程序的 8 条明确规则
 
 > 原文：<https://blog.logrocket.com/8-definitive-rules-building-apps-redux/>
 

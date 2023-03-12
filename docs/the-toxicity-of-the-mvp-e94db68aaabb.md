@@ -1,4 +1,4 @@
-# MVP - LogRocket 博客的毒性
+# MVP 的毒性
 
 > 原文：<https://blog.logrocket.com/the-toxicity-of-the-mvp-e94db68aaabb/>
 

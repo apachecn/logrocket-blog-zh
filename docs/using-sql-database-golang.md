@@ -1,4 +1,4 @@
-# 在 Golang - LogRocket 博客中使用 SQL 数据库
+# 在 Golang 中使用 SQL 数据库
 
 > 原文：<https://blog.logrocket.com/using-sql-database-golang/>
 

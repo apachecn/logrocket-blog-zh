@@ -1,4 +1,4 @@
-# PWA 与 Create React 应用程序和服务人员- LogRocket 博客
+# PWA 与 Create React 应用程序和服务人员
 
 > 原文：<https://blog.logrocket.com/pwa-create-react-app-service-workers/>
 

@@ -1,4 +1,4 @@
-# 如何构建自定义的 GatsbyJS 主题- LogRocket 博客
+# 如何构建自定义的 GatsbyJS 主题
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-custom-gatsbyjs-theme-e9b9529f217b/>
 

@@ -1,4 +1,4 @@
-# 使用 Enquirer - LogRocket 博客创建节点 CLI
+# 使用 Enquirer 创建节点 CLI
 
 > 原文：<https://blog.logrocket.com/creating-a-node-cli/>
 

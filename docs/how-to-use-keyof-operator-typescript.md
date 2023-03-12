@@ -1,4 +1,4 @@
-# 如何在 TypeScript - LogRocket 博客中使用 keyof 运算符
+# 如何在 TypeScript 中使用 keyof 运算符
 
 > 原文：<https://blog.logrocket.com/how-to-use-keyof-operator-typescript/>
 

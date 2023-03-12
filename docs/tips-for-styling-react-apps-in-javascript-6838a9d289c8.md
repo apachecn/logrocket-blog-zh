@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中 React 应用程序的样式技巧
+# JavaScript 中 React 应用程序的样式技巧
 
 > 原文：<https://blog.logrocket.com/tips-for-styling-react-apps-in-javascript-6838a9d289c8/>
 

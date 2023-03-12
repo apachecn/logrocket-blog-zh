@@ -1,4 +1,4 @@
-# 用 Sass - LogRocket 博客进行 CSS 编程的初学者指南
+# 用 Sass 进行 CSS 编程的初学者指南
 
 > 原文：<https://blog.logrocket.com/a-beginners-guide-to-programming-for-css-with-sass/>
 

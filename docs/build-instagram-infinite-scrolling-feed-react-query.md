@@ -1,4 +1,4 @@
-# 用 React Query - LogRocket 博客构建一个类似 Instagram 的无限滚动提要
+# 用 React Query 构建一个类似 Instagram 的无限滚动提要
 
 > 原文：<https://blog.logrocket.com/build-instagram-infinite-scrolling-feed-react-query/>
 

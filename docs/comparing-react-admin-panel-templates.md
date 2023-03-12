@@ -1,4 +1,4 @@
-# 比较 React 管理面板模板- LogRocket 博客
+# 比较 React 管理面板模板
 
 > 原文：<https://blog.logrocket.com/comparing-react-admin-panel-templates/>
 

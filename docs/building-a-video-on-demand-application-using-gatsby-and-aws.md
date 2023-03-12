@@ -1,4 +1,4 @@
-# 使用 Gatsby 和 AWS - LogRocket 博客构建视频点播应用程序
+# 使用 Gatsby 和 AWS 构建视频点播应用程序
 
 > 原文：<https://blog.logrocket.com/building-a-video-on-demand-application-using-gatsby-and-aws/>
 

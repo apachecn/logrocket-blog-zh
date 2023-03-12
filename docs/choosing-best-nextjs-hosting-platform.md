@@ -1,4 +1,4 @@
-# 选择最好的 Next.js 托管平台- LogRocket 博客
+# 选择最好的 Next.js 托管平台
 
 > 原文：<https://blog.logrocket.com/choosing-best-nextjs-hosting-platform/>
 

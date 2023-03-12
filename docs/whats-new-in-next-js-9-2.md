@@ -1,4 +1,4 @@
-# Next.js 9.2 中的新特性- LogRocket 博客
+# Next.js 9.2 中的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-next-js-9-2/>
 

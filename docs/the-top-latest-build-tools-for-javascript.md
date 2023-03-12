@@ -1,4 +1,4 @@
-# JavaScript 的顶级最新构建工具- LogRocket 博客
+# JavaScript 的顶级最新构建工具
 
 > 原文：<https://blog.logrocket.com/the-top-latest-build-tools-for-javascript/>
 

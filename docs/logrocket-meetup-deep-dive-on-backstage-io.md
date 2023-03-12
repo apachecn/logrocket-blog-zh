@@ -1,4 +1,4 @@
-# 深入了解 backstage.io recap - LogRocket 博客
+# 深入了解 backstage.io recap 
 
 > 原文：<https://blog.logrocket.com/logrocket-meetup-deep-dive-on-backstage-io/>
 

@@ -1,4 +1,4 @@
-# Node.js 12:服务器端 JavaScript - LogRocket 博客的未来
+# Node.js 12:服务器端 JavaScript 的未来
 
 > 原文：<https://blog.logrocket.com/node-js-12/>
 

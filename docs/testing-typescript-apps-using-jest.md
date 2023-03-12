@@ -1,4 +1,4 @@
-# 使用 Jest - LogRocket 博客测试 TypeScript 应用程序
+# 使用 Jest 测试 TypeScript 应用程序
 
 > 原文：<https://blog.logrocket.com/testing-typescript-apps-using-jest/>
 

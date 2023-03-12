@@ -1,4 +1,4 @@
-# 用 Notifire - LogRocket 博客管理多渠道通知流
+# 用 Notifire 管理多渠道通知流
 
 > 原文：<https://blog.logrocket.com/managing-multi-channel-notification-streams-notifire/>
 

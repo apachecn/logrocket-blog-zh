@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中使用 Dart 的介绍
+# 在 Flutter 中使用 Dart 的介绍
 
 > 原文：<https://blog.logrocket.com/introduction-to-using-dart-in-flutter/>
 

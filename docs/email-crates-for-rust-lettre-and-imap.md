@@ -1,4 +1,4 @@
-# Rust 的电子邮件箱:lettre 和 imap - LogRocket 博客
+# Rust 的电子邮件箱:lettre 和 imap 
 
 > 原文：<https://blog.logrocket.com/email-crates-for-rust-lettre-and-imap/>
 

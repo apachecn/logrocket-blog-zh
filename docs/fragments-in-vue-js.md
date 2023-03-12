@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的片段
+# Vue.js 中的片段
 
 > 原文：<https://blog.logrocket.com/fragments-in-vue-js/>
 

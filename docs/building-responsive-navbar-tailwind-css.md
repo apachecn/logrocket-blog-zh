@@ -1,4 +1,4 @@
-# 在顺风 CSS - LogRocket 博客中构建一个响应式导航条
+# 在顺风 CSS 中构建一个响应式导航条
 
 > 原文：<https://blog.logrocket.com/building-responsive-navbar-tailwind-css/>
 

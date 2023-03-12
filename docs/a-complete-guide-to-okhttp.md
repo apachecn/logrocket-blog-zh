@@ -1,4 +1,4 @@
-# OkHttp - LogRocket 博客完全指南
+# OkHttp 完全指南
 
 > 原文：<https://blog.logrocket.com/a-complete-guide-to-okhttp/>
 

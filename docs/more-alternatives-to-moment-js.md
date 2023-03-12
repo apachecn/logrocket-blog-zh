@@ -1,4 +1,4 @@
-# Moment.js - LogRocket 博客的更多选择
+# Moment.js 的更多选择
 
 > 原文：<https://blog.logrocket.com/more-alternatives-to-moment-js/>
 

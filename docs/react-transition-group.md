@@ -1,4 +1,4 @@
-# 使用 React 转换组改进 UI - LogRocket 博客
+# 使用 React 转换组改进 UI 
 
 > 原文：<https://blog.logrocket.com/react-transition-group/>
 

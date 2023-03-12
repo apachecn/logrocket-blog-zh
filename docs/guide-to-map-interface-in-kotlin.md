@@ -1,4 +1,4 @@
-# Kotlin - LogRocket 博客中的地图界面使用指南
+# Kotlin 中的地图界面使用指南
 
 > 原文：<https://blog.logrocket.com/guide-to-map-interface-in-kotlin/>
 

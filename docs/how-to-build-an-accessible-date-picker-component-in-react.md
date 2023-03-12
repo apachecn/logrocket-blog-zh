@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中构建一个可访问的 datepicker 组件
+# 如何在 React 中构建一个可访问的 datepicker 组件
 
 > 原文：<https://blog.logrocket.com/how-to-build-an-accessible-date-picker-component-in-react/>
 

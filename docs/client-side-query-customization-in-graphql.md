@@ -1,4 +1,4 @@
-# GraphQL - LogRocket 博客中的客户端查询定制
+# GraphQL 中的客户端查询定制
 
 > 原文：<https://blog.logrocket.com/client-side-query-customization-in-graphql/>
 

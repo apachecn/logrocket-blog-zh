@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中制作闪屏
+# 如何在 Flutter 中制作闪屏
 
 > 原文：<https://blog.logrocket.com/make-splash-screen-flutter/>
 

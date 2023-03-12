@@ -1,4 +1,4 @@
-# 帮助你入门的 4 个选项林挺你的 JavaScript - LogRocket 博客
+# 帮助你入门的 4 个选项林挺你的 JavaScript 
 
 > 原文：<https://blog.logrocket.com/four-options-to-help-you-get-started-linting-your-javascript-b4b829828648/>
 

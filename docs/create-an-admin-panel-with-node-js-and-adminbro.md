@@ -1,4 +1,4 @@
-# 用 AdminJS - LogRocket 博客构建全栈应用
+# 用 AdminJS 构建全栈应用
 
 > 原文：<https://blog.logrocket.com/create-an-admin-panel-with-node-js-and-adminbro/>
 

@@ -1,4 +1,4 @@
-# 探索迅猛龙，Deno 的 npm 风格的脚本 runner - LogRocket 博客
+# 探索迅猛龙，Deno 的 npm 风格的脚本 runner 
 
 > 原文：<https://blog.logrocket.com/exploring-velociraptor-deno-npm-style-script-runner/>
 

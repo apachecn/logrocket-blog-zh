@@ -1,4 +1,4 @@
-# Three.js:几何和材料- LogRocket 博客
+# Three.js:几何和材料
 
 > 原文：<https://blog.logrocket.com/three-js-geometries-and-materials/>
 

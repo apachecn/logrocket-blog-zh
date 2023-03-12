@@ -1,4 +1,4 @@
-# 探索 Vue-Multiselect - LogRocket 博客
+# 探索 Vue-Multiselect 
 
 > 原文：<https://blog.logrocket.com/exploring-vue-multiselect/>
 

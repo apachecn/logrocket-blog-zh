@@ -1,4 +1,4 @@
-# 生产中应该用 Svelte 吗？- LogRocket 博客
+# 生产中应该用 Svelte 吗？
 
 > 原文：<https://blog.logrocket.com/should-you-use-svelte-production/>
 

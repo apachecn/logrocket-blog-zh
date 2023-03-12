@@ -1,4 +1,4 @@
-# 使用未声明的 Next - LogRocket 博客进行状态管理
+# 使用未声明的 Next 进行状态管理
 
 > 原文：<https://blog.logrocket.com/state-management-with-unstated-next/>
 

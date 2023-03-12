@@ -1,4 +1,4 @@
-# Flutter BLoC 8 - LogRocket 博客介绍
+# Flutter BLoC 8 介绍
 
 > 原文：<https://blog.logrocket.com/introduction-flutter-bloc-8/>
 

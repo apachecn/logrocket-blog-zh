@@ -1,4 +1,4 @@
-# PixiJS 和 React 入门:创建一个 canvas - LogRocket 博客
+# PixiJS 和 React 入门:创建一个 canvas 
 
 > 原文：<https://blog.logrocket.com/getting-started-pixijs-react-create-canvas/>
 

@@ -1,4 +1,4 @@
-# React 导航与 React 原生导航:哪个适合你？- LogRocket 博客
+# React 导航与 React 原生导航:哪个适合你？
 
 > 原文：<https://blog.logrocket.com/react-navigation-vs-react-native-navigation/>
 

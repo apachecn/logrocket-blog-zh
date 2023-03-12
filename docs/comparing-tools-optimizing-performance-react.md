@@ -1,4 +1,4 @@
-# React - LogRocket 博客中优化性能的比较工具
+# React 中优化性能的比较工具
 
 > 原文：<https://blog.logrocket.com/comparing-tools-optimizing-performance-react/>
 

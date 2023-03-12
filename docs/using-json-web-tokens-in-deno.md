@@ -1,4 +1,4 @@
-# 在 Deno - LogRocket 博客中使用 JSON web 令牌
+# 在 Deno 中使用 JSON web 令牌
 
 > 原文：<https://blog.logrocket.com/using-json-web-tokens-in-deno/>
 

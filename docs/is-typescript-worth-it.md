@@ -1,4 +1,4 @@
-# TypeScript 值得吗？- LogRocket 博客
+# TypeScript 值得吗？
 
 > 原文：<https://blog.logrocket.com/is-typescript-worth-it/>
 

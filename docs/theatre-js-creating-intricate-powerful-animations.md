@@ -1,4 +1,4 @@
-# Theatre.js:在 JavaScript - LogRocket 博客中创建复杂而强大的动画
+# Theatre.js:在 JavaScript 中创建复杂而强大的动画
 
 > 原文：<https://blog.logrocket.com/theatre-js-creating-intricate-powerful-animations/>
 

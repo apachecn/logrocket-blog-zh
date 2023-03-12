@@ -1,4 +1,4 @@
-# 为 MobX - LogRocket 博客发布 LogRocket
+# 为 MobX 发布 LogRocket
 
 > 原文：<https://blog.logrocket.com/announcing-logrocket-for-mobx-a9b65d8e6ed7/>
 

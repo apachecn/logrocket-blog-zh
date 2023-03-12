@@ -1,4 +1,4 @@
-# 隐式状态共享:React 的上下文 API &在 Vue - LogRocket 博客中提供/注入
+# 隐式状态共享:React 的上下文 API &在 Vue 中提供/注入
 
 > 原文：<https://blog.logrocket.com/implicit-state-sharing-reacts-context-api-provide-inject-in-vue-679062a50f05/>
 

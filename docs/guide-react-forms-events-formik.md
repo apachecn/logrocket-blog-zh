@@ -1,4 +1,4 @@
-# 使用 Formik - LogRocket 博客反应表单和事件的指南
+# 使用 Formik 反应表单和事件的指南
 
 > 原文：<https://blog.logrocket.com/guide-react-forms-events-formik/>
 

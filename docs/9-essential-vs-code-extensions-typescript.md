@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客的 9 个基本 VS 代码扩展
+# TypeScript 的 9 个基本 VS 代码扩展
 
 > 原文：<https://blog.logrocket.com/9-essential-vs-code-extensions-typescript/>
 

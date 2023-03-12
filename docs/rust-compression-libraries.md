@@ -1,4 +1,4 @@
-# Rust 压缩库- LogRocket 博客
+# Rust 压缩库
 
 > 原文：<https://blog.logrocket.com/rust-compression-libraries/>
 

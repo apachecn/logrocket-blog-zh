@@ -1,4 +1,4 @@
-# 反冲 0.3 有什么新功能？- LogRocket 博客
+# 反冲 0.3 有什么新功能？
 
 > 原文：<https://blog.logrocket.com/whats-new-in-recoil-0-3/>
 

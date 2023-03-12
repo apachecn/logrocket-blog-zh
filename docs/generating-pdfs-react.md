@@ -1,4 +1,4 @@
-# 使用 react-pdf - LogRocket 博客在 React 中生成 pdf
+# 使用 react-pdf 在 React 中生成 pdf
 
 > 原文：<https://blog.logrocket.com/generating-pdfs-react/>
 

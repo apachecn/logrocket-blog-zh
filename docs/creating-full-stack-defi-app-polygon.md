@@ -1,4 +1,4 @@
-# 使用 Polygon - LogRocket 博客创建全栈 DeFi 应用程序
+# 使用 Polygon 创建全栈 DeFi 应用程序
 
 > 原文：<https://blog.logrocket.com/creating-full-stack-defi-app-polygon/>
 

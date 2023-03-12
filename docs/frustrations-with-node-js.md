@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客的挫折
+# Node.js 的挫折
 
 > 原文：<https://blog.logrocket.com/frustrations-with-node-js/>
 

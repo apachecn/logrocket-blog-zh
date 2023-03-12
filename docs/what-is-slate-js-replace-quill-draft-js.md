@@ -1,4 +1,4 @@
-# 什么是 Slate.js，它会取代 Quill 和 Draft.js 吗？- LogRocket 博客
+# 什么是 Slate.js，它会取代 Quill 和 Draft.js 吗？
 
 > 原文：<https://blog.logrocket.com/what-is-slate-js-replace-quill-draft-js/>
 

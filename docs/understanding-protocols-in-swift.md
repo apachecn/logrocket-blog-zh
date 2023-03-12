@@ -1,4 +1,4 @@
-# 理解 Swift - LogRocket 博客中的协议
+# 理解 Swift 中的协议
 
 > 原文：<https://blog.logrocket.com/understanding-protocols-in-swift/>
 

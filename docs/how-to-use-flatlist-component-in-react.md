@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用 FlatList 组件
+# 如何在 React 中使用 FlatList 组件
 
 > 原文：<https://blog.logrocket.com/how-to-use-flatlist-component-in-react/>
 

@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中使用 Redux Persist
+# 如何在 React Native 中使用 Redux Persist
 
 > 原文：<https://blog.logrocket.com/use-redux-persist-react-native/>
 

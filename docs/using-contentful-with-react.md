@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用 Contentful
+# 在 React 中使用 Contentful
 
 > 原文：<https://blog.logrocket.com/using-contentful-with-react/>
 

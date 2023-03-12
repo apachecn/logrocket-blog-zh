@@ -1,4 +1,4 @@
-# CSS - LogRocket 博客中堆叠元素的最佳实践
+# CSS 中堆叠元素的最佳实践
 
 > 原文：<https://blog.logrocket.com/best-practices-stacking-elements-css/>
 

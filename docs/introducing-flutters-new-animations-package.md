@@ -1,4 +1,4 @@
-# 介绍 Flutter 的新动画包- LogRocket 博客
+# 介绍 Flutter 的新动画包
 
 > 原文：<https://blog.logrocket.com/introducing-flutters-new-animations-package/>
 

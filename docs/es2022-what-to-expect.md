@@ -1,4 +1,4 @@
-# 对 ES2022 - LogRocket 博客有什么期待
+# 对 ES2022 有什么期待
 
 > 原文：<https://blog.logrocket.com/es2022-what-to-expect/>
 

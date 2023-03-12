@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中的模式匹配和类型安全
+# TypeScript 中的模式匹配和类型安全
 
 > 原文：<https://blog.logrocket.com/pattern-matching-and-type-safety-in-typescript-1da1231a2e34/>
 

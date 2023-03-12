@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中用接口扩展类对象类型
+# 在 TypeScript 中用接口扩展类对象类型
 
 > 原文：<https://blog.logrocket.com/extending-object-like-types-interfaces-typescript/>
 

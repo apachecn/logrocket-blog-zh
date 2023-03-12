@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用控制台颜色
+# 在 Node.js 中使用控制台颜色
 
 > 原文：<https://blog.logrocket.com/using-console-colors-node-js/>
 

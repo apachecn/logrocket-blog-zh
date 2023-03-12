@@ -1,4 +1,4 @@
-# 使用 Rust - LogRocket 博客增强您的电子应用程序
+# 使用 Rust 增强您的电子应用程序
 
 > 原文：<https://blog.logrocket.com/supercharge-your-electron-apps-with-rust/>
 

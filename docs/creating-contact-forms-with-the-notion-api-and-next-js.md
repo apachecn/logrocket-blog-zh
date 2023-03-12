@@ -1,4 +1,4 @@
-# 使用概念 API 和 Next.js - LogRocket 博客创建联系表单
+# 使用概念 API 和 Next.js 创建联系表单
 
 > 原文：<https://blog.logrocket.com/creating-contact-forms-with-the-notion-api-and-next-js/>
 

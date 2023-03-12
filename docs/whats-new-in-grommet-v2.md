@@ -1,4 +1,4 @@
-# Grommet v2 - LogRocket 博客中的新内容
+# Grommet v2 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-grommet-v2/>
 

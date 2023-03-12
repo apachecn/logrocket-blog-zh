@@ -1,4 +1,4 @@
-# 在 Node.js 和 React - LogRocket 博客中使用 S3 进行多部分上传
+# 在 Node.js 和 React 中使用 S3 进行多部分上传
 
 > 原文：<https://blog.logrocket.com/multipart-uploads-s3-node-js-react/>
 

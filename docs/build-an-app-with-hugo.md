@@ -1,4 +1,4 @@
-# 如何用 Hugo - LogRocket 博客搭建一个 app
+# 如何用 Hugo 搭建一个 app
 
 > 原文：<https://blog.logrocket.com/build-an-app-with-hugo/>
 

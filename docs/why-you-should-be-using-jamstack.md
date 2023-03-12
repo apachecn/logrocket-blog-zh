@@ -1,4 +1,4 @@
-# 为什么你应该使用 JAMstack - LogRocket 博客
+# 为什么你应该使用 JAMstack 
 
 > 原文：<https://blog.logrocket.com/why-you-should-be-using-jamstack/>
 

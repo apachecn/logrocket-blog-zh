@@ -1,4 +1,4 @@
-# 深入了解 Vue 老虎机- LogRocket 博客
+# 深入了解 Vue 老虎机
 
 > 原文：<https://blog.logrocket.com/a-deep-dive-into-vue-slots/>
 

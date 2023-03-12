@@ -1,4 +1,4 @@
-# 如何避免 JavaScript - LogRocket 博客中的内存泄漏
+# 如何避免 JavaScript 中的内存泄漏
 
 > 原文：<https://blog.logrocket.com/escape-memory-leaks-javascript/>
 

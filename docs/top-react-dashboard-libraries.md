@@ -1,4 +1,4 @@
-# Top React 仪表板库- LogRocket 博客
+# Top React 仪表板库
 
 > 原文：<https://blog.logrocket.com/top-react-dashboard-libraries/>
 

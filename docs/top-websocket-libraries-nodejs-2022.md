@@ -1,4 +1,4 @@
-# 2022 年 Node.js 的顶级 WebSocket 库- LogRocket 博客
+# 2022 年 Node.js 的顶级 WebSocket 库
 
 > 原文：<https://blog.logrocket.com/top-websocket-libraries-nodejs-2022/>
 

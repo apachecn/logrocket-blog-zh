@@ -1,4 +1,4 @@
-# 用普通的 JavaScript - LogRocket 博客从头开始构建一个图像转盘
+# 用普通的 JavaScript 从头开始构建一个图像转盘
 
 > 原文：<https://blog.logrocket.com/build-image-carousel-from-scratch-vanilla-javascript/>
 

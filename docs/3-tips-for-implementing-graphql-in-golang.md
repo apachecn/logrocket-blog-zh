@@ -1,4 +1,4 @@
-# 在 Golang - LogRocket 博客中实现 GraphQL 的 3 个技巧
+# 在 Golang 中实现 GraphQL 的 3 个技巧
 
 > 原文：<https://blog.logrocket.com/3-tips-for-implementing-graphql-in-golang/>
 

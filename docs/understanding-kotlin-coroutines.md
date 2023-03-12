@@ -1,4 +1,4 @@
-# 了解 Kotlin 协同程序- LogRocket 博客
+# 了解 Kotlin 协同程序
 
 > 原文：<https://blog.logrocket.com/understanding-kotlin-coroutines/>
 

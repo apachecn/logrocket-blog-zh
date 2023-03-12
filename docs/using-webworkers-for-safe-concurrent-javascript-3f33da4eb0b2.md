@@ -1,4 +1,4 @@
-# 使用 web workers 实现安全、并发的 JavaScript - LogRocket 博客
+# 使用 web workers 实现安全、并发的 JavaScript 
 
 > 原文：<https://blog.logrocket.com/using-webworkers-for-safe-concurrent-javascript-3f33da4eb0b2/>
 

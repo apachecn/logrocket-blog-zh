@@ -1,4 +1,4 @@
-# 2020 年十大 Vue 组件库- LogRocket 博客
+# 2020 年十大 Vue 组件库
 
 > 原文：<https://blog.logrocket.com/top-10-vue-component-libraries-for-2020/>
 

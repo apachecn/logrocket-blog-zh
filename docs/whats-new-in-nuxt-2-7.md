@@ -1,4 +1,4 @@
-# Nuxt 2.7 的新特性- LogRocket 博客
+# Nuxt 2.7 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-nuxt-2-7/>
 

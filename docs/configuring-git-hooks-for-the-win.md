@@ -1,4 +1,4 @@
-# 为 win - LogRocket 博客配置 Git 挂钩
+# 为 win 配置 Git 挂钩
 
 > 原文：<https://blog.logrocket.com/configuring-git-hooks-for-the-win/>
 

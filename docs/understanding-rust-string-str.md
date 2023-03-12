@@ -1,4 +1,4 @@
-# 理解 Rust - LogRocket 博客中的 String 和&str
+# 理解 Rust 中的 String 和&str
 
 > 原文：<https://blog.logrocket.com/understanding-rust-string-str/>
 

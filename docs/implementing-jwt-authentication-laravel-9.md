@@ -1,4 +1,4 @@
-# 在 Laravel 9 - LogRocket 博客中实现 JWT 认证
+# 在 Laravel 9 中实现 JWT 认证
 
 > 原文：<https://blog.logrocket.com/implementing-jwt-authentication-laravel-9/>
 

@@ -1,4 +1,4 @@
-# 如何在 Kotlin - LogRocket 博客中创建静态方法和类
+# 如何在 Kotlin 中创建静态方法和类
 
 > 原文：<https://blog.logrocket.com/create-static-methods-classes-kotlin/>
 

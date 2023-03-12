@@ -1,4 +1,4 @@
-# 为什么你应该从 Ruby 转到 Crystal - LogRocket 博客
+# 为什么你应该从 Ruby 转到 Crystal 
 
 > 原文：<https://blog.logrocket.com/why-you-should-switch-from-ruby-to-crystal/>
 

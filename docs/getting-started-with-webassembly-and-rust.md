@@ -1,4 +1,4 @@
-# WebAssembly 和 Rust - LogRocket 博客入门
+# WebAssembly 和 Rust 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-webassembly-and-rust/>
 

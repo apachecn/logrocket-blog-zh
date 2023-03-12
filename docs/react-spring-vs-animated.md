@@ -1,4 +1,4 @@
-# React Spring vs 动画- LogRocket 博客
+# React Spring vs 动画
 
 > 原文：<https://blog.logrocket.com/react-spring-vs-animated/>
 

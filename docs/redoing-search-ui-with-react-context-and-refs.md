@@ -1,4 +1,4 @@
-# 用 React 上下文和 refs - LogRocket 博客重做搜索 UI
+# 用 React 上下文和 refs 重做搜索 UI
 
 > 原文：<https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/>
 

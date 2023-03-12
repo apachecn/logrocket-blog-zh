@@ -1,4 +1,4 @@
-# 使用 React 和 Nx - LogRocket 博客构建应用程序
+# 使用 React 和 Nx 构建应用程序
 
 > 原文：<https://blog.logrocket.com/building-an-application-with-react-and-nx/>
 

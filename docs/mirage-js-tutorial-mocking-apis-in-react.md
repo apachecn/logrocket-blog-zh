@@ -1,4 +1,4 @@
-# Mirage JS 教程:在 React - LogRocket 博客中模仿 API
+# Mirage JS 教程:在 React 中模仿 API
 
 > 原文：<https://blog.logrocket.com/mirage-js-tutorial-mocking-apis-in-react/>
 

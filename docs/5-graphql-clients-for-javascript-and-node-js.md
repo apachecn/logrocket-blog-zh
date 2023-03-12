@@ -1,4 +1,4 @@
-# 5 个用于 JavaScript 和 Node.js 的 GraphQL 客户端- LogRocket 博客
+# 5 个用于 JavaScript 和 Node.js 的 GraphQL 客户端
 
 > 原文：<https://blog.logrocket.com/5-graphql-clients-for-javascript-and-node-js/>
 

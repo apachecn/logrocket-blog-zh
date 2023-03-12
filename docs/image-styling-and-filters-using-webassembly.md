@@ -1,4 +1,4 @@
-# 使用 WebAssembly - LogRocket 博客的图像样式和过滤器
+# 使用 WebAssembly 的图像样式和过滤器
 
 > 原文：<https://blog.logrocket.com/image-styling-and-filters-using-webassembly/>
 

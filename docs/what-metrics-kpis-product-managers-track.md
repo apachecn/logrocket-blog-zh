@@ -1,4 +1,4 @@
-# 产品经理跟踪哪些指标和 KPI？- LogRocket 博客
+# 产品经理跟踪哪些指标和 KPI？
 
 > 原文：<https://blog.logrocket.com/product-management/what-metrics-kpis-product-managers-track/>
 

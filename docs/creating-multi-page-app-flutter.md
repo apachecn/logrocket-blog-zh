@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中创建多页应用程序
+# 在 Flutter 中创建多页应用程序
 
 > 原文：<https://blog.logrocket.com/creating-multi-page-app-flutter/>
 

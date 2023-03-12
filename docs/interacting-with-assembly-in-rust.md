@@ -1,4 +1,4 @@
-# 在 Rust - LogRocket 博客中与程序集交互
+# 在 Rust 中与程序集交互
 
 > 原文：<https://blog.logrocket.com/interacting-with-assembly-in-rust/>
 

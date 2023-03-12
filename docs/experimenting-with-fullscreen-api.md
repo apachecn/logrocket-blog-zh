@@ -1,4 +1,4 @@
-# 尝试全屏 API - LogRocket 博客
+# 尝试全屏 API 
 
 > 原文：<https://blog.logrocket.com/experimenting-with-fullscreen-api/>
 

@@ -1,4 +1,4 @@
-# PHP 开发人员 JavaScript 入门- LogRocket 博客
+# PHP 开发人员 JavaScript 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-javascript-for-php-developers/>
 

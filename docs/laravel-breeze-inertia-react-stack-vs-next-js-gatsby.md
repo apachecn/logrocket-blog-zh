@@ -1,4 +1,4 @@
-# Laravel Breeze 的惯性反应堆栈与 Next.js 和 Gatsby - LogRocket 博客
+# Laravel Breeze 的惯性反应堆栈与 Next.js 和 Gatsby 
 
 > 原文：<https://blog.logrocket.com/laravel-breeze-inertia-react-stack-vs-next-js-gatsby/>
 

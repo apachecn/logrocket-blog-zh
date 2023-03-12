@@ -1,4 +1,4 @@
-# MDX 和 Vue.js/Nuxt.js 入门- LogRocket 博客
+# MDX 和 Vue.js/Nuxt.js 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-mdx-and-vue-js-nuxt-js/>
 

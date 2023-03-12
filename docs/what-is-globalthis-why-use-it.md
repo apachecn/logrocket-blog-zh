@@ -1,4 +1,4 @@
-# 什么是 globalThis，为什么您应该开始使用它？- LogRocket 博客
+# 什么是 globalThis，为什么您应该开始使用它？
 
 > 原文：<https://blog.logrocket.com/what-is-globalthis-why-use-it/>
 

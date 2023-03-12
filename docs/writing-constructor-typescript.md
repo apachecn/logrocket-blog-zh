@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中编写构造函数
+# 在 TypeScript 中编写构造函数
 
 > 原文：<https://blog.logrocket.com/writing-constructor-typescript/>
 

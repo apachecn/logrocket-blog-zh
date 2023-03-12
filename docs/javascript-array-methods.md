@@ -1,4 +1,4 @@
-# 如何实现每一个 JavaScript 数组方法- LogRocket 博客
+# 如何实现每一个 JavaScript 数组方法
 
 > 原文：<https://blog.logrocket.com/javascript-array-methods/>
 

@@ -1,4 +1,4 @@
-# 如何在 Next.js apps - LogRocket 博客中修复布局变化以改善 SEO
+# 如何在 Next.js apps 中修复布局变化以改善 SEO
 
 > 原文：<https://blog.logrocket.com/fix-layout-shifts-improve-seo-next-js/>
 

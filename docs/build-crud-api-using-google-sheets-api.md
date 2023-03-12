@@ -1,4 +1,4 @@
-# 使用 Google Sheets API - LogRocket 博客构建一个 CRUD API
+# 使用 Google Sheets API 构建一个 CRUD API
 
 > 原文：<https://blog.logrocket.com/build-crud-api-using-google-sheets-api/>
 

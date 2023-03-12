@@ -1,4 +1,4 @@
-# CSS 参考指南:CSS:悬停选择器- LogRocket 博客
+# CSS 参考指南:CSS:悬停选择器
 
 > 原文：<https://blog.logrocket.com/css-reference-guide-hover-selector/>
 

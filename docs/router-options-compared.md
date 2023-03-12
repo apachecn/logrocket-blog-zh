@@ -1,4 +1,4 @@
-# 路由器选项比较:Vue 路由器，Voie，Vue-routisan 和 Vue-route - LogRocket 博客
+# 路由器选项比较:Vue 路由器，Voie，Vue-routisan 和 Vue-route 
 
 > 原文：<https://blog.logrocket.com/router-options-compared/>
 

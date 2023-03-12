@@ -1,4 +1,4 @@
-# Redux Toolkit 的新监听器中间件 vs. Redux-Saga - LogRocket 博客
+# Redux Toolkit 的新监听器中间件 vs. Redux-Saga 
 
 > 原文：<https://blog.logrocket.com/redux-toolkits-new-listener-middleware-vs-redux-saga/>
 

@@ -1,4 +1,4 @@
-# Angular - LogRocket 博客中的 HttpInterceptor 缓存
+# Angular 中的 HttpInterceptor 缓存
 
 > 原文：<https://blog.logrocket.com/caching-with-httpinterceptor-in-angular/>
 

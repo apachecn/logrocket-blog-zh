@@ -1,4 +1,4 @@
-# 虚拟滚动:React - LogRocket 博客的核心原理和基本实现
+# 虚拟滚动:React 的核心原理和基本实现
 
 > 原文：<https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/>
 

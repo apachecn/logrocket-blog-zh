@@ -1,4 +1,4 @@
-# 比较 GraphQL - LogRocket 博客的钩子库
+# 比较 GraphQL 的钩子库
 
 > 原文：<https://blog.logrocket.com/comparing-hooks-libraries-for-graphql/>
 

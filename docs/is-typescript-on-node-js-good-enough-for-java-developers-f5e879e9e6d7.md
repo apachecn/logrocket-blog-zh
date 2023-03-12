@@ -1,4 +1,4 @@
-# Node.js 上的 TypeScript 对 Java 开发者来说够好了吗？- LogRocket 博客
+# Node.js 上的 TypeScript 对 Java 开发者来说够好了吗？
 
 > 原文：<https://blog.logrocket.com/is-typescript-on-node-js-good-enough-for-java-developers-f5e879e9e6d7/>
 

@@ -1,4 +1,4 @@
-# 如何使用 data - LogRocket 博客传达你的产品策略
+# 如何使用 data 传达你的产品策略
 
 > 原文：<https://blog.logrocket.com/product-management/how-to-communicate-product-strategy/>
 

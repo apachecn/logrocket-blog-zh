@@ -1,4 +1,4 @@
-# 使用 Ionic - LogRocket 博客进行主题化和定制
+# 使用 Ionic 进行主题化和定制
 
 > 原文：<https://blog.logrocket.com/theming-customization-with-ionic/>
 

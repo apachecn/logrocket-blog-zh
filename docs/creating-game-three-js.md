@@ -1,4 +1,4 @@
-# 在 Three.js - LogRocket 博客中创建游戏
+# 在 Three.js 中创建游戏
 
 > 原文：<https://blog.logrocket.com/creating-game-three-js/>
 

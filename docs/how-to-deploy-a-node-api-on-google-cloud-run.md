@@ -1,4 +1,4 @@
-# 如何在 Google Cloud Run - LogRocket 博客上部署节点 API
+# 如何在 Google Cloud Run 上部署节点 API
 
 > 原文：<https://blog.logrocket.com/how-to-deploy-a-node-api-on-google-cloud-run/>
 

@@ -1,4 +1,4 @@
-# 使用 Vest - LogRocket 博客进行优雅的数据验证
+# 使用 Vest 进行优雅的数据验证
 
 > 原文：<https://blog.logrocket.com/elegant-data-validation-vest/>
 

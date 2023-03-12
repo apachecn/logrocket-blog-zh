@@ -1,4 +1,4 @@
-# WP-CLI 教程:如何部署 WordPress - LogRocket 博客
+# WP-CLI 教程:如何部署 WordPress 
 
 > 原文：<https://blog.logrocket.com/wp-cli-tutorial-how-to-deploy-wordpress/>
 

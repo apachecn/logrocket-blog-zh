@@ -1,4 +1,4 @@
-# 使用 CSS - LogRocket 博客设计 Vue.js 应用程序的样式
+# 使用 CSS 设计 Vue.js 应用程序的样式
 
 > 原文：<https://blog.logrocket.com/styling-a-vue-js-application-using-css/>
 

@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客介绍 MobX
+# 使用 React 介绍 MobX
 
 > 原文：<https://blog.logrocket.com/introduction-to-mobx-with-react/>
 

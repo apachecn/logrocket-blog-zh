@@ -1,4 +1,4 @@
-# 使用 Chrome - LogRocket 博客中的新图层面板消除内容重绘
+# 使用 Chrome 中的新图层面板消除内容重绘
 
 > 原文：<https://blog.logrocket.com/eliminate-content-repaints-with-the-new-layers-panel-in-chrome-e2c306d4d752/>
 

@@ -1,4 +1,4 @@
-# React - LogRocket 博客的 Python 开发者指南
+# React 的 Python 开发者指南
 
 > 原文：<https://blog.logrocket.com/python-developers-guide-react/>
 

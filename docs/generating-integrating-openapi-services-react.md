@@ -1,4 +1,4 @@
-# 在 React app - LogRocket 博客中生成和集成 OpenAPI 服务
+# 在 React app 中生成和集成 OpenAPI 服务
 
 > 原文：<https://blog.logrocket.com/generating-integrating-openapi-services-react/>
 

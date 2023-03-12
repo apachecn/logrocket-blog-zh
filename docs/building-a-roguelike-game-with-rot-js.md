@@ -1,4 +1,4 @@
-# 用 Rot.js - LogRocket 博客构建一个类似 rogue 的游戏
+# 用 Rot.js 构建一个类似 rogue 的游戏
 
 > 原文：<https://blog.logrocket.com/building-a-roguelike-game-with-rot-js/>
 

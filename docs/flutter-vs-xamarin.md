@@ -1,4 +1,4 @@
-# 颤振与 Xamarin - LogRocket 博客
+# 颤振与 Xamarin 
 
 > 原文：<https://blog.logrocket.com/flutter-vs-xamarin/>
 

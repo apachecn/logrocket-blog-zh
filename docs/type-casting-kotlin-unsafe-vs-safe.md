@@ -1,4 +1,4 @@
-# Kotlin 中的类型转换:不安全与安全- LogRocket 博客
+# Kotlin 中的类型转换:不安全与安全
 
 > 原文：<https://blog.logrocket.com/type-casting-kotlin-unsafe-vs-safe/>
 

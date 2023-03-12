@@ -1,4 +1,4 @@
-# 使用 Vue、Vue 路由器、Vuetify 和 node-fetch - LogRocket 博客开发您自己的管理应用程序
+# 使用 Vue、Vue 路由器、Vuetify 和 node-fetch 开发您自己的管理应用程序
 
 > 原文：<https://blog.logrocket.com/rolling-your-own-management-application-with-vue-vue-router-vuetify-and-node-fetch/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用 MUI
+# 在 React Native 中使用 MUI
 
 > 原文：<https://blog.logrocket.com/using-mui-react-native/>
 

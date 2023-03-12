@@ -1,4 +1,4 @@
-# Immer 7.0 的新功能- LogRocket 博客
+# Immer 7.0 的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-in-immer-7-0/>
 

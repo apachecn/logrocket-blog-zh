@@ -1,4 +1,4 @@
-# 理解 Unity - LogRocket 博客中的 2D 和 3D 光线投射
+# 理解 Unity 中的 2D 和 3D 光线投射
 
 > 原文：<https://blog.logrocket.com/2d-3d-raycasting-unity/>
 

@@ -1,4 +1,4 @@
-# 用 React 和 RxDB - LogRocket 博客构建离线优先应用
+# 用 React 和 RxDB 构建离线优先应用
 
 > 原文：<https://blog.logrocket.com/building-an-offline-first-app-with-react-and-rxdb-e97a1fa64356/>
 

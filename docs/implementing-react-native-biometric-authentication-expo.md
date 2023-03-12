@@ -1,4 +1,4 @@
-# 用 Expo - LogRocket 博客实现 React 原生生物认证
+# 用 Expo 实现 React 原生生物认证
 
 > 原文：<https://blog.logrocket.com/implementing-react-native-biometric-authentication-expo/>
 

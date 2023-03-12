@@ -1,4 +1,4 @@
-# 在 Next.js - LogRocket 博客中构建一个站点地图生成器
+# 在 Next.js 中构建一个站点地图生成器
 
 > 原文：<https://blog.logrocket.com/build-sitemap-generator-nextjs/>
 

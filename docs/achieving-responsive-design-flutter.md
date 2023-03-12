@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现响应式设计
+# 在 Flutter 中实现响应式设计
 
 > 原文：<https://blog.logrocket.com/achieving-responsive-design-flutter/>
 

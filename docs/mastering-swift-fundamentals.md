@@ -1,4 +1,4 @@
-# 掌握 Swift 基础知识- LogRocket 博客
+# 掌握 Swift 基础知识
 
 > 原文：<https://blog.logrocket.com/mastering-swift-fundamentals/>
 

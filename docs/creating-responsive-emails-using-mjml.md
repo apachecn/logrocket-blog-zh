@@ -1,4 +1,4 @@
-# 使用 MJML - LogRocket 博客创建回复邮件
+# 使用 MJML 创建回复邮件
 
 > 原文：<https://blog.logrocket.com/creating-responsive-emails-using-mjml/>
 

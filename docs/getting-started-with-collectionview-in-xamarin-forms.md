@@ -1,4 +1,4 @@
-# Xamarin 中的 CollectionView 入门。表单- LogRocket 博客
+# Xamarin 中的 CollectionView 入门。表单
 
 > 原文：<https://blog.logrocket.com/getting-started-with-collectionview-in-xamarin-forms/>
 

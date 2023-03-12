@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中创建列表视图
+# 在 Flutter 中创建列表视图
 
 > 原文：<https://blog.logrocket.com/creating-listviews-in-flutter/>
 

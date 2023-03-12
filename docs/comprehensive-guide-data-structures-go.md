@@ -1,4 +1,4 @@
-# Go - LogRocket 博客中的数据结构综合指南
+# Go 中的数据结构综合指南
 
 > 原文：<https://blog.logrocket.com/comprehensive-guide-data-structures-go/>
 

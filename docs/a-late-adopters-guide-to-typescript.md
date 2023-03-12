@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客的后期采用者指南
+# TypeScript 的后期采用者指南
 
 > 原文：<https://blog.logrocket.com/a-late-adopters-guide-to-typescript/>
 

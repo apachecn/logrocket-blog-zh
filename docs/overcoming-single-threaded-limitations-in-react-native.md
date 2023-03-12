@@ -1,4 +1,4 @@
-# 克服 React Native - LogRocket 博客中的单线程限制
+# 克服 React Native 中的单线程限制
 
 > 原文：<https://blog.logrocket.com/overcoming-single-threaded-limitations-in-react-native/>
 

@@ -1,4 +1,4 @@
-# 用 nom - LogRocket 博客解析 Rust
+# 用 nom 解析 Rust
 
 > 原文：<https://blog.logrocket.com/parsing-in-rust-with-nom/>
 

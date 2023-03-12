@@ -1,4 +1,4 @@
-# 使用 Prisma - LogRocket 博客优化 Next.js 应用程序中的静态页面
+# 使用 Prisma 优化 Next.js 应用程序中的静态页面
 
 > 原文：<https://blog.logrocket.com/optimizing-static-pages-next-js-prisma/>
 

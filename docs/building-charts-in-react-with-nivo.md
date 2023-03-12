@@ -1,4 +1,4 @@
-# 使用 Nivo - LogRocket 博客构建图表
+# 使用 Nivo 构建图表
 
 > 原文：<https://blog.logrocket.com/building-charts-in-react-with-nivo/>
 

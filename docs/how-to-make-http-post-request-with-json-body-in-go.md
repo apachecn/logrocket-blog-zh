@@ -1,4 +1,4 @@
-# 如何在 Go - LogRocket 博客中用 JSON 主体发出 HTTP POST 请求
+# 如何在 Go 中用 JSON 主体发出 HTTP POST 请求
 
 > 原文：<https://blog.logrocket.com/how-to-make-http-post-request-with-json-body-in-go/>
 

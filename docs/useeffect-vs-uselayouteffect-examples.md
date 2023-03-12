@@ -1,4 +1,4 @@
-# 反应 useLayoutEffect 与 useEffect 的例子- LogRocket 博客
+# 反应 useLayoutEffect 与 useEffect 的例子
 
 > 原文：<https://blog.logrocket.com/useeffect-vs-uselayouteffect-examples/>
 

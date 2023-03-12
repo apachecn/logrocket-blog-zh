@@ -1,4 +1,4 @@
-# Kotlin - LogRocket 博客中密封类的使用指南
+# Kotlin 中密封类的使用指南
 
 > 原文：<https://blog.logrocket.com/guide-using-sealed-classes-kotlin/>
 

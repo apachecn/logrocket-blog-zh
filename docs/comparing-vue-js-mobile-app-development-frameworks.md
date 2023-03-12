@@ -1,4 +1,4 @@
-# 比较 Vue.js 移动应用程序开发框架- LogRocket 博客
+# 比较 Vue.js 移动应用程序开发框架
 
 > 原文：<https://blog.logrocket.com/comparing-vue-js-mobile-app-development-frameworks/>
 

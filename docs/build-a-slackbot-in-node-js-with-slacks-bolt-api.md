@@ -1,4 +1,4 @@
-# 用 Slack 的 Bolt API - LogRocket 博客在 Node.js 中构建一个 Slackbot
+# 用 Slack 的 Bolt API 在 Node.js 中构建一个 Slackbot
 
 > 原文：<https://blog.logrocket.com/build-a-slackbot-in-node-js-with-slacks-bolt-api/>
 

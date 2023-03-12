@@ -1,4 +1,4 @@
-# 用 React - LogRocket 博客构建微前端应用
+# 用 React 构建微前端应用
 
 > 原文：<https://blog.logrocket.com/build-micro-frontend-application-react/>
 

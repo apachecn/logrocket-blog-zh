@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的 CommonJS 与 ES 模块
+# Node.js 中的 CommonJS 与 ES 模块
 
 > 原文：<https://blog.logrocket.com/commonjs-vs-es-modules-node-js/>
 

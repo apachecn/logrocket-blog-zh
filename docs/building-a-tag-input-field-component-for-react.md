@@ -1,4 +1,4 @@
-# 为 React - LogRocket 博客构建标签输入字段组件
+# 为 React 构建标签输入字段组件
 
 > 原文：<https://blog.logrocket.com/building-a-tag-input-field-component-for-react/>
 

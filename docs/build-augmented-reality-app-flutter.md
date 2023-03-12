@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建一个增强现实应用
+# 在 Flutter 中构建一个增强现实应用
 
 > 原文：<https://blog.logrocket.com/build-augmented-reality-app-flutter/>
 

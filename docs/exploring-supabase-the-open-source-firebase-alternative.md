@@ -1,4 +1,4 @@
-# 探索 Supabase，开源 Firebase 替代方案- LogRocket 博客
+# 探索 Supabase，开源 Firebase 替代方案
 
 > 原文：<https://blog.logrocket.com/exploring-supabase-the-open-source-firebase-alternative/>
 

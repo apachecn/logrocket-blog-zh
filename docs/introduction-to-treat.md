@@ -1,4 +1,4 @@
-# treat - LogRocket 博客简介
+# treat 简介
 
 > 原文：<https://blog.logrocket.com/introduction-to-treat/>
 

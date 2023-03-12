@@ -1,4 +1,4 @@
-# Rust serialization:今天准备生产什么？- LogRocket 博客
+# Rust serialization:今天准备生产什么？
 
 > 原文：<https://blog.logrocket.com/rust-serialization-whats-ready-for-production-today/>
 

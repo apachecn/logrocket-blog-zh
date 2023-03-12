@@ -1,4 +1,4 @@
-# Rust vs . Python:Rust 能取代 Python 吗？- LogRocket 博客
+# Rust vs . Python:Rust 能取代 Python 吗？
 
 > 原文：<https://blog.logrocket.com/rust-vs-python-could-rust-replace-python/>
 

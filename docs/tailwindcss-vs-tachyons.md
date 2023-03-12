@@ -1,4 +1,4 @@
-# 顺风 CSS 与超光速粒子- LogRocket 博客
+# 顺风 CSS 与超光速粒子
 
 > 原文：<https://blog.logrocket.com/tailwindcss-vs-tachyons/>
 

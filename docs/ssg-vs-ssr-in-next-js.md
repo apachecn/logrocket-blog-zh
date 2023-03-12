@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客中 SSG vs SSR
+# Next.js 中 SSG vs SSR
 
 > 原文：<https://blog.logrocket.com/ssg-vs-ssr-in-next-js/>
 

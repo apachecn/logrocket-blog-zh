@@ -1,4 +1,4 @@
-# 6 大 JavaScript 和 HTML5 游戏引擎- LogRocket 博客
+# 6 大 JavaScript 和 HTML5 游戏引擎
 
 > 原文：<https://blog.logrocket.com/best-javascript-html5-game-engines/>
 

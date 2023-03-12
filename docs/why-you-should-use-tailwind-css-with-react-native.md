@@ -1,4 +1,4 @@
-# 为什么应该在 React Native - LogRocket 博客中使用 Tailwind CSS
+# 为什么应该在 React Native 中使用 Tailwind CSS
 
 > 原文：<https://blog.logrocket.com/why-you-should-use-tailwind-css-with-react-native/>
 

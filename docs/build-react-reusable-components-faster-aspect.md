@@ -1,4 +1,4 @@
-# 用 Aspect - LogRocket 博客构建 React 可重用组件
+# 用 Aspect 构建 React 可重用组件
 
 > 原文：<https://blog.logrocket.com/build-react-reusable-components-faster-aspect/>
 

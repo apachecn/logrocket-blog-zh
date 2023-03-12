@@ -1,4 +1,4 @@
-# 如何像 pro - LogRocket 博客一样使用 CSS 变量
+# 如何像 pro 一样使用 CSS 变量
 
 > 原文：<https://blog.logrocket.com/how-to-use-css-variables-like-a-pro/>
 

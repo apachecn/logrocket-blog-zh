@@ -1,4 +1,4 @@
-# 用 Vue 3 Teleport - LogRocket 博客定位元素
+# 用 Vue 3 Teleport 定位元素
 
 > 原文：<https://blog.logrocket.com/positioning-elements-with-vue-3-teleport/>
 

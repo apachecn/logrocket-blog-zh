@@ -1,4 +1,4 @@
-# 从 Framer Motion - LogRocket 博客探索 Motion One
+# 从 Framer Motion 探索 Motion One
 
 > 原文：<https://blog.logrocket.com/exploring-motion-one-framer-motion/>
 

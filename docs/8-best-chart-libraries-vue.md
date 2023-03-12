@@ -1,4 +1,4 @@
-# Vue - LogRocket 博客的 8 个最佳图表库
+# Vue 的 8 个最佳图表库
 
 > 原文：<https://blog.logrocket.com/8-best-chart-libraries-vue/>
 

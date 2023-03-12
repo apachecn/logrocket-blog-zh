@@ -1,4 +1,4 @@
-# 在 React with Fresnel - LogRocket 博客中使用 CSS 媒体查询
+# 在 React with Fresnel 中使用 CSS 媒体查询
 
 > 原文：<https://blog.logrocket.com/using-css-media-queries-react-fresnel/>
 

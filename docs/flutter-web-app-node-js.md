@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客上运行 Flutter web 应用程序和 API
+# 在 Node.js 上运行 Flutter web 应用程序和 API
 
 > 原文：<https://blog.logrocket.com/flutter-web-app-node-js/>
 

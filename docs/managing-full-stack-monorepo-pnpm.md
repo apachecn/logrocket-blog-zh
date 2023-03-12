@@ -1,4 +1,4 @@
-# 使用 pnpm - LogRocket 博客管理全栈、多包 monorepo
+# 使用 pnpm 管理全栈、多包 monorepo
 
 > 原文：<https://blog.logrocket.com/managing-full-stack-monorepo-pnpm/>
 

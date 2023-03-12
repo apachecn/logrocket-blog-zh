@@ -1,4 +1,4 @@
-# 比较 React 本地分析工具- LogRocket 博客
+# 比较 React 本地分析工具
 
 > 原文：<https://blog.logrocket.com/comparing-react-native-analytics-tools/>
 

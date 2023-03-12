@@ -1,4 +1,4 @@
-# 快速了解 Rust - LogRocket 博客
+# 快速了解 Rust 
 
 > 原文：<https://blog.logrocket.com/getting-up-to-speed-with-rust/>
 

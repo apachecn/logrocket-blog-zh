@@ -1,4 +1,4 @@
-# Go 中的错误处理:最佳实践- LogRocket 博客
+# Go 中的错误处理:最佳实践
 
 > 原文：<https://blog.logrocket.com/error-handling-golang-best-practices/>
 

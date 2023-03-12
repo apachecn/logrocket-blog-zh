@@ -1,4 +1,4 @@
-# 使用 Wire - LogRocket 博客进行依赖注入
+# 使用 Wire 进行依赖注入
 
 > 原文：<https://blog.logrocket.com/go-dependency-injection-wire/>
 

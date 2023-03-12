@@ -1,4 +1,4 @@
-# 使用 Prisma 2 - LogRocket 博客创建 Node.js GraphQL 服务器
+# 使用 Prisma 2 创建 Node.js GraphQL 服务器
 
 > 原文：<https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/>
 

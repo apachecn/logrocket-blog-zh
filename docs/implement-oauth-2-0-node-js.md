@@ -1,4 +1,4 @@
-# 如何在 Node.js - LogRocket 博客中实现 OAuth 2.0
+# 如何在 Node.js 中实现 OAuth 2.0
 
 > 原文：<https://blog.logrocket.com/implement-oauth-2-0-node-js/>
 

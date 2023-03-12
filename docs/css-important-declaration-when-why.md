@@ -1,4 +1,4 @@
-# 何时以及为何使用 CSS！重要声明- LogRocket 博客
+# 何时以及为何使用 CSS！重要声明
 
 > 原文：<https://blog.logrocket.com/css-important-declaration-when-why/>
 

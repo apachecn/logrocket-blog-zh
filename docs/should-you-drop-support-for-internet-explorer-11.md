@@ -1,4 +1,4 @@
-# 你应该放弃对 Internet Explorer 11 的支持吗？- LogRocket 博客
+# 你应该放弃对 Internet Explorer 11 的支持吗？
 
 > 原文：<https://blog.logrocket.com/should-you-drop-support-for-internet-explorer-11/>
 

@@ -1,4 +1,4 @@
-# 2022 年最佳 Node.js CMS 平台- LogRocket 博客
+# 2022 年最佳 Node.js CMS 平台
 
 > 原文：<https://blog.logrocket.com/best-node-js-cms-platforms-2022/>
 

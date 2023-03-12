@@ -1,4 +1,4 @@
-# Laravel 9 有什么新功能？- LogRocket 博客
+# Laravel 9 有什么新功能？
 
 > 原文：<https://blog.logrocket.com/whats-new-laravel-9/>
 

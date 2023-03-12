@@ -1,4 +1,4 @@
-# 您的 web 应用程序的开源依赖项有多安全？- LogRocket 博客
+# 您的 web 应用程序的开源依赖项有多安全？
 
 > 原文：<https://blog.logrocket.com/how-secure-are-your-web-applications-open-source-dependencies-aabf24653fad/>
 

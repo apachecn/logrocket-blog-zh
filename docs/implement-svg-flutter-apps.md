@@ -1,4 +1,4 @@
-# 用 flutter_svg - LogRocket 博客在 Flutter 中实现 SVG
+# 用 flutter_svg 在 Flutter 中实现 SVG
 
 > 原文：<https://blog.logrocket.com/implement-svg-flutter-apps/>
 

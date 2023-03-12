@@ -1,4 +1,4 @@
-# NativeBase 3.0 中的新功能- LogRocket 博客
+# NativeBase 3.0 中的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-nativebase-3/>
 

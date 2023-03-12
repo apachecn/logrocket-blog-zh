@@ -1,4 +1,4 @@
-# 如何在 Swift - LogRocket 博客中使用 DateFormatter
+# 如何在 Swift 中使用 DateFormatter
 
 > 原文：<https://blog.logrocket.com/how-to-use-dateformatter-swift/>
 

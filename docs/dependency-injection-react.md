@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的依赖注入
+# React 中的依赖注入
 
 > 原文：<https://blog.logrocket.com/dependency-injection-react/>
 

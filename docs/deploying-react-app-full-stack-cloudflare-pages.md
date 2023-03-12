@@ -1,4 +1,4 @@
-# 使用全栈 Cloudflare Pages 部署 React 应用程序- LogRocket 博客
+# 使用全栈 Cloudflare Pages 部署 React 应用程序
 
 > 原文：<https://blog.logrocket.com/deploying-react-app-full-stack-cloudflare-pages/>
 

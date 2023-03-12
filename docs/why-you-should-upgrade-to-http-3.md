@@ -1,4 +1,4 @@
-# 为什么您应该升级到 HTTP/3 - LogRocket 博客
+# 为什么您应该升级到 HTTP/3 
 
 > 原文：<https://blog.logrocket.com/why-you-should-upgrade-to-http-3/>
 

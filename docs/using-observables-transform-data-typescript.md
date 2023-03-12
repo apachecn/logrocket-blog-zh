@@ -1,4 +1,4 @@
-# 使用 RxJS 观察值转换 TypeScript - LogRocket 博客中的数据
+# 使用 RxJS 观察值转换 TypeScript 中的数据
 
 > 原文：<https://blog.logrocket.com/using-observables-transform-data-typescript/>
 

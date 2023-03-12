@@ -1,4 +1,4 @@
-# 通过 stacking - LogRocket 博客，在代码审查中保持畅通，并更快地构建产品
+# 通过 stacking ，在代码审查中保持畅通，并更快地构建产品
 
 > 原文：<https://blog.logrocket.com/stay-unblocked-code-review-build-products-faster-with-stacking/>
 

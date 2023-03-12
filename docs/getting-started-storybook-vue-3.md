@@ -1,4 +1,4 @@
-# Vue 3 - LogRocket 博客中的故事书入门
+# Vue 3 中的故事书入门
 
 > 原文：<https://blog.logrocket.com/getting-started-storybook-vue-3/>
 

@@ -1,4 +1,4 @@
-# 用 React Router - LogRocket 博客制作路由转换动画
+# 用 React Router 制作路由转换动画
 
 > 原文：<https://blog.logrocket.com/routes-animation-transitions-in-react-router-v4-9f4788deb964/>
 

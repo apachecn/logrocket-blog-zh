@@ -1,4 +1,4 @@
-# 将 AMP 组件添加到 Next.js 网页- LogRocket 博客
+# 将 AMP 组件添加到 Next.js 网页
 
 > 原文：<https://blog.logrocket.com/adding-amp-components-to-next-js-webpage/>
 

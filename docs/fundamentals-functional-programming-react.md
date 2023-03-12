@@ -1,4 +1,4 @@
-# React - LogRocket 博客的函数式编程基础
+# React 的函数式编程基础
 
 > 原文：<https://blog.logrocket.com/fundamentals-functional-programming-react/>
 

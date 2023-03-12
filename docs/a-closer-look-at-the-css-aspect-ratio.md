@@ -1,4 +1,4 @@
-# 仔细看看 CSS 纵横比属性- LogRocket 博客
+# 仔细看看 CSS 纵横比属性
 
 > 原文：<https://blog.logrocket.com/a-closer-look-at-the-css-aspect-ratio/>
 

@@ -1,4 +1,4 @@
-# 深入了解 Laravel Livewire - LogRocket 博客
+# 深入了解 Laravel Livewire 
 
 > 原文：<https://blog.logrocket.com/deep-dive-into-laravel-livewire/>
 

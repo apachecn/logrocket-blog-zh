@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客的前三大模板库
+# Rust 的前三大模板库
 
 > 原文：<https://blog.logrocket.com/top-3-templating-libraries-for-rust/>
 

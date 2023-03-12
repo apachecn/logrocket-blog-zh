@@ -1,4 +1,4 @@
-# React 渲染道具 vs .自定义钩子- LogRocket 博客
+# React 渲染道具 vs .自定义钩子
 
 > 原文：<https://blog.logrocket.com/react-render-props-vs-custom-hooks/>
 

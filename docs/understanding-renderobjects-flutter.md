@@ -1,4 +1,4 @@
-# 了解 Flutter - LogRocket 博客中的 RenderObjects
+# 了解 Flutter 中的 RenderObjects
 
 > 原文：<https://blog.logrocket.com/understanding-renderobjects-flutter/>
 

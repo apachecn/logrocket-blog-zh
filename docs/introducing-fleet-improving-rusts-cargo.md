@@ -1,4 +1,4 @@
-# Fleet:改进 Rust 的 Cargo - LogRocket 博客的构建工具
+# Fleet:改进 Rust 的 Cargo 的构建工具
 
 > 原文：<https://blog.logrocket.com/introducing-fleet-improving-rusts-cargo/>
 

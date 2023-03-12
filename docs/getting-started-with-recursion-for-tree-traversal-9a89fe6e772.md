@@ -1,4 +1,4 @@
-# 树遍历递归入门- LogRocket 博客
+# 树遍历递归入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-recursion-for-tree-traversal-9a89fe6e772/>
 

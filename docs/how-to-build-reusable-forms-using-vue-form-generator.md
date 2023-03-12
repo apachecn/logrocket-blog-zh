@@ -1,4 +1,4 @@
-# 如何使用 vue-form-generator - LogRocket 博客构建可重用的表单
+# 如何使用 vue-form-generator 构建可重用的表单
 
 > 原文：<https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/>
 

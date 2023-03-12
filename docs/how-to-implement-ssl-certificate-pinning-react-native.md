@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中实现 SSL 证书锁定
+# 如何在 React Native 中实现 SSL 证书锁定
 
 > 原文：<https://blog.logrocket.com/how-to-implement-ssl-certificate-pinning-react-native/>
 

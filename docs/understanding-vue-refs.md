@@ -1,4 +1,4 @@
-# 理解 Vue - LogRocket 博客中的引用
+# 理解 Vue 中的引用
 
 > 原文：<https://blog.logrocket.com/understanding-vue-refs/>
 

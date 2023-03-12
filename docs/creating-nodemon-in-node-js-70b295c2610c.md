@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中创建 Nodemon
+# 在 Node.js 中创建 Nodemon
 
 > 原文：<https://blog.logrocket.com/creating-nodemon-in-node-js-70b295c2610c/>
 

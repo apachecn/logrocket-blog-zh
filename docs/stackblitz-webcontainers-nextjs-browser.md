@@ -1,4 +1,4 @@
-# Stackblitz WebContainers:在 browser - LogRocket 博客中运行 Next.js
+# Stackblitz WebContainers:在 browser 中运行 Next.js
 
 > 原文：<https://blog.logrocket.com/stackblitz-webcontainers-nextjs-browser/>
 

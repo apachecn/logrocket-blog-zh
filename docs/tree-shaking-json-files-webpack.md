@@ -1,4 +1,4 @@
-# 用 webpack - LogRocket 博客摇树 JSON 文件
+# 用 webpack 摇树 JSON 文件
 
 > 原文：<https://blog.logrocket.com/tree-shaking-json-files-webpack/>
 

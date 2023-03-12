@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客中的黑暗模式综合指南
+# React Native 中的黑暗模式综合指南
 
 > 原文：<https://blog.logrocket.com/comprehensive-guide-dark-mode-react-native/>
 

@@ -1,4 +1,4 @@
-# 反应导航的完整指南 5 - LogRocket 博客
+# 反应导航的完整指南 5 
 
 > 原文：<https://blog.logrocket.com/a-complete-guide-to-react-navigation-5/>
 

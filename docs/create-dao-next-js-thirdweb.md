@@ -1,4 +1,4 @@
-# 如何用 Next.js 和 thirdweb - LogRocket 博客创建 DAO
+# 如何用 Next.js 和 thirdweb 创建 DAO
 
 > 原文：<https://blog.logrocket.com/create-dao-next-js-thirdweb/>
 

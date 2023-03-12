@@ -1,4 +1,4 @@
-# 用 Slonik - LogRocket 博客提高 PostgreSQL 的类型安全性
+# 用 Slonik 提高 PostgreSQL 的类型安全性
 
 > 原文：<https://blog.logrocket.com/improving-type-safety-postgresql-slonik/>
 

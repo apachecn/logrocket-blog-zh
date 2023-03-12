@@ -1,4 +1,4 @@
-# 使用动画 Worklet - LogRocket 博客
+# 使用动画 Worklet 
 
 > 原文：<https://blog.logrocket.com/using-animation-worklet-4a3914c19112/>
 

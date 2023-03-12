@@ -1,4 +1,4 @@
-# 如何在 Vue - LogRocket 博客中创建搜索栏
+# 如何在 Vue 中创建搜索栏
 
 > 原文：<https://blog.logrocket.com/create-search-bar-vue/>
 

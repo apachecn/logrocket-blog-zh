@@ -1,4 +1,4 @@
-# Immer 和 Immutable.js:它们如何比较？- LogRocket 博客
+# Immer 和 Immutable.js:它们如何比较？
 
 > 原文：<https://blog.logrocket.com/immer-and-immutable-js-how-do-they-compare/>
 

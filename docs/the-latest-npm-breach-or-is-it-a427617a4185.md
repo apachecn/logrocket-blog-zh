@@ -1,4 +1,4 @@
-# 最新的国家预防机制违规…或者是吗？- LogRocket 博客
+# 最新的国家预防机制违规…或者是吗？
 
 > 原文：<https://blog.logrocket.com/the-latest-npm-breach-or-is-it-a427617a4185/>
 

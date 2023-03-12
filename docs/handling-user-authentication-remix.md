@@ -1,4 +1,4 @@
-# 用 Remix - LogRocket 博客处理用户认证
+# 用 Remix 处理用户认证
 
 > 原文：<https://blog.logrocket.com/handling-user-authentication-remix/>
 

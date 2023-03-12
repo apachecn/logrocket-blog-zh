@@ -1,4 +1,4 @@
-# 如何在 Google Cloud Run - LogRocket 博客上部署 Next.js
+# 如何在 Google Cloud Run 上部署 Next.js
 
 > 原文：<https://blog.logrocket.com/how-to-deploy-next-js-on-google-cloud-run/>
 

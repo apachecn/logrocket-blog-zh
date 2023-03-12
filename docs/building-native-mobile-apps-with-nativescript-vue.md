@@ -1,4 +1,4 @@
-# 用 NativeScript-Vue - LogRocket 博客构建原生移动应用
+# 用 NativeScript-Vue 构建原生移动应用
 
 > 原文：<https://blog.logrocket.com/building-native-mobile-apps-with-nativescript-vue/>
 

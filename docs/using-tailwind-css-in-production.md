@@ -1,4 +1,4 @@
-# 在 production - LogRocket 博客中使用 Tailwind CSS
+# 在 production 中使用 Tailwind CSS
 
 > 原文：<https://blog.logrocket.com/using-tailwind-css-in-production/>
 

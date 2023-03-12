@@ -1,4 +1,4 @@
-# 如何在 Node.js - LogRocket 博客中测试依赖外部 API 的代码
+# 如何在 Node.js 中测试依赖外部 API 的代码
 
 > 原文：<https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/>
 

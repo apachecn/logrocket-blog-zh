@@ -1,4 +1,4 @@
-# Nuxt.js - LogRocket 博客中嵌套页面的故障排除
+# Nuxt.js 中嵌套页面的故障排除
 
 > 原文：<https://blog.logrocket.com/troubleshooting-nested-pages-nuxt/>
 

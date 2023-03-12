@@ -1,4 +1,4 @@
-# 在 SwiftUI - LogRocket 博客中构建自定义图表
+# 在 SwiftUI 中构建自定义图表
 
 > 原文：<https://blog.logrocket.com/building-custom-charts-swiftui/>
 

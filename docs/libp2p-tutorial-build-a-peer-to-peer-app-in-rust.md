@@ -1,4 +1,4 @@
-# libp2p 教程:在 Rust - LogRocket 博客中构建一个点对点应用程序
+# libp2p 教程:在 Rust 中构建一个点对点应用程序
 
 > 原文：<https://blog.logrocket.com/libp2p-tutorial-build-a-peer-to-peer-app-in-rust/>
 

@@ -1,4 +1,4 @@
-# 如何在 Vue.js - LogRocket 博客中使用无状态组件
+# 如何在 Vue.js 中使用无状态组件
 
 > 原文：<https://blog.logrocket.com/how-to-use-stateless-components-in-vue-js/>
 

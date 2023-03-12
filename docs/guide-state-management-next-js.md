@@ -1,4 +1,4 @@
-# 了解 Next.js - LogRocket 博客中的状态管理
+# 了解 Next.js 中的状态管理
 
 > 原文：<https://blog.logrocket.com/guide-state-management-next-js/>
 

@@ -1,4 +1,4 @@
-# DevTools (Chrome 85)的新功能- LogRocket 博客
+# DevTools (Chrome 85)的新功能
 
 > 原文：<https://blog.logrocket.com/whats-new-in-devtools-chrome-85/>
 

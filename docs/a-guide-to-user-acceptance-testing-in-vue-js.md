@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的用户验收测试指南
+# Vue.js 中的用户验收测试指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-user-acceptance-testing-in-vue-js/>
 

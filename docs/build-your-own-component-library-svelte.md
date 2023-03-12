@@ -1,4 +1,4 @@
-# 用 Svelte - LogRocket 博客构建自己的组件库
+# 用 Svelte 构建自己的组件库
 
 > 原文：<https://blog.logrocket.com/build-your-own-component-library-svelte/>
 

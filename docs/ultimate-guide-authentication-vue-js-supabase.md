@@ -1,4 +1,4 @@
-# Vue.js 中使用 Supabase 进行身份验证的终极指南- LogRocket 博客
+# Vue.js 中使用 Supabase 进行身份验证的终极指南
 
 > 原文：<https://blog.logrocket.com/ultimate-guide-authentication-vue-js-supabase/>
 

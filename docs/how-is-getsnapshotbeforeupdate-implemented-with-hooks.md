@@ -1,4 +1,4 @@
-# getSnapshotBeforeUpdate 是如何用钩子实现的？- LogRocket 博客
+# getSnapshotBeforeUpdate 是如何用钩子实现的？
 
 > 原文：<https://blog.logrocket.com/how-is-getsnapshotbeforeupdate-implemented-with-hooks/>
 

@@ -1,4 +1,4 @@
-# VS Code - LogRocket 博客中的自定义多态代码片段
+# VS Code 中的自定义多态代码片段
 
 > 原文：<https://blog.logrocket.com/custom-polymorphic-code-snippets-in-vs-code-e76d8cad656b/>
 

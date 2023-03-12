@@ -1,4 +1,4 @@
-# WebAssembly 运行时比较- LogRocket 博客
+# WebAssembly 运行时比较
 
 > 原文：<https://blog.logrocket.com/webassembly-runtimes-compared/>
 

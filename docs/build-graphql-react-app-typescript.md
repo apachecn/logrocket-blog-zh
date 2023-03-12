@@ -1,4 +1,4 @@
-# 用 TypeScript - LogRocket 博客构建一个 GraphQL + React 应用程序
+# 用 TypeScript 构建一个 GraphQL + React 应用程序
 
 > 原文：<https://blog.logrocket.com/build-graphql-react-app-typescript/>
 

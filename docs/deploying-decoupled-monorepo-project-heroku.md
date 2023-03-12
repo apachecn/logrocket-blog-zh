@@ -1,4 +1,4 @@
-# 在 Heroku - LogRocket 博客上部署解耦的 monorepo 项目
+# 在 Heroku 上部署解耦的 monorepo 项目
 
 > 原文：<https://blog.logrocket.com/deploying-decoupled-monorepo-project-heroku/>
 

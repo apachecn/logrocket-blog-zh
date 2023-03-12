@@ -1,4 +1,4 @@
-# Firefox 71 的新特性:CSS 子网格和 more - LogRocket 博客
+# Firefox 71 的新特性:CSS 子网格和 more 
 
 > 原文：<https://blog.logrocket.com/new-in-firefox-71-css-subgrid/>
 

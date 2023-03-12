@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客进行 webpack 捆绑包和代码拆分的快速指南
+# 使用 React 进行 webpack 捆绑包和代码拆分的快速指南
 
 > 原文：<https://blog.logrocket.com/quick-guide-to-webpack-bundle-and-code-splitting-with-react-43d1045f1064/>
 

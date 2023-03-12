@@ -1,4 +1,4 @@
-# GraphQL 如何提升 Gatsby - LogRocket 博客的性能
+# GraphQL 如何提升 Gatsby 的性能
 
 > 原文：<https://blog.logrocket.com/how-graphql-boosts-performance-in-gatsby/>
 

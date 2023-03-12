@@ -1,4 +1,4 @@
-# 使用 trampolines 管理 JavaScript - LogRocket 博客中的大型递归循环
+# 使用 trampolines 管理 JavaScript 中的大型递归循环
 
 > 原文：<https://blog.logrocket.com/using-trampolines-to-manage-large-recursive-loops-in-javascript-d8c9db095ae3/>
 

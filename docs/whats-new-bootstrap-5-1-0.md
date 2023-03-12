@@ -1,4 +1,4 @@
-# Bootstrap 5.1.0 的新特性- LogRocket 博客
+# Bootstrap 5.1.0 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-bootstrap-5-1-0/>
 

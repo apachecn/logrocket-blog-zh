@@ -1,4 +1,4 @@
-# 在 React apps - LogRocket 博客上构建产品之旅的完整指南
+# 在 React apps 上构建产品之旅的完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-to-build-product-tours-on-your-react-apps/>
 

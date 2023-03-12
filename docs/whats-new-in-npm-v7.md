@@ -1,4 +1,4 @@
-# npm v7 中的新内容- LogRocket 博客
+# npm v7 中的新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-npm-v7/>
 

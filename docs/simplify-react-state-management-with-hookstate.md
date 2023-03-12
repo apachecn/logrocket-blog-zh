@@ -1,4 +1,4 @@
-# 使用 Hookstate - LogRocket 博客简化 React 状态管理
+# 使用 Hookstate 简化 React 状态管理
 
 > 原文：<https://blog.logrocket.com/simplify-react-state-management-with-hookstate/>
 

@@ -1,4 +1,4 @@
-# 用芹菜和 Flask - LogRocket 博客优化任务队列
+# 用芹菜和 Flask 优化任务队列
 
 > 原文：<https://blog.logrocket.com/optimizing-task-queues-celery-flask/>
 

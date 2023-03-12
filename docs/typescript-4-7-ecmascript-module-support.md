@@ -1,4 +1,4 @@
-# 了解 TypeScript 4.7 和 ECMAScript 模块支持- LogRocket 博客
+# 了解 TypeScript 4.7 和 ECMAScript 模块支持
 
 > 原文：<https://blog.logrocket.com/typescript-4-7-ecmascript-module-support/>
 

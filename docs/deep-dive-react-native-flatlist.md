@@ -1,4 +1,4 @@
-# React Native FlatList - LogRocket 博客的深度探讨
+# React Native FlatList 的深度探讨
 
 > 原文：<https://blog.logrocket.com/deep-dive-react-native-flatlist/>
 

@@ -1,4 +1,4 @@
-# web 组件发生了什么变化？- LogRocket 博客
+# web 组件发生了什么变化？
 
 > 原文：<https://blog.logrocket.com/what-happened-to-web-components/>
 

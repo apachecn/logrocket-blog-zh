@@ -1,4 +1,4 @@
-# 使用 Storeon - LogRocket 博客在 React 中进行事件驱动的状态管理
+# 使用 Storeon 在 React 中进行事件驱动的状态管理
 
 > 原文：<https://blog.logrocket.com/event-driven-state-management-in-react-using-storeon/>
 

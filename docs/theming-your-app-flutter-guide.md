@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中的应用主题化指南
+# Flutter 中的应用主题化指南
 
 > 原文：<https://blog.logrocket.com/theming-your-app-flutter-guide/>
 

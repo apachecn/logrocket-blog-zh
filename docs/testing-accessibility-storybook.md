@@ -1,4 +1,4 @@
-# 用 Storybook - LogRocket 博客测试可访问性
+# 用 Storybook 测试可访问性
 
 > 原文：<https://blog.logrocket.com/testing-accessibility-storybook/>
 

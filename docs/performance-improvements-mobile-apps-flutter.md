@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中移动应用的性能改进
+# Flutter 中移动应用的性能改进
 
 > 原文：<https://blog.logrocket.com/performance-improvements-mobile-apps-flutter/>
 

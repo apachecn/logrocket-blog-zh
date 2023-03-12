@@ -1,4 +1,4 @@
-# Vuex 映射的最佳实践- LogRocket 博客
+# Vuex 映射的最佳实践
 
 > 原文：<https://blog.logrocket.com/best-practices-mapping-vuex/>
 

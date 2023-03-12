@@ -1,4 +1,4 @@
-# 用 Node.js 构建微服务- LogRocket 博客
+# 用 Node.js 构建微服务
 
 > 原文：<https://blog.logrocket.com/building-microservices-node-js/>
 

@@ -1,4 +1,4 @@
-# webpack - LogRocket 博客中的树抖动和代码分裂
+# webpack 中的树抖动和代码分裂
 
 > 原文：<https://blog.logrocket.com/tree-shaking-and-code-splitting-in-webpack/>
 

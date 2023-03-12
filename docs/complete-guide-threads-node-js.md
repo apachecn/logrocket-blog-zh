@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的线程完整指南
+# Node.js 中的线程完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-threads-node-js/>
 

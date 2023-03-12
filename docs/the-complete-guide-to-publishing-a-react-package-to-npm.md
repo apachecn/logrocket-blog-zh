@@ -1,4 +1,4 @@
-# 向 npm - LogRocket 博客发布 React 包的完整指南
+# 向 npm 发布 React 包的完整指南
 
 > 原文：<https://blog.logrocket.com/the-complete-guide-to-publishing-a-react-package-to-npm/>
 

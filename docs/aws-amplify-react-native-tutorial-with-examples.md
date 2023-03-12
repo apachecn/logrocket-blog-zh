@@ -1,4 +1,4 @@
-# AWS 放大和本地反应:示例教程- LogRocket 博客
+# AWS 放大和本地反应:示例教程
 
 > 原文：<https://blog.logrocket.com/aws-amplify-react-native-tutorial-with-examples/>
 

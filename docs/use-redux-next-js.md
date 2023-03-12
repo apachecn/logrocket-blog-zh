@@ -1,4 +1,4 @@
-# 如何在 Next.js - LogRocket 博客中使用 Redux
+# 如何在 Next.js 中使用 Redux
 
 > 原文：<https://blog.logrocket.com/use-redux-next-js/>
 

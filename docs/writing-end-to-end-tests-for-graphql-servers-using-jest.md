@@ -1,4 +1,4 @@
-# 使用 Jest - LogRocket 博客为 GraphQL 服务器编写端到端测试
+# 使用 Jest 为 GraphQL 服务器编写端到端测试
 
 > 原文：<https://blog.logrocket.com/writing-end-to-end-tests-for-graphql-servers-using-jest/>
 

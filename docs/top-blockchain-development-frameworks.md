@@ -1,4 +1,4 @@
-# 6 大区块链发展框架- LogRocket 博客
+# 6 大区块链发展框架
 
 > 原文：<https://blog.logrocket.com/top-blockchain-development-frameworks/>
 

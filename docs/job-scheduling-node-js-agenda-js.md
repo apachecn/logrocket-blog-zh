@@ -1,4 +1,4 @@
-# 使用 Agenda.js - LogRocket 博客在 Node.js 中进行作业调度
+# 使用 Agenda.js 在 Node.js 中进行作业调度
 
 > 原文：<https://blog.logrocket.com/job-scheduling-node-js-agenda-js/>
 

@@ -1,4 +1,4 @@
-# JavaScript 设计模式- LogRocket 博客
+# JavaScript 设计模式
 
 > 原文：<https://blog.logrocket.com/javascript-design-pattern-214d888096a3/>
 

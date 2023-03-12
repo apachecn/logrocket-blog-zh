@@ -1,4 +1,4 @@
-# 使用 Vuex - LogRocket 博客管理多个商店模块
+# 使用 Vuex 管理多个商店模块
 
 > 原文：<https://blog.logrocket.com/managing-multiple-store-modules-vuex/>
 

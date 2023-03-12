@@ -1,4 +1,4 @@
-# 在 styled-components 5.0 - LogRocket 博客中使用 StyleSheetManager 组件
+# 在 styled-components 5.0 中使用 StyleSheetManager 组件
 
 > 原文：<https://blog.logrocket.com/using-the-stylesheetmanager-component-in-styled-components-5-0/>
 

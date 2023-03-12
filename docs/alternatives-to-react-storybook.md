@@ -1,4 +1,4 @@
-# React Storybook - LogRocket 博客的替代方案
+# React Storybook 的替代方案
 
 > 原文：<https://blog.logrocket.com/alternatives-to-react-storybook/>
 

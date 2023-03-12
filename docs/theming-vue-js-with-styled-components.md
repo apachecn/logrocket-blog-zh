@@ -1,4 +1,4 @@
-# 使用 styled-components - LogRocket 博客对 Vue.js 进行主题化
+# 使用 styled-components 对 Vue.js 进行主题化
 
 > 原文：<https://blog.logrocket.com/theming-vue-js-with-styled-components/>
 

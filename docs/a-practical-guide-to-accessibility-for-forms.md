@@ -1,4 +1,4 @@
-# 表单可访问性实用指南- LogRocket 博客
+# 表单可访问性实用指南
 
 > 原文：<https://blog.logrocket.com/a-practical-guide-to-accessibility-for-forms/>
 

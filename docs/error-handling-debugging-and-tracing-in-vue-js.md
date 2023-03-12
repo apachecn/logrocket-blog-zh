@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的错误处理、调试和跟踪
+# Vue.js 中的错误处理、调试和跟踪
 
 > 原文：<https://blog.logrocket.com/error-handling-debugging-and-tracing-in-vue-js/>
 

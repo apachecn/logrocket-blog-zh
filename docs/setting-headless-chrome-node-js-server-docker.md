@@ -1,4 +1,4 @@
-# 在 Docker - LogRocket 博客中设置一个无头 Chrome Node.js 服务器
+# 在 Docker 中设置一个无头 Chrome Node.js 服务器
 
 > 原文：<https://blog.logrocket.com/setting-headless-chrome-node-js-server-docker/>
 

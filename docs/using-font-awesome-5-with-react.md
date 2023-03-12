@@ -1,4 +1,4 @@
-# React - LogRocket 博客使用字体 Awesome 5
+# React 使用字体 Awesome 5
 
 > 原文：<https://blog.logrocket.com/using-font-awesome-5-with-react/>
 

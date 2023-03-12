@@ -1,4 +1,4 @@
-# TypeScript 3.7 中的新功能- LogRocket 博客
+# TypeScript 3.7 中的新功能
 
 > 原文：<https://blog.logrocket.com/new-in-typescript-3-7/>
 

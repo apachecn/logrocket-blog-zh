@@ -1,4 +1,4 @@
-# 掌握 TypeScript 映射类型- LogRocket 博客
+# 掌握 TypeScript 映射类型
 
 > 原文：<https://blog.logrocket.com/typescript-mapped-types/>
 

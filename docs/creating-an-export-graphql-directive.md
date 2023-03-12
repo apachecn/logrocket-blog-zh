@@ -1,4 +1,4 @@
-# 创建@export GraphQL 指令- LogRocket 博客
+# 创建@export GraphQL 指令
 
 > 原文：<https://blog.logrocket.com/creating-an-export-graphql-directive/>
 

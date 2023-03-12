@@ -1,4 +1,4 @@
-# Angular 2+ - LogRocket 博客中使用 IndexedDB 的缓存失效策略
+# Angular 2+ 中使用 IndexedDB 的缓存失效策略
 
 > 原文：<https://blog.logrocket.com/cache-invalidation-strategies-using-indexeddb-in-angular-2/>
 

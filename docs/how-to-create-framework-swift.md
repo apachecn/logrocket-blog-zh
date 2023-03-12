@@ -1,4 +1,4 @@
-# 如何在 Swift - LogRocket 博客中创建框架
+# 如何在 Swift 中创建框架
 
 > 原文：<https://blog.logrocket.com/how-to-create-framework-swift/>
 

@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中无状态和有状态窗口小部件的区别
+# Flutter 中无状态和有状态窗口小部件的区别
 
 > 原文：<https://blog.logrocket.com/difference-between-stateless-stateful-widgets-flutter/>
 

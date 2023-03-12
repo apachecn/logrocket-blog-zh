@@ -1,4 +1,4 @@
-# 使用 watchers - LogRocket 博客的 Vue 表单输入验证
+# 使用 watchers 的 Vue 表单输入验证
 
 > 原文：<https://blog.logrocket.com/vue-form-input-validation-watchers/>
 

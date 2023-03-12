@@ -1,4 +1,4 @@
-# 在 CSS - LogRocket 博客中使用 em 与 rem
+# 在 CSS 中使用 em 与 rem
 
 > 原文：<https://blog.logrocket.com/using-em-vs-rem-css/>
 

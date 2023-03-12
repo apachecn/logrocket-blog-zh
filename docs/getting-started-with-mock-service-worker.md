@@ -1,4 +1,4 @@
-# 模拟服务人员入门- LogRocket 博客
+# 模拟服务人员入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-mock-service-worker/>
 

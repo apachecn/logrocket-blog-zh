@@ -1,4 +1,4 @@
-# scrum 会议的五种类型是什么？- LogRocket 博客
+# scrum 会议的五种类型是什么？
 
 > 原文：<https://blog.logrocket.com/product-management/what-are-five-types-of-scrum-meetings/>
 

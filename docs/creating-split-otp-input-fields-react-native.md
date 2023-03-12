@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中创建分割 OTP 输入字段
+# 在 React Native 中创建分割 OTP 输入字段
 
 > 原文：<https://blog.logrocket.com/creating-split-otp-input-fields-react-native/>
 

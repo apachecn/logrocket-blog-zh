@@ -1,4 +1,4 @@
-# 2021 年顶级 JavaScript 数据可视化库- LogRocket 博客
+# 2021 年顶级 JavaScript 数据可视化库
 
 > 原文：<https://blog.logrocket.com/top-javascript-data-visualization-libraries-2021/>
 

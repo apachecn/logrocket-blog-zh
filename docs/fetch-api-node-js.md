@@ -1,4 +1,4 @@
-# Fetch API 终于来到 Node.js - LogRocket 博客了
+# Fetch API 终于来到 Node.js 了
 
 > 原文：<https://blog.logrocket.com/fetch-api-node-js/>
 

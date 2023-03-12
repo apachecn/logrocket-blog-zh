@@ -1,4 +1,4 @@
-# 开始使用 Create React App - LogRocket 博客
+# 开始使用 Create React App 
 
 > 原文：<https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/>
 

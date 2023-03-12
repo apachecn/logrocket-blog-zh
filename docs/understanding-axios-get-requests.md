@@ -1,4 +1,4 @@
-# 了解 Axios GET 请求- LogRocket 博客
+# 了解 Axios GET 请求
 
 > 原文：<https://blog.logrocket.com/understanding-axios-get-requests/>
 

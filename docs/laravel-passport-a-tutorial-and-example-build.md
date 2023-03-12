@@ -1,4 +1,4 @@
-# Laravel Passport:教程和示例构建- LogRocket 博客
+# Laravel Passport:教程和示例构建
 
 > 原文：<https://blog.logrocket.com/laravel-passport-a-tutorial-and-example-build/>
 

@@ -1,4 +1,4 @@
-# 如何用 Docker、PostgreSQL 和 go-chi - LogRocket 博客构建 RESTful API
+# 如何用 Docker、PostgreSQL 和 go-chi 构建 RESTful API
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-restful-api-with-docker-postgresql-and-go-chi/>
 

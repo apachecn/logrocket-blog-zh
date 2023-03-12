@@ -1,4 +1,4 @@
-# CSS 运动路径:GSAP 的终结？- LogRocket 博客
+# CSS 运动路径:GSAP 的终结？
 
 > 原文：<https://blog.logrocket.com/css-motion-path-the-end-of-gsap/>
 

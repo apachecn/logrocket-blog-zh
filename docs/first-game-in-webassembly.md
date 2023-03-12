@@ -1,4 +1,4 @@
-# 在 WebAssembly - LogRocket 博客中创建您的第一个游戏
+# 在 WebAssembly 中创建您的第一个游戏
 
 > 原文：<https://blog.logrocket.com/first-game-in-webassembly/>
 

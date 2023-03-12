@@ -1,4 +1,4 @@
-# Remotion:一个在 React - LogRocket 博客中制作视频的框架
+# Remotion:一个在 React 中制作视频的框架
 
 > 原文：<https://blog.logrocket.com/remotion-a-framework-for-making-videos-in-react/>
 

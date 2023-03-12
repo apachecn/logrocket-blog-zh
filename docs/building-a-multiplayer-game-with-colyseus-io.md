@@ -1,4 +1,4 @@
-# 如何让多人游戏联网像小孩子的 play - LogRocket 博客一样
+# 如何让多人游戏联网像小孩子的 play 一样
 
 > 原文：<https://blog.logrocket.com/building-a-multiplayer-game-with-colyseus-io/>
 

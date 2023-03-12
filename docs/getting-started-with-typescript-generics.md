@@ -1,4 +1,4 @@
-# TypeScript 泛型入门- LogRocket 博客
+# TypeScript 泛型入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-typescript-generics/>
 

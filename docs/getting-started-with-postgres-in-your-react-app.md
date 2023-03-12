@@ -1,4 +1,4 @@
-# 在 React app - LogRocket 博客中开始使用 Postgres
+# 在 React app 中开始使用 Postgres
 
 > 原文：<https://blog.logrocket.com/getting-started-with-postgres-in-your-react-app/>
 

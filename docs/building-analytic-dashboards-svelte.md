@@ -1,4 +1,4 @@
-# 在 Svelte - LogRocket 博客中构建分析仪表板
+# 在 Svelte 中构建分析仪表板
 
 > 原文：<https://blog.logrocket.com/building-analytic-dashboards-svelte/>
 

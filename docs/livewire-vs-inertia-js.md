@@ -1,4 +1,4 @@
-# Livewire vs. Inertia.js:比较 Laravel 前端- LogRocket 博客
+# Livewire vs. Inertia.js:比较 Laravel 前端
 
 > 原文：<https://blog.logrocket.com/livewire-vs-inertia-js/>
 

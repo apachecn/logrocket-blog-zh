@@ -1,4 +1,4 @@
-# 使用 TypeScript - LogRocket 博客构建无服务器应用程序
+# 使用 TypeScript 构建无服务器应用程序
 
 > 原文：<https://blog.logrocket.com/building-serverless-app-typescript/>
 

@@ -1,4 +1,4 @@
-# 如何使用 Vue 3 和 TypeScript - LogRocket 博客
+# 如何使用 Vue 3 和 TypeScript 
 
 > 原文：<https://blog.logrocket.com/how-to-use-vue-3-typescript/>
 

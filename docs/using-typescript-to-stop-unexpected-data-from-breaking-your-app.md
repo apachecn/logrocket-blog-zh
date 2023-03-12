@@ -1,4 +1,4 @@
-# 使用 TypeScript - LogRocket 博客控制运行时的意外数据
+# 使用 TypeScript 控制运行时的意外数据
 
 > 原文：<https://blog.logrocket.com/using-typescript-to-stop-unexpected-data-from-breaking-your-app/>
 

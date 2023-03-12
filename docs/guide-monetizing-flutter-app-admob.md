@@ -1,4 +1,4 @@
-# 使用 AdMob - LogRocket 博客赚钱的指南
+# 使用 AdMob 赚钱的指南
 
 > 原文：<https://blog.logrocket.com/guide-monetizing-flutter-app-admob/>
 

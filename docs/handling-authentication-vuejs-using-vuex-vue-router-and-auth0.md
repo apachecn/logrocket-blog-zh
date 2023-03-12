@@ -1,4 +1,4 @@
-# 使用 Vuex、Vue 路由器和 Auth0 - LogRocket 博客处理 Vue.js 中的认证
+# 使用 Vuex、Vue 路由器和 Auth0 处理 Vue.js 中的认证
 
 > 原文：<https://blog.logrocket.com/handling-authentication-vuejs-using-vuex-vue-router-and-auth0/>
 

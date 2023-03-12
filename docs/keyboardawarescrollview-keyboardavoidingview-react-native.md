@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用 KeyboardAwareScrollView 和 KeyboardAvoidingView
+# 在 React Native 中使用 KeyboardAwareScrollView 和 KeyboardAvoidingView
 
 > 原文：<https://blog.logrocket.com/keyboardawarescrollview-keyboardavoidingview-react-native/>
 

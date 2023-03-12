@@ -1,4 +1,4 @@
-# 用顺风 CSS - LogRocket 博客设计混音应用程序
+# 用顺风 CSS 设计混音应用程序
 
 > 原文：<https://blog.logrocket.com/styling-remix-applications-tailwind-css/>
 

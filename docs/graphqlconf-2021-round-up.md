@@ -1,4 +1,4 @@
-# 我们能从 GraphQLConf 2021 - LogRocket 博客中学到什么
+# 我们能从 GraphQLConf 2021 中学到什么
 
 > 原文：<https://blog.logrocket.com/graphqlconf-2021-round-up/>
 

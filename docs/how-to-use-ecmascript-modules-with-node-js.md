@@ -1,4 +1,4 @@
-# 将 ECMAScript 模块(ESM)用于 Node.js - LogRocket 博客
+# 将 ECMAScript 模块(ESM)用于 Node.js 
 
 > 原文：<https://blog.logrocket.com/how-to-use-ecmascript-modules-with-node-js/>
 

@@ -1,4 +1,4 @@
-# 了解 TypeScript 对象序列化- LogRocket 博客
+# 了解 TypeScript 对象序列化
 
 > 原文：<https://blog.logrocket.com/understanding-typescript-object-serialization/>
 

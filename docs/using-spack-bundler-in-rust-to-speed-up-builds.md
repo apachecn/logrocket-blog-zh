@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的 spack bundler 加速 JavaScript 构建
+# Rust 中的 spack bundler 加速 JavaScript 构建
 
 > 原文：<https://blog.logrocket.com/using-spack-bundler-in-rust-to-speed-up-builds/>
 

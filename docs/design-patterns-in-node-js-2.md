@@ -1,4 +1,4 @@
-# Node.js 中的设计模式:第 2 部分- LogRocket 博客
+# Node.js 中的设计模式:第 2 部分
 
 > 原文：<https://blog.logrocket.com/design-patterns-in-node-js-2/>
 

@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中的异常处理
+# JavaScript 中的异常处理
 
 > 原文：<https://blog.logrocket.com/exception-handling-in-javascript/>
 

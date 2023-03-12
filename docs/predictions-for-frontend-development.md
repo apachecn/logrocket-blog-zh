@@ -1,4 +1,4 @@
-# 前端开发预测- LogRocket 博客
+# 前端开发预测
 
 > 原文：<https://blog.logrocket.com/predictions-for-frontend-development/>
 

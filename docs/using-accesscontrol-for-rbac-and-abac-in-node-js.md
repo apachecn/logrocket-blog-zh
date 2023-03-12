@@ -1,4 +1,4 @@
-# 如何在 Node.js - LogRocket 博客中为 RBAC 和 ABAC 使用 AccessControl
+# 如何在 Node.js 中为 RBAC 和 ABAC 使用 AccessControl
 
 > 原文：<https://blog.logrocket.com/using-accesscontrol-for-rbac-and-abac-in-node-js/>
 

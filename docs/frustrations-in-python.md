@@ -1,4 +1,4 @@
-# Python - LogRocket 博客中的挫折
+# Python 中的挫折
 
 > 原文：<https://blog.logrocket.com/frustrations-in-python/>
 

@@ -1,4 +1,4 @@
-# 使用 Speakeasy - LogRocket 博客实现双因素认证
+# 使用 Speakeasy 实现双因素认证
 
 > 原文：<https://blog.logrocket.com/implementing-two-factor-authentication-using-speakeasy/>
 

@@ -1,4 +1,4 @@
-# Svekyll 入门:Svelte 和 Jekyll 混合- LogRocket 博客
+# Svekyll 入门:Svelte 和 Jekyll 混合
 
 > 原文：<https://blog.logrocket.com/getting-started-svekyll-svelte-jekyll-hybrid/>
 

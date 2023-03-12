@@ -1,4 +1,4 @@
-# 从 JavaScript 支付请求 API - LogRocket 博客中获利
+# 从 JavaScript 支付请求 API 中获利
 
 > 原文：<https://blog.logrocket.com/javascript-payment-request-api/>
 

@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中关于类型函数的权威指南
+# TypeScript 中关于类型函数的权威指南
 
 > 原文：<https://blog.logrocket.com/definitive-guide-typing-functions-typescript/>
 

@@ -1,4 +1,4 @@
-# 使用新的 Firebase v9.x Web SDK - LogRocket 博客重构 React 应用程序
+# 使用新的 Firebase v9.x Web SDK 重构 React 应用程序
 
 > 原文：<https://blog.logrocket.com/refactor-react-app-firebase-v9-web-sdk/>
 

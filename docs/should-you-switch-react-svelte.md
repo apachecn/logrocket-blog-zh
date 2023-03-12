@@ -1,4 +1,4 @@
-# 你应该从反应型转变为苗条型吗？- LogRocket 博客
+# 你应该从反应型转变为苗条型吗？
 
 > 原文：<https://blog.logrocket.com/should-you-switch-react-svelte/>
 

@@ -1,4 +1,4 @@
-# 使用 Moralis、Solidity 和 Next.js - LogRocket 博客创建你自己的 NFT minter
+# 使用 Moralis、Solidity 和 Next.js 创建你自己的 NFT minter
 
 > 原文：<https://blog.logrocket.com/create-nft-minter-moralis-solidity-next-js/>
 

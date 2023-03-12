@@ -1,4 +1,4 @@
-# 在 Express - LogRocket 博客中用 Prisma 设计认证方案
+# 在 Express 中用 Prisma 设计认证方案
 
 > 原文：<https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/>
 

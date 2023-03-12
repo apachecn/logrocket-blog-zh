@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中实现复制到剪贴板
+# 在 Flutter 中实现复制到剪贴板
 
 > 原文：<https://blog.logrocket.com/implementing-copy-clipboard-flutter/>
 

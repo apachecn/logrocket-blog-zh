@@ -1,4 +1,4 @@
-# 产品经理是做什么的？角色和职责- LogRocket 博客
+# 产品经理是做什么的？角色和职责
 
 > 原文：<https://blog.logrocket.com/product-management/what-does-a-product-manager-do-role-responsibilities/>
 

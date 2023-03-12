@@ -1,4 +1,4 @@
-# 理解 JavaScript currying - LogRocket 博客
+# 理解 JavaScript currying 
 
 > 原文：<https://blog.logrocket.com/understanding-javascript-currying/>
 

@@ -1,4 +1,4 @@
-# 理解 CSS - LogRocket 博客中的动画和过渡计时功能
+# 理解 CSS 中的动画和过渡计时功能
 
 > 原文：<https://blog.logrocket.com/understanding-animation-transition-timing-functions-css/>
 

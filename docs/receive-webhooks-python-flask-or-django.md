@@ -1,4 +1,4 @@
-# 如何用 Flask 或 Django - LogRocket 博客在 Python 中接收 webhooks
+# 如何用 Flask 或 Django 在 Python 中接收 webhooks
 
 > 原文：<https://blog.logrocket.com/receive-webhooks-python-flask-or-django/>
 

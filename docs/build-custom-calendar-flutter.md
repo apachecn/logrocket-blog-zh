@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中创建自定义日历
+# 如何在 Flutter 中创建自定义日历
 
 > 原文：<https://blog.logrocket.com/build-custom-calendar-flutter/>
 

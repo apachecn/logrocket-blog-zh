@@ -1,4 +1,4 @@
-# 研究 JavaScript 管道操作符提案- LogRocket 博客
+# 研究 JavaScript 管道操作符提案
 
 > 原文：<https://blog.logrocket.com/investigating-javascript-pipe-operator-proposal/>
 

@@ -1,4 +1,4 @@
-# 我的包裹穿这个看起来大吗？- LogRocket 博客
+# 我的包裹穿这个看起来大吗？
 
 > 原文：<https://blog.logrocket.com/does-my-bundle-look-big-in-this/>
 

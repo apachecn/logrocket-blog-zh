@@ -1,4 +1,4 @@
-# Create React App 2 - LogRocket 博客的新特性
+# Create React App 2 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-create-react-app-2-fe8f4f448c75/>
 

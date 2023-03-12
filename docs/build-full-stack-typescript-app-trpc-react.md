@@ -1,4 +1,4 @@
-# 使用 tRPC 和 React - LogRocket 博客构建一个全栈 TypeScript 应用程序
+# 使用 tRPC 和 React 构建一个全栈 TypeScript 应用程序
 
 > 原文：<https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/>
 

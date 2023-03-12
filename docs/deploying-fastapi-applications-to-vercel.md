@@ -1,4 +1,4 @@
-# 将 FastAPI 应用程序部署到 Vercel - LogRocket 博客
+# 将 FastAPI 应用程序部署到 Vercel 
 
 > 原文：<https://blog.logrocket.com/deploying-fastapi-applications-to-vercel/>
 

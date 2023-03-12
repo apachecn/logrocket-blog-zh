@@ -1,4 +1,4 @@
-# 网络动画 API 与 CSS - LogRocket 博客
+# 网络动画 API 与 CSS 
 
 > 原文：<https://blog.logrocket.com/the-web-animations-api-vs-css/>
 

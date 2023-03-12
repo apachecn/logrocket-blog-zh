@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中的经典静态块指南
+# JavaScript 中的经典静态块指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-classic-static-blocks-in-javascript/>
 

@@ -1,4 +1,4 @@
-# 为什么在 Apollo - LogRocket 博客中使用 Next.js
+# 为什么在 Apollo 中使用 Next.js
 
 > 原文：<https://blog.logrocket.com/why-use-next-js-apollo/>
 

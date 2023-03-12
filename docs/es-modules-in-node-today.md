@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 ES 模块
+# 在 Node.js 中使用 ES 模块
 
 > 原文：<https://blog.logrocket.com/es-modules-in-node-today/>
 

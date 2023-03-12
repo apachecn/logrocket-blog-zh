@@ -1,4 +1,4 @@
-# Orion 协议指南和 Orion Pool - LogRocket 博客
+# Orion 协议指南和 Orion Pool 
 
 > 原文：<https://blog.logrocket.com/guide-orion-protocol-orion-pool/>
 

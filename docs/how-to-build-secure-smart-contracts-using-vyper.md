@@ -1,4 +1,4 @@
-# 如何使用 Vyper - LogRocket 博客构建安全的智能合约
+# 如何使用 Vyper 构建安全的智能合约
 
 > 原文：<https://blog.logrocket.com/how-to-build-secure-smart-contracts-using-vyper/>
 

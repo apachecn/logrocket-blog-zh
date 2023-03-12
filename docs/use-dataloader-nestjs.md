@@ -1,4 +1,4 @@
-# 如何在 NestJS - LogRocket 博客中使用 DataLoader
+# 如何在 NestJS 中使用 DataLoader
 
 > 原文：<https://blog.logrocket.com/use-dataloader-nestjs/>
 

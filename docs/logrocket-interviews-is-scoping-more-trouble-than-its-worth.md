@@ -1,4 +1,4 @@
-# LogRocket 访谈:范围界定是否比它的价值更麻烦？- LogRocket 博客
+# LogRocket 访谈:范围界定是否比它的价值更麻烦？
 
 > 原文：<https://blog.logrocket.com/logrocket-interviews-is-scoping-more-trouble-than-its-worth/>
 

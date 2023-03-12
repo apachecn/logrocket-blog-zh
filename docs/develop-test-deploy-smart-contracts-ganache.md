@@ -1,4 +1,4 @@
-# 如何使用 Ganache - LogRocket 博客开发、测试和部署智能合约
+# 如何使用 Ganache 开发、测试和部署智能合约
 
 > 原文：<https://blog.logrocket.com/develop-test-deploy-smart-contracts-ganache/>
 

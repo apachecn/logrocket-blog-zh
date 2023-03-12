@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中使用 Supabase 进行认证
+# 在 Flutter 中使用 Supabase 进行认证
 
 > 原文：<https://blog.logrocket.com/supabase-authentication-flutter/>
 

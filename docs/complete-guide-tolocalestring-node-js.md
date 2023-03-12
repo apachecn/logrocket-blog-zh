@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的 toLocaleString 完全指南
+# Node.js 中的 toLocaleString 完全指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-tolocalestring-node-js/>
 

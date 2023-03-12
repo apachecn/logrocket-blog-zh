@@ -1,4 +1,4 @@
-# 面向前端开发人员的 Go 入门- LogRocket 博客
+# 面向前端开发人员的 Go 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-go-for-frontend-developers/>
 

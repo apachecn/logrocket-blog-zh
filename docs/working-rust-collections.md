@@ -1,4 +1,4 @@
-# 使用 Rust collections - LogRocket 博客
+# 使用 Rust collections 
 
 > 原文：<https://blog.logrocket.com/working-rust-collections/>
 

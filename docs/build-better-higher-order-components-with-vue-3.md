@@ -1,4 +1,4 @@
-# 使用 Vue 3 - LogRocket 博客构建更好的高阶组件
+# 使用 Vue 3 构建更好的高阶组件
 
 > 原文：<https://blog.logrocket.com/build-better-higher-order-components-with-vue-3/>
 

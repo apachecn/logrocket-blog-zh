@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中实现特性标志
+# 如何在 React 中实现特性标志
 
 > 原文：<https://blog.logrocket.com/how-to-implement-feature-flags-react/>
 

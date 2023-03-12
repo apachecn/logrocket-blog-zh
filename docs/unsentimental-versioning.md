@@ -1,4 +1,4 @@
-# 无情的版本控制- LogRocket 博客
+# 无情的版本控制
 
 > 原文：<https://blog.logrocket.com/unsentimental-versioning/>
 

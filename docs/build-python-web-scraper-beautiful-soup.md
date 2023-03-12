@@ -1,4 +1,4 @@
-# 用漂亮的 Soup - LogRocket 博客构建一个 Python web scraper
+# 用漂亮的 Soup 构建一个 Python web scraper
 
 > 原文：<https://blog.logrocket.com/build-python-web-scraper-beautiful-soup/>
 

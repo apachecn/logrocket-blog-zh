@@ -1,4 +1,4 @@
-# 如何在 Rust - LogRocket 博客中构建掷骰子
+# 如何在 Rust 中构建掷骰子
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-dice-roller-in-rust/>
 

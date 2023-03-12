@@ -1,4 +1,4 @@
-# 如何在 Unity - LogRocket 博客中制作一个 360 VR 视频
+# 如何在 Unity 中制作一个 360 VR 视频
 
 > 原文：<https://blog.logrocket.com/make-360-vr-video-unity/>
 

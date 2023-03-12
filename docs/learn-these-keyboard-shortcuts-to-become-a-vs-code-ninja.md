@@ -1,4 +1,4 @@
-# 学习这些键盘快捷键，成为一个 VS 代码忍者- LogRocket 博客
+# 学习这些键盘快捷键，成为一个 VS 代码忍者
 
 > 原文：<https://blog.logrocket.com/learn-these-keyboard-shortcuts-to-become-a-vs-code-ninja/>
 

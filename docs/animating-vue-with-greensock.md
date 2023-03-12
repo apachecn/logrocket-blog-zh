@@ -1,4 +1,4 @@
-# 用 GreenSock - LogRocket 博客制作 Vue 动画
+# 用 GreenSock 制作 Vue 动画
 
 > 原文：<https://blog.logrocket.com/animating-vue-with-greensock/>
 

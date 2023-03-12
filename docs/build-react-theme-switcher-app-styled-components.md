@@ -1,4 +1,4 @@
-# 用 styled-components - LogRocket 博客构建一个 React 主题切换器应用程序
+# 用 styled-components 构建一个 React 主题切换器应用程序
 
 > 原文：<https://blog.logrocket.com/build-react-theme-switcher-app-styled-components/>
 

@@ -1,4 +1,4 @@
-# 虚拟 DOM 如何在 Vue.js - LogRocket 博客中工作
+# 虚拟 DOM 如何在 Vue.js 中工作
 
 > 原文：<https://blog.logrocket.com/how-the-virtual-dom-works-in-vue-js/>
 

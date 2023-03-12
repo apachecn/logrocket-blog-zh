@@ -1,4 +1,4 @@
-# 使用 webpack - LogRocket 博客进行性能优化的深入指南
+# 使用 webpack 进行性能优化的深入指南
 
 > 原文：<https://blog.logrocket.com/guide-performance-optimization-webpack/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中管理应用权限
+# 在 React Native 中管理应用权限
 
 > 原文：<https://blog.logrocket.com/react-native-permissions/>
 

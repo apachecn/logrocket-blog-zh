@@ -1,4 +1,4 @@
-# LogRocket - LogRocket 博客中介绍 GraphQL 日志记录
+# LogRocket 中介绍 GraphQL 日志记录
 
 > 原文：<https://blog.logrocket.com/introducing-graphql-logging-in-logrocket-114c6c66842/>
 

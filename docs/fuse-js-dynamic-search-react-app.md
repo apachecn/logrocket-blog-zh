@@ -1,4 +1,4 @@
-# 使用 Fuse.js 向 React app - LogRocket 博客添加动态搜索
+# 使用 Fuse.js 向 React app 添加动态搜索
 
 > 原文：<https://blog.logrocket.com/fuse-js-dynamic-search-react-app/>
 

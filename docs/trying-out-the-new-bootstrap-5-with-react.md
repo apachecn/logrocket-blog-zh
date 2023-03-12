@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客上试用新的 Bootstrap 5
+# 在 React 上试用新的 Bootstrap 5
 
 > 原文：<https://blog.logrocket.com/trying-out-the-new-bootstrap-5-with-react/>
 

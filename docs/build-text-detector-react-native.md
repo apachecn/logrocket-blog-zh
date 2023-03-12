@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中构建一个文本检测器
+# 在 React Native 中构建一个文本检测器
 
 > 原文：<https://blog.logrocket.com/build-text-detector-react-native/>
 

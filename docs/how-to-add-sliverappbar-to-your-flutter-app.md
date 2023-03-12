@@ -1,4 +1,4 @@
-# 如何将 SliverAppBar 添加到你的 Flutter app - LogRocket 博客中
+# 如何将 SliverAppBar 添加到你的 Flutter app 中
 
 > 原文：<https://blog.logrocket.com/how-to-add-sliverappbar-to-your-flutter-app/>
 

@@ -1,4 +1,4 @@
-# 使用 React Stepzilla - LogRocket 博客创建多步表单
+# 使用 React Stepzilla 创建多步表单
 
 > 原文：<https://blog.logrocket.com/creating-multi-step-forms-react-stepzilla/>
 

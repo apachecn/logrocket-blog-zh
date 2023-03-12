@@ -1,4 +1,4 @@
-# 对比 Rust 供应链安全工具- LogRocket 博客
+# 对比 Rust 供应链安全工具
 
 > 原文：<https://blog.logrocket.com/comparing-rust-supply-chain-safety-tools/>
 

@@ -1,4 +1,4 @@
-# 使用 Vuex 和 Nuxt.js 的可扩展状态管理- LogRocket 博客
+# 使用 Vuex 和 Nuxt.js 的可扩展状态管理
 
 > 原文：<https://blog.logrocket.com/scalable-state-management-with-vuex-and-nuxt-js/>
 

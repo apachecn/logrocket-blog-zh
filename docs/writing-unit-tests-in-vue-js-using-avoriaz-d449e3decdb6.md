@@ -1,4 +1,4 @@
-# 使用 Avoriaz - LogRocket 博客编写健壮的 Vue.js 单元测试
+# 使用 Avoriaz 编写健壮的 Vue.js 单元测试
 
 > 原文：<https://blog.logrocket.com/writing-unit-tests-in-vue-js-using-avoriaz-d449e3decdb6/>
 

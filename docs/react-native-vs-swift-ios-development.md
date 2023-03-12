@@ -1,4 +1,4 @@
-# React Native vs. Swift for iOS 开发- LogRocket 博客
+# React Native vs. Swift for iOS 开发
 
 > 原文：<https://blog.logrocket.com/react-native-vs-swift-ios-development/>
 

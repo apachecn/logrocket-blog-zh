@@ -1,4 +1,4 @@
-# 使用 React Native Elements，一个跨平台的 UI 工具包- LogRocket 博客
+# 使用 React Native Elements，一个跨平台的 UI 工具包
 
 > 原文：<https://blog.logrocket.com/using-react-native-elements-a-cross-platform-ui-toolkit/>
 

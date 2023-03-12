@@ -1,4 +1,4 @@
-# D3.js 和 React - LogRocket 博客入门
+# D3.js 和 React 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-d3-js-react/>
 

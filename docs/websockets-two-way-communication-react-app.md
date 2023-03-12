@@ -1,4 +1,4 @@
-# 在 React apps - LogRocket 博客中使用 WebSockets 进行双向通信
+# 在 React apps 中使用 WebSockets 进行双向通信
 
 > 原文：<https://blog.logrocket.com/websockets-two-way-communication-react-app/>
 

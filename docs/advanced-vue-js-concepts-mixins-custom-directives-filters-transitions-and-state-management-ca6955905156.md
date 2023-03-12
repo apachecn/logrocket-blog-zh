@@ -1,4 +1,4 @@
-# 高级 Vue.js 概念:Mixins、自定义指令和更多- LogRocket 博客
+# 高级 Vue.js 概念:Mixins、自定义指令和更多
 
 > 原文：<https://blog.logrocket.com/advanced-vue-js-concepts-mixins-custom-directives-filters-transitions-and-state-management-ca6955905156/>
 

@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中实现应用内购买
+# 在 React Native 中实现应用内购买
 
 > 原文：<https://blog.logrocket.com/implementing-in-app-purchases-in-react-native/>
 

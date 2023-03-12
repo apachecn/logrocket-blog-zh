@@ -1,4 +1,4 @@
-# 使用 react-collapsed - LogRocket 博客创建可折叠的 React 组件
+# 使用 react-collapsed 创建可折叠的 React 组件
 
 > 原文：<https://blog.logrocket.com/create-collapsible-react-components-react-collapsed/>
 

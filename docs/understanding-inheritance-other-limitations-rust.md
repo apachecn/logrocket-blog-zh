@@ -1,4 +1,4 @@
-# 理解 Rust - LogRocket 博客中的继承和其他限制
+# 理解 Rust 中的继承和其他限制
 
 > 原文：<https://blog.logrocket.com/understanding-inheritance-other-limitations-rust/>
 

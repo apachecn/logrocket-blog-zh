@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的支柱钻井的优点
+# React 中的支柱钻井的优点
 
 > 原文：<https://blog.logrocket.com/the-upsides-of-prop-drilling-in-react/>
 

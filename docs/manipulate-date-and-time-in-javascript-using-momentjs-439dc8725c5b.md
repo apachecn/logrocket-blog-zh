@@ -1,4 +1,4 @@
-# 使用 MomentJS - LogRocket 博客在 JavaScript 中操作日期和时间
+# 使用 MomentJS 在 JavaScript 中操作日期和时间
 
 > 原文：<https://blog.logrocket.com/manipulate-date-and-time-in-javascript-using-momentjs-439dc8725c5b/>
 

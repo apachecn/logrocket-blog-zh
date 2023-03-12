@@ -1,4 +1,4 @@
-# 动态和 CSS 计算- LogRocket 博客
+# 动态和 CSS 计算
 
 > 原文：<https://blog.logrocket.com/dynamism-and-css-calculations/>
 

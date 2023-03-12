@@ -1,4 +1,4 @@
-# 在 Vue - LogRocket 博客中创建自定义工具提示组件
+# 在 Vue 中创建自定义工具提示组件
 
 > 原文：<https://blog.logrocket.com/create-custom-tooltip-component-vue/>
 

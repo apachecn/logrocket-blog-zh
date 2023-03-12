@@ -1,4 +1,4 @@
-# 了解 Android 活动生命周期- LogRocket 博客
+# 了解 Android 活动生命周期
 
 > 原文：<https://blog.logrocket.com/understanding-the-android-activity-lifecycle/>
 

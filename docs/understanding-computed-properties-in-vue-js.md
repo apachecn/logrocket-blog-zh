@@ -1,4 +1,4 @@
-# 了解 Vue.js - LogRocket 博客中的计算属性
+# 了解 Vue.js 中的计算属性
 
 > 原文：<https://blog.logrocket.com/understanding-computed-properties-in-vue-js/>
 

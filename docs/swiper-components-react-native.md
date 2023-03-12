@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中实现 swiper 组件
+# 在 React Native 中实现 swiper 组件
 
 > 原文：<https://blog.logrocket.com/swiper-components-react-native/>
 

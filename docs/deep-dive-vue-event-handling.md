@@ -1,4 +1,4 @@
-# 深入了解 Vue 事件处理- LogRocket 博客
+# 深入了解 Vue 事件处理
 
 > 原文：<https://blog.logrocket.com/deep-dive-vue-event-handling/>
 

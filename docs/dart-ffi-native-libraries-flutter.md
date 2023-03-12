@@ -1,4 +1,4 @@
-# 使用 Dart FFI 访问 Flutter - LogRocket 博客中的本地库
+# 使用 Dart FFI 访问 Flutter 中的本地库
 
 > 原文：<https://blog.logrocket.com/dart-ffi-native-libraries-flutter/>
 

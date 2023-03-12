@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中表单的完整指南
+# Vue.js 中表单的完整指南
 
 > 原文：<https://blog.logrocket.com/an-imperative-guide-to-forms-in-vue-js-2/>
 

@@ -1,4 +1,4 @@
-# 用 JavaScript 和 WordPress - LogRocket 博客编写 GraphQL 服务器
+# 用 JavaScript 和 WordPress 编写 GraphQL 服务器
 
 > 原文：<https://blog.logrocket.com/coding-a-graphql-server-in-javascript-vs-wordpress/>
 

@@ -1,4 +1,4 @@
-# 创建一个高级的滚动锁 React Hook - LogRocket 博客
+# 创建一个高级的滚动锁 React Hook 
 
 > 原文：<https://blog.logrocket.com/create-advanced-scroll-lock-react-hook/>
 

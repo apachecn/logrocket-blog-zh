@@ -1,4 +1,4 @@
-# 什么是产品运营？- LogRocket 博客
+# 什么是产品运营？
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-product-operations/>
 

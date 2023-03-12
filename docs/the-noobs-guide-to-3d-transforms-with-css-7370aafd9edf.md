@@ -1,4 +1,4 @@
-# noob 的 CSS 3D 转换指南- LogRocket 博客
+# noob 的 CSS 3D 转换指南
 
 > 原文：<https://blog.logrocket.com/the-noobs-guide-to-3d-transforms-with-css-7370aafd9edf/>
 

@@ -1,4 +1,4 @@
-# 包 CSS - LogRocket 博客入门
+# 包 CSS 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-parcel-css/>
 

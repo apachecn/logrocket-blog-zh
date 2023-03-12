@@ -1,4 +1,4 @@
-# 宣布 LogRocket 内部通信集成- LogRocket 博客
+# 宣布 LogRocket 内部通信集成
 
 > 原文：<https://blog.logrocket.com/announcing-the-logrocket-intercom-integration-1d8a5ac960d9/>
 

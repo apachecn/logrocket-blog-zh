@@ -1,4 +1,4 @@
-# 了解 Vue 中间件管道- LogRocket 博客
+# 了解 Vue 中间件管道
 
 > 原文：<https://blog.logrocket.com/vue-middleware-pipelines/>
 

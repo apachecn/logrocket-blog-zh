@@ -1,4 +1,4 @@
-# 用 Swag - LogRocket 博客记录 Go web APIs
+# 用 Swag 记录 Go web APIs
 
 > 原文：<https://blog.logrocket.com/documenting-go-web-apis-with-swag/>
 

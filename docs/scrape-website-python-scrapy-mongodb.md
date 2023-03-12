@@ -1,4 +1,4 @@
-# 用 Python、Scrapy 和 MongoDB - LogRocket 博客创建一个网站
+# 用 Python、Scrapy 和 MongoDB 创建一个网站
 
 > 原文：<https://blog.logrocket.com/scrape-website-python-scrapy-mongodb/>
 

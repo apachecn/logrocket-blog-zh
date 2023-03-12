@@ -1,4 +1,4 @@
-# 了解相对 CSS 单位- LogRocket 博客
+# 了解相对 CSS 单位
 
 > 原文：<https://blog.logrocket.com/understanding-relative-css-units/>
 

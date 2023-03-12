@@ -1,4 +1,4 @@
-# 使用 Apollo - LogRocket 博客的 GraphQL 本地状态管理
+# 使用 Apollo 的 GraphQL 本地状态管理
 
 > 原文：<https://blog.logrocket.com/graphql-local-state-management-apollo/>
 

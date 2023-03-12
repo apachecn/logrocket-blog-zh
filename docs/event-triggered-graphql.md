@@ -1,4 +1,4 @@
-# 事件触发的 GraphQL - LogRocket 博客
+# 事件触发的 GraphQL 
 
 > 原文：<https://blog.logrocket.com/event-triggered-graphql/>
 

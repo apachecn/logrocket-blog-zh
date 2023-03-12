@@ -1,4 +1,4 @@
-# Vite - LogRocket 博客入门
+# Vite 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-vite/>
 

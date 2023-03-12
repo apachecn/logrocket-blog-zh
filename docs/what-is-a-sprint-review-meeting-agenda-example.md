@@ -1,4 +1,4 @@
-# 什么是冲刺复习？会议议程示例和概述- LogRocket 博客
+# 什么是冲刺复习？会议议程示例和概述
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-a-sprint-review-meeting-agenda-example/>
 

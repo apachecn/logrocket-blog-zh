@@ -1,4 +1,4 @@
-# 最佳发布/订阅消息经纪人- LogRocket 博客
+# 最佳发布/订阅消息经纪人
 
 > 原文：<https://blog.logrocket.com/nodejs-pub-sub-messaging-brokers/>
 

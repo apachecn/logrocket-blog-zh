@@ -1,4 +1,4 @@
-# 如何在 Dart - LogRocket 博客中构建 gRPC 服务器
+# 如何在 Dart 中构建 gRPC 服务器
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-grpc-server-in-dart/>
 

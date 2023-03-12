@@ -1,4 +1,4 @@
-# 使用 web workers 进行实时处理- LogRocket 博客
+# 使用 web workers 进行实时处理
 
 > 原文：<https://blog.logrocket.com/real-time-processing-web-workers/>
 

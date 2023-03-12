@@ -1,4 +1,4 @@
-# 6 CSS 微框架比较- LogRocket 博客
+# 6 CSS 微框架比较
 
 > 原文：<https://blog.logrocket.com/6-css-micro-frameworks-compared/>
 

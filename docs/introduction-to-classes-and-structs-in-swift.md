@@ -1,4 +1,4 @@
-# Swift - LogRocket 博客中的类和结构介绍
+# Swift 中的类和结构介绍
 
 > 原文：<https://blog.logrocket.com/introduction-to-classes-and-structs-in-swift/>
 

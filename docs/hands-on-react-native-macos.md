@@ -1,4 +1,4 @@
-# 操作 React Native for macOS - LogRocket 博客
+# 操作 React Native for macOS 
 
 > 原文：<https://blog.logrocket.com/hands-on-react-native-macos/>
 

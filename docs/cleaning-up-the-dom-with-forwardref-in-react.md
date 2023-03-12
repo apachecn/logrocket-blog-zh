@@ -1,4 +1,4 @@
-# 在 React 中使用 forwardRef 清理 DOM - LogRocket 博客
+# 在 React 中使用 forwardRef 清理 DOM 
 
 > 原文：<https://blog.logrocket.com/cleaning-up-the-dom-with-forwardref-in-react/>
 

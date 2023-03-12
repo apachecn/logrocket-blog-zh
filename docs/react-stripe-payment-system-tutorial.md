@@ -1,4 +1,4 @@
-# React 和 Stripe 支付系统教程- LogRocket 博客
+# React 和 Stripe 支付系统教程
 
 > 原文：<https://blog.logrocket.com/react-stripe-payment-system-tutorial/>
 

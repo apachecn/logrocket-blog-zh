@@ -1,4 +1,4 @@
-# 使用 Kotlin 多平台- LogRocket 博客构建跨平台移动应用
+# 使用 Kotlin 多平台构建跨平台移动应用
 
 > 原文：<https://blog.logrocket.com/building-cross-platform-mobile-apps-kotlin-multiplatform/>
 

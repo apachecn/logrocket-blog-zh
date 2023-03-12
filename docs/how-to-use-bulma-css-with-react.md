@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用布尔玛 CSS
+# 如何在 React 中使用布尔玛 CSS
 
 > 原文：<https://blog.logrocket.com/how-to-use-bulma-css-with-react/>
 

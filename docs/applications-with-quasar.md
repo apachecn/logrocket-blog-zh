@@ -1,4 +1,4 @@
-# 用 Quasar - LogRocket 博客构建跨平台应用
+# 用 Quasar 构建跨平台应用
 
 > 原文：<https://blog.logrocket.com/applications-with-quasar/>
 

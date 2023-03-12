@@ -1,4 +1,4 @@
-# 使用 JavaScript 与 Cardano 区块链交互- LogRocket 博客
+# 使用 JavaScript 与 Cardano 区块链交互
 
 > 原文：<https://blog.logrocket.com/interacting-cardano-blockchain-using-javascript/>
 

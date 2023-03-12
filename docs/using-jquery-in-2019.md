@@ -1,4 +1,4 @@
-# JQuery 死了吗？- LogRocket 博客
+# JQuery 死了吗？
 
 > 原文：<https://blog.logrocket.com/using-jquery-in-2019/>
 

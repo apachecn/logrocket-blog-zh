@@ -1,4 +1,4 @@
-# 在 CSS - LogRocket 博客中设置颜色的高级指南
+# 在 CSS 中设置颜色的高级指南
 
 > 原文：<https://blog.logrocket.com/advanced-guide-setting-colors-css/>
 

@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中重建 Chrome 控制台
+# 在 React 中重建 Chrome 控制台
 
 > 原文：<https://blog.logrocket.com/recreating-the-chrome-console-in-react-123d6c4aa930/>
 

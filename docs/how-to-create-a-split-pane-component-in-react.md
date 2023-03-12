@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中创建拆分窗格组件
+# 如何在 React 中创建拆分窗格组件
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-split-pane-component-in-react/>
 

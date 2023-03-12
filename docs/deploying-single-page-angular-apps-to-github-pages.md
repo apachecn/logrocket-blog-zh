@@ -1,4 +1,4 @@
-# 将单页 Angular 应用程序部署到 GitHub 页面- LogRocket 博客
+# 将单页 Angular 应用程序部署到 GitHub 页面
 
 > 原文：<https://blog.logrocket.com/deploying-single-page-angular-apps-to-github-pages/>
 

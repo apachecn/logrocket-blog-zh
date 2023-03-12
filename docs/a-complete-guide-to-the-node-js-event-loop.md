@@ -1,4 +1,4 @@
-# Node.js 事件循环完整指南- LogRocket 博客
+# Node.js 事件循环完整指南
 
 > 原文：<https://blog.logrocket.com/a-complete-guide-to-the-node-js-event-loop/>
 

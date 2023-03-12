@@ -1,4 +1,4 @@
-# 如何将您现有的 Redux 容器转换为 Hooks - LogRocket 博客
+# 如何将您现有的 Redux 容器转换为 Hooks 
 
 > 原文：<https://blog.logrocket.com/convert-existing-redux-containers-hooks/>
 

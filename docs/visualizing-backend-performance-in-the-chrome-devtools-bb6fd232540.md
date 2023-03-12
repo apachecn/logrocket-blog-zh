@@ -1,4 +1,4 @@
-# 在 Chrome DevTools - LogRocket 博客中可视化后端性能
+# 在 Chrome DevTools 中可视化后端性能
 
 > 原文：<https://blog.logrocket.com/visualizing-backend-performance-in-the-chrome-devtools-bb6fd232540/>
 

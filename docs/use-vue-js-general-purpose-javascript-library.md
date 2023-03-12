@@ -1,4 +1,4 @@
-# 可以用 Vue.js 做通用 JavaScript 库吗？- LogRocket 博客
+# 可以用 Vue.js 做通用 JavaScript 库吗？
 
 > 原文：<https://blog.logrocket.com/use-vue-js-general-purpose-javascript-library/>
 

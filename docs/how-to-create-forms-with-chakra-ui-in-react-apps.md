@@ -1,4 +1,4 @@
-# 如何在 React apps - LogRocket 博客中使用 Chakra UI 创建表单
+# 如何在 React apps 中使用 Chakra UI 创建表单
 
 > 原文：<https://blog.logrocket.com/how-to-create-forms-with-chakra-ui-in-react-apps/>
 

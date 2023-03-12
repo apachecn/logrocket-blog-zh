@@ -1,4 +1,4 @@
-# redux-observable - LogRocket 博客初学者指南
+# redux-observable 初学者指南
 
 > 原文：<https://blog.logrocket.com/a-beginners-guide-to-redux-observable-c0381da8ed3a/>
 

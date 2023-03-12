@@ -1,4 +1,4 @@
-# 使用 FastAPI 和 MySQL - LogRocket 博客进行服务器端渲染
+# 使用 FastAPI 和 MySQL 进行服务器端渲染
 
 > 原文：<https://blog.logrocket.com/server-side-rendering-with-fastapi-and-mysql/>
 

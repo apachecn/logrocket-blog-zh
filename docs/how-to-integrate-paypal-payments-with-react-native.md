@@ -1,4 +1,4 @@
-# 如何将 PayPal 支付与 React Native - LogRocket 博客集成
+# 如何将 PayPal 支付与 React Native 集成
 
 > 原文：<https://blog.logrocket.com/how-to-integrate-paypal-payments-with-react-native/>
 

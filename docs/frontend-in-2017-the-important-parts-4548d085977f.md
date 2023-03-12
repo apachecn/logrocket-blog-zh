@@ -1,4 +1,4 @@
-# 2017 年前端:重要部分- LogRocket 博客
+# 2017 年前端:重要部分
 
 > 原文：<https://blog.logrocket.com/frontend-in-2017-the-important-parts-4548d085977f/>
 

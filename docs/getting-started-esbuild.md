@@ -1,4 +1,4 @@
-# esbuild 入门- LogRocket 博客
+# esbuild 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-esbuild/>
 

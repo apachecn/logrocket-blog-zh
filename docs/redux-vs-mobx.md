@@ -1,4 +1,4 @@
-# Redux vs. MobX:哪个表现更好？- LogRocket 博客
+# Redux vs. MobX:哪个表现更好？
 
 > 原文：<https://blog.logrocket.com/redux-vs-mobx/>
 

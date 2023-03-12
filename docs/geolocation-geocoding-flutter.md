@@ -1,4 +1,4 @@
-# Flutter - LogRocket 博客中的地理定位和地理编码
+# Flutter 中的地理定位和地理编码
 
 > 原文：<https://blog.logrocket.com/geolocation-geocoding-flutter/>
 

@@ -1,4 +1,4 @@
-# 通过 Pinia - LogRocket 博客简化复杂的 Vue 3 状态管理
+# 通过 Pinia 简化复杂的 Vue 3 状态管理
 
 > 原文：<https://blog.logrocket.com/complex-vue-3-state-management-pinia/>
 

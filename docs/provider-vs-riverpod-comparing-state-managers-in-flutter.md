@@ -1,4 +1,4 @@
-# 提供商 vs. Riverpod:在 Flutter - LogRocket 博客中比较状态管理器
+# 提供商 vs. Riverpod:在 Flutter 中比较状态管理器
 
 > 原文：<https://blog.logrocket.com/provider-vs-riverpod-comparing-state-managers-in-flutter/>
 

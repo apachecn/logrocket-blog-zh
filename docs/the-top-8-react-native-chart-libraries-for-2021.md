@@ -1,4 +1,4 @@
-# 2021 年 8 大 React 原生图表库- LogRocket 博客
+# 2021 年 8 大 React 原生图表库
 
 > 原文：<https://blog.logrocket.com/the-top-8-react-native-chart-libraries-for-2021/>
 

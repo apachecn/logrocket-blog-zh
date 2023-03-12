@@ -1,4 +1,4 @@
-# 互动 Vue 动画与 Kinesis - LogRocket 博客
+# 互动 Vue 动画与 Kinesis 
 
 > 原文：<https://blog.logrocket.com/interactive-vue-animations-with-kinesis/>
 

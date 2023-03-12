@@ -1,4 +1,4 @@
-# React - LogRocket 博客中如何将道具传递给组件
+# React 中如何将道具传递给组件
 
 > 原文：<https://blog.logrocket.com/the-beginners-guide-to-mastering-react-props-3f6f01fd7099/>
 

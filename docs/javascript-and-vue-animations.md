@@ -1,4 +1,4 @@
-# JavaScript 和 Vue 动画- LogRocket 博客
+# JavaScript 和 Vue 动画
 
 > 原文：<https://blog.logrocket.com/javascript-and-vue-animations/>
 

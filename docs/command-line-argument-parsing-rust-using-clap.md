@@ -1,4 +1,4 @@
-# 使用 Clap - LogRocket 博客解析 Rust 中的命令行参数
+# 使用 Clap 解析 Rust 中的命令行参数
 
 > 原文：<https://blog.logrocket.com/command-line-argument-parsing-rust-using-clap/>
 

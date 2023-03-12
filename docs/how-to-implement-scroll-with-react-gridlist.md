@@ -1,4 +1,4 @@
-# 如何用 React-gridlist - LogRocket 博客实现滚动
+# 如何用 React-gridlist 实现滚动
 
 > 原文：<https://blog.logrocket.com/how-to-implement-scroll-with-react-gridlist/>
 

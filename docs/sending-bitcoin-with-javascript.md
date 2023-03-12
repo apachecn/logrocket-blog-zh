@@ -1,4 +1,4 @@
-# 使用 JavaScript - LogRocket 博客发送钱包中的比特币
+# 使用 JavaScript 发送钱包中的比特币
 
 > 原文：<https://blog.logrocket.com/sending-bitcoin-with-javascript/>
 

@@ -1,4 +1,4 @@
-# Vuex 3.1.1 中的新特性- LogRocket 博客
+# Vuex 3.1.1 中的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-in-vuex-3-1-1-d796b0c791bf/>
 

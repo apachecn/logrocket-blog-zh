@@ -1,4 +1,4 @@
-# 创业微服务指南- LogRocket 博客
+# 创业微服务指南
 
 > 原文：<https://blog.logrocket.com/the-how-to-guide-to-microservices-for-startups/>
 

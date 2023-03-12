@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客创建一个响应式移动菜单
+# 用 CSS 创建一个响应式移动菜单
 
 > 原文：<https://blog.logrocket.com/create-responsive-mobile-menu-with-css-no-javascript/>
 

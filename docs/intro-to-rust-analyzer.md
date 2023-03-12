@@ -1,4 +1,4 @@
-# rust-analyzer - LogRocket 博客简介
+# rust-analyzer 简介
 
 > 原文：<https://blog.logrocket.com/intro-to-rust-analyzer/>
 

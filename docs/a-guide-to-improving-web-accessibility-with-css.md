@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客提高网页可访问性的指南
+# 用 CSS 提高网页可访问性的指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-improving-web-accessibility-with-css/>
 

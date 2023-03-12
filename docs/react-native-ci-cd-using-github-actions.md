@@ -1,4 +1,4 @@
-# 使用 GitHub 操作对本机 CI/CD 做出反应- LogRocket 博客
+# 使用 GitHub 操作对本机 CI/CD 做出反应
 
 > 原文：<https://blog.logrocket.com/react-native-ci-cd-using-github-actions/>
 

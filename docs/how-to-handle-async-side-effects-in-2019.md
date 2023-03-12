@@ -1,4 +1,4 @@
-# 2019 年如何处理异步副作用- LogRocket 博客
+# 2019 年如何处理异步副作用
 
 > 原文：<https://blog.logrocket.com/how-to-handle-async-side-effects-in-2019/>
 

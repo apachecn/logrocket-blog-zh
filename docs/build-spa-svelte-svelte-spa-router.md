@@ -1,4 +1,4 @@
-# 用 svelte-spa-router - LogRocket 博客构建一个单页应用程序
+# 用 svelte-spa-router 构建一个单页应用程序
 
 > 原文：<https://blog.logrocket.com/build-spa-svelte-svelte-spa-router/>
 

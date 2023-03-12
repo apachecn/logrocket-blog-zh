@@ -1,4 +1,4 @@
-# 利用 Spotify 的 Backstage - LogRocket 博客建立更好的开发者门户
+# 利用 Spotify 的 Backstage 建立更好的开发者门户
 
 > 原文：<https://blog.logrocket.com/better-developer-portals-spotify-backstage/>
 

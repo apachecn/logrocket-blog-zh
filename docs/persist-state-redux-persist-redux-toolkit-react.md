@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用 Redux Toolkit 持久化状态
+# 在 React 中使用 Redux Toolkit 持久化状态
 
 > 原文：<https://blog.logrocket.com/persist-state-redux-persist-redux-toolkit-react/>
 

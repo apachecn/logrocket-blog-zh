@@ -1,4 +1,4 @@
-# 如何用 React - LogRocket 博客创建一个定制的 toast 组件
+# 如何用 React 创建一个定制的 toast 组件
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-custom-toast-component-with-react/>
 

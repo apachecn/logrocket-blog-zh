@@ -1,4 +1,4 @@
-# JavaScript 包管理器比较:npm，Yarn，还是 pnpm？- LogRocket 博客
+# JavaScript 包管理器比较:npm，Yarn，还是 pnpm？
 
 > 原文：<https://blog.logrocket.com/javascript-package-managers-compared/>
 

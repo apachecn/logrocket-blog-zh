@@ -1,4 +1,4 @@
-# 通过 Vue - LogRocket 博客使用 JSX
+# 通过 Vue 使用 JSX
 
 > 原文：<https://blog.logrocket.com/using-jsx-with-vue/>
 

@@ -1,4 +1,4 @@
-# 现代组件可重用性:在 Vue - LogRocket 博客中的 React & scoped 插槽中呈现道具
+# 现代组件可重用性:在 Vue 中的 React & scoped 插槽中呈现道具
 
 > 原文：<https://blog.logrocket.com/modern-component-reusability-render-props-in-react-scoped-slots-in-vue-ff3c5b2dc899/>
 

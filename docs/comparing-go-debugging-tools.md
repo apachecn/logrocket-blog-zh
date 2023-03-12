@@ -1,4 +1,4 @@
-# 比较 Go 调试工具- LogRocket 博客
+# 比较 Go 调试工具
 
 > 原文：<https://blog.logrocket.com/comparing-go-debugging-tools/>
 

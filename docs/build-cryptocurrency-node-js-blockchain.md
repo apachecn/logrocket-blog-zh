@@ -1,4 +1,4 @@
-# 用 Node.js - LogRocket 博客构建加密货币
+# 用 Node.js 构建加密货币
 
 > 原文：<https://blog.logrocket.com/build-cryptocurrency-node-js-blockchain/>
 

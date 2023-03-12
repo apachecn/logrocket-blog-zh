@@ -1,4 +1,4 @@
-# 如何为 Flutter - LogRocket 博客创建 Dart 包
+# 如何为 Flutter 创建 Dart 包
 
 > 原文：<https://blog.logrocket.com/how-to-create-dart-packages-for-flutter/>
 

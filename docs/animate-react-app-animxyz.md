@@ -1,4 +1,4 @@
-# 使用 AnimXYZ - LogRocket 博客制作 React 应用程序动画
+# 使用 AnimXYZ 制作 React 应用程序动画
 
 > 原文：<https://blog.logrocket.com/animate-react-app-animxyz/>
 

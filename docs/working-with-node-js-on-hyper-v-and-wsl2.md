@@ -1,4 +1,4 @@
-# 在 Hyper-V 和 WSL2 - LogRocket 博客上使用 Node.js
+# 在 Hyper-V 和 WSL2 上使用 Node.js
 
 > 原文：<https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/>
 

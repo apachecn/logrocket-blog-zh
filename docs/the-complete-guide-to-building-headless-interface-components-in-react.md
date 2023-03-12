@@ -1,4 +1,4 @@
-# React - LogRocket 博客中构建无头接口组件的完整指南
+# React 中构建无头接口组件的完整指南
 
 > 原文：<https://blog.logrocket.com/the-complete-guide-to-building-headless-interface-components-in-react/>
 

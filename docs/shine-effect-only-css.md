@@ -1,4 +1,4 @@
-# 仅使用 CSS - LogRocket 博客创建一个闪亮的效果
+# 仅使用 CSS 创建一个闪亮的效果
 
 > 原文：<https://blog.logrocket.com/shine-effect-only-css/>
 

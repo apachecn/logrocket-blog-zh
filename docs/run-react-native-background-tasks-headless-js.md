@@ -1,4 +1,4 @@
-# 使用 Headless JS - LogRocket 博客运行 React 本机后台任务
+# 使用 Headless JS 运行 React 本机后台任务
 
 > 原文：<https://blog.logrocket.com/run-react-native-background-tasks-headless-js/>
 

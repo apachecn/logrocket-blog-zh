@@ -1,4 +1,4 @@
-# 用 React - LogRocket 博客中的组件控制工具提示和弹出菜单
+# 用 React 中的组件控制工具提示和弹出菜单
 
 > 原文：<https://blog.logrocket.com/controlling-tooltips-pop-up-menus-using-compound-components-in-react-ccedc15c7526/>
 

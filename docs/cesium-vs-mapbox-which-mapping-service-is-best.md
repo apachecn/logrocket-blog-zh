@@ -1,4 +1,4 @@
-# 铯与 Mapbox:哪种地图服务最好？- LogRocket 博客
+# 铯与 Mapbox:哪种地图服务最好？
 
 > 原文：<https://blog.logrocket.com/cesium-vs-mapbox-which-mapping-service-is-best/>
 

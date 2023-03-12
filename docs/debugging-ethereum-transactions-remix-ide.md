@@ -1,4 +1,4 @@
-# 在 Remix IDE - LogRocket 博客中调试以太坊事务
+# 在 Remix IDE 中调试以太坊事务
 
 > 原文：<https://blog.logrocket.com/debugging-ethereum-transactions-remix-ide/>
 

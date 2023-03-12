@@ -1,4 +1,4 @@
-# jQuery - LogRocket 博客的历史和遗产
+# jQuery 的历史和遗产
 
 > 原文：<https://blog.logrocket.com/the-history-and-legacy-of-jquery/>
 

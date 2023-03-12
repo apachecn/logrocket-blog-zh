@@ -1,4 +1,4 @@
-# 纯 CSS 组件- LogRocket 博客
+# 纯 CSS 组件
 
 > 原文：<https://blog.logrocket.com/css-only-components/>
 

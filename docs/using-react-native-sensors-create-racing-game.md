@@ -1,4 +1,4 @@
-# 使用 React 本地传感器创建赛车游戏- LogRocket 博客
+# 使用 React 本地传感器创建赛车游戏
 
 > 原文：<https://blog.logrocket.com/using-react-native-sensors-create-racing-game/>
 

@@ -1,4 +1,4 @@
-# 什么是 React 纯功能组件？- LogRocket 博客
+# 什么是 React 纯功能组件？
 
 > 原文：<https://blog.logrocket.com/what-are-react-pure-functional-components/>
 

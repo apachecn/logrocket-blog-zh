@@ -1,4 +1,4 @@
-# 使用 Firebase - LogRocket 博客获取 React 本机应用程序的数据
+# 使用 Firebase 获取 React 本机应用程序的数据
 
 > 原文：<https://blog.logrocket.com/storing-retrieving-data-react-native-apps-firebase/>
 

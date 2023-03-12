@@ -1,4 +1,4 @@
-# Preact X 有什么新功能？- LogRocket 博客
+# Preact X 有什么新功能？
 
 > 原文：<https://blog.logrocket.com/whats-new-in-preact-x/>
 

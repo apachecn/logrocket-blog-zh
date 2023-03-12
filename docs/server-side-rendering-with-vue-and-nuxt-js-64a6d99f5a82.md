@@ -1,4 +1,4 @@
-# 使用 Vue 和 Nuxt.js 的服务器端渲染- LogRocket 博客
+# 使用 Vue 和 Nuxt.js 的服务器端渲染
 
 > 原文：<https://blog.logrocket.com/server-side-rendering-with-vue-and-nuxt-js-64a6d99f5a82/>
 

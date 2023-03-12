@@ -1,4 +1,4 @@
-# 如何使用蚂蚁设计与 Vue 3 - LogRocket 博客
+# 如何使用蚂蚁设计与 Vue 3 
 
 > 原文：<https://blog.logrocket.com/use-ant-design-vue-3/>
 

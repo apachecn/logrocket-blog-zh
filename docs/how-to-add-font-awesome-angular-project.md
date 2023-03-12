@@ -1,4 +1,4 @@
-# 如何将字体 Awesome 添加到 Angular 项目- LogRocket 博客
+# 如何将字体 Awesome 添加到 Angular 项目
 
 > 原文：<https://blog.logrocket.com/how-to-add-font-awesome-angular-project/>
 

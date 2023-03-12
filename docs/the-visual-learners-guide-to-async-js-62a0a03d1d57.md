@@ -1,4 +1,4 @@
-# 异步 JS - LogRocket 博客的可视化学习指南
+# 异步 JS 的可视化学习指南
 
 > 原文：<https://blog.logrocket.com/the-visual-learners-guide-to-async-js-62a0a03d1d57/>
 

@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中构建密码散列器
+# 在 Node.js 中构建密码散列器
 
 > 原文：<https://blog.logrocket.com/building-a-password-hasher-in-node-js/>
 

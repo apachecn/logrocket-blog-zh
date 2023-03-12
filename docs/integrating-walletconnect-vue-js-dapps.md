@@ -1,4 +1,4 @@
-# 将 WalletConnect 集成到 Vue.js DApps - LogRocket 博客中
+# 将 WalletConnect 集成到 Vue.js DApps 中
 
 > 原文：<https://blog.logrocket.com/integrating-walletconnect-vue-js-dapps/>
 

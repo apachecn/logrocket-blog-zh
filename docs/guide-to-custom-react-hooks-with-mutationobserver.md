@@ -1,4 +1,4 @@
-# 使用变异 Observer - LogRocket 博客定制 React 挂钩指南
+# 使用变异 Observer 定制 React 挂钩指南
 
 > 原文：<https://blog.logrocket.com/guide-to-custom-react-hooks-with-mutationobserver/>
 

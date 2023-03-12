@@ -1,4 +1,4 @@
-# 微软的 Fluid Framework:介绍- LogRocket 博客
+# 微软的 Fluid Framework:介绍
 
 > 原文：<https://blog.logrocket.com/microsofts-fluid-framework-an-introduction/>
 

@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 stdout、stdin 和 stderr
+# 在 Node.js 中使用 stdout、stdin 和 stderr
 
 > 原文：<https://blog.logrocket.com/using-stdout-stdin-stderr-node-js/>
 

@@ -1,4 +1,4 @@
-# 面向前端开发人员的工具和现代工作流- LogRocket 博客
+# 面向前端开发人员的工具和现代工作流
 
 > 原文：<https://blog.logrocket.com/tools-and-modern-workflow-for-front-end-developers-505c7227e917/>
 

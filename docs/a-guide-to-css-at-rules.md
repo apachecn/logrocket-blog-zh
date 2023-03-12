@@ -1,4 +1,4 @@
-# CSS at-rules - LogRocket 博客指南
+# CSS at-rules 指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-css-at-rules/>
 

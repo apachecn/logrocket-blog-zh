@@ -1,4 +1,4 @@
-# 钩子来了 vue . js 3.0 版- LogRocket 博客
+# 钩子来了 vue . js 3.0 版
 
 > 原文：<https://blog.logrocket.com/hooks-are-coming-to-vue/>
 

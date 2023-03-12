@@ -1,4 +1,4 @@
-# 理解 TypeScript - LogRocket 博客中的推断
+# 理解 TypeScript 中的推断
 
 > 原文：<https://blog.logrocket.com/understanding-infer-typescript/>
 

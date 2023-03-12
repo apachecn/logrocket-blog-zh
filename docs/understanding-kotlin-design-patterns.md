@@ -1,4 +1,4 @@
-# 在 Kotlin - LogRocket 博客中理解设计模式
+# 在 Kotlin 中理解设计模式
 
 > 原文：<https://blog.logrocket.com/understanding-kotlin-design-patterns/>
 

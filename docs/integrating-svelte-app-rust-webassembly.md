@@ -1,4 +1,4 @@
-# 使用 WebAssembly - LogRocket 博客将一个苗条的应用程序与 Rust 集成
+# 使用 WebAssembly 将一个苗条的应用程序与 Rust 集成
 
 > 原文：<https://blog.logrocket.com/integrating-svelte-app-rust-webassembly/>
 

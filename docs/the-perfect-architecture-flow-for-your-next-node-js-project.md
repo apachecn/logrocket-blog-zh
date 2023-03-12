@@ -1,4 +1,4 @@
-# Node.js 项目架构最佳实践- LogRocket 博客
+# Node.js 项目架构最佳实践
 
 > 原文：<https://blog.logrocket.com/the-perfect-architecture-flow-for-your-next-node-js-project/>
 

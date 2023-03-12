@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中创建下拉列表
+# 在 Flutter 中创建下拉列表
 
 > 原文：<https://blog.logrocket.com/creating-dropdown-list-flutter/>
 

@@ -1,4 +1,4 @@
-# 何时使用 Rust，何时使用 Go - LogRocket 博客
+# 何时使用 Rust，何时使用 Go 
 
 > 原文：<https://blog.logrocket.com/when-to-use-rust-when-to-use-golang/>
 

@@ -1,4 +1,4 @@
-# 为 Node.js - LogRocket 博客创建自定义 REPL
+# 为 Node.js 创建自定义 REPL
 
 > 原文：<https://blog.logrocket.com/creating-custom-repl-node-js/>
 

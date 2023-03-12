@@ -1,4 +1,4 @@
-# Node.js v10 - LogRocket 博客中的流 API 和(异步)生成器比较
+# Node.js v10 中的流 API 和(异步)生成器比较
 
 > 原文：<https://blog.logrocket.com/comparing-the-stream-api-and-async-generators-in-node-js-v10/>
 

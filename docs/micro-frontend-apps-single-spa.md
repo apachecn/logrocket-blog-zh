@@ -1,4 +1,4 @@
-# 用单 spa - LogRocket 博客创建微前端应用
+# 用单 spa 创建微前端应用
 
 > 原文：<https://blog.logrocket.com/micro-frontend-apps-single-spa/>
 

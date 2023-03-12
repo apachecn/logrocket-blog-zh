@@ -1,4 +1,4 @@
-# 了解 Next.js - LogRocket 博客中的静态 HTML 导出
+# 了解 Next.js 中的静态 HTML 导出
 
 > 原文：<https://blog.logrocket.com/understanding-static-html-export-next-js/>
 

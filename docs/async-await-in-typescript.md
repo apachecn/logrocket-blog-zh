@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中的异步/等待
+# TypeScript 中的异步/等待
 
 > 原文：<https://blog.logrocket.com/async-await-in-typescript/>
 

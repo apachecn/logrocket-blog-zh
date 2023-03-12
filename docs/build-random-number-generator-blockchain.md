@@ -1,4 +1,4 @@
-# 建立一个区块链随机数生成器- LogRocket 博客
+# 建立一个区块链随机数生成器
 
 > 原文：<https://blog.logrocket.com/build-random-number-generator-blockchain/>
 

@@ -1,4 +1,4 @@
-# Kubernetes 日志聚合- LogRocket 博客
+# Kubernetes 日志聚合
 
 > 原文：<https://blog.logrocket.com/kubernetes-log-aggregation/>
 

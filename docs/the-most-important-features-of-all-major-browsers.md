@@ -1,4 +1,4 @@
-# 所有主流浏览器最重要的功能- LogRocket 博客
+# 所有主流浏览器最重要的功能
 
 > 原文：<https://blog.logrocket.com/the-most-important-features-of-all-major-browsers/>
 

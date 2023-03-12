@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中创建和设计自定义按钮
+# 如何在 React Native 中创建和设计自定义按钮
 
 > 原文：<https://blog.logrocket.com/create-style-custom-buttons-react-native/>
 

@@ -1,4 +1,4 @@
-# Next.js 使用 next/image - LogRocket 博客进行自动图像优化
+# Next.js 使用 next/image 进行自动图像优化
 
 > 原文：<https://blog.logrocket.com/next-js-automatic-image-optimization-next-image/>
 

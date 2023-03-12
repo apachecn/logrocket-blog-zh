@@ -1,4 +1,4 @@
-# 深入探究 Node.js - LogRocket 博客中的队列
+# 深入探究 Node.js 中的队列
 
 > 原文：<https://blog.logrocket.com/a-deep-dive-into-queues-in-node-js/>
 

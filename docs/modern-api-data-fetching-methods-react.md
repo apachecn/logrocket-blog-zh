@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的现代 API 数据获取方法
+# React 中的现代 API 数据获取方法
 
 > 原文：<https://blog.logrocket.com/modern-api-data-fetching-methods-react/>
 

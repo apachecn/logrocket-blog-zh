@@ -1,4 +1,4 @@
-# 使用 Flutter BoxShadow - LogRocket 博客增强您的移动应用
+# 使用 Flutter BoxShadow 增强您的移动应用
 
 > 原文：<https://blog.logrocket.com/enhance-mobile-apps-with-flutter-boxshadow/>
 

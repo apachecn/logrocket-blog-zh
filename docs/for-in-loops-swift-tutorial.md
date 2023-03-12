@@ -1,4 +1,4 @@
-# Swift 教程中的 for-in 循环- LogRocket 博客
+# Swift 教程中的 for-in 循环
 
 > 原文：<https://blog.logrocket.com/for-in-loops-swift-tutorial/>
 

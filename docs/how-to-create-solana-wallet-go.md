@@ -1,4 +1,4 @@
-# 如何用 Go - LogRocket 博客创建一个 Solana 钱包
+# 如何用 Go 创建一个 Solana 钱包
 
 > 原文：<https://blog.logrocket.com/how-to-create-solana-wallet-go/>
 

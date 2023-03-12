@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用 Wallaby.js
+# 如何在 React 中使用 Wallaby.js
 
 > 原文：<https://blog.logrocket.com/a-guide-to-using-wallaby-js-in-react/>
 

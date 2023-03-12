@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中使用 CSS 变量
+# 在 React Native 中使用 CSS 变量
 
 > 原文：<https://blog.logrocket.com/using-css-variables-react-native/>
 

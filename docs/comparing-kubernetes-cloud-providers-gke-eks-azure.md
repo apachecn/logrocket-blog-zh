@@ -1,4 +1,4 @@
-# 比较 GKE、EKS 和 Azure - LogRocket 博客上的 Kubernetes
+# 比较 GKE、EKS 和 Azure 上的 Kubernetes
 
 > 原文：<https://blog.logrocket.com/comparing-kubernetes-cloud-providers-gke-eks-azure/>
 

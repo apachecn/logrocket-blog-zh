@@ -1,4 +1,4 @@
-# 使用 GitHub Pages - LogRocket 博客自动构建和部署 Vue.js 应用程序
+# 使用 GitHub Pages 自动构建和部署 Vue.js 应用程序
 
 > 原文：<https://blog.logrocket.com/automatically-build-deploy-vuejs-app-github-pages/>
 

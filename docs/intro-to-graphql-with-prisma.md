@@ -1,4 +1,4 @@
-# Prisma - LogRocket 博客介绍 GraphQL
+# Prisma 介绍 GraphQL
 
 > 原文：<https://blog.logrocket.com/intro-to-graphql-with-prisma/>
 

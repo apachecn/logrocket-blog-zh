@@ -1,4 +1,4 @@
-# Go - LogRocket 博客中的类型断言与类型转换
+# Go 中的类型断言与类型转换
 
 > 原文：<https://blog.logrocket.com/type-assertions-vs-type-conversions-go/>
 

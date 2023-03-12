@@ -1,4 +1,4 @@
-# 如何以及为什么使用 React Frontload - LogRocket 博客
+# 如何以及为什么使用 React Frontload 
 
 > 原文：<https://blog.logrocket.com/how-and-why-to-use-react-frontload/>
 

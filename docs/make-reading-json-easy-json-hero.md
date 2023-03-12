@@ -1,4 +1,4 @@
-# 使用 JSON Hero - LogRocket 博客轻松阅读 JSON
+# 使用 JSON Hero 轻松阅读 JSON
 
 > 原文：<https://blog.logrocket.com/make-reading-json-easy-json-hero/>
 

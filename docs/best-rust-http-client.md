@@ -1,4 +1,4 @@
-# 如何选择合适的 Rust HTTP 客户端- LogRocket 博客
+# 如何选择合适的 Rust HTTP 客户端
 
 > 原文：<https://blog.logrocket.com/best-rust-http-client/>
 

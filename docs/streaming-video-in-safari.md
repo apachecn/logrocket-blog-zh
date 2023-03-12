@@ -1,4 +1,4 @@
-# Safari 中的流媒体视频:为什么这么难？- LogRocket 博客
+# Safari 中的流媒体视频:为什么这么难？
 
 > 原文：<https://blog.logrocket.com/streaming-video-in-safari/>
 

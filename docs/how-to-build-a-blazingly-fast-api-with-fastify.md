@@ -1,4 +1,4 @@
-# 如何用 Fastify - LogRocket 博客构建一个速度惊人的 API
+# 如何用 Fastify 构建一个速度惊人的 API
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-blazingly-fast-api-with-fastify/>
 

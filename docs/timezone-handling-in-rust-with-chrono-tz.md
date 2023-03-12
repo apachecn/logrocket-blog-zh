@@ -1,4 +1,4 @@
-# 用 Chrono-TZ - LogRocket 博客处理 Rust 中的时区
+# 用 Chrono-TZ 处理 Rust 中的时区
 
 > 原文：<https://blog.logrocket.com/timezone-handling-in-rust-with-chrono-tz/>
 

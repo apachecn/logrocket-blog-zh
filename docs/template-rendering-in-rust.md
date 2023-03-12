@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的模板渲染
+# Rust 中的模板渲染
 
 > 原文：<https://blog.logrocket.com/template-rendering-in-rust/>
 

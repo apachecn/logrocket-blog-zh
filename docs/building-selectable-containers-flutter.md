@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建可选容器
+# 在 Flutter 中构建可选容器
 
 > 原文：<https://blog.logrocket.com/building-selectable-containers-flutter/>
 

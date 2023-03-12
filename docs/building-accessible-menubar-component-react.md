@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客构建一个可访问的菜单栏组件
+# 使用 React 构建一个可访问的菜单栏组件
 
 > 原文：<https://blog.logrocket.com/building-accessible-menubar-component-react/>
 

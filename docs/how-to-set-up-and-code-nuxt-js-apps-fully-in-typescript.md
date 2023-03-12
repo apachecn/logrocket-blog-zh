@@ -1,4 +1,4 @@
-# 如何在 TypeScript - LogRocket 博客中完整地设置和编写 Nuxt.js 应用程序
+# 如何在 TypeScript 中完整地设置和编写 Nuxt.js 应用程序
 
 > 原文：<https://blog.logrocket.com/how-to-set-up-and-code-nuxt-js-apps-fully-in-typescript/>
 

@@ -1,4 +1,4 @@
-# 从 React 16 - LogRocket 博客中的 setState 返回 null
+# 从 React 16 中的 setState 返回 null
 
 > 原文：<https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/>
 

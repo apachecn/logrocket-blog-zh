@@ -1,4 +1,4 @@
-# 充分利用 Chrome 开发工具:第 2 部分- LogRocket 博客
+# 充分利用 Chrome 开发工具:第 2 部分
 
 > 原文：<https://blog.logrocket.com/making-the-most-of-the-chrome-developer-tools-part-2-4aa347970b30/>
 

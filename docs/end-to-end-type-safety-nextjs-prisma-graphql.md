@@ -1,4 +1,4 @@
-# Next.js、Prisma 和 GraphQL - LogRocket 博客的端到端类型安全
+# Next.js、Prisma 和 GraphQL 的端到端类型安全
 
 > 原文：<https://blog.logrocket.com/end-to-end-type-safety-nextjs-prisma-graphql/>
 

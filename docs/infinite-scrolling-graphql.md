@@ -1,4 +1,4 @@
-# 无限滚动 GraphQL - LogRocket 博客
+# 无限滚动 GraphQL 
 
 > 原文：<https://blog.logrocket.com/infinite-scrolling-graphql/>
 

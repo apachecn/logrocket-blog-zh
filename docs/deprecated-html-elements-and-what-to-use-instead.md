@@ -1,4 +1,4 @@
-# 弃用的 HTML 元素(以及用什么代替)- LogRocket 博客
+# 弃用的 HTML 元素(以及用什么代替)
 
 > 原文：<https://blog.logrocket.com/deprecated-html-elements-and-what-to-use-instead/>
 

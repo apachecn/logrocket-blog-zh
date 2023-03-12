@@ -1,4 +1,4 @@
-# 如何用 WebAssembly 为 Go - LogRocket 博客制作井字机器人
+# 如何用 WebAssembly 为 Go 制作井字机器人
 
 > 原文：<https://blog.logrocket.com/how-to-make-a-tic-tac-toe-bot-with-webassembly-for-go-e01800a874c9/>
 

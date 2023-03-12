@@ -1,4 +1,4 @@
-# 如何使用 Instadapp - LogRocket 博客管理 DeFi 事务
+# 如何使用 Instadapp 管理 DeFi 事务
 
 > 原文：<https://blog.logrocket.com/how-to-manage-defi-transactions-instadapp/>
 

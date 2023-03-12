@@ -1,4 +1,4 @@
-# GraphQL API - LogRocket 博客中的权限完整指南
+# GraphQL API 中的权限完整指南
 
 > 原文：<https://blog.logrocket.com/a-complete-guide-to-permissions-in-a-graphql-api/>
 

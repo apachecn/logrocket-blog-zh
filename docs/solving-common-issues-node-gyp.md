@@ -1,4 +1,4 @@
-# 使用 node-gyp - LogRocket 博客解决常见问题
+# 使用 node-gyp 解决常见问题
 
 > 原文：<https://blog.logrocket.com/solving-common-issues-node-gyp/>
 

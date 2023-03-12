@@ -1,4 +1,4 @@
-# 全栈 web 开发人员的安全性:第 1 部分- LogRocket 博客
+# 全栈 web 开发人员的安全性:第 1 部分
 
 > 原文：<https://blog.logrocket.com/security-for-fullstack-web-developers-part-1-a56340283f7c/>
 

@@ -1,4 +1,4 @@
-# Safari 是下一个 Internet Explorer 吗？- LogRocket 博客
+# Safari 是下一个 Internet Explorer 吗？
 
 > 原文：<https://blog.logrocket.com/safari-next-internet-explorer/>
 

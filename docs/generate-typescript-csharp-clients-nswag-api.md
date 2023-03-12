@@ -1,4 +1,4 @@
-# 基于 API - LogRocket 博客使用 NSwag 生成 TypeScript 和 C#客户端
+# 基于 API 使用 NSwag 生成 TypeScript 和 C#客户端
 
 > 原文：<https://blog.logrocket.com/generate-typescript-csharp-clients-nswag-api/>
 

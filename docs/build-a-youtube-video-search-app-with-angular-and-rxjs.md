@@ -1,4 +1,4 @@
-# 用 Angular 和 RxJS - LogRocket 博客搭建一个 YouTube 视频搜索 app
+# 用 Angular 和 RxJS 搭建一个 YouTube 视频搜索 app
 
 > 原文：<https://blog.logrocket.com/build-a-youtube-video-search-app-with-angular-and-rxjs/>
 

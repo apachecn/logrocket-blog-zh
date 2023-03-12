@@ -1,4 +1,4 @@
-# Rust 中的寻路:示例教程- LogRocket 博客
+# Rust 中的寻路:示例教程
 
 > 原文：<https://blog.logrocket.com/pathfinding-rust-tutorial-examples/>
 

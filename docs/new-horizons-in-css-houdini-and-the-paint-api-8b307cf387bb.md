@@ -1,4 +1,4 @@
-# CSS 中的新视野:胡迪尼和画图 API - LogRocket 博客
+# CSS 中的新视野:胡迪尼和画图 API 
 
 > 原文：<https://blog.logrocket.com/new-horizons-in-css-houdini-and-the-paint-api-8b307cf387bb/>
 

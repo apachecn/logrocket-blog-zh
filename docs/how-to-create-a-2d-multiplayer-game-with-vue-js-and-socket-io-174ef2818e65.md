@@ -1,4 +1,4 @@
-# 如何用 Vue.js 和 Socket.io 创建 2D 多人游戏- LogRocket 博客
+# 如何用 Vue.js 和 Socket.io 创建 2D 多人游戏
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-2d-multiplayer-game-with-vue-js-and-socket-io-174ef2818e65/>
 

@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中集成 Braintree 支付系统
+# 如何在 React 中集成 Braintree 支付系统
 
 > 原文：<https://blog.logrocket.com/integrate-braintree-payment-system-react/>
 

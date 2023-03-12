@@ -1,4 +1,4 @@
-# React - LogRocket 博客中关于加载、错误和空状态的 UI 最佳实践
+# React 中关于加载、错误和空状态的 UI 最佳实践
 
 > 原文：<https://blog.logrocket.com/ui-design-best-practices-loading-error-empty-state-react/>
 

@@ -1,4 +1,4 @@
-# React Native - LogRocket 博客中使用 Redux 的综合指南
+# React Native 中使用 Redux 的综合指南
 
 > 原文：<https://blog.logrocket.com/comprehensive-guide-to-using-redux-in-react-native/>
 

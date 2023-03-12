@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建卡片小部件
+# 在 Flutter 中构建卡片小部件
 
 > 原文：<https://blog.logrocket.com/building-a-card-widget-in-flutter/>
 

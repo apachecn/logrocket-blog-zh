@@ -1,4 +1,4 @@
-# Guess.js 和 Gatsby 站点优化- LogRocket 博客
+# Guess.js 和 Gatsby 站点优化
 
 > 原文：<https://blog.logrocket.com/guess-js-gatsby-site-optimization/>
 

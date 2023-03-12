@@ -1,4 +1,4 @@
-# 如何用 Strapi、Vue.js 和 Flutterwave - LogRocket 博客建立一个电子商务网站
+# 如何用 Strapi、Vue.js 和 Flutterwave 建立一个电子商务网站
 
 > 原文：<https://blog.logrocket.com/how-to-build-an-ecommerce-site-with-strapi-vue-js-and-flutterwave/>
 

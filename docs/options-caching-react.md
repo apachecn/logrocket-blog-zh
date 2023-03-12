@@ -1,4 +1,4 @@
-# React - LogRocket 博客中优化缓存的选项
+# React 中优化缓存的选项
 
 > 原文：<https://blog.logrocket.com/options-caching-react/>
 

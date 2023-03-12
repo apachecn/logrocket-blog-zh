@@ -1,4 +1,4 @@
-# 比较 Kotlin 范围函数- LogRocket 博客
+# 比较 Kotlin 范围函数
 
 > 原文：<https://blog.logrocket.com/comparing-kotlin-scope-functions/>
 

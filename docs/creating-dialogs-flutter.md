@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中创建对话框
+# 在 Flutter 中创建对话框
 
 > 原文：<https://blog.logrocket.com/creating-dialogs-flutter/>
 

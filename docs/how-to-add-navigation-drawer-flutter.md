@@ -1,4 +1,4 @@
-# 如何在 Flutter - LogRocket 博客中添加导航抽屉
+# 如何在 Flutter 中添加导航抽屉
 
 > 原文：<https://blog.logrocket.com/how-to-add-navigation-drawer-flutter/>
 

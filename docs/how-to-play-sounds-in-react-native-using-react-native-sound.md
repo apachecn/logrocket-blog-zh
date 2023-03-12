@@ -1,4 +1,4 @@
-# 如何使用 react-native-sound - LogRocket 博客在 React Native 中播放声音
+# 如何使用 react-native-sound 在 React Native 中播放声音
 
 > 原文：<https://blog.logrocket.com/how-to-play-sounds-in-react-native-using-react-native-sound/>
 

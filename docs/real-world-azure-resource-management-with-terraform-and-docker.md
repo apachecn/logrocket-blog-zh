@@ -1,4 +1,4 @@
-# 使用 Terraform 和 Docker - LogRocket 博客进行真实世界的 Azure 资源管理
+# 使用 Terraform 和 Docker 进行真实世界的 Azure 资源管理
 
 > 原文：<https://blog.logrocket.com/real-world-azure-resource-management-with-terraform-and-docker/>
 

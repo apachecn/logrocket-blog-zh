@@ -1,4 +1,4 @@
-# 在 JavaScript - LogRocket 博客中编写 VS 代码扩展
+# 在 JavaScript 中编写 VS 代码扩展
 
 > 原文：<https://blog.logrocket.com/writing-vs-code-extensions-in-javascript/>
 

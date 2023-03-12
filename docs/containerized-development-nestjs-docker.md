@@ -1,4 +1,4 @@
-# 使用 NestJS 和 Docker - LogRocket 博客进行容器化开发
+# 使用 NestJS 和 Docker 进行容器化开发
 
 > 原文：<https://blog.logrocket.com/containerized-development-nestjs-docker/>
 

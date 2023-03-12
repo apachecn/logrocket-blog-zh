@@ -1,4 +1,4 @@
-# 你的电子商务中缺少什么？- LogRocket 博客
+# 你的电子商务中缺少什么？
 
 > 原文：<https://blog.logrocket.com/whats-missing-in-your-ecommerce-stack/>
 

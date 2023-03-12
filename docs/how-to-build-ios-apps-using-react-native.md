@@ -1,4 +1,4 @@
-# 如何使用 React Native - LogRocket 博客构建 iOS 应用
+# 如何使用 React Native 构建 iOS 应用
 
 > 原文：<https://blog.logrocket.com/how-to-build-ios-apps-using-react-native/>
 

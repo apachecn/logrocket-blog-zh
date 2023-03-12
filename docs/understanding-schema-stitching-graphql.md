@@ -1,4 +1,4 @@
-# 理解 GraphQL - LogRocket 博客中的模式拼接
+# 理解 GraphQL 中的模式拼接
 
 > 原文：<https://blog.logrocket.com/understanding-schema-stitching-graphql/>
 

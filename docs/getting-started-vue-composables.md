@@ -1,4 +1,4 @@
-# Vue 组件入门- LogRocket 博客
+# Vue 组件入门
 
 > 原文：<https://blog.logrocket.com/getting-started-vue-composables/>
 

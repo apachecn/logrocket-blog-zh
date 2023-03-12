@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中构建一个位置分析报告 API
+# 在 Node.js 中构建一个位置分析报告 API
 
 > 原文：<https://blog.logrocket.com/build-a-location-analytics-api-in-node-js/>
 

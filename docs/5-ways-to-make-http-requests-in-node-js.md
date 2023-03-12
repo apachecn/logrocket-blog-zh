@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中进行 HTTP 请求的 5 种方法
+# 在 Node.js 中进行 HTTP 请求的 5 种方法
 
 > 原文：<https://blog.logrocket.com/5-ways-to-make-http-requests-in-node-js/>
 

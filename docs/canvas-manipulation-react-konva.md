@@ -1,4 +1,4 @@
-# React Konva - LogRocket 博客画布操作指南
+# React Konva 画布操作指南
 
 > 原文：<https://blog.logrocket.com/canvas-manipulation-react-konva/>
 

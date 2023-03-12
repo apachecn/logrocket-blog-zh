@@ -1,4 +1,4 @@
-# React apps - LogRocket 博客中的 React 路由器 v6 使用指南
+# React apps 中的 React 路由器 v6 使用指南
 
 > 原文：<https://blog.logrocket.com/react-router-v6/>
 

@@ -1,4 +1,4 @@
-# 在 React with uniforms - LogRocket 博客中快速构建基于模式的表单
+# 在 React with uniforms 中快速构建基于模式的表单
 
 > 原文：<https://blog.logrocket.com/quickly-build-schema-based-forms-in-react-with-uniforms/>
 

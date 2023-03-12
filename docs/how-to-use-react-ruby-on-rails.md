@@ -1,4 +1,4 @@
-# 如何使用 React 与 Ruby on Rails - LogRocket 博客
+# 如何使用 React 与 Ruby on Rails 
 
 > 原文：<https://blog.logrocket.com/how-to-use-react-ruby-on-rails/>
 

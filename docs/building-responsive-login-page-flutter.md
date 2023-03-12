@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中构建响应性登录页面
+# 在 Flutter 中构建响应性登录页面
 
 > 原文：<https://blog.logrocket.com/building-responsive-login-page-flutter/>
 

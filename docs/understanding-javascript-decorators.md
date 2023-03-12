@@ -1,4 +1,4 @@
-# 理解 JavaScript decorators - LogRocket 博客
+# 理解 JavaScript decorators 
 
 > 原文：<https://blog.logrocket.com/understanding-javascript-decorators/>
 

@@ -1,4 +1,4 @@
-# 探索新的 Stripe React Native SDK - LogRocket 博客
+# 探索新的 Stripe React Native SDK 
 
 > 原文：<https://blog.logrocket.com/exploring-the-new-stripe-react-native-sdk/>
 

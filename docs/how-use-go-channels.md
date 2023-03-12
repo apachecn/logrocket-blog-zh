@@ -1,4 +1,4 @@
-# 如何使用 Go 频道- LogRocket 博客
+# 如何使用 Go 频道
 
 > 原文：<https://blog.logrocket.com/how-use-go-channels/>
 

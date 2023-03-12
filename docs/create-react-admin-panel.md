@@ -1,4 +1,4 @@
-# 如何创建 React 管理面板- LogRocket 博客
+# 如何创建 React 管理面板
 
 > 原文：<https://blog.logrocket.com/create-react-admin-panel/>
 

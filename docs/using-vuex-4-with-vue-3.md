@@ -1,4 +1,4 @@
-# 使用 Vuex 4 和 Vue 3 - LogRocket 博客
+# 使用 Vuex 4 和 Vue 3 
 
 > 原文：<https://blog.logrocket.com/using-vuex-4-with-vue-3/>
 

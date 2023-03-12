@@ -1,4 +1,4 @@
-# 使用 Vue JS - LogRocket 博客中的渲染函数访问虚拟 DOM
+# 使用 Vue JS 中的渲染函数访问虚拟 DOM
 
 > 原文：<https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/>
 

@@ -1,4 +1,4 @@
-# 使用 Denoflare - LogRocket 博客开发、测试和部署 Cloudflare 工作人员
+# 使用 Denoflare 开发、测试和部署 Cloudflare 工作人员
 
 > 原文：<https://blog.logrocket.com/develop-test-deploy-cloudflare-workers-denoflare/>
 

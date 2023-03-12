@@ -1,4 +1,4 @@
-# 使用 React、GitHub 操作和 Heroku - LogRocket 博客的 CI/CD 管道
+# 使用 React、GitHub 操作和 Heroku 的 CI/CD 管道
 
 > 原文：<https://blog.logrocket.com/ci-cd-pipelines-react-github-actions-heroku/>
 

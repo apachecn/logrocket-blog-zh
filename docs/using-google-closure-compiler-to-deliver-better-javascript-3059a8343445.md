@@ -1,4 +1,4 @@
-# 使用 Google Closure 编译器交付更好的 JavaScript - LogRocket 博客
+# 使用 Google Closure 编译器交付更好的 JavaScript 
 
 > 原文：<https://blog.logrocket.com/using-google-closure-compiler-to-deliver-better-javascript-3059a8343445/>
 

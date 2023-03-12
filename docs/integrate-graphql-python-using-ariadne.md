@@ -1,4 +1,4 @@
-# 使用 Ariadne - LogRocket 博客将 GraphQL 集成到 Python 中
+# 使用 Ariadne 将 GraphQL 集成到 Python 中
 
 > 原文：<https://blog.logrocket.com/integrate-graphql-python-using-ariadne/>
 

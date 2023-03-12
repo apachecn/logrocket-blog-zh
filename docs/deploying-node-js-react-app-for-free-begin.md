@@ -1,4 +1,4 @@
-# 使用 Begin - LogRocket 博客免费部署全栈 Node.js + React 应用程序
+# 使用 Begin 免费部署全栈 Node.js + React 应用程序
 
 > 原文：<https://blog.logrocket.com/deploying-node-js-react-app-for-free-begin/>
 

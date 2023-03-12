@@ -1,4 +1,4 @@
-# 浮动 UI 入门- LogRocket 博客
+# 浮动 UI 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-floating-ui/>
 

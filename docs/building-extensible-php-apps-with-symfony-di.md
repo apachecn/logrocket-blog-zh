@@ -1,4 +1,4 @@
-# 使用 Symfony DI - LogRocket 博客构建可扩展的 PHP 应用程序
+# 使用 Symfony DI 构建可扩展的 PHP 应用程序
 
 > 原文：<https://blog.logrocket.com/building-extensible-php-apps-with-symfony-di/>
 

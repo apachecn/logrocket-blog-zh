@@ -1,4 +1,4 @@
-# React 是一个黑盒。这有什么关系？- LogRocket 博客
+# React 是一个黑盒。这有什么关系？
 
 > 原文：<https://blog.logrocket.com/react-black-box/>
 

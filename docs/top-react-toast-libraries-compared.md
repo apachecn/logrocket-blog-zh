@@ -1,4 +1,4 @@
-# Top React toast 库比较- LogRocket 博客
+# Top React toast 库比较
 
 > 原文：<https://blog.logrocket.com/top-react-toast-libraries-compared/>
 

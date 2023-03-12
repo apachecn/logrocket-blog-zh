@@ -1,4 +1,4 @@
-# 使用 Node.js - LogRocket 博客进行服务器端 A/B 测试
+# 使用 Node.js 进行服务器端 A/B 测试
 
 > 原文：<https://blog.logrocket.com/server-side-a-b-testing-node-js/>
 

@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中构建一个简单的游戏
+# 如何在 React Native 中构建一个简单的游戏
 
 > 原文：<https://blog.logrocket.com/react-native-game-development-tutorial/>
 

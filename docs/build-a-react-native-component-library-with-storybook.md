@@ -1,4 +1,4 @@
-# 用 Storybook - LogRocket 博客构建一个 React 原生组件库
+# 用 Storybook 构建一个 React 原生组件库
 
 > 原文：<https://blog.logrocket.com/build-a-react-native-component-library-with-storybook/>
 

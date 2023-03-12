@@ -1,4 +1,4 @@
-# 在 Svelte - LogRocket 博客中实现本地化
+# 在 Svelte 中实现本地化
 
 > 原文：<https://blog.logrocket.com/implementing-localization-svelte/>
 

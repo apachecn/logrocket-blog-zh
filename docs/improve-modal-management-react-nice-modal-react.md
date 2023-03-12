@@ -1,4 +1,4 @@
-# 使用 nice-modal-react - LogRocket 博客改进 React 中的模态管理
+# 使用 nice-modal-react 改进 React 中的模态管理
 
 > 原文：<https://blog.logrocket.com/improve-modal-management-react-nice-modal-react/>
 

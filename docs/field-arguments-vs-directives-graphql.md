@@ -1,4 +1,4 @@
-# GraphQL - LogRocket 博客中的字段参数与指令
+# GraphQL 中的字段参数与指令
 
 > 原文：<https://blog.logrocket.com/field-arguments-vs-directives-graphql/>
 

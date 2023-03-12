@@ -1,4 +1,4 @@
-# 用 VueUse - LogRocket 博客增强你的 Vue.js 和 Nuxt.js 应用
+# 用 VueUse 增强你的 Vue.js 和 Nuxt.js 应用
 
 > 原文：<https://blog.logrocket.com/supercharge-vue-js-nuxt-js-apps-vueuse/>
 

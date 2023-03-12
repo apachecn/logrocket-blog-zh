@@ -1,4 +1,4 @@
-# 用 go-echarts - LogRocket 博客可视化 Golang 中的数据
+# 用 go-echarts 可视化 Golang 中的数据
 
 > 原文：<https://blog.logrocket.com/visualizing-data-go-echarts/>
 

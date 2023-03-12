@@ -1,4 +1,4 @@
-# 使用 React frontend - LogRocket 博客构建多租户 Amplify 应用程序
+# 使用 React frontend 构建多租户 Amplify 应用程序
 
 > 原文：<https://blog.logrocket.com/multi-tenant-amplify-app-react-frontend/>
 

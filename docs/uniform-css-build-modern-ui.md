@@ -1,4 +1,4 @@
-# 使用统一 CSS 构建现代 UI - LogRocket 博客
+# 使用统一 CSS 构建现代 UI 
 
 > 原文：<https://blog.logrocket.com/uniform-css-build-modern-ui/>
 

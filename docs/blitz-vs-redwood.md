@@ -1,4 +1,4 @@
-# Blitz.js vs. RedwoodJS - LogRocket 博客
+# Blitz.js vs. RedwoodJS 
 
 > 原文：<https://blog.logrocket.com/blitz-vs-redwood/>
 

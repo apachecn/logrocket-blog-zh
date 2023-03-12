@@ -1,4 +1,4 @@
-# 2021 年十大 VS 代码扩展- LogRocket 博客
+# 2021 年十大 VS 代码扩展
 
 > 原文：<https://blog.logrocket.com/top-10-vs-code-extensions-2021/>
 

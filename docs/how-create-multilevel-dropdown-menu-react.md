@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中创建多级下拉菜单
+# 如何在 React 中创建多级下拉菜单
 
 > 原文：<https://blog.logrocket.com/how-create-multilevel-dropdown-menu-react/>
 

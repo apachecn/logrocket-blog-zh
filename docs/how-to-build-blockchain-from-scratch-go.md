@@ -1,4 +1,4 @@
-# 如何用 Go - LogRocket 博客从零开始构建区块链
+# 如何用 Go 从零开始构建区块链
 
 > 原文：<https://blog.logrocket.com/how-to-build-blockchain-from-scratch-go/>
 

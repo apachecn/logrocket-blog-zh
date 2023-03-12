@@ -1,4 +1,4 @@
-# Chrome 78 - LogRocket 博客有什么新内容
+# Chrome 78 有什么新内容
 
 > 原文：<https://blog.logrocket.com/whats-new-in-chrome-78/>
 

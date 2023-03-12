@@ -1,4 +1,4 @@
-# 通过示例学习 React 门户- LogRocket 博客
+# 通过示例学习 React 门户
 
 > 原文：<https://blog.logrocket.com/learn-react-portals-example/>
 

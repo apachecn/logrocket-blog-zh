@@ -1,4 +1,4 @@
-# 基于区块链的 7 大数据库- LogRocket 博客
+# 基于区块链的 7 大数据库
 
 > 原文：<https://blog.logrocket.com/top-7-blockchain-based-databases/>
 

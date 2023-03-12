@@ -1,4 +1,4 @@
-# 2020 年十大 React 组件库- LogRocket 博客
+# 2020 年十大 React 组件库
 
 > 原文：<https://blog.logrocket.com/top-10-react-component-libraries-for-2020/>
 

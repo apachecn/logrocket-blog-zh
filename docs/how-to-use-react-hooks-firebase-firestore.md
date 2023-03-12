@@ -1,4 +1,4 @@
-# 如何使用 Firebase Firestore - LogRocket 博客的 React 挂钩
+# 如何使用 Firebase Firestore 的 React 挂钩
 
 > 原文：<https://blog.logrocket.com/how-to-use-react-hooks-firebase-firestore/>
 

@@ -1,4 +1,4 @@
-# 如何在 Vue 3 - LogRocket 博客中使用 props 向子组件传递数据
+# 如何在 Vue 3 中使用 props 向子组件传递数据
 
 > 原文：<https://blog.logrocket.com/use-props-pass-data-child-components-vue-3/>
 

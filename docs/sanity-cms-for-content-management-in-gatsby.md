@@ -1,4 +1,4 @@
-# Gatsby - LogRocket 博客中用于无头内容管理的 Sanity CMS
+# Gatsby 中用于无头内容管理的 Sanity CMS
 
 > 原文：<https://blog.logrocket.com/sanity-cms-for-content-management-in-gatsby/>
 

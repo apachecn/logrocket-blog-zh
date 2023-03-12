@@ -1,4 +1,4 @@
-# 用 Python - LogRocket 博客实现密码学
+# 用 Python 实现密码学
 
 > 原文：<https://blog.logrocket.com/implementing-cryptography-python/>
 

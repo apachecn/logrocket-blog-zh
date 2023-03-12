@@ -1,4 +1,4 @@
-# 了解渐进式改进- LogRocket 博客
+# 了解渐进式改进
 
 > 原文：<https://blog.logrocket.com/understanding-progressive-enhancement/>
 

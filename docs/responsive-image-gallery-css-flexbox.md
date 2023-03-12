@@ -1,4 +1,4 @@
-# 如何用 CSS flexbox - LogRocket 博客创建一个响应式图库
+# 如何用 CSS flexbox 创建一个响应式图库
 
 > 原文：<https://blog.logrocket.com/responsive-image-gallery-css-flexbox/>
 

@@ -1,4 +1,4 @@
-# React 本地导航指南- LogRocket 博客
+# React 本地导航指南
 
 > 原文：<https://blog.logrocket.com/guide-react-native-navigation/>
 

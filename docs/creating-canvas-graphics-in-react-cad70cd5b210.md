@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中创建画布图形
+# 在 React 中创建画布图形
 
 > 原文：<https://blog.logrocket.com/creating-canvas-graphics-in-react-cad70cd5b210/>
 

@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中 CSV 文件的完整指南
+# Node.js 中 CSV 文件的完整指南
 
 > 原文：<https://blog.logrocket.com/complete-guide-csv-files-node-js/>
 

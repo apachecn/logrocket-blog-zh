@@ -1,4 +1,4 @@
-# 使用 Fabric.js 和 React - LogRocket 博客构建室内地图
+# 使用 Fabric.js 和 React 构建室内地图
 
 > 原文：<https://blog.logrocket.com/build-indoor-maps-fabric-js-react/>
 

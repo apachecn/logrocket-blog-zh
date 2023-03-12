@@ -1,4 +1,4 @@
-# 使用 asdf - LogRocket 博客管理 Node.js 版本
+# 使用 asdf 管理 Node.js 版本
 
 > 原文：<https://blog.logrocket.com/manage-node-js-versions-using-asdf/>
 

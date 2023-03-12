@@ -1,4 +1,4 @@
-# 使用 QA Wolf - LogRocket 博客进行 UI 测试
+# 使用 QA Wolf 进行 UI 测试
 
 > 原文：<https://blog.logrocket.com/ui-testing-using-qa-wolf/>
 

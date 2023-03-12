@@ -1,4 +1,4 @@
-# React 和 React Native - LogRocket 博客对 Lefthook 的深入研究
+# React 和 React Native 对 Lefthook 的深入研究
 
 > 原文：<https://blog.logrocket.com/deep-dive-into-lefthook-react-native/>
 

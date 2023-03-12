@@ -1,4 +1,4 @@
-# 用 Tonic - LogRocket 博客构建 Jamstack 友好的组件
+# 用 Tonic 构建 Jamstack 友好的组件
 
 > 原文：<https://blog.logrocket.com/building-jamstack-friendly-components-with-tonic/>
 

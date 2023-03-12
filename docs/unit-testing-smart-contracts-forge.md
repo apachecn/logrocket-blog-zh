@@ -1,4 +1,4 @@
-# 用 Forge - LogRocket 博客进行单元测试和部署智能合约
+# 用 Forge 进行单元测试和部署智能合约
 
 > 原文：<https://blog.logrocket.com/unit-testing-smart-contracts-forge/>
 

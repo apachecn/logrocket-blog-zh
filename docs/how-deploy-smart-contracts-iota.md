@@ -1,4 +1,4 @@
-# 如何在 IOTA - LogRocket 博客上部署智能合同
+# 如何在 IOTA 上部署智能合同
 
 > 原文：<https://blog.logrocket.com/how-deploy-smart-contracts-iota/>
 

@@ -1,4 +1,4 @@
-# 如何在 React app - LogRocket 博客中实现输入友好的搜索组件
+# 如何在 React app 中实现输入友好的搜索组件
 
 > 原文：<https://blog.logrocket.com/implement-typo-friendly-search-react/>
 

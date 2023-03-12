@@ -1,4 +1,4 @@
-# 在 Google Chrome - LogRocket 博客中使用新的流性能监视器
+# 在 Google Chrome 中使用新的流性能监视器
 
 > 原文：<https://blog.logrocket.com/using-the-new-streaming-performance-monitor-in-google-chrome-d3019afe95e4/>
 

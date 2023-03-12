@@ -1,4 +1,4 @@
-# 比较 React 树组件- LogRocket 博客
+# 比较 React 树组件
 
 > 原文：<https://blog.logrocket.com/comparing-react-tree-components/>
 

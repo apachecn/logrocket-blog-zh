@@ -1,4 +1,4 @@
-# 探索 Go - LogRocket 博客中的结构和接口
+# 探索 Go 中的结构和接口
 
 > 原文：<https://blog.logrocket.com/exploring-structs-interfaces-go/>
 

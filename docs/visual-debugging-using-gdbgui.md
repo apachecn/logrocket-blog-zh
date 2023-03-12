@@ -1,4 +1,4 @@
-# 使用 gdbgui - LogRocket 博客进行可视化调试
+# 使用 gdbgui 进行可视化调试
 
 > 原文：<https://blog.logrocket.com/visual-debugging-using-gdbgui/>
 

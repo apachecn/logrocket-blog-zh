@@ -1,4 +1,4 @@
-# 如何在 Rust - LogRocket 博客中创建 GraphQL 服务器
+# 如何在 Rust 中创建 GraphQL 服务器
 
 > 原文：<https://blog.logrocket.com/how-to-create-a-graphql-server-in-rust/>
 

@@ -1,4 +1,4 @@
-# 了解 Kotlin 泛型- LogRocket 博客
+# 了解 Kotlin 泛型
 
 > 原文：<https://blog.logrocket.com/understanding-kotlin-generics/>
 

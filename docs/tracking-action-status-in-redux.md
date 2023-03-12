@@ -1,4 +1,4 @@
-# 在 Redux - LogRocket 博客中跟踪行为状态的方法
+# 在 Redux 中跟踪行为状态的方法
 
 > 原文：<https://blog.logrocket.com/tracking-action-status-in-redux/>
 

@@ -1,4 +1,4 @@
-# 发布 LogRocket 问题管理- LogRocket 博客
+# 发布 LogRocket 问题管理
 
 > 原文：<https://blog.logrocket.com/announcing-logrocket-issue-management/>
 

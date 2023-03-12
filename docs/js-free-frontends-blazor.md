@@ -1,4 +1,4 @@
-# 使用 Blazor - LogRocket 博客的无 JavaScript 前端
+# 使用 Blazor 的无 JavaScript 前端
 
 > 原文：<https://blog.logrocket.com/js-free-frontends-blazor/>
 

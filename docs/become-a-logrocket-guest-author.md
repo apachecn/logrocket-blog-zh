@@ -1,4 +1,4 @@
-# 成为 LogRocket 客座作者- LogRocket 博客
+# 成为 LogRocket 客座作者
 
 > 原文：<https://blog.logrocket.com/become-a-logrocket-guest-author/>
 

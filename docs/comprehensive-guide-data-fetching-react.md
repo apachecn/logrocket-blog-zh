@@ -1,4 +1,4 @@
-# React - LogRocket 博客中的数据获取综合指南
+# React 中的数据获取综合指南
 
 > 原文：<https://blog.logrocket.com/comprehensive-guide-data-fetching-react/>
 

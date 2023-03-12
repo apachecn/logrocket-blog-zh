@@ -1,4 +1,4 @@
-# 用 CSS - LogRocket 博客构建一个进度时钟
+# 用 CSS 构建一个进度时钟
 
 > 原文：<https://blog.logrocket.com/building-progress-clock-css/>
 

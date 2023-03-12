@@ -1,4 +1,4 @@
-# 深度克隆 JavaScript - LogRocket 博客中对象的方法
+# 深度克隆 JavaScript 中对象的方法
 
 > 原文：<https://blog.logrocket.com/methods-for-deep-cloning-objects-in-javascript/>
 

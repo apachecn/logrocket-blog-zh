@@ -1,4 +1,4 @@
-# 用 GraphQL - LogRocket 博客构建一个脏话过滤 API
+# 用 GraphQL 构建一个脏话过滤 API
 
 > 原文：<https://blog.logrocket.com/build-profanity-filter-api-graphql/>
 

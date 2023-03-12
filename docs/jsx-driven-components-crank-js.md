@@ -1,4 +1,4 @@
-# JSX 驱动的组件与 Crank.js - LogRocket 博客
+# JSX 驱动的组件与 Crank.js 
 
 > 原文：<https://blog.logrocket.com/jsx-driven-components-crank-js/>
 

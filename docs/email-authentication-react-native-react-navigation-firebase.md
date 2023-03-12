@@ -1,4 +1,4 @@
-# 使用 React Native、react-navigation 和 Firebase - LogRocket 博客设置电子邮件身份验证
+# 使用 React Native、react-navigation 和 Firebase 设置电子邮件身份验证
 
 > 原文：<https://blog.logrocket.com/email-authentication-react-native-react-navigation-firebase/>
 

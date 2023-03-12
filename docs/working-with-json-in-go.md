@@ -1,4 +1,4 @@
-# 为 Go - LogRocket 博客配置 JSON
+# 为 Go 配置 JSON
 
 > 原文：<https://blog.logrocket.com/working-with-json-in-go/>
 

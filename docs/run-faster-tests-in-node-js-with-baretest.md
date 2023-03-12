@@ -1,4 +1,4 @@
-# 使用 Baretest - LogRocket 博客在 Node.js 中运行更快的测试
+# 使用 Baretest 在 Node.js 中运行更快的测试
 
 > 原文：<https://blog.logrocket.com/run-faster-tests-in-node-js-with-baretest/>
 

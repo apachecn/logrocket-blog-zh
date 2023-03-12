@@ -1,4 +1,4 @@
-# 用 JavaScript console - LogRocket 博客保持简单
+# 用 JavaScript console 保持简单
 
 > 原文：<https://blog.logrocket.com/keeping-it-simple-with-the-javascript-console/>
 

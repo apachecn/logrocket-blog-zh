@@ -1,4 +1,4 @@
-# GraphQL 代码生成器 1.5 出来了！- LogRocket 博客
+# GraphQL 代码生成器 1.5 出来了！
 
 > 原文：<https://blog.logrocket.com/graphql-code-generator-1-5-is-out/>
 

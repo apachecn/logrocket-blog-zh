@@ -1,4 +1,4 @@
-# 在 Vue.js - LogRocket 博客中渲染大型数据集
+# 在 Vue.js 中渲染大型数据集
 
 > 原文：<https://blog.logrocket.com/rendering-large-datasets-vue-js/>
 

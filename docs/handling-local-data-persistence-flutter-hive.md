@@ -1,4 +1,4 @@
-# 用 Hive - LogRocket 博客处理 Flutter 中的本地数据持久性
+# 用 Hive 处理 Flutter 中的本地数据持久性
 
 > 原文：<https://blog.logrocket.com/handling-local-data-persistence-flutter-hive/>
 

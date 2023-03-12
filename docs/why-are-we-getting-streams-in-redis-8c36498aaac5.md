@@ -1,4 +1,4 @@
-# 为什么我们在 Redis 得到流？- LogRocket 博客
+# 为什么我们在 Redis 得到流？
 
 > 原文：<https://blog.logrocket.com/why-are-we-getting-streams-in-redis-8c36498aaac5/>
 

@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中使用 writeFileSync 方法
+# 在 Node.js 中使用 writeFileSync 方法
 
 > 原文：<https://blog.logrocket.com/using-writefilesync-node-js/>
 

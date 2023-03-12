@@ -1,4 +1,4 @@
-# 在 pure Node.js - LogRocket 博客中制作自己的在线电台服务器
+# 在 pure Node.js 中制作自己的在线电台服务器
 
 > 原文：<https://blog.logrocket.com/online-radio-server-pure-node-js/>
 

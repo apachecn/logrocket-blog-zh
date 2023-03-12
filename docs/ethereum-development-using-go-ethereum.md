@@ -1,4 +1,4 @@
-# 使用 Go-Ethereum - LogRocket 博客在 Go 中开发以太坊
+# 使用 Go-Ethereum 在 Go 中开发以太坊
 
 > 原文：<https://blog.logrocket.com/ethereum-development-using-go-ethereum/>
 

@@ -1,4 +1,4 @@
-# 如何在 Unity - LogRocket 博客中检测鼠标移动作为输入
+# 如何在 Unity 中检测鼠标移动作为输入
 
 > 原文：<https://blog.logrocket.com/detect-mouse-movement-input-unity/>
 

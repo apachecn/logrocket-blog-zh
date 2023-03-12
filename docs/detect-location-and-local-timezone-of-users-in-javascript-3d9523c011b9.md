@@ -1,4 +1,4 @@
-# 检测 JavaScript - LogRocket 博客中用户的位置和本地时区
+# 检测 JavaScript 中用户的位置和本地时区
 
 > 原文：<https://blog.logrocket.com/detect-location-and-local-timezone-of-users-in-javascript-3d9523c011b9/>
 

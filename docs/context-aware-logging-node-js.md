@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中的上下文感知日志记录
+# Node.js 中的上下文感知日志记录
 
 > 原文：<https://blog.logrocket.com/context-aware-logging-node-js/>
 

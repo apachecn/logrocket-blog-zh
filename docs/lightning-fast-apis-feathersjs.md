@@ -1,4 +1,4 @@
-# 用 FeathersJS - LogRocket 博客构建快如闪电的 API
+# 用 FeathersJS 构建快如闪电的 API
 
 > 原文：<https://blog.logrocket.com/lightning-fast-apis-feathersjs/>
 

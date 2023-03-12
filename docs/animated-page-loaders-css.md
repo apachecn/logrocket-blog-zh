@@ -1,4 +1,4 @@
-# 如何在 CSS - LogRocket 博客中构建动画页面加载器
+# 如何在 CSS 中构建动画页面加载器
 
 > 原文：<https://blog.logrocket.com/animated-page-loaders-css/>
 

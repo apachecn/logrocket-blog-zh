@@ -1,4 +1,4 @@
-# 用 React - LogRocket 博客构建 Figma 插件
+# 用 React 构建 Figma 插件
 
 > 原文：<https://blog.logrocket.com/building-figma-plugins-with-react/>
 

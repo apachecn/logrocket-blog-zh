@@ -1,4 +1,4 @@
-# 约泰 vs 反冲:有什么区别？- LogRocket 博客
+# 约泰 vs 反冲:有什么区别？
 
 > 原文：<https://blog.logrocket.com/jotai-vs-recoil-what-are-the-differences/>
 

@@ -1,4 +1,4 @@
-# 如何用 charts_flutter - LogRocket 博客创建颤振图表
+# 如何用 charts_flutter 创建颤振图表
 
 > 原文：<https://blog.logrocket.com/how-create-flutter-charts-with-charts-flutter/>
 

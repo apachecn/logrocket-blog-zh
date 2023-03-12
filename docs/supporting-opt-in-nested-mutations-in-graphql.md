@@ -1,4 +1,4 @@
-# 支持 GraphQL - LogRocket 博客中的选择性加入嵌套突变
+# 支持 GraphQL 中的选择性加入嵌套突变
 
 > 原文：<https://blog.logrocket.com/supporting-opt-in-nested-mutations-in-graphql/>
 

@@ -1,4 +1,4 @@
-# 创建一个 Next.js 和 MDX 博客- LogRocket 博客
+# 创建一个 Next.js 和 MDX 博客
 
 > 原文：<https://blog.logrocket.com/create-next-js-mdx-blog/>
 

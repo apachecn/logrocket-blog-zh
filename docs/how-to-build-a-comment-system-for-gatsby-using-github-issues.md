@@ -1,4 +1,4 @@
-# 如何使用 GitHub Issues - LogRocket 博客为盖茨比建立评论系统
+# 如何使用 GitHub Issues 为盖茨比建立评论系统
 
 > 原文：<https://blog.logrocket.com/how-to-build-a-comment-system-for-gatsby-using-github-issues/>
 

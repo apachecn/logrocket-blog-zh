@@ -1,4 +1,4 @@
-# 你应该支持 ie 浏览器吗？- LogRocket 博客
+# 你应该支持 ie 浏览器吗？
 
 > 原文：<https://blog.logrocket.com/should-you-support-internet-explorer/>
 

@@ -1,4 +1,4 @@
-# React 传单教程- LogRocket 博客
+# React 传单教程
 
 > 原文：<https://blog.logrocket.com/react-leaflet-tutorial/>
 

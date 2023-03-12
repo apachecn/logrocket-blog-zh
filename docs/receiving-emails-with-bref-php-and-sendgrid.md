@@ -1,4 +1,4 @@
-# 用 Bref PHP 和 SendGrid - LogRocket 博客接收电子邮件
+# 用 Bref PHP 和 SendGrid 接收电子邮件
 
 > 原文：<https://blog.logrocket.com/receiving-emails-with-bref-php-and-sendgrid/>
 

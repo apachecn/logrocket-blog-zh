@@ -1,4 +1,4 @@
-# 使用 Cython - LogRocket 博客提高 Python 性能
+# 使用 Cython 提高 Python 性能
 
 > 原文：<https://blog.logrocket.com/improve-python-performance-using-cython/>
 

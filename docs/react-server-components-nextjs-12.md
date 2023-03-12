@@ -1,4 +1,4 @@
-# Next.js 12 - LogRocket 博客中的 React 服务器组件
+# Next.js 12 中的 React 服务器组件
 
 > 原文：<https://blog.logrocket.com/react-server-components-nextjs-12/>
 

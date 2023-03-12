@@ -1,4 +1,4 @@
-# 使用 React-Draggable - LogRocket 博客创建可拖动组件
+# 使用 React-Draggable 创建可拖动组件
 
 > 原文：<https://blog.logrocket.com/create-draggable-components-react-draggable/>
 

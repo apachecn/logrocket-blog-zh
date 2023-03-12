@@ -1,4 +1,4 @@
-# 区块链游戏开发指南- LogRocket 博客
+# 区块链游戏开发指南
 
 > 原文：<https://blog.logrocket.com/guide-blockchain-game-development/>
 

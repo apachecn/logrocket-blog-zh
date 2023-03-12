@@ -1,4 +1,4 @@
-# 理解 Vue.js - LogRocket 博客中的$nextTick
+# 理解 Vue.js 中的$nextTick
 
 > 原文：<https://blog.logrocket.com/understanding-nexttick-in-vue-js/>
 

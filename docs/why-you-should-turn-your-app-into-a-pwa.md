@@ -1,4 +1,4 @@
-# 为什么你应该把你的应用变成一个 PWA - LogRocket 博客
+# 为什么你应该把你的应用变成一个 PWA 
 
 > 原文：<https://blog.logrocket.com/why-you-should-turn-your-app-into-a-pwa/>
 

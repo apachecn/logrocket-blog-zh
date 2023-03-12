@@ -1,4 +1,4 @@
-# Laravel Sanctum 教程:鉴定 Nuxt.js SPAs - LogRocket 博客
+# Laravel Sanctum 教程:鉴定 Nuxt.js SPAs 
 
 > 原文：<https://blog.logrocket.com/laravel-sanctum-tutorial-authenticating-nuxt-js-spas/>
 

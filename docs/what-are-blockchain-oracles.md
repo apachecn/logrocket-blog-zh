@@ -1,4 +1,4 @@
-# 什么是区块链神谕？- LogRocket 博客
+# 什么是区块链神谕？
 
 > 原文：<https://blog.logrocket.com/what-are-blockchain-oracles/>
 

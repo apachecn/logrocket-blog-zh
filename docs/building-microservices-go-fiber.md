@@ -1,4 +1,4 @@
-# 使用 Fiber - LogRocket 博客在 Go 中构建微服务
+# 使用 Fiber 在 Go 中构建微服务
 
 > 原文：<https://blog.logrocket.com/building-microservices-go-fiber/>
 

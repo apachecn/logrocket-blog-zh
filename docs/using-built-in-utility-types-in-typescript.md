@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中使用内置实用程序类型
+# 在 TypeScript 中使用内置实用程序类型
 
 > 原文：<https://blog.logrocket.com/using-built-in-utility-types-in-typescript/>
 

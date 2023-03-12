@@ -1,4 +1,4 @@
-# Laravel 望远镜入门:它能为你做什么？- LogRocket 博客
+# Laravel 望远镜入门:它能为你做什么？
 
 > 原文：<https://blog.logrocket.com/getting-started-with-laravel-telescope-what-can-it-do-for-you-719aaef07941/>
 

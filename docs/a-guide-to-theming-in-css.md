@@ -1,4 +1,4 @@
-# CSS - LogRocket 博客主题化指南
+# CSS 主题化指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-theming-in-css/>
 

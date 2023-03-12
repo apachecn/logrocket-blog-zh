@@ -1,4 +1,4 @@
-# Strapi API 创建:快速指南- LogRocket 博客
+# Strapi API 创建:快速指南
 
 > 原文：<https://blog.logrocket.com/strapi-api-creation-quick-guide/>
 

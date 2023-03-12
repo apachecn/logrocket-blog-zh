@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中日志记录和跟踪的比较
+# Rust 中日志记录和跟踪的比较
 
 > 原文：<https://blog.logrocket.com/comparing-logging-tracing-rust/>
 

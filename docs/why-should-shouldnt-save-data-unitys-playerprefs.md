@@ -1,4 +1,4 @@
-# 为什么你应该(或不应该)用 Unity 的 PlayerPrefs - LogRocket 博客保存数据
+# 为什么你应该(或不应该)用 Unity 的 PlayerPrefs 保存数据
 
 > 原文：<https://blog.logrocket.com/why-should-shouldnt-save-data-unitys-playerprefs/>
 

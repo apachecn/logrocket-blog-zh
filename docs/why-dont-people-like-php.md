@@ -1,4 +1,4 @@
-# 为什么大家不喜欢 PHP？- LogRocket 博客
+# 为什么大家不喜欢 PHP？
 
 > 原文：<https://blog.logrocket.com/why-dont-people-like-php/>
 

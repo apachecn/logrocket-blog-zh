@@ -1,4 +1,4 @@
-# ES2020 可选链接操作器的无错属性链接- LogRocket 博客
+# ES2020 可选链接操作器的无错属性链接
 
 > 原文：<https://blog.logrocket.com/error-free-property-chaining-with-es2020-optional-chaining-operator/>
 

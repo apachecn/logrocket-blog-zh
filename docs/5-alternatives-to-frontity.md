@@ -1,4 +1,4 @@
-# Frontity - LogRocket 博客的 5 种替代方案
+# Frontity 的 5 种替代方案
 
 > 原文：<https://blog.logrocket.com/5-alternatives-to-frontity/>
 

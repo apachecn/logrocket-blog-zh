@@ -1,4 +1,4 @@
-# LogRocket 概述视频- LogRocket 博客
+# LogRocket 概述视频
 
 > 原文：<https://blog.logrocket.com/logrocket-overview-video/>
 

@@ -1,4 +1,4 @@
-# 与 Travis CI - LogRocket 博客的持续集成和部署
+# 与 Travis CI 的持续集成和部署
 
 > 原文：<https://blog.logrocket.com/continuous-integration-and-deployment-with-travis-ci/>
 

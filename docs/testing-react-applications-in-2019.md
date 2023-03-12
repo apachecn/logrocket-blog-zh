@@ -1,4 +1,4 @@
-# 2019 年测试 React 应用- LogRocket 博客
+# 2019 年测试 React 应用
 
 > 原文：<https://blog.logrocket.com/testing-react-applications-in-2019/>
 

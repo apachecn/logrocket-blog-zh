@@ -1,4 +1,4 @@
-# React useReducer Hook 终极指南- LogRocket 博客
+# React useReducer Hook 终极指南
 
 > 原文：<https://blog.logrocket.com/react-usereducer-hook-ultimate-guide/>
 

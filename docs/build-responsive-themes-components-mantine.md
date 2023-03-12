@@ -1,4 +1,4 @@
-# Mantine 响应主题和组件- LogRocket 博客
+# Mantine 响应主题和组件
 
 > 原文：<https://blog.logrocket.com/build-responsive-themes-components-mantine/>
 

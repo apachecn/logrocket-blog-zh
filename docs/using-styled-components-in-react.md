@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中使用样式组件
+# 在 React 中使用样式组件
 
 > 原文：<https://blog.logrocket.com/using-styled-components-in-react/>
 

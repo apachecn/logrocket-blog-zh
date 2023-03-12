@@ -1,4 +1,4 @@
-# 用 Ethers.js - LogRocket 博客构建 DApp
+# 用 Ethers.js 构建 DApp
 
 > 原文：<https://blog.logrocket.com/building-dapp-ethers-js/>
 

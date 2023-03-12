@@ -1,4 +1,4 @@
-# 为什么我(最终)从 Apollo Client - LogRocket 博客转向 urql
+# 为什么我(最终)从 Apollo Client 转向 urql
 
 > 原文：<https://blog.logrocket.com/why-i-finally-switched-to-urql-from-apollo-client/>
 

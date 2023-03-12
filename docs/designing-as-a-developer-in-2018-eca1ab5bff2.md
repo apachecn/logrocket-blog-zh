@@ -1,4 +1,4 @@
-# 2018 年作为开发者的设计- LogRocket 博客
+# 2018 年作为开发者的设计
 
 > 原文：<https://blog.logrocket.com/designing-as-a-developer-in-2018-eca1ab5bff2/>
 

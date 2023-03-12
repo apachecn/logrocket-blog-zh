@@ -1,4 +1,4 @@
-# Angular 内存 Web API 教程:在 Angular - LogRocket 博客中模仿 CRUD APIs
+# Angular 内存 Web API 教程:在 Angular 中模仿 CRUD APIs
 
 > 原文：<https://blog.logrocket.com/angular-in-memory-web-api-tutorial-mocking-crud-apis-in-angular/>
 

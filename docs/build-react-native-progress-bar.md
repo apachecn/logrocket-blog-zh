@@ -1,4 +1,4 @@
-# 构建一个 React 本地进度条- LogRocket 博客
+# 构建一个 React 本地进度条
 
 > 原文：<https://blog.logrocket.com/build-react-native-progress-bar/>
 

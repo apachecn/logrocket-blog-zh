@@ -1,4 +1,4 @@
-# 使用 WebSocket 和 Node.js 的 WebRTC 信令- LogRocket 博客
+# 使用 WebSocket 和 Node.js 的 WebRTC 信令
 
 > 原文：<https://blog.logrocket.com/webrtc-signaling-websocket-node-js/>
 

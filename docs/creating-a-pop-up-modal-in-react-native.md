@@ -1,4 +1,4 @@
-# 在 React Native - LogRocket 博客中创建弹出模式
+# 在 React Native 中创建弹出模式
 
 > 原文：<https://blog.logrocket.com/creating-a-pop-up-modal-in-react-native/>
 

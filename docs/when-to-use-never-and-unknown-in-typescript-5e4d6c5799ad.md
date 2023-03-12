@@ -1,4 +1,4 @@
-# 在 TypeScript - LogRocket 博客中何时使用“从不”和“未知”
+# 在 TypeScript 中何时使用“从不”和“未知”
 
 > 原文：<https://blog.logrocket.com/when-to-use-never-and-unknown-in-typescript-5e4d6c5799ad/>
 

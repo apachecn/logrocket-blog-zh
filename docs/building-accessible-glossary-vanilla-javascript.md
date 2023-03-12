@@ -1,4 +1,4 @@
-# 在普通 JavaScript - LogRocket 博客中构建可访问的术语表
+# 在普通 JavaScript 中构建可访问的术语表
 
 > 原文：<https://blog.logrocket.com/building-accessible-glossary-vanilla-javascript/>
 

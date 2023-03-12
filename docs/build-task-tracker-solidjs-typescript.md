@@ -1,4 +1,4 @@
-# 用 SolidJS 和 TypeScript - LogRocket 博客构建一个任务跟踪器
+# 用 SolidJS 和 TypeScript 构建一个任务跟踪器
 
 > 原文：<https://blog.logrocket.com/build-task-tracker-solidjs-typescript/>
 

@@ -1,4 +1,4 @@
-# 在 React - LogRocket 博客中构建自定义复选框
+# 在 React 中构建自定义复选框
 
 > 原文：<https://blog.logrocket.com/building-custom-checkbox-react/>
 

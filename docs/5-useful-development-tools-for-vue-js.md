@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客的 5 个有用的开发工具
+# Vue.js 的 5 个有用的开发工具
 
 > 原文：<https://blog.logrocket.com/5-useful-development-tools-for-vue-js/>
 

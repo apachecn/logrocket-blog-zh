@@ -1,4 +1,4 @@
-# 调试顺风 CSS 和 Next.js - LogRocket 博客
+# 调试顺风 CSS 和 Next.js 
 
 > 原文：<https://blog.logrocket.com/debugging-tailwind-css-next-js/>
 

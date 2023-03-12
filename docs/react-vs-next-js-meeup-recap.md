@@ -1,4 +1,4 @@
-# React vs. Next.js recap - LogRocket 博客
+# React vs. Next.js recap 
 
 > 原文：<https://blog.logrocket.com/meetups/react-vs-next-js-meeup-recap/>
 

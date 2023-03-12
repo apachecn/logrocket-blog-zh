@@ -1,4 +1,4 @@
-# 如何用 ViroReact - LogRocket 博客搭建 AR/VR app
+# 如何用 ViroReact 搭建 AR/VR app
 
 > 原文：<https://blog.logrocket.com/how-to-build-ar-vr-app-viroreact/>
 

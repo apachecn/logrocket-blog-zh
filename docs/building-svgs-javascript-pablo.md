@@ -1,4 +1,4 @@
-# 使用 Pablo - LogRocket 博客用 JavaScript 构建 SVG
+# 使用 Pablo 用 JavaScript 构建 SVG
 
 > 原文：<https://blog.logrocket.com/building-svgs-javascript-pablo/>
 

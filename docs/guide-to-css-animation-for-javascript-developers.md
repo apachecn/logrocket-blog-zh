@@ -1,4 +1,4 @@
-# JavaScript 开发者 CSS 动画指南- LogRocket 博客
+# JavaScript 开发者 CSS 动画指南
 
 > 原文：<https://blog.logrocket.com/guide-to-css-animation-for-javascript-developers/>
 

@@ -1,4 +1,4 @@
-# 黑格尔- LogRocket 博客简介
+# 黑格尔简介
 
 > 原文：<https://blog.logrocket.com/introduction-to-hegel/>
 

@@ -1,4 +1,4 @@
-# GraphQL vs. gRPC vs. REST:选择正确的 API - LogRocket 博客
+# GraphQL vs. gRPC vs. REST:选择正确的 API 
 
 > 原文：<https://blog.logrocket.com/graphql-vs-grpc-vs-rest-choosing-right-api/>
 

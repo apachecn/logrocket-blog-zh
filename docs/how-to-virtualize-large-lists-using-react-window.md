@@ -1,4 +1,4 @@
-# 如何使用 react-window - LogRocket 博客虚拟化大型列表
+# 如何使用 react-window 虚拟化大型列表
 
 > 原文：<https://blog.logrocket.com/how-to-virtualize-large-lists-using-react-window/>
 

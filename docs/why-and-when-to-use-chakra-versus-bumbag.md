@@ -1,4 +1,4 @@
-# 为什么和什么时候使用查克拉与 Bumbag - LogRocket 博客
+# 为什么和什么时候使用查克拉与 Bumbag 
 
 > 原文：<https://blog.logrocket.com/why-and-when-to-use-chakra-versus-bumbag/>
 

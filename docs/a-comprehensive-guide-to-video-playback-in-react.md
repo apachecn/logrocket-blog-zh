@@ -1,4 +1,4 @@
-# React - LogRocket 博客视频播放综合指南
+# React 视频播放综合指南
 
 > 原文：<https://blog.logrocket.com/a-comprehensive-guide-to-video-playback-in-react/>
 

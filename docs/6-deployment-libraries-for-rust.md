@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客的 6 个部署库
+# Rust 的 6 个部署库
 
 > 原文：<https://blog.logrocket.com/6-deployment-libraries-for-rust/>
 

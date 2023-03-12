@@ -1,4 +1,4 @@
-# 使用 Github actions - LogRocket 博客将 React 库发布到 NPM 的完整工作流指南
+# 使用 Github actions 将 React 库发布到 NPM 的完整工作流指南
 
 > 原文：<https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/>
 

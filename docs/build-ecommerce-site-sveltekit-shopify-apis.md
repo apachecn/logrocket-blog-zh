@@ -1,4 +1,4 @@
-# 用 SvelteKit 和 Shopify Storefront API - LogRocket 博客建立一个电子商务网站
+# 用 SvelteKit 和 Shopify Storefront API 建立一个电子商务网站
 
 > 原文：<https://blog.logrocket.com/build-ecommerce-site-sveltekit-shopify-apis/>
 

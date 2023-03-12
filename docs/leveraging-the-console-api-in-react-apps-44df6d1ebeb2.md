@@ -1,4 +1,4 @@
-# 在 React apps - LogRocket 博客中利用控制台 API
+# 在 React apps 中利用控制台 API
 
 > 原文：<https://blog.logrocket.com/leveraging-the-console-api-in-react-apps-44df6d1ebeb2/>
 

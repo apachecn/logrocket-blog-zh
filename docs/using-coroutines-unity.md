@@ -1,4 +1,4 @@
-# 在 Unity - LogRocket 博客中使用协程
+# 在 Unity 中使用协程
 
 > 原文：<https://blog.logrocket.com/using-coroutines-unity/>
 

@@ -1,4 +1,4 @@
-# Twin 简介:结合 Tailwind 和 CSS-in-JS - LogRocket 博客的优点
+# Twin 简介:结合 Tailwind 和 CSS-in-JS 的优点
 
 > 原文：<https://blog.logrocket.com/intro-to-twin/>
 

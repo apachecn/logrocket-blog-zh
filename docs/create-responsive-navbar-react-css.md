@@ -1,4 +1,4 @@
-# 用 React 和 CSS - LogRocket 博客创建一个响应式导航条
+# 用 React 和 CSS 创建一个响应式导航条
 
 > 原文：<https://blog.logrocket.com/create-responsive-navbar-react-css/>
 

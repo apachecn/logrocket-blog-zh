@@ -1,4 +1,4 @@
-# Vue.js 简化版:组件、道具和插槽- LogRocket 博客
+# Vue.js 简化版:组件、道具和插槽
 
 > 原文：<https://blog.logrocket.com/vue-js-simplified-components-props-and-slots/>
 

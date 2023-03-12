@@ -1,4 +1,4 @@
-# 在 React from scratch - LogRocket 博客中构建半星评级组件
+# 在 React from scratch 中构建半星评级组件
 
 > 原文：<https://blog.logrocket.com/build-a-half-star-rating-component-in-react-from-scratch/>
 

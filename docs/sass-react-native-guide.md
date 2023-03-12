@@ -1,4 +1,4 @@
-# 如何在 React Native - LogRocket 博客中使用 Sass
+# 如何在 React Native 中使用 Sass
 
 > 原文：<https://blog.logrocket.com/sass-react-native-guide/>
 

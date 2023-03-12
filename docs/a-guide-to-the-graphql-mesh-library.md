@@ -1,4 +1,4 @@
-# GraphQL 网格库指南- LogRocket 博客
+# GraphQL 网格库指南
 
 > 原文：<https://blog.logrocket.com/a-guide-to-the-graphql-mesh-library/>
 

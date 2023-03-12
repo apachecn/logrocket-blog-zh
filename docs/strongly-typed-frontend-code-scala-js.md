@@ -1,4 +1,4 @@
-# 使用 Scala.js - LogRocket 博客的强类型前端代码
+# 使用 Scala.js 的强类型前端代码
 
 > 原文：<https://blog.logrocket.com/strongly-typed-frontend-code-scala-js/>
 

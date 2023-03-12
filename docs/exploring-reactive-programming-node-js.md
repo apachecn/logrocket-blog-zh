@@ -1,4 +1,4 @@
-# 使用 Node.js - LogRocket 博客探索反应式编程
+# 使用 Node.js 探索反应式编程
 
 > 原文：<https://blog.logrocket.com/exploring-reactive-programming-node-js/>
 

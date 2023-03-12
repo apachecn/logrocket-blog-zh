@@ -1,4 +1,4 @@
-# Swift enums:示例概述- LogRocket 博客
+# Swift enums:示例概述
 
 > 原文：<https://blog.logrocket.com/swift-enums-an-overview-with-examples/>
 

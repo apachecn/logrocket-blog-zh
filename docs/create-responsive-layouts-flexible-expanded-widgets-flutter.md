@@ -1,4 +1,4 @@
-# 在 Flutter - LogRocket 博客中使用灵活和扩展的小部件创建响应性布局
+# 在 Flutter 中使用灵活和扩展的小部件创建响应性布局
 
 > 原文：<https://blog.logrocket.com/create-responsive-layouts-flexible-expanded-widgets-flutter/>
 

@@ -1,4 +1,4 @@
-# 学习 Golang 加密和解密- LogRocket 博客
+# 学习 Golang 加密和解密
 
 > 原文：<https://blog.logrocket.com/learn-golang-encryption-decryption/>
 

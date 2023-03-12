@@ -1,4 +1,4 @@
-# 使用 Knex.js - LogRocket 博客查询数据库
+# 使用 Knex.js 查询数据库
 
 > 原文：<https://blog.logrocket.com/querying-databases-with-knex-js/>
 

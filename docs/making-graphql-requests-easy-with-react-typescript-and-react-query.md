@@ -1,4 +1,4 @@
-# 使用 React Query、GraphQL 代码生成器和 TypeScript - LogRocket 博客简化 GraphQL 请求
+# 使用 React Query、GraphQL 代码生成器和 TypeScript 简化 GraphQL 请求
 
 > 原文：<https://blog.logrocket.com/making-graphql-requests-easy-with-react-typescript-and-react-query/>
 

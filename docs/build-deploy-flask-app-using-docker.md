@@ -1,4 +1,4 @@
-# 使用 Docker - LogRocket 博客构建和部署 Flask 应用程序
+# 使用 Docker 构建和部署 Flask 应用程序
 
 > 原文：<https://blog.logrocket.com/build-deploy-flask-app-using-docker/>
 

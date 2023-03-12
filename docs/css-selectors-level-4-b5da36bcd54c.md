@@ -1,4 +1,4 @@
-# CSS 选择器级别 4 - LogRocket 博客
+# CSS 选择器级别 4 
 
 > 原文：<https://blog.logrocket.com/css-selectors-level-4-b5da36bcd54c/>
 

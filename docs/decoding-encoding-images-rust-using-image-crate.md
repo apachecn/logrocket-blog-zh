@@ -1,4 +1,4 @@
-# 使用 image crate - LogRocket 博客对 Rust 中的图像进行解码和编码
+# 使用 image crate 对 Rust 中的图像进行解码和编码
 
 > 原文：<https://blog.logrocket.com/decoding-encoding-images-rust-using-image-crate/>
 

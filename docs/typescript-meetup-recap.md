@@ -1,4 +1,4 @@
-# TypeScript Meetup 摘要- LogRocket 博客
+# TypeScript Meetup 摘要
 
 > 原文：<https://blog.logrocket.com/meetups/typescript-meetup-recap/>
 

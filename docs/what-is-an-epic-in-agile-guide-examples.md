@@ -1,4 +1,4 @@
-# 敏捷中的史诗是什么？带示例的完整指南- LogRocket 博客
+# 敏捷中的史诗是什么？带示例的完整指南
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-an-epic-in-agile-guide-examples/>
 

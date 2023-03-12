@@ -1,4 +1,4 @@
-# UmiJS 与 Next.js 相比如何？- LogRocket 博客
+# UmiJS 与 Next.js 相比如何？
 
 > 原文：<https://blog.logrocket.com/comparing-react-ssr-frameworks-umi-vs-next/>
 

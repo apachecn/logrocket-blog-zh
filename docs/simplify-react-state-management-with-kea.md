@@ -1,4 +1,4 @@
-# 使用 Kea - LogRocket 博客简化 React 状态管理
+# 使用 Kea 简化 React 状态管理
 
 > 原文：<https://blog.logrocket.com/simplify-react-state-management-with-kea/>
 

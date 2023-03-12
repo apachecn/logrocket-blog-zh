@@ -1,4 +1,4 @@
-# GraphQL、URQL 库，以及在客户端 Recap - LogRocket 博客上构建高级特性
+# GraphQL、URQL 库，以及在客户端 Recap 上构建高级特性
 
 > 原文：<https://blog.logrocket.com/meetups/graphql-the-urql-library-and-building-advanced-features-on-the-client-side-meetup-recap/>
 

@@ -1,4 +1,4 @@
-# React 悬念:React - LogRocket 博客中的异步渲染
+# React 悬念:React 中的异步渲染
 
 > 原文：<https://blog.logrocket.com/async-rendering-react-suspense/>
 

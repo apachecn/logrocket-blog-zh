@@ -1,4 +1,4 @@
-# Safari 15 - LogRocket 博客中 WebKit 的新特性
+# Safari 15 中 WebKit 的新特性
 
 > 原文：<https://blog.logrocket.com/whats-new-webkit-safari-15/>
 

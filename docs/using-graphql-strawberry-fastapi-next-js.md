@@ -1,4 +1,4 @@
-# 将 GraphQL 用于 Strawberry、FastAPI 和 Next.js - LogRocket 博客
+# 将 GraphQL 用于 Strawberry、FastAPI 和 Next.js 
 
 > 原文：<https://blog.logrocket.com/using-graphql-strawberry-fastapi-next-js/>
 

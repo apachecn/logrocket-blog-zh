@@ -1,4 +1,4 @@
-# 将复选框和表格添加到 React Native app - LogRocket 博客
+# 将复选框和表格添加到 React Native app 
 
 > 原文：<https://blog.logrocket.com/adding-checkboxes-tables-react-native-app/>
 

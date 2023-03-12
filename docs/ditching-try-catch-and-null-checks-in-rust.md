@@ -1,4 +1,4 @@
-# 尝试开沟...Rust - LogRocket 博客的捕获和空检查
+# 尝试开沟...Rust 的捕获和空检查
 
 > 原文：<https://blog.logrocket.com/ditching-try-catch-and-null-checks-in-rust/>
 

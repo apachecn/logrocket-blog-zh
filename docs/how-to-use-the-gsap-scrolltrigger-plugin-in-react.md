@@ -1,4 +1,4 @@
-# 如何在 React - LogRocket 博客中使用 GSAP ScrollTrigger 插件
+# 如何在 React 中使用 GSAP ScrollTrigger 插件
 
 > 原文：<https://blog.logrocket.com/how-to-use-the-gsap-scrolltrigger-plugin-in-react/>
 

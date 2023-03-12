@@ -1,4 +1,4 @@
-# 在 Django - LogRocket 博客中动态过滤查询集
+# 在 Django 中动态过滤查询集
 
 > 原文：<https://blog.logrocket.com/filtering-querysets-dynamically-in-django/>
 

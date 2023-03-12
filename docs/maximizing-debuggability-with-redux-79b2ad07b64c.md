@@ -1,4 +1,4 @@
-# 使用 Redux - LogRocket 博客最大化可调试性
+# 使用 Redux 最大化可调试性
 
 > 原文：<https://blog.logrocket.com/maximizing-debuggability-with-redux-79b2ad07b64c/>
 

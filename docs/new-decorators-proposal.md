@@ -1,4 +1,4 @@
-# 新装修者提案- LogRocket 博客
+# 新装修者提案
 
 > 原文：<https://blog.logrocket.com/new-decorators-proposal/>
 

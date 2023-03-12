@@ -1,4 +1,4 @@
-# Go - LogRocket 博客中对单元测试的深入探讨
+# Go 中对单元测试的深入探讨
 
 > 原文：<https://blog.logrocket.com/a-deep-dive-into-unit-testing-in-go/>
 

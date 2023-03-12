@@ -1,4 +1,4 @@
-# 使用 Spruce - LogRocket 博客在 Alpine.js 中进行状态管理
+# 使用 Spruce 在 Alpine.js 中进行状态管理
 
 > 原文：<https://blog.logrocket.com/how-to-apply-state-management-in-alpine-js-using-spruce/>
 

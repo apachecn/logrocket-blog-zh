@@ -1,4 +1,4 @@
-# 什么是产品支持？定义和概述- LogRocket 博客
+# 什么是产品支持？定义和概述
 
 > 原文：<https://blog.logrocket.com/product-management/what-is-product-enablement/>
 

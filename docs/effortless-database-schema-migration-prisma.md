@@ -1,4 +1,4 @@
-# 使用 Prisma - LogRocket 博客轻松实现数据库模式迁移
+# 使用 Prisma 轻松实现数据库模式迁移
 
 > 原文：<https://blog.logrocket.com/effortless-database-schema-migration-prisma/>
 

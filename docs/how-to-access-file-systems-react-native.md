@@ -1,4 +1,4 @@
-# 如何使用 React Native - LogRocket 博客访问文件系统
+# 如何使用 React Native 访问文件系统
 
 > 原文：<https://blog.logrocket.com/how-to-access-file-systems-react-native/>
 

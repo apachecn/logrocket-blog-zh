@@ -1,4 +1,4 @@
-# 用 Golang - LogRocket 博客创建 web 服务器
+# 用 Golang 创建 web 服务器
 
 > 原文：<https://blog.logrocket.com/creating-a-web-server-with-golang/>
 

@@ -1,4 +1,4 @@
-# 如何使用 Unity 和 Vuforia 创建 AR 体验- LogRocket 博客
+# 如何使用 Unity 和 Vuforia 创建 AR 体验
 
 > 原文：<https://blog.logrocket.com/create-ar-experience-unity-vuforia/>
 

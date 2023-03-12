@@ -1,4 +1,4 @@
-# 层叠层、子网格和容器查询:CSS - LogRocket 博客中的新内容
+# 层叠层、子网格和容器查询:CSS 中的新内容
 
 > 原文：<https://blog.logrocket.com/cascade-layers-subgrid-container-queries-whats-new-css/>
 

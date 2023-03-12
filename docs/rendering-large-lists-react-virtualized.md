@@ -1,4 +1,4 @@
-# 使用 React Virtualized - LogRocket 博客呈现大型列表
+# 使用 React Virtualized 呈现大型列表
 
 > 原文：<https://blog.logrocket.com/rendering-large-lists-react-virtualized/>
 

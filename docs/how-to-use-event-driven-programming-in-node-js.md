@@ -1,4 +1,4 @@
-# 如何在 Node.js - LogRocket 博客中使用事件驱动编程
+# 如何在 Node.js 中使用事件驱动编程
 
 > 原文：<https://blog.logrocket.com/how-to-use-event-driven-programming-in-node-js/>
 

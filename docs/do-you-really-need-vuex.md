@@ -1,4 +1,4 @@
-# 真的需要 Vuex 吗？- LogRocket 博客
+# 真的需要 Vuex 吗？
 
 > 原文：<https://blog.logrocket.com/do-you-really-need-vuex/>
 

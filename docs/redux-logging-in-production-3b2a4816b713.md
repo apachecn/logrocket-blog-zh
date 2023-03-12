@@ -1,4 +1,4 @@
-# 生产中的 Redux 日志记录- LogRocket 博客
+# 生产中的 Redux 日志记录
 
 > 原文：<https://blog.logrocket.com/redux-logging-in-production-3b2a4816b713/>
 

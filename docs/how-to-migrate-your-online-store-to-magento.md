@@ -1,4 +1,4 @@
-# 如何将您的在线商店迁移到 Magento - LogRocket 博客
+# 如何将您的在线商店迁移到 Magento 
 
 > 原文：<https://blog.logrocket.com/how-to-migrate-your-online-store-to-magento/>
 

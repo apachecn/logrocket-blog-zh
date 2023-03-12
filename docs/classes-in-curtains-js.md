@@ -1,4 +1,4 @@
-# 在 curtains.js - LogRocket 博客中使用类
+# 在 curtains.js 中使用类
 
 > 原文：<https://blog.logrocket.com/classes-in-curtains-js/>
 

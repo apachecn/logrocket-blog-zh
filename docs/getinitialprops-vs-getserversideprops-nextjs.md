@@ -1,4 +1,4 @@
-# Next.js - LogRocket 博客中的 getInitialProps 与 getServerSideProps
+# Next.js 中的 getInitialProps 与 getServerSideProps
 
 > 原文：<https://blog.logrocket.com/getinitialprops-vs-getserversideprops-nextjs/>
 

@@ -1,4 +1,4 @@
-# 在 Vue - LogRocket 博客中加载字体的最佳实践
+# 在 Vue 中加载字体的最佳实践
 
 > 原文：<https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/>
 

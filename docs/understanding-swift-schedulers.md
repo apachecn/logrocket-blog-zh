@@ -1,4 +1,4 @@
-# 了解 Swift 调度程序- LogRocket 博客
+# 了解 Swift 调度程序
 
 > 原文：<https://blog.logrocket.com/understanding-swift-schedulers/>
 

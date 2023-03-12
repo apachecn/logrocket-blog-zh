@@ -1,4 +1,4 @@
-# 在 GraphQL - LogRocket 博客中使用别名
+# 在 GraphQL 中使用别名
 
 > 原文：<https://blog.logrocket.com/using-aliases-graphql/>
 

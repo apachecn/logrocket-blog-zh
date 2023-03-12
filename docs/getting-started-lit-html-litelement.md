@@ -1,4 +1,4 @@
-# lit-html 和 LitElement - LogRocket 博客入门
+# lit-html 和 LitElement 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-lit-html-litelement/>
 

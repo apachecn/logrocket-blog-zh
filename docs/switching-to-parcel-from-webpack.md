@@ -1,4 +1,4 @@
-# 从 webpack 切换到包裹- LogRocket 博客
+# 从 webpack 切换到包裹
 
 > 原文：<https://blog.logrocket.com/switching-to-parcel-from-webpack/>
 

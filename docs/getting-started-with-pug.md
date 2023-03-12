@@ -1,4 +1,4 @@
-# Pug - LogRocket 博客入门
+# Pug 入门
 
 > 原文：<https://blog.logrocket.com/getting-started-with-pug/>
 

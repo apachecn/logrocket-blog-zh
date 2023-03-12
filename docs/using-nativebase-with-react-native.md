@@ -1,4 +1,4 @@
-# 使用 NativeBase 和 React Native - LogRocket 博客
+# 使用 NativeBase 和 React Native 
 
 > 原文：<https://blog.logrocket.com/using-nativebase-with-react-native/>
 

@@ -1,4 +1,4 @@
-# 用多重签名 Gnosis Safe - LogRocket 博客构建一个国库钱包
+# 用多重签名 Gnosis Safe 构建一个国库钱包
 
 > 原文：<https://blog.logrocket.com/build-treasury-wallet-multisignature-gnosis-safe/>
 

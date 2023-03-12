@@ -1,4 +1,4 @@
-# 了解 Remix - LogRocket 博客中的路线和路线嵌套
+# 了解 Remix 中的路线和路线嵌套
 
 > 原文：<https://blog.logrocket.com/understanding-routes-route-nesting-remix/>
 

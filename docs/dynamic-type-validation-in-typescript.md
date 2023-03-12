@@ -1,4 +1,4 @@
-# TypeScript - LogRocket 博客中的动态类型验证
+# TypeScript 中的动态类型验证
 
 > 原文：<https://blog.logrocket.com/dynamic-type-validation-in-typescript/>
 

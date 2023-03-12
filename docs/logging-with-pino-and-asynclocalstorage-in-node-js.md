@@ -1,4 +1,4 @@
-# Node.js - LogRocket 博客中使用 Pino 和 AsyncLocalStorage 进行日志记录
+# Node.js 中使用 Pino 和 AsyncLocalStorage 进行日志记录
 
 > 原文：<https://blog.logrocket.com/logging-with-pino-and-asynclocalstorage-in-node-js/>
 

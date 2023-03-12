@@ -1,4 +1,4 @@
-# JavaScript - LogRocket 博客中定义函数的方法
+# JavaScript 中定义函数的方法
 
 > 原文：<https://blog.logrocket.com/defining-functions-in-javascript/>
 

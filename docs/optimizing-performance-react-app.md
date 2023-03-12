@@ -1,4 +1,4 @@
-# 在 React app - LogRocket 博客中优化性能
+# 在 React app 中优化性能
 
 > 原文：<https://blog.logrocket.com/optimizing-performance-react-app/>
 

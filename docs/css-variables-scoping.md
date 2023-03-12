@@ -1,4 +1,4 @@
-# CSS 变量:作用域- LogRocket 博客
+# CSS 变量:作用域
 
 > 原文：<https://blog.logrocket.com/css-variables-scoping/>
 

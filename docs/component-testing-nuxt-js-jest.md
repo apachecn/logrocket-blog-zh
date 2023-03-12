@@ -1,4 +1,4 @@
-# 用 Jest - LogRocket 博客在 Nuxt.js 中进行组件测试
+# 用 Jest 在 Nuxt.js 中进行组件测试
 
 > 原文：<https://blog.logrocket.com/component-testing-nuxt-js-jest/>
 

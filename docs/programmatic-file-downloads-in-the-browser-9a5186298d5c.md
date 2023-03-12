@@ -1,4 +1,4 @@
-# browser - LogRocket 博客中的程序文件下载
+# browser 中的程序文件下载
 
 > 原文：<https://blog.logrocket.com/programmatic-file-downloads-in-the-browser-9a5186298d5c/>
 

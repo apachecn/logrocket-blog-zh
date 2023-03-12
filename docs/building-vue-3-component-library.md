@@ -1,4 +1,4 @@
-# 构建 Vue 3 组件库- LogRocket 博客
+# 构建 Vue 3 组件库
 
 > 原文：<https://blog.logrocket.com/building-vue-3-component-library/>
 

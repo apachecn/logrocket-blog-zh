@@ -1,4 +1,4 @@
-# 通过 Deno - LogRocket 博客使用 WebSockets
+# 通过 Deno 使用 WebSockets
 
 > 原文：<https://blog.logrocket.com/using-websockets-with-deno/>
 

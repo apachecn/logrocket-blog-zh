@@ -1,4 +1,4 @@
-# 使用 React Native Share - LogRocket 博客在 React Native 应用程序中共享内容
+# 使用 React Native Share 在 React Native 应用程序中共享内容
 
 > 原文：<https://blog.logrocket.com/sharing-content-react-native-apps-using-react-native-share/>
 

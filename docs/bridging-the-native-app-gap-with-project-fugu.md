@@ -1,4 +1,4 @@
-# 通过项目 Fugu - LogRocket 博客弥合本地应用程序差距
+# 通过项目 Fugu 弥合本地应用程序差距
 
 > 原文：<https://blog.logrocket.com/bridging-the-native-app-gap-with-project-fugu/>
 

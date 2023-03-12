@@ -1,4 +1,4 @@
-# Vue.js - LogRocket 博客中的反应性指南
+# Vue.js 中的反应性指南
 
 > 原文：<https://blog.logrocket.com/your-guide-to-reactivity-in-vue-js/>
 

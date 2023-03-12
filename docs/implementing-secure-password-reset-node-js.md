@@ -1,4 +1,4 @@
-# 在 Node.js - LogRocket 博客中实现安全密码重置
+# 在 Node.js 中实现安全密码重置
 
 > 原文：<https://blog.logrocket.com/implementing-secure-password-reset-node-js/>
 

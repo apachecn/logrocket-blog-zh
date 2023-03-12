@@ -1,4 +1,4 @@
-# 使用 React - LogRocket 博客将文件上传到 Firebase v9 中的 Firebase 云存储中
+# 使用 React 将文件上传到 Firebase v9 中的 Firebase 云存储中
 
 > 原文：<https://blog.logrocket.com/firebase-cloud-storage-firebase-v9-react/>
 

@@ -1,4 +1,4 @@
-# 用 React 钩子和 GraphQL - LogRocket 博客构建一个 Trello 克隆
+# 用 React 钩子和 GraphQL 构建一个 Trello 克隆
 
 > 原文：<https://blog.logrocket.com/building-a-trello-clone-with-react-hooks-and-graphql/>
 

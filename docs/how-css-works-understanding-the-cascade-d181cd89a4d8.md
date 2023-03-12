@@ -1,4 +1,4 @@
-# CSS 如何工作:理解 cascade - LogRocket 博客
+# CSS 如何工作:理解 cascade 
 
 > 原文：<https://blog.logrocket.com/how-css-works-understanding-the-cascade-d181cd89a4d8/>
 

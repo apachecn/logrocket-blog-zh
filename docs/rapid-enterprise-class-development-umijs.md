@@ -1,4 +1,4 @@
-# 使用 UmiJS - LogRocket 博客进行快速的企业级开发
+# 使用 UmiJS 进行快速的企业级开发
 
 > 原文：<https://blog.logrocket.com/rapid-enterprise-class-development-umijs/>
 

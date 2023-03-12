@@ -1,4 +1,4 @@
-# 介绍 React 16.8，官方支持 Hooks - LogRocket 博客
+# 介绍 React 16.8，官方支持 Hooks 
 
 > 原文：<https://blog.logrocket.com/introducing-react-16-8-featuring-official-support-for-hooks/>
 

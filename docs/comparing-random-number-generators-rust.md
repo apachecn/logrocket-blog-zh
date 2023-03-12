@@ -1,4 +1,4 @@
-# Rust - LogRocket 博客中的随机数生成器比较
+# Rust 中的随机数生成器比较
 
 > 原文：<https://blog.logrocket.com/comparing-random-number-generators-rust/>
 

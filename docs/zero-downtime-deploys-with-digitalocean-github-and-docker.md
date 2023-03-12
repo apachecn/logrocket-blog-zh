@@ -1,4 +1,4 @@
-# 使用 DigitalOcean、GitHub 和 Docker - LogRocket 博客实现零停机部署
+# 使用 DigitalOcean、GitHub 和 Docker 实现零停机部署
 
 > 原文：<https://blog.logrocket.com/zero-downtime-deploys-with-digitalocean-github-and-docker/>
 

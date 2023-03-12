@@ -1,4 +1,4 @@
-# React-Native-vector-React 本地应用程序的图标- LogRocket 博客
+# React-Native-vector-React 本地应用程序的图标
 
 > 原文：<https://blog.logrocket.com/react-native-vector-icons-fonts-react-native-app-ui/>
 

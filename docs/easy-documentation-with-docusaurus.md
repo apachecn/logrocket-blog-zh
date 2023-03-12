@@ -1,4 +1,4 @@
-# Docusaurus - LogRocket 博客的简单文档
+# Docusaurus 的简单文档
 
 > 原文：<https://blog.logrocket.com/easy-documentation-with-docusaurus/>
 

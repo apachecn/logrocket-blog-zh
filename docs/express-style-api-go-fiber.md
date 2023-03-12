@@ -1,4 +1,4 @@
-# 用 Fiber - LogRocket 博客在 Go 中构建一个 Express 风格的 API
+# 用 Fiber 在 Go 中构建一个 Express 风格的 API
 
 > 原文：<https://blog.logrocket.com/express-style-api-go-fiber/>
 

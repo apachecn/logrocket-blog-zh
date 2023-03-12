@@ -1,4 +1,4 @@
-# Firebase vs. Netlify:哪个适合你？- LogRocket 博客
+# Firebase vs. Netlify:哪个适合你？
 
 > 原文：<https://blog.logrocket.com/firebase-vs-netlify-which-one-is-right-for-you/>
 

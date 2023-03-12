@@ -1,4 +1,4 @@
-# 如何在 TypeScript - LogRocket 博客中扩展枚举
+# 如何在 TypeScript 中扩展枚举
 
 > 原文：<https://blog.logrocket.com/extend-enums-typescript/>
 

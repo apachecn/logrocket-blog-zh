@@ -1,4 +1,4 @@
-# 在 JavaScript - LogRocket 博客中构建可访问的用户界面标签
+# 在 JavaScript 中构建可访问的用户界面标签
 
 > 原文：<https://blog.logrocket.com/build-accessible-user-interface-tabs-javascript/>
 

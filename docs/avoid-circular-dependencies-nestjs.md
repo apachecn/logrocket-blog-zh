@@ -1,4 +1,4 @@
-# 如何避免 NestJS - LogRocket 博客中的循环依赖
+# 如何避免 NestJS 中的循环依赖
 
 > 原文：<https://blog.logrocket.com/avoid-circular-dependencies-nestjs/>
 

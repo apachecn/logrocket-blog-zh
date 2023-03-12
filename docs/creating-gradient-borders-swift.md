@@ -1,4 +1,4 @@
-# 在 Swift - LogRocket 博客中创建渐变边框
+# 在 Swift 中创建渐变边框
 
 > 原文：<https://blog.logrocket.com/creating-gradient-borders-swift/>
 

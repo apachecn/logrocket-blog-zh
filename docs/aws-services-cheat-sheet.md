@@ -1,4 +1,4 @@
-# AWS 服务备忘单- LogRocket 博客
+# AWS 服务备忘单
 
 > 原文：<https://blog.logrocket.com/aws-services-cheat-sheet/>
 
