@@ -1,0 +1,193 @@
+<html>
+<head>
+<title>Exploring React 18’s three new APIs - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>探索 React 18 的三个新 API-log rocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/exploring-react-18-three-new-apis/#0001-01-01">https://blog.logrocket.com/exploring-react-18-three-new-apis/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>React 生态系统中目前最大的话题是 React 18 及其备受期待的并发渲染功能的全面发布。2021 年 6 月，React 团队宣布了 React 18 的计划以及即将到来的事情。几个月后，在 12 月，<a href="https://reactjs.org/blog/2021/12/17/react-conf-2021-recap.html" target="_blank" rel="noopener"> React Conf 2021 </a>的主题是所有新宣布的并发渲染特性。</p>
+<p>与 React 18 一起，发布了几个新的 API，允许用户充分利用 React 的并发渲染功能。这些挂钩是:</p>
+
+<p>本文将介绍这三个新的 API，它们的用例，它们解决了什么问题，为什么添加它们，以及它们如何集成到并发呈现领域中。</p>
+<h3>开始前请注意</h3>
+<p>由于所有这些新 API 都与并发渲染相关，我建议您首先熟悉这个概念以及 React 团队如此关注它的原因。一个很好的起点是 React 发布的<a href="https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html#whats-coming-in-react-18" target="_blank" rel="noopener"> React 18 公告</a>或<a href="https://github.com/reactwg/react-18/discussions/4" target="_blank" rel="noopener">工作组公告</a>。在那之后，接下来的部分会更有意义。</p>
+<h2 id="usesyncexternalstore-hook"><code>useSyncExternalStore</code>钩子</h2>
+<p>React v16.14.0 中为适应并发呈现而引入的 API 之一是<code><a href="https://github.com/reactjs/rfcs/pull/147" target="_blank" rel="noopener">useMutableSource</a></code>，它旨在允许 React 组件在并发呈现期间安全有效地与外部可变源集成。</p>
+<p>挂钩将连接到数据源，等待更改，并相应地安排更新。所有这些都会以防止<a href="https://github.com/reactwg/react-18/discussions/69" target="_blank" rel="noopener">撕裂</a>的方式发生，当视觉不一致出现时，因为同一状态有多个值。</p>
+<p>对于新的并发呈现特性来说，这是一个特别突出的问题，因为状态流会很快交织在一起。然而，采用<code>useMutableSource</code>被证明是困难的，原因如下:</p>
+<h3>1.钩子自然是异步的</h3>
+<p>钩子不知道它是否能重用<code>selector</code>函数的结果值，如果它改变的话。唯一的解决方案是重新订阅所提供的数据源并再次检索快照，这可能会导致性能问题，因为它会在每次渲染时发生。</p>
+<p>对于用户和库(像<a href="https://blog.logrocket.com/tag/redux" target="_blank" rel="noopener"> Redux </a>)来说，这意味着他们必须记住项目中的每一个选择器，并且不能内联定义他们的<code>selector</code>函数，因为他们的引用不稳定。</p>
+<h3>2.它必须处理外部状态</h3>
+<p>最初的实现也有缺陷，因为它必须处理 React 之外的状态。这意味着由于其可变性，状态可能随时改变。</p>
+<p>因为 React 试图异步解决这个问题，这有时会导致 UI 的可见部分被替换为回退，从而导致次优的用户体验。</p>
+<p>所有这些都使得库维护人员的迁移非常痛苦，对于开发人员和用户来说都是次优体验。</p>
+<h3>用<code>useSyncExternalStore</code>解决这些问题</h3>
+<p>为了解决这些问题，React 团队改变了底层实现，并将钩子重命名为<code>useSyncExternalStore</code>，以正确反映它的行为。这些变化包括:</p>
+<ul>
+<li>不要在每次选择器(用于快照)改变时都重新订阅外部源—相反，React 将比较选择器的结果值，而不是选择器函数，以决定是否再次检索快照，以便用户可以内联定义选择器，而不会对性能产生负面影响</li>
+<li>每当外部存储改变时，产生的更新现在总是同步的，这防止了用回退替换 UI</li>
+</ul>
+<p>唯一的要求是<code>getSnapshot</code>钩子参数的结果值需要是引用稳定的。React 在内部使用它来确定是否需要检索新的快照，因此它要么需要是不可变的值，要么需要是内存化/缓存的对象。</p>
+<p>为了方便起见，React 将提供一个附加版本的钩子，自动支持对<code>getSnapshot</code>的结果值的记忆。</p>
+<h3>如何使用<code>useSyncExternalStore</code></h3>
+<pre class="language-javascript hljs">// Code illustrating the usage of `useSyncExternalStore`.
+// Source: &lt;https://github.com/reactwg/react-18/discussions/86&gt;
+
+import {useSyncExternalStore} from 'react';
+
+// React will also publish a backwards compatible shim
+// It will prefer the native API, when available
+import {useSyncExternalStore} from 'use-sync-external-store/shim';
+
+// Basic usage. getSnapshot must return a cached/memoized result
+const state = useSyncExternalStore(store.subscribe, store.getSnapshot);
+
+// Selecting a specific field using an inline getSnapshot
+const selectedField = useSyncExternalStore(store.subscribe, () =&gt; store.getSnapshot().selectedField);
+
+// Code illustrating the usage of the memoized version.
+// Source: &lt;https://github.com/reactwg/react-18/discussions/86&gt;
+
+// Name of API is not final
+import {useSyncExternalStoreWithSelector} from 'use-sync-external-store/with-selector';
+
+const selection = useSyncExternalStoreWithSelector(
+  store.subscribe,
+  store.getSnapshot,
+  getServerSnapshot,
+  selector,
+  isEqual
+);
+</pre>
+<h2 id="useid-hook"><code>useId</code>钩子</h2>
+<h3>在服务器端运行 React</h3>
+<p>很长一段时间，一个 React 项目只在客户端运行。简而言之，这意味着所有的代码都被发送到用户的浏览器(客户端),然后浏览器负责向用户呈现和显示应用程序。</p>
+<p>React 作为一个整体一直在向服务器端呈现(SSR)领域扩展。在 SSR 中，服务器负责根据 React 代码生成 HTML 结构。代替所有的 React 代码，只有 HTML 被发送到浏览器。</p>
+<p>然后，浏览器只负责获取该结构，并通过呈现组件、在其上添加 CSS 和附加 JavaScript 来使其具有交互性。这个过程叫做水合作用。</p>
+<p>水合最重要的要求是服务器和客户机生成的 HTML 结构必须匹配。如果不这样做，浏览器就不能决定应该如何处理结构的特定部分，这将导致不正确的呈现或者非交互式的用户界面。</p>
+<p>这在依赖于标识符的特性中尤其突出，因为它们必须两边匹配，例如在生成唯一的样式类名和可访问性标识符时。</p>
+<h3><code>useID</code>钩子的进化</h3>
+<p>为了解决这个问题，React 最初引入了<code>useOpaqueIdentifier</code>钩子，但不幸的是，它也有一些问题:</p>
+<ul>
+<li>在不同的环境中，挂钩会产生不同的输出(不透明):<ul>
+<li>服务器端:它会产生一个字符串</li>
+<li>客户端:它会产生一个必须直接传递给 DOM 属性的特殊对象</li>
+</ul>
+</li>
+</ul>
+<p>这意味着钩子只能产生一个标识符，而且不可能动态生成新的 id，因为它必须遵守钩子的规则。因此，如果你的组件需要 X 个不同的标识符，它将不得不在不同的时间调用钩子 X，这显然在实践中没有很好的伸缩性。</p>
+<pre class="language-javascript hljs">// Code illustrating the way `useOpaqueIdentifier` handles the need for N identifiers in a single component, namely calling the hook N times. 
+// Source: &lt;https://github.com/facebook/react/pull/17322#issuecomment-613104823&gt;
+
+function App() {
+  const tabIdOne = React.unstable_useOpaqueIdentifier();
+  const panelIdOne = React.unstable_useOpaqueIdentifier();
+  const tabIdTwo = React.unstable_useOpaqueIdentifier();
+  const panelIdTwo = React.unstable_useOpaqueIdentifier();
+
+  return (
+    &lt;React.Fragment&gt;
+      &lt;Tabs defaultValue="one"&gt;
+        &lt;div role="tablist"&gt;
+          &lt;Tab id={tabIdOne} panelId={panelIdOne} value="one"&gt;
+            One
+          &lt;/Tab&gt;
+          &lt;Tab id={tabIdTwo} panelId={panelIdTwo} value="one"&gt;
+            One
+          &lt;/Tab&gt;
+        &lt;/div&gt;
+        &lt;TabPanel id={panelIdOne} tabId={tabIdOne} value="one"&gt;
+          Content One
+        &lt;/TabPanel&gt;
+        &lt;TabPanel id={panelIdTwo} tabId={tabIdTwo} value="two"&gt;
+          Content Two
+        &lt;/TabPanel&gt;
+      &lt;/Tabs&gt;
+    &lt;/React.Fragment&gt;
+  );
+}
+</pre>
+<p>像<code><a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/ARIA_Techniques/Using_the_aria-labelledby_attribute" target="_blank" rel="noopener">aria-labelledby</a></code>这样的可访问性 API 可以通过空格分隔的列表接受多个标识符，但是因为钩子的输出被格式化为不透明的数据类型，所以它总是必须直接附加到 DOM 属性。这意味着不可能正确地使用前面提到的可访问性 API。</p>
+<p>为了解决这个问题，实现被更改并重命名为<code>useId</code>。这个新的 Hook API 在 SSR 和水合过程中生成稳定的标识符，以避免不匹配。在服务器呈现的内容之外，它退回到一个全局计数器。</p>
+<p>与使用<code>useOpaqueIdentifier</code>创建不透明数据类型(服务器中的特殊对象和客户机中的字符串)不同的是，<code>useId</code>钩子在两端都产生一个透明的字符串。</p>
+<p>这意味着如果我们需要 X 个不同的 id，就没有必要再调用钩子 X 次了。相反，一个组件可以调用<code>useId</code>一次，并使用它作为整个组件所必需的标识符的基础(例如，使用后缀),因为它只是一个字符串。这解决了在<code>useOpaqueIdentifier</code>中出现的两个问题。</p>
+<h3>如何使用<code>useID</code></h3>
+<p>下面的代码示例说明了如何根据我们上面讨论的内容使用<code>useId</code>。因为 React 生成的 id 是全局唯一的，后缀是局部唯一的，所以动态创建的 id 也是全局唯一的——因此不会导致任何水合不匹配。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<pre class="language-javascript hljs">// Code illustrating the improved way in which `useId` handles the need for N identifiers in a single component, namely calling the hook once and creating them dynamically. 
+// Source: &lt;https://github.com/reactwg/react-18/discussions/111&gt;
+
+function NameFields() {
+  const id = useId();
+  return (
+    &lt;div&gt;
+      &lt;label htmlFor={id + '-firstName'}&gt;First Name&lt;/label&gt;
+      &lt;div&gt;
+        &lt;input id={id + '-firstName'} type="text" /&gt;
+      &lt;/div&gt;
+      &lt;label htmlFor={id + '-lastName'}&gt;Last Name&lt;/label&gt;
+      &lt;div&gt;
+        &lt;input id={id + '-lastName'} type="text" /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<h2 id="useinsertioneffect-hook"><code>useInsertionEffect</code>钩子</h2>
+<h3>CSS-in-JS 库的问题</h3>
+<p>React 18 中添加的最后一个钩子——我们将在这里讨论——是<code>useInsertionEffect</code>。这个与其他的略有不同，因为它唯一的目的是对 CSS-in-JS 库很重要，这些库动态地生成新的规则，并用<code>&lt;style&gt;</code>标签将它们插入到文档中。</p>
+<p>在某些场景中，<code>&lt;style&gt;</code>标签需要在客户端生成或编辑，如果不小心的话，这会导致并发渲染的性能问题。这是因为当添加或删除 CSS 规则时，浏览器必须检查这些规则是否适用于现有的树。它必须重新计算所有的样式规则，并重新应用它们，而不仅仅是更改过的规则。如果 React 找到另一个也生成新规则的组件，同样的过程将再次发生。</p>
+<p>这实际上意味着在 React 渲染时，必须针对每一帧的所有 DOM 节点重新计算 CSS 规则。虽然您很有可能不会遇到这个问题，但这不是一个可以很好扩展的问题。</p>
+<p>从理论上讲，有很多方法可以绕过它，这些方法大多与时机有关。这个时间问题的最佳解决方案是在对 DOM 进行所有其他更改的同时生成这些标记，就像 React 库那样。最重要的是，它应该在任何东西试图访问布局之前发生，也应该在所有东西呈现给浏览器进行绘制之前发生。</p>
+<p>这听起来像是<code><a href="https://blog.logrocket.com/useeffect-vs-uselayouteffect-examples/" target="_blank" rel="noopener">useLayoutEffect</a></code>可以解决的事情，但是问题是相同的钩子将会被用于读取布局和插入样式规则。这可能会导致不希望的行为，例如在一次操作中多次计算布局或读取不正确的布局。</p>
+<h3><code>useInsertionEffect</code>如何解决并发渲染问题</h3>
+<p>为了解决这个问题，React 团队引入了<code>useInsertionEffect</code>钩子。它非常类似于<code>useLayoutEffect</code>钩子，但是它不能访问 DOM 节点的 refs。</p>
+<p>这意味着它只能是插入样式规则。它的主要用例是插入像<code>&lt;style&gt;</code>或 SVGs <code>&lt;defs&gt;</code>这样的全局 DOM 节点。由于这仅与在客户端生成标签相关，所以钩子不会在服务器上运行。</p>
+<pre class="language-javascript hljs">// Code illustrating the way `useInsertionEffect` is used.
+// Source: &lt;https://github.com/reactwg/react-18/discussions/110&gt;
+
+function useCSS(rule) {
+  useInsertionEffect(() =&gt; {
+    if (!isInserted.has(rule)) {
+      isInserted.add(rule);
+      document.head.appendChild(getStyleForRule(rule));
+    }
+  });
+  return rule;
+}
+
+function Component() {
+  let className = useCSS(rule);
+  return &lt;div className={className} /&gt;;
+}
+</pre>
+<h2>最后的想法</h2>
+<p>React 18 最令人期待的功能是它的并发渲染功能。随着该团队的发布，我们收到了新的 API，它将允许用户基于他们的用例采用并发渲染功能。虽然有些是全新的，但有些是基于社区反馈对以前 API 的改进版本。</p>
+<p>在本文中，我们介绍了三个最新的 API，即<code>useSyncExternalStore</code>、<code>useId</code>和<code>useInsertionEffect</code>钩子。我们已经看了它们的用例，它们解决的问题，为什么与它们以前的版本相比某些改变是必要的，以及它们用于并发渲染的目的。</p>
+<p>React 18 拥有众多新功能，绝对值得期待！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

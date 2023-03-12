@@ -1,0 +1,121 @@
+<html>
+<head>
+<title>Why React doesn't update state immediately - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>为什么 React 不立即更新状态</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/why-react-doesnt-update-state-immediately/#0001-01-01">https://blog.logrocket.com/why-react-doesnt-update-state-immediately/#0001-01-01</a></blockquote><div><div class="mainheading">
+
+<div class="row post-top-meta hidden-md-down">
+
+<div class="col-md-10 col-xs-12">
+<a class="text-capitalize link-dark" href="https://blog.logrocket.com/author/chiamakaumeh/">
+Chiamaka Umeh <span class="btn follow">Follow</span></a>
+<span class="author-description d-block">A frontend developer with a passion for designing highly-responsive user interfaces for JavaScript-based web and mobile apps using React and React Native.</span>
+</div>
+</div>
+<h1 class="posttitle">为什么 React 不立即更新状态</h1>
+<h2 class="post-subtitle"/>
+<p><span class="post-date"><time class="post-date">2022 年 1 月 12 日</time> </span> <span class="dot"/> <span class="readingtime"> 2 分钟阅读</span> <span class="wordcount"> 707 </span> <span class="logrocket_editor"/></p>
+</div>
+<article class="article-post">
+<p>尽管 React 很受欢迎，但它最大的缺点之一是组件的过度渲染。在开发 React 应用程序时，您可能已经注意到，状态更新在被更改后不会立即反映新的值。React state 是一个普通的 JavaScript 对象，它保存影响渲染输出的信息。</p>
+<p>在构建您的项目时，如果您打算在将来更改 React 组件的任何属性，您应该将该属性存储在一个状态中。该状态以<code>mount</code>上的初始默认值开始，随后由于用户的动作而改变。每个 React 组件在内部管理自己的状态。</p>
+<p>在本文中，我们将探究 React 不立即更新状态的原因。我们将运行一个示例，并阐明当您需要在类和函数组件中对新状态进行更改时应该做什么。我们开始吧！</p>
+<h2>React 如何执行状态更新</h2>
+<p>为了更新 React 组件中的状态，我们将分别在类和函数组件中使用由<code>React.useState()</code>钩子返回的<code>this.setState</code>函数或 updater 函数。</p>
+<p>React 中的状态更新是异步的；当请求更新时，不能保证会立即进行更新。updater 函数对组件状态的更改进行排队，但是 React 可能会延迟这些更改，在一次传递中更新几个组件。</p>
+<p>例如，考虑下面的代码:</p>
+<pre class="language-react hljs">//React
+const handleClick = () =&gt; {
+      setName("Amaka")
+      setAge(20)
+      setAddress("No 3 Rodeo drive")
+}
+</pre>
+<p>在上面的代码片段中，有三个不同的调用来更新和重新呈现组件。在大多数情况下，一个接一个地调用 updater 函数并在每次调用后重新呈现父组件和子组件是低效的。因此，React 批处理状态更新。</p>
+<p>无论<code>handleClick</code>事件处理程序中有多少个<code>setState()</code>调用，它们在事件结束时只会产生一次重新呈现，这对于在大型应用程序中保持良好的性能至关重要。更新请求的顺序始终得到尊重；React 总是首先处理第一个更新请求。</p>
+<p>既然我们已经确定了<a href="https://blog.logrocket.com/how-when-to-force-react-component-re-render/">延迟更新请求的协调以便批处理</a>它们是有益的，那么有时您需要等待更新来对更新后的值做一些事情。在下一节中，我们将看到如何做到这一点。</p>
+<h2>使用类组件执行操作</h2>
+<h3><code>setState()</code>回调</h3>
+<p><code>setState()</code>的第二个参数是可选的回调函数。一旦<code>setState()</code>完成并且组件被重新渲染，这个参数将被执行。回调函数保证在应用状态更新后运行:</p>
+<pre class="language-react hljs">//React
+
+handleSearch  = (e) =&gt; {
+    this.setState({
+    searchTerm: e.target.value
+  },() =&gt; {
+    // Do an API call with this.state.searchTerm
+  });
+}
+</pre>
+<h3><code>componentDidUpdate</code></h3>
+<p>状态更新发生后，立即调用<code>componentDidUpdate</code>函数。为了避免无限循环，您应该始终使用条件语句来确保前一状态和当前状态不相同:</p>
+<pre class="language-react hljs">//React
+
+componentDidUpdate(prevProps, prevState) {
+  if (prevState.count !== this.state.count) {
+    // Do something here
+  }
+}
+</pre>
+<h2>使用功能组件执行操作</h2>
+<h3><code>useEffect()</code>挂钩</h3>
+<p>当状态更新时，您可以在<code>useEffect</code>钩子中执行副作用。状态变量可以作为依赖项添加到这个钩子中，使它在状态值改变时运行。您可以让<code>useEffect</code>钩子监听状态变化:</p>
+<pre class="language-react hljs">//React
+
+import React,{useState, useEffect} from 'react';
+
+const App = () =&gt; {
+  const [count, setCount] = useState(1);
+
+  useEffect(() =&gt; {
+    if (count &gt; 5) {
+      console.log('Count is more that 5');
+    } else {
+      console.log('Count is less that 5');
+    }
+  }, [count]);
+
+  const handleClick = () =&gt; {
+    setCount(count + 1);
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{count}&lt;/p&gt;
+
+      &lt;button onClick={handleClick}&gt;
+        add
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default App;
+</pre>
+<p>只有当作为依赖项提供的状态变量改变时，<code>useEffect</code>钩子中的回调函数才会运行。</p>
+<h2>结论</h2>
+<p>在 React 中，每次状态更新都会导致被更新的组件重新呈现。因为重新呈现是一项开销很大的操作，同步进行状态更新会导致严重的性能问题，例如，增加加载时间或导致应用程序崩溃。通过批处理状态更新，React 避免了不必要的重新渲染，提高了整体性能。我希望你喜欢这篇文章！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

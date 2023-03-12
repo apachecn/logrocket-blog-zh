@@ -1,0 +1,816 @@
+<html>
+<head>
+<title>Introduction to MobX with React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 React - LogRocket 博客介绍 MobX</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/introduction-to-mobx-with-react/#0001-01-01">https://blog.logrocket.com/introduction-to-mobx-with-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2 id="introduction">MobX 简介</h2>
+<p>MobX 是一个开源的状态管理工具。在创建 web 应用程序时，开发人员通常会寻找一种有效的方法来管理应用程序中的状态。一个解决方案是使用名为<a href="https://reactjs.org/blog/2014/05/06/flux.html"> Flux </a>的单向数据流模式，由 React 团队引入，后来在<a href="https://blog.logrocket.com/why-use-redux-reasons-with-clear-examples-d21bffd5835/">实现了一个名为 React-Redux </a>的包，这使得使用 Flux 模式<a href="https://blog.logrocket.com/when-and-when-not-to-use-redux-41807f29a7fb/"> e </a> ven 更加容易。</p>
+<p>MobX 是一个简单、可扩展的独立状态管理库，遵循功能反应式编程(FRP)实现，通过确保所有派生都自动执行来防止不一致的状态。根据 MobX <a href="https://mobx.js.org/getting-started">入门</a>页面，“MobX 通过解决根本问题使状态管理再次变得简单:它使<em>不可能</em>产生不一致的状态。”</p>
+<p>MobX 是独立的，不依赖任何前端库或框架工作。在流行的前端框架如 React、Vue 和 Angular 中都有 MobX 的实现。</p>
+<p>在本教程中，我们将讨论如何使用 MobX 和 React，但首先，我们将开始更好地理解 MobX。</p>
+<h2 id="mobxcoreconcepts">MobX:核心概念</h2>
+<p>除了作为一个库，MobX 还引入了一些概念:状态、动作和派生(包括反应和计算值)。</p>
+<p>应用程序状态是指应用程序的整个模型，可以包含不同的数据类型，包括数组、数字和对象。在 MobX 中，动作是操纵和更新状态的方法。这些方法可以<a href="https://blog.logrocket.com/how-to-dynamically-create-javascript-elements-with-event-handlers/">绑定到 JavaScript 事件处理程序</a>以确保 UI 事件触发它们。</p>
+<p>从应用程序状态派生出来的任何东西(不仅仅是一个值)而没有进一步的交互都被称为派生。派生将监听任何特定的状态，然后执行一些计算来从该状态产生不同的值。派生可以返回任何数据类型，包括对象。在 MobX 中，两种类型的派生是反应和计算值。</p>
+<p>有时，当一个状态改变时，可能会有自动的副作用需要更新状态。MobX 将此称为反应，并将反应与 DOM 中的事件处理程序区分开来。Reactions 可以发出一个远程网络请求，调用本地存储，甚至动态地添加一个新的 DOM 元素。</p>
+<p>与不一定返回值的反应不同，计算值派生总是返回从当前状态派生的值。</p>
+<h2 id="demonstrationusingmobxtocreateastore">演示:使用 MobX 创建商店</h2>
+<p>为了演示 MobX 如何工作，我们将创建一个实现宠物主人商店的示例。首先，我们将使用一个<code>class</code>创建商店的基本表示，它包括宠物和主人作为实例属性，并初始化为一个空数组。</p>
+<pre>class PetOwnerStore {
+  pets = [];
+  owners = [];
+}
+</pre>
+<h3>创建新项目</h3>
+<p>理想情况下，我们希望我们的商店能够创造一个新的宠物和新的主人。为此，我们将向 store 引入两个方法:<code>createPet</code>，它接受一个 pet 对象并将其推送到当前实例的 pet 数组中，以及<code>createOwner</code>，它接受一个 owner 对象并将其推送到当前实例的 owner 数组的末尾:</p>
+<pre>class PetOwnerStore {
+  pets = [];
+  owners = [];
+
+  createPet(pet = { id: 0, name: "", type: "", breed: "", owner: null }) {
+    this.pets.push(pet);
+  }
+
+  createOwner(owner = { id: 0, firstName: "", lastName: "" }) {
+    this.owners.push(owner);
+  }
+}
+</pre>
+<h3>自动更新项目</h3>
+<p>我们还希望能够自动更新存储项目。为此，我们将引入另外两个方法:<code>updateOwner</code>使用 id 更新主人，以及<code>updatePet</code>使用 id 更新宠物。</p>
+<pre>class PetOwnerStore {
+  pets = [];
+  owners = [];
+
+    // ...create pet
+
+    // ...create owner
+
+    // update owner
+  updateOwner(ownerId, update) {
+    const ownerIndexAtId = this.owners.findIndex((owner) =&gt; owner.id === ownerId);
+    if (ownerIndexAtId &gt; -1 &amp;&amp; update) {
+      this.owners[ownerIndexAtId] = update;
+    }
+  }
+
+    // update pet
+  updatePet(petId, update) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    if (petIndexAtId &gt; -1 &amp;&amp; update) {
+      this.pets[petIndexAtId] = update;
+    }
+  }
+}
+</pre>
+<h3>移除项目</h3>
+<p>同样，我们希望能够从我们的商店中移除主人或宠物:</p>
+<pre>class PetOwnerStore {
+  pets = [];
+  owners = [];
+
+  // ...create pet
+
+    // ...create owner
+
+  // ...update pet
+
+    // ...update owner
+
+  // delete pet by user id
+  deletePet(petId) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    if (petIndexAtId &gt; -1) {
+      this.pets.splice(petIndexAtId, 1)
+    }
+  }
+
+    // delete owner by owner id
+  deleteOwner(ownerId) {
+    const ownerIndexAtId = this.owners.findIndex((owner) =&gt; owner.id === ownerId);
+    if (ownerIndexAtId &gt; -1) {
+      this.owners.splice(ownerIndexAtId, 1)
+    }
+  }
+}
+</pre>
+<h3>授予<code>get</code>的访问权限</h3>
+<p>我们还需要授予获取<code>totalOwners</code>、<code>totalPets</code>和<code>getPetsByOwner</code>的权限:</p>
+<pre>class PetOwnerStore {
+
+  pets = [];
+  owners = [];
+
+    // total number owners
+  get totalOwners() {
+    return this.owners.length;
+  }
+
+    // total number of pets
+  get totalPets() {
+    return this.pets.length;
+  }
+
+    // Get pets using ownerId
+  getPetsByOwner(ownerId) {
+    return this.pets.filter((pet) =&gt; {
+      return pet.owner &amp;&amp; pet.owner.id === ownerId;
+    });
+  }
+
+    // ...create pet
+
+    // ...create owner
+
+  // ...update pet
+
+    // ...update owner
+
+  // ...delete pet by user id
+
+    // ...delete owner by owner id
+}
+</pre>
+<h3>分配<code>id</code></h3>
+<p>最后，我们想使用<code>ownerId</code>和<code>petId</code>为一只宠物指定一个主人，并使用<code>${this.totalPets()} total pets and ${this.totalOwners()}</code>作为一个字符串来更新我们商店的一些细节:</p>
+<pre>class PetOwnerStore {
+
+  pets = [];
+  owners = [];
+
+  // ... total number owners
+
+  // ... total number of pets
+
+  // ... Get pets using ownerId
+
+    // ...create pet
+
+    // ...create owner
+
+  // ...update pet
+
+    // ...update owner
+
+  // ...delete pet by user id
+
+    // ...delete owner by owner id
+
+  // assign an owner using ownerId to a pet using petId
+  assignOwnerToPet(ownerId, petId) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    const ownerIndexAtId = this.owners.findIndex((pet) =&gt; pet.id === ownerId);
+    if (petIndexAtId &gt; -1 &amp;&amp; ownerIndexAtId &gt; -1) {
+      this.pets[petIndexAtId].owner = this.owners[petIndexAtId];
+    }
+  }
+
+    // get store details
+    get storeDetails () {
+    return `We have ${this.totalPets()} total pets and ${this.totalOwners()} total owners, so far!!!`
+  }
+
+    // Log the store details to the console
+  logStoreDetails() {
+    console.log(this.storeDetails);
+  }
+}
+</pre>
+<h3>最终实施</h3>
+<p>完成后，商店的最终实现应该如下所示:</p>
+<pre>class PetOwnerStore {
+
+  pets = [];
+  owners = [];
+
+    // total number owners
+  get totalOwners() {
+    return this.owners.length;
+  }
+
+    // total number of pets
+  get totalPets() {
+    return this.pets.length;
+  }
+
+    // Get pets using ownerId
+  getPetsByOwner(ownerId) {
+    return this.pets.filter((pet) =&gt; {
+      return pet.owner &amp;&amp; pet.owner.id === ownerId;
+    });
+  }
+
+  createPet(pet = { id: 0, name: "", type: "", breed: "", owner: null }) {
+    this.pets.push(pet);
+  }
+
+  createOwner(owner = { id: 0, firstName: "", lastName: "" }) {
+    this.owners.push(owner);
+  }
+
+  updateOwner(ownerId, update) {
+    const ownerIndexAtId = this.owners.findIndex((pet) =&gt; owner.id === ownerId);
+    if (ownerIndexAtId &gt; -1 &amp;&amp; update) {
+      this.owners[ownerIndexAtId] = update;
+    }
+  }
+
+  updatePet(petId, update) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    if (petIndexAtId &gt; -1 &amp;&amp; update) {
+      this.pets[petIndexAtId] = update;
+    }
+  }
+
+  deletePet(petId) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    if (petIndexAtId &gt; -1) {
+      this.pets.splice(petIndexAtId, 1)
+    }
+  }
+
+  deleteOwner(ownerId) {
+    const ownerIndexAtId = this.owners.findIndex((owner) =&gt; owner.id === ownerId);
+    if (ownerIndexAtId &gt; -1) {
+      this.owners.splice(ownerIndexAtId, 1)
+    }
+  }
+
+  // assign an owner using ownerId to a pet using petId
+  assignOwnerToPet(ownerId, petId) {
+    const petIndexAtId = this.pets.findIndex((pet) =&gt; pet.id === petId);
+    const ownerIndexAtId = this.owners.findIndex((pet) =&gt; pet.id === ownerId);
+    if (petIndexAtId &gt; -1 &amp;&amp; ownerIndexAtId &gt; -1) {
+      this.pets[petIndexAtId].owner = this.owners[petIndexAtId];
+    }
+  }
+
+    get storeDetails () {
+    return `We have ${this.totalPets()} total pets and ${this.totalOwners()} total owners, so far!!!`
+  }
+
+  logStoreDetails() {
+    console.log(this.storeDetails);
+  }
+}
+</pre>
+<h3>初始化店面</h3>
+<p>为了查看商店的运行情况，我们将初始化它，就像初始化普通的 JavaScript 类一样。初始化之后，我们可以使用指定的方法与商店进行交互。</p>
+<p>在我们的示例中，我们将向商店添加新的宠物和主人，并记录到目前为止我们所拥有的详细信息:</p>
+<pre>const petOwnerStore = new PetOwnerStore();
+
+  petOwnerStore.createPet({
+    id: 1,
+    name: "Bingo",
+    type: "Dog",
+    breed: "alsertian",
+  });
+  petOwnerStore.createPet({
+    id: 2,
+    name: "Lloyd",
+    type: "Cat",
+    breed: "winky",
+  });
+  petOwnerStore.createOwner({ id: 1, firstName: "Aleem", lastName: "Isiaka" });
+
+  petOwnerStore.logStoreDetails(); // -&gt; We have 2 pets and 1 owners, so far!!!
+</pre>
+<h2 id="makingourmobxstorereactive">让我们的 MobX 商店积极响应</h2>
+<p>如前所述，MobX 存储应该是反应式的，因此可以对变化做出响应。我们可以通过实现 MobX <a href="https://www.npmjs.com/package/mobx">库</a>提供的<code>makeObservable</code>函数来测试这一点:</p>
+<pre>import { makeObservable } from "mobx";
+</pre>
+<p><code>makeObservable</code>函数将一个类变成一个<a href="https://mobx.js.org/observable-state.html">可观察状态</a>，每当它的部分字段改变时，它就刷新和更新自己。从 MobX 库导出的<code>makeObservable</code>接受两个参数:对类实例的引用，以及类实例方法和字段的对象配置。</p>
+<p>为了帮助实现商店的可观察性，这里有一些 MobX 配置选项:</p>
+<ul>
+<li>将保存一个原语、一个数组或一个对象的存储中的任何字段值设为一个<code>observable</code>，根据值的类型用<a href="https://mobx.js.org/api.html#creating-observables">不同的方式创建一个可观察的</a>。</li>
+<li>使用<code>import {action} from "mobx"</code>将带有<code>action</code>的方法修饰为从 MobX 库中导入的命名导出。MobX 还搭载了其他动作<a href="https://mobx.js.org/api.html#actions">类型</a>。</li>
+<li>将基于商店当前状态(也称为派生)返回值的函数配置为<code>computed</code>。</li>
+<li>将反应(在当前状态下运行但不返回值的函数)配置为<code>autorun</code>。点击查看其他反应选项<a href="https://mobx.js.org/api.html#reactions">。</a></li>
+</ul>
+<h2 id="makingourmobxstoreobservable">让我们的 MobX 商店引人注目</h2>
+<p>为了使我们的<code>PetOwnerStore</code>类可见，我们将首先向我们的存储引入一个构造函数，它将保存使存储反应的配置:</p>
+<pre>class PetOwnerStore {
+  pets = [];
+  owners = [];
+
+  constructor () {
+    makeObservable(this, {
+      pets: observable,
+      owners: observable,
+      totalOwners: computed,
+      totalPets: computed,
+      storeDetails: computed,
+      getPetsByOwner: action,
+      createPet: action,
+      createOwner: action,
+      updatePet: action,
+      updateOwner: action,
+      deletePet: action,
+      deleteOwner: action,
+      assignOwnerToPet: action
+    });
+    autorun(logStoreDetails);
+  }
+
+    // ... remaining store implementation
+}
+</pre>
+<p>您会注意到，我们已经将<code>pets</code>和<code>owners</code>标记为<code>observable</code>，以便在值发生变化时保持商店界面的更新。</p>
+<p>我们还将<code>totalOwners</code>、<code>totalPets</code>和<code>storeDetails</code>标记为<code>computed</code>，以便在更新和返回这些值时进行缓存。此外，我们将<code>createPet</code>、<code>createOwner</code>、<code>updatePet</code>、<code>updateOwner</code>、<code>deletePet</code>、<code>deleteOwner</code>和<code>assignownerToPet</code>标记为<code>action</code>，以说明状态修改。</p>
+<p>注意，<code>logStoreDetails</code>将作为反应运行，因为它记录了商店的详细信息，但不返回值。</p>
+<h2 id="registeringandinteractingwithourstore">注册并与我们的 MobX 商店互动</h2>
+<p>我们可以通过使用<code>new</code>操作符创建一个新的存储实例来应用反应式存储，就像我们对非反应式存储所做的那样。</p>
+<pre>const petOwnerStore = new PetOwnerStore();
+// -&gt; We have 0 pets and 0 owners, so far!!!
+</pre>
+<p>MobX 在初始化期间以及每当有存储更新时调用反应，这意味着<code>logStoreDetails</code>反应函数将在每次初始化后发生摩擦。</p>
+<p>现在，我们可以通过创建新的宠物和主人来与商店互动。请注意，这些反应正在被记录:</p>
+<pre>const petOwnerStore = new PetOwnerStore();
+// -&gt; We have 0 pets and 0 owners, so far!!!
+
+petOwnerStore.createPet({
+  id: 1,
+  name: "Bingo",
+  type: "Dog",
+  breed: "alsertian",
+});
+// -&gt; We have 1 pets and 0 owners, so far!!!
+
+petOwnerStore.createPet({
+  id: 2,
+  name: "Lloyd",
+  type: "Cat",
+  breed: "winky",
+});
+// -&gt; We have 2 pets and 0 owners, so far!!!
+petOwnerStore.createOwner({ id: 1, firstName: "Aleem", lastName: "Isiaka" });
+// -&gt; We have 2 pets and 1 owners, so far!!!
+</pre>
+<h2 id="managingfrontendwithmobxandreact">使用 MobX 和 React 管理前端</h2>
+<p>现在是时候用 React 为我们的商店添加一些前端了！</p>
+<h3>创建新的 React 应用程序</h3>
+<p>首先，我们将使用 create-react-app 库创建一个新的 react 应用程序。从终端，我们将运行:</p>
+<pre>npx create-react-app mobx-react
+</pre>
+<p>上述命令将引导应用程序并安装依赖项。我们可以使用<code>cd mobx-react</code>进入文件夹。</p>
+<p>为了更容易地访问<code>PetOwner</code>商店，我们将在<code>src</code>文件夹中创建一个新文件 I<code>PetOwnerStore.js</code>，并加载我们的<code>PetOwner</code> MobX 商店的内容。因为我们单独开发了<code>PetOwner</code> MobX，所以我们现在将通过将我们之前创建的<code>PetOwnerStore</code>复制到前端项目中的<code>src</code>文件夹来使其可访问:</p>
+<pre># inside of /path/to/mobx-react
+cp path/to/PetOwnerStore.js ./src/PetOwnerStore.js
+</pre>
+<p>现在，在<code>src</code>文件夹中，我们可以为我们的组件创建一个文件夹，在文件夹中创建一个<code>PetList</code>组件，并在您喜欢的编辑器中打开该文件。</p>
+<pre>cd src
+mkdir components
+touch components/PetList.jsx
+</pre>
+<h3>管理组件</h3>
+<p>首先，让 PetList 组件显示商店的详细信息:</p>
+<pre>import React from "react";
+
+function PetList({ store }) {
+  return &lt;div&gt;{store.storeDetails}&lt;/div&gt;;
+}
+
+export default PetList;
+</pre>
+<p>在<code>App.jsx</code>内部，我们将导入<code>PetList</code>组件，并将商店对象作为道具传递给它，之后我们的<code>App.jsx</code>组件将如下所示:</p>
+<pre>import PetOwnerStore from "./PetOwnerStore";
+import PetList from "./components/PetList";
+
+function App() {
+  const store = new PetOwnerStore();
+  return (
+    &lt;div className="App"&gt;
+      &lt;PetList store={store} /&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>结果是这样的:</p>
+<p><img data-attachment-id="32339" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/mobx-components-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example.png" data-orig-size="1482,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mobx components example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-300x80.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png" decoding="async" class="aligncenter wp-image-32339 jetpack-lazy-image" src="../Images/c2d00daa933b64581bf5fee8a184c69f.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-300x80.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-768x205.png 768w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example.png 1482w" data-lazy-sizes="(max-width: 691px) 100vw, 691px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32339" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/mobx-components-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example.png" data-orig-size="1482,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mobx components example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-300x80.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png" decoding="async" loading="lazy" class="aligncenter wp-image-32339" src="../Images/c2d00daa933b64581bf5fee8a184c69f.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-300x80.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-768x205.png 768w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example.png 1482w" sizes="(max-width: 691px) 100vw, 691px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-components-example-1024x274.png"/></noscript>
+<h3>修改组件并添加细节</h3>
+<p>接下来，我们将修改<code>PetList.jsx</code>组件，向我们的列表中添加一只新宠物。为此，我们将添加一个按钮和，并将其分配给<code>onClick</code>事件:</p>
+<pre>function PetList({ store }) {
+  const handleAddPet = () =&gt; {};
+
+  return (
+    &lt;div&gt;
+      {store.storeDetails}
+      &lt;button onClick={handleAddPet}&gt;+ New pet&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>我们现在可以更新<code>handleAddPet</code>函数来收集用户的详细信息，并调用商店的<code>createPet</code>方法来将宠物添加到商店内的宠物数组中:</p>
+<pre>const handleAddPet = () =&gt; {
+  const name = prompt("Name of the pet");
+  const type = prompt("Type of the pet");
+  const breed = prompt("Breed of the pet");
+  const ownerId = prompt("Owner's Id of the pet");
+
+  const pet = store.createPet({ id: Date.now(), name, breed, type });
+  store.assignOwnerToPet(ownerId, pet.id);
+};
+</pre>
+<p>此时，您应该注意到，当我们尝试在控制台视图中运行时，存储被更新，但是组件没有接收到新数据。我们将在下一节中解决这个问题。</p>
+<p><img data-attachment-id="32340" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/mobx-output-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png" data-orig-size="730,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mobx output example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example-300x114.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png" decoding="async" class="aligncenter wp-image-32340 jetpack-lazy-image" src="../Images/355466117909f666f9410eb8bdd5d495.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example-300x114.png 300w" data-lazy-sizes="(max-width: 693px) 100vw, 693px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32340" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/mobx-output-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png" data-orig-size="730,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mobx output example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example-300x114.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png" decoding="async" loading="lazy" class="aligncenter wp-image-32340" src="../Images/355466117909f666f9410eb8bdd5d495.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example-300x114.png 300w" sizes="(max-width: 693px) 100vw, 693px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/mobx-output-example.png"/></noscript>
+<h2 id="makingreactcomponentsobservable">使反应成分可见</h2>
+<p>我们可以通过让 React 组件知道存储中的更新来触发组件的重新呈现，从而解决上述问题。在<code>mobx-react-lite</code>包的帮助下，<code>PetList</code>组件可以被观察到。</p>
+<h3>安装<code>mobx-react-lite</code></h3>
+<p>首先，我们将使用<code>npm</code> /yarn 安装<code>mobx-react-lite</code>:</p>
+<pre>npm install mobx-react-lite --save
+# or
+yarn add mobx-react-lite
+</pre>
+<p>请注意，<a href="https://mobx-state-tree.js.org/intro/philosophy"> mobx-state-tree </a>包也可以用于在 React 应用程序中设置 mobx。</p>
+<h3>导入<code>observer</code></h3>
+<p>在<code>PetList</code>组件内部，从<code>mobx-react-lite</code>导入<code>observer</code>；然后用它包裹<code>PetList</code>组件:</p>
+<pre>import React from "react";
+import { observer } from "mobx-react-lite";
+
+function PetList({ store }) {
+  const handleAddPet = () =&gt; {
+    const name = prompt("Name of the pet");
+    const type = prompt("Type of the pet");
+    const breed = prompt("Breed of the pet");
+    const ownerId = prompt("Owner's Id of the pet");
+
+    const pet = store.createPet({ id: Date.now(), name, breed, type });
+    store.assignOwnerToPet(ownerId, pet.id);
+  };
+
+  return (
+    &lt;div&gt;
+      {store.storeDetails}
+      &lt;p&gt;
+        &lt;button onClick={handleAddPet}&gt;+ New pet&lt;/button&gt;
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default observer(PetList);
+</pre>
+<p>通过用一个观察器包装组件，它现在会自动意识到存储中的变化。现在，我们可以创建一个新的宠物并重新渲染组件:</p>
+<p><img data-attachment-id="32338" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/important-observer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png" data-orig-size="730,282" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="important observer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png" decoding="async" class="aligncenter wp-image-32338 jetpack-lazy-image" src="../Images/1117aee1700e7cc8baabeb5cd0dcdb62.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer-300x116.png 300w" data-lazy-sizes="(max-width: 681px) 100vw, 681px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32338" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/important-observer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png" data-orig-size="730,282" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="important observer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png" decoding="async" loading="lazy" class="aligncenter wp-image-32338" src="../Images/1117aee1700e7cc8baabeb5cd0dcdb62.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer-300x116.png 300w" sizes="(max-width: 681px) 100vw, 681px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/important-observer.png"/></noscript>
+<p>现在 MobX 可以与我们的应用程序进行交互，在接下来的部分中，我们将讨论如何列出宠物项目、更新项目和删除项目。</p>
+<h3>列出处于状态的项目</h3>
+<p>使用 MobX 和 React，我们可以创建一个表来列出处于宠物状态的商品，并创建按钮来更新和删除商店中的宠物商品:</p>
+<pre>&lt;p&gt;{store.storeDetails}&lt;/p&gt;
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;##&lt;/th&gt;
+      &lt;th&gt;Pet Name&lt;/th&gt;
+      &lt;th&gt;Pet Type&lt;/th&gt;
+      &lt;th&gt;Pet Breed&lt;/th&gt;
+      &lt;th&gt;Owner&lt;/th&gt;
+      &lt;th&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    {store.pets.map((pet) =&gt; {
+      return (
+        &lt;tr key={pet.id}&gt;
+          &lt;td&gt;{pet.id}&lt;/td&gt;
+          &lt;td&gt;{pet.name}&lt;/td&gt;
+          &lt;td&gt;{pet.type}&lt;/td&gt;
+          &lt;td&gt;{pet.breed}&lt;/td&gt;
+          &lt;td&gt;
+            {pet.owner
+              ? `${pet.owner?.firstName} ${pet.owner?.lastName}`
+              : "---"}
+          &lt;/td&gt;
+          &lt;td&gt;
+            &lt;button
+              onClick={() =&gt; handleDeletePet(pet)}
+              style={{ marginRight: "1rem" }}
+            &gt;
+              Delete {pet.name}
+            &lt;/button&gt;
+            &lt;button onClick={() =&gt; handleUpdatePet(pet)}&gt;
+              Update {pet.name}
+            &lt;/button&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      );
+    })}
+  &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;button onClick={handleAddPet}&gt;+ New pet&lt;/button&gt;
+</pre>
+<p><img data-attachment-id="32342" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/observer-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png" data-orig-size="730,130" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="observer output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output-300x53.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png" decoding="async" class="aligncenter wp-image-32342 jetpack-lazy-image" src="../Images/9b70f7662a45c406afa4996bee58dbc7.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output-300x53.png 300w" data-lazy-sizes="(max-width: 696px) 100vw, 696px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32342" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/observer-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png" data-orig-size="730,130" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="observer output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output-300x53.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png" decoding="async" loading="lazy" class="aligncenter wp-image-32342" src="../Images/9b70f7662a45c406afa4996bee58dbc7.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output-300x53.png 300w" sizes="(max-width: 696px) 100vw, 696px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/observer-output.png"/></noscript>
+<h3>编辑项目</h3>
+<p>我们可以通过实现在列出宠物时提供的<code>handleUpdate</code>函数来编辑项目，比如一只宠物。</p>
+<p>在<code>PetList</code>组件的顶部，我们将添加下面的<code>handleUpdatePet</code>函数:</p>
+<pre>const handleUpdatePet = (pet) =&gt; {
+  pet.name = prompt("Name of the pet", pet.name);
+  pet.type = prompt("Type of the pet", pet.type);
+  pet.breed = prompt("Breed of the pet", pet.breed);
+  const ownerId = prompt("Owner's Id of the pet", pet.owner?.id);
+  store.updatePet(pet.id, pet);
+  if (ownerId !== pet.owner?.id) {
+    store.assignOwnerToPet(ownerId, pet.id);
+  }
+};
+</pre>
+<p>该函数接受一只宠物，并在调用商店上的<code>updatePet</code>函数之前，使用提示获取宠物的名称、类型、品种和<code>ownerId</code>，传递修改后的宠物对象。如果我们有一个新的<code>ownerId</code>，我们将通过调用 store 实例上的<code>assignOwnerToPet</code>方法将宠物分配给主人。</p>
+<h3>删除项目</h3>
+<p>要删除一个物品，我们可以对列表上的一个宠物物品实现<code>handleDelete</code>功能。该函数将接受一个<code>pet</code>对象并调用<code>store.deletePet</code>来完成该过程:</p>
+<pre>const handleDeletePet = (pet) =&gt; {
+  store.deletePet(pet.id);
+};
+</pre>
+<h3>完整代码:创建、更新和删除</h3>
+<p>下面是 PetList 组件的完整代码，它可以创建、更新和删除商店商品:</p>
+<pre>import React from "react";
+import { observer } from "mobx-react-lite";
+
+function PetList({ store }) {
+  const handleAddPet = () =&gt; {
+    const name = prompt("Name of the pet");
+    const type = prompt("Type of the pet");
+    const breed = prompt("Breed of the pet");
+    const ownerId = prompt("Owner's Id of the pet");
+
+    const pet = store.createPet({ id: Date.now(), name, breed, type });
+    store.assignOwnerToPet(ownerId, pet.id);
+  };
+
+  const handleUpdatePet = (pet) =&gt; {
+    pet.name = prompt("Name of the pet", pet.name);
+    pet.type = prompt("Type of the pet", pet.type);
+    pet.breed = prompt("Breed of the pet", pet.breed);
+    const ownerId = prompt("Owner's Id of the pet", pet.owner?.id);
+    store.updatePet(pet.id, pet);
+    if (ownerId !== pet.owner?.id) {
+      store.assignOwnerToPet(ownerId, pet.id);
+    }
+  };
+
+  const handleDeletePet = (pet) =&gt; {
+    store.deletePet(pet.id);
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{store.storeDetails}&lt;/p&gt;
+      &lt;table&gt;
+        &lt;thead&gt;
+          &lt;tr&gt;
+            &lt;th&gt;##&lt;/th&gt;
+            &lt;th&gt;Pet Name&lt;/th&gt;
+            &lt;th&gt;Pet Type&lt;/th&gt;
+            &lt;th&gt;Pet Breed&lt;/th&gt;
+            &lt;th&gt;Owner&lt;/th&gt;
+            &lt;th&gt;&lt;/th&gt;
+          &lt;/tr&gt;
+        &lt;/thead&gt;
+        &lt;tbody&gt;
+          {store.pets.map((pet) =&gt; {
+            return (
+              &lt;tr key={pet.id}&gt;
+                &lt;td&gt;{pet.id}&lt;/td&gt;
+                &lt;td&gt;{pet.name}&lt;/td&gt;
+                &lt;td&gt;{pet.type}&lt;/td&gt;
+                &lt;td&gt;{pet.breed}&lt;/td&gt;
+                &lt;td&gt;
+                  {pet.owner
+                    ? `${pet.owner?.firstName} ${pet.owner?.lastName}`
+                    : "---"}
+                &lt;/td&gt;
+                &lt;td&gt;
+                  &lt;button
+                    onClick={() =&gt; handleDeletePet(pet)}
+                    style={{ marginRight: "1rem" }}
+                  &gt;
+                    Delete {pet.name}
+                  &lt;/button&gt;
+                  &lt;button onClick={() =&gt; handleUpdatePet(pet)}&gt;
+                    Update {pet.name}
+                  &lt;/button&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            );
+          })}
+        &lt;/tbody&gt;
+      &lt;/table&gt;
+      &lt;button onClick={handleAddPet}&gt;+ New pet&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default observer(PetList);
+</pre>
+<h3>完成我们的申请</h3>
+<p>为了使我们的应用程序完整，我们需要创建、更新和删除所有者。首先，我们将在组件文件夹中创建一个新组件<code>OwnerList</code>:</p>
+<pre>touch ./src/components/OwnerList.jsx
+</pre>
+<p>然后，我们将把组件导入到应用程序的<code>App.jsx</code>中，像我们对<code>PetList</code>组件所做的那样，把它传递到商店:</p>
+<pre>import PetOwnerStore from "./PetOwnerStore";
+import PetList from "./components/PetList";
+import OwnerList from "./components/OwnerList";
+import "./App.css";
+
+function App() {
+  const store = new PetOwnerStore();
+  return (
+    &lt;div className="App"&gt;
+      &lt;h3&gt;Pets List&lt;/h3&gt;
+      &lt;PetList store={store} /&gt;
+      &lt;hr /&gt;
+      &lt;h3&gt;Owners List&lt;/h3&gt;
+      &lt;OwnerList store={store} /&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>接下来，我们将使用以下代码更新<code>OwnerList</code>组件:</p>
+<pre>import { observer } from "mobx-react-lite";
+import React from "react";
+
+function OwnerList({ store }) {
+  const handleAddOwner = () =&gt; {
+    const firstName = prompt("Firstname?");
+    const lastName = prompt("Lastname?");
+    store.createOwner({ id: Date.now(), firstName, lastName });
+  };
+
+  const handleUpdateOwner = (owner) =&gt; {
+    owner.firstName = prompt("Firstname?", owner.firstName);
+    owner.lastName = prompt("Lastname?", owner.lastName);
+    store.updateOwner(owner.id, owner);
+  };
+
+  const handleDeleteOwner = (owner) =&gt; {
+    store.deleteOwner(owner.id);
+  };
+
+  return (
+    &lt;div className="pet-owner-app"&gt;
+      &lt;table&gt;
+        &lt;thead&gt;
+          &lt;tr&gt;
+            &lt;th&gt;##&lt;/th&gt;
+            &lt;th&gt;First Name&lt;/th&gt;
+            &lt;th&gt;last Name&lt;/th&gt;
+            &lt;th&gt;Owner&lt;/th&gt;
+            &lt;th&gt;&lt;/th&gt;
+          &lt;/tr&gt;
+        &lt;/thead&gt;
+        &lt;tbody&gt;
+          {store.owners.map((owner) =&gt; {
+            return (
+              &lt;tr key={owner.id}&gt;
+                &lt;td&gt;{owner.id}&lt;/td&gt;
+                &lt;td&gt;{owner.firstName}&lt;/td&gt;
+                &lt;td&gt;{owner.lastName}&lt;/td&gt;
+                &lt;td&gt;
+                  &lt;button
+                    onClick={() =&gt; handleDeleteOwner(owner)}
+                    style={{ marginRight: "1rem" }}
+                  &gt;
+                    Delete {owner.firstName}
+                  &lt;/button&gt;
+                  &lt;button onClick={() =&gt; handleUpdateOwner(owner)}&gt;
+                    Update {owner.firstName}
+                  &lt;/button&gt;
+                &lt;/td&gt;
+              &lt;/tr&gt;
+            );
+          })}
+        &lt;/tbody&gt;
+      &lt;/table&gt;
+      &lt;button onClick={handleAddOwner}&gt;+ New owner&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default observer(OwnerList);
+</pre>
+<p>注意,<code>OwnerList</code>组件的功能与 PetList 组件相同；这里唯一的不同是，我们没有像处理<code>PetList</code>组件那样给宠物分配主人:</p>
+<p><img data-attachment-id="32343" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/ownerlist-mobx/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png" data-orig-size="730,358" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="OwnerList mobx" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx-300x147.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png" decoding="async" class="aligncenter wp-image-32343 jetpack-lazy-image" src="../Images/474add81a1893da41626e5f11786c59e.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx-300x147.png 300w" data-lazy-sizes="(max-width: 716px) 100vw, 716px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32343" data-permalink="https://blog.logrocket.com/introduction-to-mobx-with-react/ownerlist-mobx/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png" data-orig-size="730,358" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="OwnerList mobx" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx-300x147.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png" decoding="async" loading="lazy" class="aligncenter wp-image-32343" src="../Images/474add81a1893da41626e5f11786c59e.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx-300x147.png 300w" sizes="(max-width: 716px) 100vw, 716px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/OwnerList-mobx.png"/></noscript>
+<h2 id="usingmobxtomanagedatafromaremoteserver">使用 MobX 管理远程服务器上的数据</h2>
+<p>很多时候，数据需要从远程服务器加载。我们可以通过修改<code>PetOwnerStore</code>并在类的末尾添加一个<code>prefetchData</code>方法来模拟这一点。我们将使用一个<code>setTimeout</code>来模拟一个网络请求，然后调用该类上的 create 方法来将新的可用数据添加到存储中:</p>
+<pre>class PetOwnerStore {
+  // Other implemetations
+
+  prefetchData = () =&gt; {
+    const owners = [{ firstName: "Aleem", lastName: "Isiaka", id: 1 }];
+    const pets = [
+      {
+        id: 1,
+        name: "Lincy",
+        breed: "Siamese",
+        type: "Cat",
+        ownerId: 1,
+      },
+    ];
+
+    setTimeout(() =&gt; {
+      console.log("Fetch complete update store");
+      owners.map((pet) =&gt; this.createOwner(pet));
+      pets.map((pet) =&gt; {
+        this.createPet(pet);
+        this.assignOwnerToPet(pet.ownerId, pet.id);
+        return pet;
+      });
+    }, 3000);
+  };
+}
+</pre>
+<p>在构造函数中，我们将把这个方法注册为一个动作，让 MobX 替我们管理。因为我们需要在开始加载应用程序时获取数据，所以我们将在商店初始化期间调用该方法。为此，我们将如下使用<code><a href="https://mobx.js.org/api.html#runinaction">runInAction</a></code>:</p>
+<pre>import {
+  action,
+  computed,
+  makeObservable,
+  observable,
+  autorun,
+  runInAction,
+} from "mobx";
+
+class PetOwnerStore {
+  pets = [];
+  owners = [];
+
+  constructor() {
+    makeObservable(this, {
+      pets: observable,
+      owners: observable,
+      totalOwners: computed,
+      totalPets: computed,
+      storeDetails: computed,
+      getPetsByOwner: action,
+      createPet: action,
+      createOwner: action,
+      updatePet: action,
+      updateOwner: action,
+      deletePet: action,
+      deleteOwner: action,
+      assignOwnerToPet: action,
+    });
+    autorun(this.logStoreDetails);
+    // A reaction that runs just once!
+    runInAction(this.prefetchData);
+  }
+
+  logStoreDetails = () =&gt; {
+    console.log(this.storeDetails);
+  };
+
+  prefetchData = () =&gt; {
+    const owners = [{ firstName: "Aleem", lastName: "Isiaka", id: 1 }];
+    const pets = [
+      {
+        id: 1,
+        name: "Lincy",
+        breed: "Siamese",
+        type: "Cat",
+        ownerId: 1,
+      },
+    ];
+
+    setTimeout(() =&gt; {
+      console.log("Fetch complete update store");
+      owners.map((pet) =&gt; this.createOwner(pet));
+      pets.map((pet) =&gt; {
+        this.createPet(pet);
+        this.assignOwnerToPet(pet.ownerId, pet.id);
+        return pet;
+      });
+    }, 3000);
+  };
+}
+
+export default PetOwnerStore;
+</pre>
+<p>就是这样！我们现在已经创建了一个完整的具有 CRUD 功能的 React/MobX 应用程序。为了进一步澄清，我建议查看<a href="https://mobx-react.vercel.app/">最终申请</a>和<a href="https://github.com/limistah/mobx-react">代码</a>。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们探讨了如何使用 MobX 的反应性来管理应用程序的状态，特别是如何使用 MobX 来管理 React 应用程序的状态。</p>
+<p>请注意，在我们的例子中，出于教学目的，我们努力将商店的逻辑从 UI 中分离出来，这是本文作者的个人偏好。MobX 并不要求任何项目都有特定的结构，事实上，它鼓励设置与应用程序的结构相匹配。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用 LogRocket 消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款 React analytics 解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket 告诉您 React 应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS 异常、前端性能指标和用户交互。然后，LogRocket 使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的 React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试 LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

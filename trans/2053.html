@@ -1,0 +1,358 @@
+<html>
+<head>
+<title>Implementing user registration and authentication with Strapi and Next.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Strapi 和 Next.js - LogRocket Blog 实现用户注册和认证</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/user-registration-authentication-strapi-next-js/#0001-01-01">https://blog.logrocket.com/user-registration-authentication-strapi-next-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>本文将带您使用<a href="https://strapi.io/" target="_blank" rel="noopener"> Strapi CMS </a>和 Next.js 创建一个应用程序，您可以在其中注册和验证用户并持久化会话。</p>
+<h2>设置 Next.js 应用程序</h2>
+<p>让我们从设置 Next.js 应用程序开始。最简单的设置方法是使用<code>create-next-app</code>包。</p>
+<p>在您的终端中，运行<code>npx create-next-app next-app</code>，其中<code>next-app</code>是您喜欢的项目名称。</p>
+<p>这将生成一个名为<code>next-app</code>的文件夹。然后，在您的终端屏幕中导航到该文件夹并运行<code>npm run dev</code>。您将看到应用程序运行在本地主机端口 3000 上。</p>
+<h2>设置 Strapi</h2>
+<p>就像 Next.js 一样，Strapi 也有一个 npm 包，可以轻松启动一个项目。</p>
+<p>运行<code>npx create-strapi-app strapi-app</code>来创建一个 Strapi 项目。出现提示时，选择<code>Quickstart</code>选项。</p>
+<p>安装完成后，导航到<code>strapi-app</code>文件夹并运行<code>npm run dev</code>。当你访问<code>localhost:1337</code>时，你会被要求创建一个管理员账户。这样做之后，您应该会被引导到 Strapi 控制面板。</p>
+<h2>在 Strapi 中注册用户</h2>
+<p>在 Strapi 的侧栏中，在<strong>集合类型</strong>下，您应该看到默认创建的<code>Users</code>。在这里，您可以手动创建用户并查看所有现有用户。</p>
+<p>默认情况下，Strapi 的 api 提供端点来创建、获取和验证用户。</p>
+<p><code>/auth/local/register</code>是我们需要发送用户名、电子邮件和密码以注册用户的终点。</p>
+<p>对于这个示例应用程序，我们将有<code>/register</code>和<code>/profile</code>路线，在这里您可以分别注册一个用户，然后查看用户的个人资料。登录屏幕将在主页上。</p>
+<p>让我们从<code>&lt;RegisterComponent/&gt;</code>组件开始。</p>
+<p>该组件返回一个非常基本的表单，用户在其中输入用户名、电子邮件和密码。</p>
+<p>然后，<code>userData</code>对象保存这些信息，并将其发送到<code>/api/register</code>端点，这是我们将在下一个应用程序的后端部分创建的东西。注意，为了进行 API 调用，我使用了<code>axios</code>包，所以要确保你把它作为一个依赖项安装了。</p>
+<p><code>npm install --save axios</code></p>
+<p>一旦对<code>/api/register</code>的请求成功，我们就将应用程序路由到<code>/profile</code>以显示用户信息。我们稍后将创建<code>/profile</code>页面。</p>
+<p>下面的文件是<code>/components/registerComponent.jsx</code>，我们将在<code>/pages/register.jsx</code>中使用它:</p>
+<pre>import { useState } from 'react';
+import { useRouter } from 'next/router';
+import axios from 'axios';
+
+const RegisterComponent = () =&gt; {
+  const router = useRouter();
+  const [userData, setUserData] = useState({
+    username: '',
+    email: '',
+    password: '',
+  })
+
+  const handleSubmit = async (e) =&gt; {
+    e.preventDefault();
+    try {
+      await axios.post('/api/register', userData);
+      router.replace('/profile');
+    } catch (err) {
+      console.log(err.response.data);
+    }
+  }
+
+  const handleChange = (e) =&gt; {
+    const { name, value } = e.target;
+    setUserData({...userData, [name]: value });
+  }
+
+  return (
+    &lt;form onSubmit={handleSubmit}&gt;
+      &lt;label&gt;
+        Username:
+        &lt;input type="text" name="username" onChange={e =&gt; handleChange(e)} /&gt;
+      &lt;/label&gt;
+      &lt;br /&gt;
+      &lt;label&gt;
+        Email:
+        &lt;input type="text" name="email" onChange={e =&gt; handleChange(e)} /&gt;
+      &lt;/label&gt;
+      &lt;br /&gt;
+      &lt;label&gt;
+        Password:
+        &lt;input type="password" name="password" onChange={e =&gt; handleChange(e)} /&gt;
+      &lt;/label&gt;
+      &lt;br /&gt;
+      &lt;button&gt;Register&lt;/button&gt;
+    &lt;/form&gt;
+  )
+}
+
+export default RegisterComponent;
+</pre>
+<p>现在在<code>pages</code>文件夹下创建<code>register.jsx</code>，并返回<code>&lt;RegisterComponent/&gt;</code>。</p>
+<pre>import RegisterComponent from "../components/registerComponent";
+const Register = () =&gt; (
+  &lt;RegisterComponent /&gt;
+)
+export default Register;
+</pre>
+<p>我们需要做的下一件事是创建<code>/api/register</code>端点。</p>
+<p>在<code>/pages</code>下，你会找到<code>/api</code>文件夹。在那个文件夹中，创建<code>register.js</code>。这样，当我们在 Next.js 客户机中向<code>/api/register</code>发出请求时，它将由这个文件处理。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<pre>import axios from 'axios';
+import { setCookie } from 'nookies'
+
+export default async (req, res) =&gt; {
+  const { username, password, email } = req.body;
+
+  try {
+    const response = await axios.post('http://localhost:1337/auth/local/register', {
+      username,
+      email,
+      password,
+    })
+
+    setCookie({ res }, 'jwt', response.data.jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+    });
+
+    res.status(200).end();
+  } catch (e) {
+    res.status(400).send(e.response.data.message[0].messages[0]);
+  }
+}
+</pre>
+<p>如前所述，注册用户的端点是<code>/auth/local/register</code>。因为 Strapi 运行在<code>localhost:1337</code>上，我们向<code><a href="http://localhost:1337/auth/local/register" rel="nofollow">http://localhost:1337/auth/local/register</a></code>发送一个请求，以及从请求体中检索到的用户名、电子邮件和密码数据。</p>
+<p>注意，如果您将 Strapi 应用程序部署到远程服务器，那么您需要相应地替换基本 URL。将基本 URL 存储在环境变量中，然后使用它而不是硬编码 URL，这是一个很好的做法。然而，为了简单起见，我将在整篇文章中使用<code>localhost:1337</code>。</p>
+<p>POST 请求返回的响应包含一个 JWT 令牌。这个令牌是特定于该用户的，应该安全地存储，以便自动对用户进行身份验证。</p>
+<p><code>nookies</code>包是在 Next.js 应用程序中处理 cookies 的助手函数的集合。</p>
+<p><code>setCookie</code>函数将响应对象作为第一个参数。第二个参数是 cookie 的名称，可以是您选择的任何名称。</p>
+<p>第三个参数是 cookie 的值。在我们的例子中，这是从请求响应返回的<code>JWT</code>标记，作为最后一个参数，我们可以传递一个带有选项的对象。</p>
+<p><code>httpOnly</code>标志防止客户端——浏览器上运行的 javascript 访问 cookie，以便您可以保护 cookie 免受可能的<a href="https://blog.logrocket.com/security-for-fullstack-web-developers-part-3-aaf81da57acb/" target="_blank" rel="noopener">跨站脚本</a> (XSS)攻击。</p>
+<p><code>secure</code>标志确保 cookie 只通过安全的<code>https</code>连接传输。因为 localhost 不是一个<code>https</code>连接，所以如果我们运行应用程序的环境是<code>development</code>，我们将它设置为<code>false</code>。</p>
+<p><code>maxAge</code>确定 cookie 的有效秒数。在本例中，它被设置为 30 天。</p>
+<p><code>path</code>确定 cookie 应该在哪个路径有效。它被设置为<code>/</code>以便使 cookie 可用于所有路径。</p>
+<p>请注意，如果请求失败，我们将发送一条消息。从<code>e.response.data.message[0].messages[0]</code>获取的该消息包含关于请求失败原因的有用信息。这可能是一个无效的电子邮件，或者用户名已经被使用，等等。</p>
+<p>因此，在注册失败的情况下，此信息可用于显示适当的错误消息。</p>
+<p>为了简单起见，我们不在客户端处理这个错误消息。我们只是简单地将它记录下来，显示在浏览器控制台中。</p>
+<h2>在 Strapi 中创建用户配置文件页面</h2>
+<p>这是<code>/profile</code>路线，显示用户数据，如用户名和电子邮件。可以直接访问该路径，或者，用户可以在登录或注册时被路由到该路径。</p>
+<p>因为这个页面需要使用 cookie 来认证用户，并且因为我们已经在服务器端用<code>httpsOnly</code>标志设置了 cookie，所以我们也需要读取服务器中的 cookie。</p>
+<p><code>getServerSideProps</code>是一个 Next.js 函数，它根据每个请求在服务器上运行。在这个函数中，我们可以解析 cookie 来访问 JWT 令牌，然后请求 Strapi 获取用户数据。然后，我们可以从函数中返回该数据，该函数将该数据公开为页面的道具。</p>
+<p><code>/pages/profile.jsx</code>的内容如下:</p>
+<pre>import { useRouter } from 'next/router';
+import axios from 'axios';
+import nookies from 'nookies';
+
+const Profile = (props) =&gt; {
+  const router = useRouter();
+  const { user: { email, username } } = props;
+
+  const logout = async () =&gt; {
+    try {
+      await axios.get('/api/logout');
+      router.push('/');
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;div&gt;Username: {username}&lt;/div&gt;
+      &lt;div&gt;Email: {email}&lt;/div&gt;
+      &lt;button onClick={logout}&gt;Logout&lt;/button&gt;
+    &lt;/div&gt;
+  )
+}
+
+export const getServerSideProps = async (ctx) =&gt; {
+  const cookies = nookies.get(ctx)
+  let user = null;
+
+  if (cookies?.jwt) {
+    try {
+      const { data } = await axios.get('http://localhost:1337/users/me', {
+        headers: {
+          Authorization:
+            `Bearer ${cookies.jwt}`,
+          },
+      });
+      user = data;
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  if (!user) {
+    return {
+      redirect: {
+        permanent: false,
+        destination: '/'
+      }
+    }
+  }
+
+  return {
+    props: {
+      user
+    }
+  }
+}
+
+export default Profile;
+</pre>
+<p>我们先来关注一下<code>getServerSideProps</code>函数。我们再次使用<code>nookies</code>包从上下文对象(ctx)中获取 cookies。我们设置的 cookie 的名称是<code>jwt</code>，因此检查<code>cookies.jwt</code>的存在。</p>
+<p>如果这个特定的 cookie 存在，那么我们向本地 Strapi 服务器的<code>/users/me</code>端点发送一个请求，其中的<code>Authorization</code>头包含 JWT 令牌，以获取用户信息。</p>
+<p>如果 cookie 不存在或者 JWT 令牌无效，<code>user</code>变量将停留在<code>null</code>，我们将页面重定向回<code>/</code>，这是带有登录屏幕的主页。否则，我们在<code>props</code>对象中返回<code>user</code>，然后它在我们导出的<code>Profile</code>函数中成为可用的道具。</p>
+<p><code>Profile</code>函数返回一个非常基本的标记，其中显示了用户名和电子邮件，以及一个注销按钮，该按钮调用<code>logout</code>函数。</p>
+<p>这个函数向<code>/api/logout</code>端点发送一个请求，以便删除 cookie，然后将页面路由到<code>/</code>。</p>
+<p>下面是<code>/pages/api/logout.js</code>:</p>
+<pre>import { destroyCookie } from 'nookies'
+
+export default async (req, res) =&gt; {
+  destroyCookie({ res }, 'jwt', {
+    path: '/',
+  });
+
+  res.status(200).end();
+}
+</pre>
+<h2>登录用户</h2>
+<p>这里是<code>/pages/index.jsx</code>的内容，这是主页，<code>&lt;LoginComponent&gt;</code>和一个注册按钮在这里，注册按钮将页面路由到<code>/register</code>路径。</p>
+<pre>import { useRouter } from 'next/router';
+import axios from 'axios';
+import nookies from 'nookies';
+import LoginComponent from '../components/loginComponent';
+
+const Home = () =&gt; {
+  const router = useRouter();
+  const goToRegister = () =&gt; {
+    router.push('/register');
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;LoginComponent /&gt;
+      &lt;button onClick={goToRegister}&gt;Register&lt;/button&gt;
+    &lt;/div&gt;
+  )
+}
+
+export const getServerSideProps = async (ctx) =&gt; {
+  const cookies = nookies.get(ctx)
+  let user = null;
+
+  if (cookies?.jwt) {
+    try {
+      const { data } = await axios.get('http://localhost:1337/users/me', {
+        headers: {
+          Authorization:
+            `Bearer ${cookies.jwt}`,
+          },
+      });
+      user = data;
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  if (user) {
+    return {
+      redirect: {
+        permanent: false,
+        destination: '/profile'
+      }
+    }
+  }
+
+  return {
+    props: {}
+  }
+}
+
+export default Home;
+</pre>
+<p>正如我们在<code>/pages/profile.jsx</code>中所做的，我们再次使用<code>getServerSideProps</code>函数来获取 cookie，然后检查用户的存在。</p>
+<p>如果用户确实存在，那么我们重定向到<code>/profile</code>路由。如果没有，我们返回一个空的<code>props</code>对象，并停留在相同的路线上来渲染<code>&lt;LoginComponent/&gt;</code>，它有以下内容:</p>
+<pre>import { useState } from 'react';
+import { useRouter } from 'next/router';
+import axios from 'axios';
+
+const LoginComponent = () =&gt; {
+  const router = useRouter();
+  const [userData, setUserData] = useState({
+    identifier: '',
+    password: '',
+  });
+
+  const handleSubmit = async (e) =&gt; {
+    e.preventDefault();
+    try {
+      await axios.post('/api/login', { ...userData });
+      router.push('/profile');
+    } catch (err) {
+      console.log(err.response.data);
+    }
+  }
+
+  const handleChange = (e) =&gt; {
+    const { name, value } = e.target;
+    setUserData({...userData, [name]: value })
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;form onSubmit={handleSubmit}&gt;
+        &lt;label&gt;
+          Email:
+          &lt;input type="text" name="identifier" onChange={e =&gt; handleChange(e)} /&gt;
+        &lt;/label&gt;
+        &lt;br /&gt;
+        &lt;label&gt;
+          Password:
+          &lt;input type="password" name="password" onChange={e =&gt; handleChange(e)} /&gt;
+        &lt;/label&gt;
+        &lt;br /&gt;
+        &lt;button&gt;Login&lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/div&gt;
+  )
+}
+
+export default LoginComponent;
+</pre>
+<p>该组件呈现一个表单来获取电子邮件和密码。当提交表单时，向<code>/api/login</code>发出 POST 请求，页面被重定向到<code>/profile</code>路由。</p>
+<p>下面你可以看到<code>/api/login.js</code>的内容</p>
+<pre>import axios from 'axios';
+import { setCookie } from 'nookies'
+
+export default async (req, res) =&gt; {
+  const { password, identifier } = req.body;
+
+  try {
+    const postRes = await axios.post('http://localhost:1337/auth/local', {
+      identifier,
+      password,
+    })
+
+    setCookie({ res }, 'jwt', postRes.data.jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+    });
+
+    res.status(200).end();
+  } catch (e) {
+    res.status(400).send(e.response.data.message[0].messages[0]);
+  }
+}
+</pre>
+<p><code>/auth/local</code>是让用户登录的 Strapi 端点。发送到这个端点的对象应该有<code>identifier</code>和<code>password</code>键。</p>
+<p>正如我们在<code>/api/register.js</code>中所做的，我们还设置了一个具有相同名称和选项的 cookie 来持久化用户会话。</p>
+<h2>结论</h2>
+<p>在本文中，我们演示了如何使用 Next.js 作为全栈应用程序来创建具有多个路由的用户界面，并创建 api 端点来与 Strapi 的 API 进行通信，以便注册和获取用户信息。为了持久化用户会话，还演示了在 Next.js 中在服务器端设置和获取 cookies。</p><div class="code-block code-block-30">
+<div class="blog-plug inline-plug next-plug"><h2><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank"> LogRocket </a>:全面了解生产 Next.js 应用</h2><p>调试下一个应用程序可能会很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪状态、自动显示 JavaScript 错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript></a><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你的 Next.js 应用上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用程序的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p><p>让您调试 Next.js 应用的方式现代化— <a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

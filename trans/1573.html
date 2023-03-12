@@ -1,0 +1,216 @@
+<html>
+<head>
+<title>Tips for creating your first Rector rule to transform PHP code - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>创建第一个转换 PHP 代码的 Rector 规则的技巧</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-first-rector-rule-transform-php-code/#0001-01-01">https://blog.logrocket.com/creating-first-rector-rule-transform-php-code/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://github.com/rectorphp/rector"> Rector </a>是一个 PHP 的重构工具。它将源代码和转换规则作为输入，并根据规则修改代码作为输出。</p>
+<p>即使我们没有想到，我们也经常使用工具来转换 PHP 代码。例如，<a href="https://github.com/squizlabs/PHP_CodeSniffer"> PHP 代码嗅探器</a>可以验证代码是否符合<code>PSR</code>标准，如果不符合，执行<code>phpcbf</code>命令可以自动修复。或者<a href="https://github.com/humbug/php-scoper"> PHP-Scoper </a>将确定项目中的依赖关系以避免潜在的冲突。</p>
+<p>Rector 与这些工具的不同之处在于它是一个元应用程序。它没有一个预先确定的目标，例如固定样式或项目范围。相反，它将<a href="https://blog.logrocket.com/transpiling-php-code-from-8-0-to-7-x-via-rector/">按照规则转换代码</a>,不管给出的是什么规则。然后，Rector 可以完美地重现 PHP CodeSniffer，PHP-Scoper，或者其他任何代码转换工具。</p>
+<p>在本文中，我将分享一些在 Rector 中创建规则的技巧。</p>
+<h2>教区长的柱子</h2>
+<p>雷克脱站在两个巨人的肩膀上:</p>
+<ul>
+<li>PHP 解析器:一个解析 PHP 代码的库，支持静态代码分析和操作</li>
+<li>PHPStan :一个静态分析工具</li>
+</ul>
+<p>多亏了 PHP 解析器，Rector 可以使用 AST(抽象语法树的缩写)中的节点来操作代码。由于 PHPStan，Rector 可以理解代码，因此它能够映射、浏览和验证代码中实体之间的关系，比如获取一个类或其所有实现的接口的祖先。</p>
+<p>在开始使用 Rector 之前，最好对这两个库有一个基本的了解，并在我们使用 Rector 时不断学习它们的文档。事实上，Rector 规则越复杂，掌握这两个库就变得越重要。</p>
+<h2>什么是教区长规则？</h2>
+<p>规则是一个继承自<code><a href="https://github.com/rectorphp/rector/blob/master/src/Rector/AbstractRector.php">AbstractRector</a></code>的 PHP 类，它执行来自 AST(对应于解析的 PHP 文件)的节点上的转换。</p>
+<p>它由三个主要方法组成，我们必须满足:</p>
+<ul>
+<li><code>getRuleDefinition</code>:用于记录规则</li>
+<li><code>getNodeTypes</code>:规则将应用于什么类型的节点</li>
+<li><code>refactor</code>:产生新 AST 节点的逻辑</li>
+</ul>
+<p>例如，规则<code>DowngradeNullCoalescingOperatorRector</code>用 PHP 7.3 中的等价操作符替换了 PHP 7.4 中引入的<code>??=</code>操作符。它有<a href="https://github.com/rectorphp/rector/blob/a7705ed0a59c7c0ff8619c07ec48f489fb90787f/rules/downgrade-php74/src/Rector/Coalesce/DowngradeNullCoalescingOperatorRector.php">这个实现</a>:</p>
+<pre>use PhpParser\Node;
+use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\AssignOp\Coalesce as AssignCoalesce;
+use PhpParser\Node\Expr\BinaryOp\Coalesce;
+use Rector\Core\Rector\AbstractRector;
+use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
+use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
+
+final class DowngradeNullCoalescingOperatorRector extends AbstractRector
+{
+  public function getRuleDefinition(): RuleDefinition
+  {
+    return new RuleDefinition('Remove null coalescing operator ??=', [
+      new CodeSample(
+        &lt;&lt;&lt;'CODE_SAMPLE'
+$array = [];
+$array['user_id'] ??= 'value';
+CODE_SAMPLE
+        ,
+        &lt;&lt;&lt;'CODE_SAMPLE'
+$array = [];
+$array['user_id'] = $array['user_id'] ?? 'value';
+CODE_SAMPLE
+      ),
+    ]);
+  }
+
+  /**
+   * @return string[]
+   */
+  public function getNodeTypes(): array
+  {
+    return [AssignCoalesce::class];
+  }
+
+  /**
+   * @param AssignCoalesce $node
+   */
+  public function refactor(Node $node): ?Node
+  {
+    return new Assign($node-&gt;var, new Coalesce($node-&gt;var, $node-&gt;expr));
+  }
+}</pre>
+<p>让我们看看它是如何工作的。</p>
+<h3><code>getRuleDefinition</code></h3>
+<p>我们必须提供转换前后的代码示例。然后，Rector 使用这两个状态来记录更改，使用 diff 格式，就像这里的<a href="https://github.com/rectorphp/rector/blob/master/docs/rector_rules_overview.md#downgradenullcoalescingoperatorrector">所做的那样</a>:</p>
+<pre class="diff"> $array = [];
+<span class="hljs-deletion">-$array['user_id'] ??= 'value';</span>
+<span class="hljs-addition">+$array['user_id'] = $array['user_id'] ?? 'value';</span>
+</pre>
+<h3><code>getNodeTypes</code></h3>
+<p>在这个函数中，我们指出将在 AST 的哪个节点上应用转换。这些节点<a href="https://github.com/nikic/PHP-Parser/tree/master/lib/PhpParser/Node">直接来自 PHP 解析器</a>。</p>
+<p>在上面的例子中，规则只应用于类型为<code><a href="https://github.com/nikic/PHP-Parser/blob/46221a091439122f97334e34c03f667fa54ad326/lib/PhpParser/Node/Expr/AssignOp/Coalesce.php">Coalesce</a></code>(别名为<code>AssignCoalesce</code>)的节点，这是代表<code>??=</code>的节点。</p>
+<p>其他节点的一些示例如下:</p>
+<ul>
+<li><code>FuncCall</code>:每当调用一个函数，比如<code>var_dump("hello")</code></li>
+<li><code>MethodCall</code>:每当从类中调用方法时，比如<code>$foo-&gt;bar()</code></li>
+<li><code>Assign</code>:通过<code>=</code>赋值时</li>
+<li><code>Equal</code>、<code>NotEqual</code>、<code>Identical</code>、<code>NotIdentical</code>:分别使用二元运算符<code>==</code>、<code>!=</code>、<code>===</code>或<code>!==</code>时</li>
+</ul>
+<h3><code>refactor</code></h3>
+<p>如果需要，这个函数执行转换。它有返回类型<code>?Node</code>，意思是:</p>
+<ul>
+<li>要么返回一个新节点，它将替换旧节点；或者</li>
+<li>返回<code>null</code>，表示无变化</li>
+</ul>
+<p>请注意，返回<code>null</code>表示“不修改节点”；这并不意味着“删除节点”</p>
+<p>上面的规则旨在用等价的<code>$foo = $foo ?? $bar</code>替换<code>$foo ??= $bar</code>。函数<code>refactor</code>然后返回这个新节点:</p>
+<pre>return new Assign(
+  $node-&gt;var,
+  new Coalesce(
+    $node-&gt;var,
+    $node-&gt;expr
+  )
+);</pre>
+<p>新节点的类型是<code><a href="https://github.com/nikic/PHP-Parser/blob/master/lib/PhpParser/Node/Expr/Assign.php">Assign</a></code>，也就是<code>$foo = $foo ?? $bar</code>中的<code>=</code>。这种类型需要两个元素:</p>
+<ul>
+<li>从原始节点检索的变量<code>$foo</code>，作为<code>$node-&gt;var</code></li>
+<li>表情<code>$foo ?? $bar</code></li>
+</ul>
+<p>为了创建表达式，我们在上面嵌套了一个新的节点，类型为<code>[Coalesce](<a href="https://github.com/nikic/PHP-Parser/blob/master/lib/PhpParser/Node/Expr/BinaryOp/Coalesce.php" rel="nofollow">https://github.com/nikic/PHP-Parser/blob/master/lib/PhpParser/Node/Expr/BinaryOp/Coalesce.php</a>)</code>，也就是<code>$foo ?? $bar</code>中的<code>??</code>。coalesce 运算符需要两个元素:</p>
+<ul>
+<li>左边的表达式<code>$foo</code>，作为<code>$node-&gt;var</code>从原始节点检索</li>
+<li>右边的表达式<code>$bar</code>，作为<code>$node-&gt;expr</code>从原始节点检索</li>
+</ul>
+<p>此示例显示了创建规则所涉及的基本概念:</p>
+<ul>
+<li>找到满足目标代码的新节点</li>
+<li>确定它需要的数据</li>
+<li>将数据(变量、表达式)从旧节点移植到新节点</li>
+</ul>
+<h2>重用现有规则中的代码</h2>
+<p>在撰写本文时，Rector repo 提供了<a href="https://github.com/rectorphp/rector/blob/master/docs/rector_rules_overview.md">近 700 条规则</a>，涉及多种转换。这些现有的规则是帮助我们实现我们自己的定制规则的极好资源。</p>
+<p>所以这是我的建议:无论何时你需要创建一个定制规则，首先检查一个相似的逻辑是否已经在任何现有的规则中被编码。很有可能会有。</p>
+<p>例如，我实现了规则<code><a href="https://github.com/rectorphp/rector/blob/d465ec83e2c2886c51d86beb9bf9e0bcfc84eef7/rules/downgrade-php74/src/Rector/FuncCall/DowngradeStripTagsCallWithArrayRector.php">DowngradeStripTagsCallWithArrayRector</a></code>，它将传递给<code>strip_tags</code>的数组参数——受 PHP 7.3 支持——转换成一个字符串参数，可用于 PHP 7.3 及更低版本:</p>
+<pre class="diff"><span class="hljs-deletion">-strip_tags($string, ['a', 'p']);</span>
+<span class="hljs-addition">+strip_tags($string, '&lt;' . implode('&gt;&lt;', ['a', 'p']) . '&gt;');</span>
+</pre>
+<p>现在，我们可能不知道静态分析期间参数的类型。例如，此函数返回字符串或数组:</p>
+<pre>function getStringOrArray() {
+  if (rand(0, 1)) {
+    return ['a', 'p'];
+  }
+  return 'ap';
+}
+</pre>
+<p>然后，我们的代码需要在运行时检查参数的类型:</p>
+<pre class="diff"><span class="hljs-deletion">-strip_tags($string, getStringOrArray());</span>
+<span class="hljs-addition">+strip_tags($string, is_array(getStringOrArray()) ? ( '&lt;' . implode('&gt;&lt;', getStringOrArray()) . '&gt;' ) : getStringOrArray());</span>
+</pre>
+<p>但是现在我们有一个问题:函数<code>getStringOrArray()</code>被执行两次，这可能是昂贵的，或者更糟，它可能产生意想不到的副作用(例如，如果它增加一个全局计数器，它将做两次)。</p>
+<p>因此，解决方案是首先将<code>getStringOrArray()</code>中的值赋给一个变量:</p>
+<pre class="diff"><span class="hljs-deletion">-strip_tags($string, getStringOrArray());</span>
+<span class="hljs-addition">+$var = getStringOrArray();
++strip_tags($string, is_array($var) ? ( '&lt;' . implode('&gt;&lt;', $var) . '&gt;' ) : $var);</span>
+</pre>
+<p>但是，我不能随机选择变量的名称为<code>$var</code>(或其他名称),因为它可能已经存在，并且我将覆盖它的值:</p>
+<pre class="diff"> $var = "blah blah blah";
+<span class="hljs-deletion">-strip_tags($string, getStringOrArray());</span>
+<span class="hljs-addition">+$var = getStringOrArray();
++strip_tags($string, is_array($var) ? ( '&lt;' . implode('&gt;&lt;', $var) . '&gt;' ) : $var);</span>
+ var_dump($var);
+ // It expects "blah blah blah". It got "ap"
+</pre>
+<p>我不知道该怎么处理这件事。因此，我浏览了 repo 中所有规则的<a href="https://github.com/rectorphp/rector/blob/master/docs/rector_rules_overview.md">列表，检查它们中是否有任何一个可以处理这个问题，即使用一个未使用的名称创建一个新变量。</a></p>
+<p>我找到了。规则<code><a href="https://github.com/rectorphp/rector/blob/master/docs/rector_rules_overview.md#forrepeatedcounttoownvariablerector">ForRepeatedCountToOwnVariableRector</a></code>进行这种转换:</p>
+<pre class="diff"> class SomeClass
+ {
+   public function run($items)
+   {
+<span class="hljs-deletion">-    for ($i = 5; $i &lt;= count($items); $i++) {</span>
+<span class="hljs-addition">+    $itemsCount = count($items);
++    for ($i = 5; $i &lt;= $itemsCount; $i++) {</span>
+       echo $items[$i];
+     }
+   }
+ }
+</pre>
+<p>变量<code>$itemsCount</code>不知从哪里被创造出来。检查它是如何完成的，我发现了<code>VariableNaming</code>服务，它可以识别变量<code>$itemsCount</code>是否已经存在。如果是的话，它会再次尝试<code>$itemsCount2</code>，依此类推，直到找到一个没有添加的变量名。</p>
+<p>然后我复制/粘贴了使用服务的逻辑，从这里开始<a href="https://github.com/rectorphp/rector/blob/ca0b4cfdc7c126d66296a3eb5880176db2a2b776/rules/code-quality/src/Rector/For_/ForRepeatedCountToOwnVariableRector.php#L101"/>:</p>
+<pre>$variableName = $this-&gt;variableNaming-&gt;resolveFromFuncCallFirstArgumentWithSuffix(
+  $node,
+  'Count',
+  'itemsCount',
+  $forScope
+);
+</pre>
+<p>总的来说，我觉得 Rector repo 中的源代码非常优雅。我特别喜欢它大量使用了 Symfony 组件，包括依赖注入、CLI 命令、文件和目录查找器。在浏览它的时候，我学到了很多关于编程最佳实践的知识，所以我建议你也这样做。</p>
+<h2>测试提示</h2>
+<p>这里有一些测试与<a href="https://phpunit.de/"> PHPUnit </a>相关的规则的有用提示。</p>
+<p>当执行<code>phpunit</code>来测试一个规则时，如果该规则有许多测试，并且只有一个失败，我们可以通过传递<code>--filter=test#X</code>来只执行那一个，其中<code>X</code>是夹具测试的顺序号。</p>
+<p>例如，当执行以下命令时:</p>
+<pre>vendor/bin/phpunit rules/solid/tests/Rector/Class_/FinalizeClassesWithoutChildrenRector/FinalizeClassesWithoutChildrenRectorTest.php</pre>
+<p>我会得到这个错误:</p>
+<pre>There was 1 failure:
+
+1) Rector\DowngradePhp73\Tests\Rector\List_\DowngradeListReferenceAssignmentRector\DowngradeListReferenceAssignmentRectorTest::test with data set #4 (Symplify\SmartFileSystem\SmartFileInfo Object (...))
+rules/downgrade-php73/tests/Rector/List_/DowngradeListReferenceAssignmentRector/Fixture/nested_list.php.inc
+Failed asserting that string matches format description.</pre>
+<p>从这个错误中，我们可以知道测试<code>nested_list.php.inc</code>是<code>#4</code>，所以我只能像这样执行这个测试:</p>
+<pre>vendor/bin/phpunit rules/solid/tests/Rector/Class_/FinalizeClassesWithoutChildrenRector/FinalizeClassesWithoutChildrenRectorTest.php --filter=test#4</pre>
+<p>这对于调试很有用，可以快速简单地将输出转储到屏幕上，从而直观地看到问题可能出在哪里。</p>
+<p>如果我们需要转储节点的内容，我们可以在规则类中这样做，如下所示:</p>
+<pre>dump($this-&gt;print($node));
+die;
+</pre>
+<p>我们必须使用来自<a href="https://symfony.com/doc/current/components/var_dumper.html"> Symfony 的 VarDumper 组件</a>的<code>dump</code>，而不是<code>var_dump</code>，因为:</p>
+<ul>
+<li>它格式化输出，使其更容易理解</li>
+<li>节点可能包含循环引用，<code>dump</code>识别并停止它们，但是<code>var_dump</code>没有，所以屏幕上的输出会一直持续下去</li>
+</ul>
+<h2>结论</h2>
+<p>Rector 是一个转换 PHP 代码的好工具。我用它来把我的应用从 PHP 7.4 移植到 7.1，这样我就可以用现代的 PHP 特性对它进行编码，并把它部署到我的客户支持的环境中。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

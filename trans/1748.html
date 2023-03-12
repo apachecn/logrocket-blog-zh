@@ -1,0 +1,370 @@
+<html>
+<head>
+<title>Angular In-memory Web API tutorial: Mocking CRUD APIs in Angular - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Angular 内存 Web API 教程:在 Angular - LogRocket 博客中模仿 CRUD APIs</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/angular-in-memory-web-api-tutorial-mocking-crud-apis-in-angular/#0001-01-01">https://blog.logrocket.com/angular-in-memory-web-api-tutorial-mocking-crud-apis-in-angular/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>设想这样一种情况，您正在应用程序的前端构建一个新特性，但是可用的 HTTP 端点还没有准备好供后端开发团队使用。在各种类型的开发人员组成的大型团队中工作时，这是一个常见问题。</p>
+<p>为了在开发过程中克服这个障碍，我们可以使用一个假服务器来模拟 HTTP REST API 的所有 CRUD 操作，同时我们的数据驻留在本地的前端应用程序中。</p>
+<p>在本教程中，我们将探索 Angular 内存 Web API，然后动手开发一个假服务器来模拟 Angular 中的一个简单 CRUD 后端，这样您就可以构建一个功能性的前端，而无需依赖后端团队。</p>
+<h2 id="prerequisites">先决条件</h2>
+<p>在我们开始之前，请确保您具备以下条件，以便跟上本教程的进度:</p>
+<ul>
+<li>Node.js V10.x</li>
+<li>有角度测量的工作经验</li>
+<li>先前的打字工作知识</li>
+</ul>
+<h2>介绍 Angular 内存 Web API</h2>
+<p><code>angular-in-memory-web-api</code>是一个库，它拦截 Angular <code>Http</code>和<code>HttpClient</code>请求，否则这些请求会发送到远程服务器，并将它们重定向到您在前端控制的内存数据存储。有了这个库，您可以无缝地模仿延迟响应，并从本质上做您可能需要后端开发人员做的一切。但是，它的功能有限，并且不适合在生产中使用。</p>
+<h2>设置角度项目</h2>
+<p>在本教程中，我们将使用 angular CLI 工具来搭建我们的项目。</p>
+<p>要检查是否已经安装了 Angular CLI 工具，请在终端中运行以下命令:</p>
+<pre>ng --version
+//or
+ng v
+</pre>
+<p>使用以下命令安装 angular CLI 工具:</p>
+<pre>npm install -g @angular/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="66050a0f26575648564856">[email protected]</a> 
+</pre>
+<p>现在，我们可以使用以下命令创建一个新的角度项目:</p>
+<pre>ng new angular-api-backend
+</pre>
+<p>Angular CLI 将询问您关于您想要创建的应用程序的一些细节，以便它可以支持 Angular 项目。</p>
+<p>最初，它会询问您是否想要添加角度路由。对于本教程，对问题回答“否”,然后按 enter 键。</p>
+<p>下一个问题是您想使用哪种样式表格式。接受默认选择(CSS)，然后按 enter 键。</p>
+<p>根据您的互联网连接，此过程可能需要一些时间。在此期间，Angular CLI 将下载并安装所有必要的依赖项，并为您的 Angular 应用程序创建默认文件。</p>
+<p>完成后，它将创建一个名为<code>angular-api-backend</code>的文件夹。导航到新创建的文件夹，使用以下命令启动应用程序:</p>
+<pre>ng serve
+</pre>
+<p>Angular CLI 编译我们新创建的 Angular 项目，并启动一个 web 服务器来监视项目文件中的更改。</p>
+<h2>设置内存角度网络 api</h2>
+<p><code>angular-in-memory-web-api</code>非常容易设置和配置。</p>
+<h3>第一步</h3>
+<p>首先，我们需要安装<code>angular-in-memory-web-api</code>作为一个开发依赖项，因为我们将只把它用于开发:</p>
+<pre>npm install angular-in-memory-web-api --save-dev
+</pre>
+<p>在<code>src/app</code>目录中，创建<code>data.services.ts</code>文件并添加以下内容:</p>
+<pre>//src/app/data.services.ts
+
+import { Injectable } from '@angular/core';
+import { InMemoryDbService } from 'angular-in-memory-web-api';
+@Injectable({
+  providedIn: 'root'
+})
+export class DataService implements InMemoryDbService {
+  constructor() { }
+  createDb() {
+    return {
+      products: [
+        {
+          id: 1,
+          name: 'Seaman Cap',
+          description: 'Lorem ipsum . Voluptatem excepturi magnam nostrum dolore recusandae',
+          price: '$40'
+        },
+        {
+          id: 2,
+          name: 'T-shirt',
+          description: 'amet consectetur adipisicing elit.Lorem ipsum dolor sit ',
+          price: '$80'
+        },
+        {
+          id: 3,
+          name: 'Back Pack',
+          description: 'Voluptatem excepturi harum rerum aliquam magnam nostrum dolore recusandae',
+          price: '$30'
+        }
+      ]
+    };
+  }
+}
+</pre>
+<p>上面的代码片段是一个实际的 Angular 服务，它实现了<code>InMemoryDbService</code>接口。然后，Angular 服务实现了<code>InMemoryDbService</code>接口的<code>createDb</code>方法，这在内存中创建了一个表示我们数据库的对象。对象中的每个键代表我们数据库的一个实体，比如<code>products</code>。</p>
+<h3>第二步</h3>
+<p>将以下内容添加到<code>src/app/app.module.ts</code>:</p>
+<pre>//src/app/app.module.ts
+
+import { HttpClientInMemoryWebApiModule } from 'angular-in-memory-web-api';
+import { DataService } from './data.service';
+
+@NgModule({
+  ...
+  imports: [
+    ...
+    HttpClientInMemoryWebApiModule.forRoot(DataService),
+  ],
+  ...
+})
+</pre>
+<p>注意我们如何通过调用它的<code>forRoot</code>方法导入<code>HttpClientInMemoryWebApiModule</code>，将<code>DataService</code>作为参数传递。我们这样做是为了避免创建多个<code>DataService</code>实例。</p>
+<p>我们已经成功地为 Angular 应用程序创建了一个后端 API，而没有设置实际的后端服务器基础设施。</p>
+<h2>Angular HTTP 客户端简介</h2>
+<p>Angular http 客户端是 Angular 框架的内置 http 客户端。这个服务是一个可注入的类，带有执行 HTTP 请求的方法。默认情况下，它是在创建新的 Angular 项目时由 Angular CLI 安装的。</p>
+<p>为了使用它，我们需要将以下内容添加到<code>src/app/app.module.ts</code>:</p>
+<pre>// src/app/app.module.ts
+import { HttpClientModule } from '@angular/common/http';
+
+@NgModule({
+  ...
+  imports: [
+    ...
+    HttpClientModule,
+  ]
+})
+</pre>
+<p><code>HttpClientModule</code>服务的实例可以访问各种方法来执行常见的请求操作，例如<code>GET</code>、<code>POST</code>、<code>PUT</code>等。</p>
+<h2>以角度处理积垢操作</h2>
+<p>构建 CRUD 应用程序是学习软件开发中的新工具和新概念的最佳途径之一。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>为了更好地理解如何在 Angular 中模拟 CRUD APIs，我们将构建一个演示 CRUD 应用程序来创建产品、更新和删除它们。</p>
+<p>我们将在模块中组织我们的代码，因为我们将创建如下的<code>products</code>模块:</p>
+<pre>ng generate module products
+</pre>
+<p>接下来，我们将向<code>products</code>模块注册一个<code>product-list</code>组件:</p>
+<pre>ng generate component products/productList --module=products
+</pre>
+<p>将以下 CSS 样式添加到<code>products/product-list/productlist.component.css</code>:</p>
+<pre>//products/product-list/productlist.component.css
+#customers {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+#customers td, #customers th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+#customers tr:nth-child(even){background-color: #f2f2f2;}
+#customers tr:hover {background-color: #ddd;}
+#customers th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: #4CAF50;
+  color: white;
+}
+</pre>
+<h2>产品界面</h2>
+<p>导航到<code>products</code>目录，并使用以下内容创建<code>product.model.ts</code>:</p>
+<pre>//products/product.model.ts
+export interface Product {
+  id: number;
+  name: string;
+}
+</pre>
+<p>这里，我们为将要使用的产品数据的结构创建了一个类型接口。</p>
+<h2>与 API 后端的通信</h2>
+<p>为了与后端进行通信，我们需要将<code>HttpClient</code>注入到我们的<code>ProductService</code>中，这样我们就可以访问<code>GET</code>、<code>POST</code>、<code>PUT</code>以及向后端发送 HTTP 请求所需的所有其他 HTTP 动词。</p>
+<p>在<code>products</code>目录中，创建一个<code>product.service.ts</code>文件，并添加以下内容:</p>
+<pre>import { Injectable } from '@angular/core';
+import { Product } from './product.model';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError, retry } from 'rxjs/operators';
+@Injectable({
+  providedIn: 'root'
+})
+export class ProductService {
+  private productsUrl = 'api/products/';
+  constructor(private http: HttpClient) { }
+
+  getProducts(): Observable&lt;Product[]&gt; {
+    return this.http.get&lt;Product[]&gt;(this.productsUrl).pipe(
+      retry(2),
+      catchError((error: HttpErrorResponse) =&gt; {
+        console.error(error);
+        return throwError(error);
+      })
+    );
+  }
+
+  createProduct(product: Product): Observable&lt;Product&gt; {
+    product.id = null;
+    return this.http.post&lt;Product&gt;(this.productsUrl, product).pipe(
+      catchError((error: HttpErrorResponse) =&gt; {
+        console.error(error);
+        return throwError(error);
+      })
+    )
+  }
+
+  editProduct(product: Product): Observable&lt;any&gt; {
+    return this.http.put(this.productsUrl + product.id, product);
+  }
+
+  deleteProduct(id: number): Observable&lt;any&gt; {
+    return this.http.delete(this.productsUrl + id);
+  }
+}
+</pre>
+<p>在上面的代码片段中，我们从 Angular 内置 HTTP 包中导入了<code>HttpClient</code>,并将其注入到<code>ProductService</code>类中，如下所示:</p>
+<pre>constructor(private http: HttpClient) { }
+</pre>
+<p><code>getProducts</code>方法使用<code>HttpClient</code>服务从数据库中获取产品列表，并返回它们的<code>Observable</code>。<code>HttpClient</code>的<code>GET</code>方法接受 API 端点的 URL 作为参数。</p>
+<p>如果您熟悉 TypeScript，您会注意到我们在<code>GET</code>方法中使用了泛型<code>&lt;Product[]&gt;</code>来获得从服务器返回的特定数据类型的响应。在我们的例子中，是一个由<code>Product</code>对象组成的数组。</p>
+<p><code>angular-inmemory-web-api</code>要求 URL 总是以单词<code>api</code>开头，后面跟着我们想要访问的实体:</p>
+<pre>private productsUrl = 'api/products/';
+</pre>
+<p>在我们的例子中，实体是<code>products</code>，如前面在<code>DataService</code>的<code>createDb</code>方法中定义的。</p>
+<p><code>createProduct</code>方法使用<code>HttpClient</code> post 动词发出 post 请求，在数据库中创建新产品。它返回新创建产品的一个<code>Observable</code>。</p>
+<p><code>editProduct</code>方法使用<code>HttpClient</code>发出一个<code>PUT</code>请求来更新数据库中现有的产品。与<code>createProduct</code>一样，它返回更新产品的<code>Observable</code>。</p>
+<p>最后，<code>deleteProduct</code>方法使用<code>HttpClient</code>发出删除请求，从数据库中删除现有产品。类似地，它返回被删除产品的<code>Observable</code>。</p>
+<p>现在，我们已经将<code>HttpClient</code>配置到我们的<code>ProductService</code>中。下一步是让我们的组件订阅可观察流，因为<code>ProductService</code>的方法返回可观察流而不是原始数据。</p>
+<h2>订阅组件中可观察到的数据流</h2>
+<p>用以下内容更新<code>product-list.component.ts</code>:</p>
+<pre>//products/product-list/productlist.component.ts
+import { Component, OnInit } from '@angular/core';
+import { Product } from "../product.model"
+import { ProductService } from "../product.service"
+
+@Component({
+  selector: 'app-product-list',
+  templateUrl: './product-list.component.html',
+  styleUrls: ['./product-list.component.css']
+})
+export class ProductListComponent implements OnInit {
+  product = {
+    name: '',
+    id: null
+  }
+  edit = true;
+  add = false;
+  products: Product[];
+
+  constructor(private productService: ProductService) {}
+
+  ngOnInit(): void {
+    this.getProducts()
+  }
+
+  private getProducts() {
+    this.productService.getProducts().subscribe(products =&gt; this.products = products);
+  }
+
+  addProduct() {
+    const data = {
+      name: this.product.name,
+      id: this.product.id
+    };
+    this.productService.createProduct(data).subscribe(response =&gt; {
+      console.log(response)
+      this.getProducts();
+    });
+  }
+
+  setProductEdit(product: Product) {
+    this.product.name = product.name;
+    this.product.id = product.id;
+    this.edit = false;
+    this.add = true;
+  }
+
+  resetValues() {
+    this.product.name = "";
+    this.product.id = null;
+    this.edit = true;
+    this.add = false;
+  }
+
+  removeProduct(product: Product) {
+    const id = product.id;
+    console.log(product)
+    this.productService.deleteProduct(id).subscribe(product =&gt; console.log(product));
+    this.getProducts()
+  }
+
+  updateProduct(){
+    this.productService.editProduct(this.product).subscribe(response =&gt; console.log(response));
+    this.getProducts()
+    this.resetValues()
+  }
+}
+</pre>
+<p><code>getProducts</code>方法订阅<code>ProductService</code>的<code>getProducts</code>方法，并将结果设置为组件的<code>products</code>属性，而<code>ngOnInit()</code>生命周期钩子在组件初始化时调用<code>getProducts</code>方法。</p>
+<p>类似地，<code>addProduct</code>、<code>removeProduct</code>和<code>updateProduct</code>方法分别订阅了<code>ProductService</code>的<code>createProducts</code>、<code>editProduct</code>和<code>deleteProduct</code>方法。</p>
+<p>现在，让我们将组件逻辑与模板结合起来。将以下内容添加到<code>products/product-list/productlist.component.html</code>:</p>
+<pre>//products/product-list/productlist.component.html
+&lt;div&gt;
+  &lt;input type="text" name="productName" [(ngModel)]="product.name"&gt;
+  &lt;button [hidden]="add" (click)="addProduct()"&gt;add Product&lt;/button&gt;
+  &lt;button [hidden]="edit" (click)="updateProduct()"&gt;Update Product&lt;/button&gt;
+&lt;/div&gt;
+&lt;table id="products"&gt;
+  &lt;tr&gt;
+    &lt;th&gt;S/N&lt;/th&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Update&lt;/th&gt;
+    &lt;th&gt;Delete&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr *ngFor="let product of products"&gt;
+    &lt;td&gt;{{product.id}}&lt;/td&gt;
+    &lt;td&gt;{{product.name}}&lt;/td&gt;
+    &lt;td&gt;&lt;button (click)="setProductEdit(product)"&gt;Update&lt;/button&gt;&lt;/td&gt;
+    &lt;td&gt;&lt;button (click)="removeProduct(product)"&gt;Delete&lt;/button&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+</pre>
+<p><code>*ngFor</code>指令用于呈现基于数据源的项目列表。在我们的例子中，我们为产品数组中的每个产品对象呈现一个产品数据。</p>
+<p>更新<code>products.module.ts</code>如下:</p>
+<pre>import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ProductListComponent } from './product-list/product-list.component';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+
+@NgModule({
+  declarations: [ProductListComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule
+  ],
+  exports: [ProductListComponent]
+})
+export class ProductsModule { }
+</pre>
+<p>现在，让我们在浏览器中呈现我们的<code>product-list</code>组件。更新<code>app.component.html</code>如下:</p>
+<pre>&lt;app-product-list&gt;&lt;/app-product-list&gt;
+</pre>
+<p>另外，更新<code>app.module.ts</code>如下:</p>
+<pre>import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { HttpClientModule } from '@angular/common/http';
+import { AppComponent } from './app.component';
+import {ProductsModule} from "./products/products.module"
+import { HttpClientInMemoryWebApiModule } from 'angular-in-memory-web-api';
+import { DataService } from './data.service';
+@NgModule({
+  declarations: [
+    AppComponent,
+  ],
+  imports: [
+    BrowserModule,
+    HttpClientModule,
+    ProductsModule,
+    HttpClientInMemoryWebApiModule.forRoot(DataService)
+  ],
+  providers: [],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+</pre>
+<p>这是一个漫长的构建，所以让我们在浏览器上看看我们的最终项目。如果您的开发服务器关闭，再次运行<code>ng serve</code>命令并在<code><a href="http://localhost:4200/" rel="nofollow">http://localhost:4200/</a></code>上打开您的浏览器。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，我们已经创建了一个基本的 CRUD 应用程序，它利用<code>angular-in-memory-web-api</code>包来模拟一个带有内存数据库的 REST API，以便在 HTTP 端点尚未准备好供后端开发团队使用时使用。</p>
+<p>如果你有兴趣，你可以在这里找到我们 CRUD 应用程序的 GitHub repo。</p><div class="code-block code-block-19">
+<div class="blog-plug inline-plug angular-plug"><h2>像用户一样体验 Angular 应用程序</h2><p>调试 Angular 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，</p><a href="https://lp.logrocket.com/blg/angular-signup">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你网站上发生的一切，包括网络请求、JavaScript 错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket NgRx 插件将角度状态和动作记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化调试 Angular 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

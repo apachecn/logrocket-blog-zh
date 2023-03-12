@@ -1,0 +1,242 @@
+<html>
+<head>
+<title>Tree shaking JSON files with webpack - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 webpack - LogRocket 博客摇树 JSON 文件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/tree-shaking-json-files-webpack/#0001-01-01">https://blog.logrocket.com/tree-shaking-json-files-webpack/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>树抖动对开发人员来说至关重要，因为它删除了死代码和在最终产品构建中占用空间的未使用的函数、变量和方法。</p>
+<p>像<a href="https://rollupjs.org/" target="_blank" rel="noopener"> rollup.js </a>和<a href="https://webpack.js.org/" target="_blank" rel="noopener"> webpack </a>这样的流行工具在将多个 JavaScript 文件编译成单个文件时会执行开箱即用的树抖动。</p>
+<p>在前端开发中，模块和包以各种方式进行管理，以达到最佳效果。在开发过程中，您的代码将被分割成许多小模块。</p>
+<p>当您部署应用程序时，您应该将这些模块捆绑到一个或者几个非常大的文件中，最好使用<a href="https://blog.logrocket.com/tag/webpack/" target="_blank" rel="noopener"> webpack </a>。</p>
+<p>你会问为什么？以下是几个原因。</p>
+<ul>
+<li>与多个非捆绑的 JavaScript 文件相比，捆绑的文件更容易压缩</li>
+<li>当加载所有模块时，最好从较少的文件而不是几个文件中加载它们</li>
+<li>绑定时，未使用的导出会被删除(例如，树抖动)，这有助于节省空间并减小最终的构建大小</li>
+</ul>
+<h2>树摇动 JSON 文件</h2>
+<p>假设您有一个名为<code>strings.json</code>的 JSON 文件。</p>
+<pre class="language-json hljs">{
+  "usedString1": "Hello world!",
+  "usedString2": "Hello world again!",
+  "unusedString": "I'm never used in the code ever"
+}
+</pre>
+<p>现在，尝试用 JavaScript <code>index.js</code>访问它的内容，就像这样:</p>
+<pre class="language-json hljs">const strings = require("./strings.json");
+console.log(strings.usedString1, strings.usedString2);
+</pre>
+<p>您会看到我们在整个 JSON 文件中只使用了一个键，即<code>usedString</code>。<code>unusedString</code>是死代码，所以我们不使用它。然而，当您导入/要求<code>strings.json</code>时，死代码随之而来，并进入您的最终版本，占用大量空间并不必要地增加您的文件大小。</p>
+<p>目前，当您与 webpack 捆绑在一起时，默认情况下不会删除死的 JSON 代码。必须使用 webpack 插件，一般是<a href="https://github.com/privatenumber/webpack-json-access-optimizer" target="_blank" rel="noopener">web pack-JSON-access-optimizer</a>。</p>
+<p>让我们看看这个插件树是如何使用 JSON 文件动摇你的代码的。</p>
+<p>插件首先将 JSON 结构转换成一个数组，所以<code>strings.json</code>现在看起来像这样:</p>
+<pre class="language-json hljs">["Hello world!", "Hello world again!"]
+</pre>
+<p>插件编译 JavaScript 代码以适应这个新的数组结构，所以<code>index.js</code>现在看起来像这样:</p>
+<pre class="language-json hljs">const strings = require("./strings.json");
+console.log(strings[0], strings[1]);
+</pre>
+<p>注意在<code>strings.json</code>中，插件删除了未使用的值<code>unusedString</code>。</p>
+
+<p>这是我制作的一个 GitHub 演示。首先，克隆它。</p>
+<pre class="language-json hljs">git clone https://github.com/KumarAbhirup/webpack-treeshaking-json
+</pre>
+<p>现在，运行<code>yarn</code>、<code>yarn build</code>和<code>yarn start</code>。</p>
+<p>如果您检查<code>webpack.config.js</code>，您会发现它非常简单，除了从第 16 行到第 33 行。</p>
+<pre class="language-json hljs">const path = require('path');
+const DIST_DIR = path.resolve(__dirname, 'dist');
+
+const { JsonAccessOptimizer } = require('webpack-json-access-optimizer');
+const { ProvidePlugin } = require('webpack');
+
+let config = {
+    entry: './src/index.js',
+    output: {
+        filename: 'bundle.js',
+        path: DIST_DIR
+    },
+    resolve: {
+        extensions: ['.js', '.json']
+    },
+    module : {
+        rules: [
+            {
+                test: /strings\.json$/,
+                use: [
+                    'webpack-json-access-optimizer', 
+                ],
+                type: 'json'
+            }
+        ]
+    },
+    plugins: [
+        new ProvidePlugin({
+            $t: './$tProvider'
+        }),
+        new JsonAccessOptimizer({
+            accessorFunctionName: '$t', // i18n function name
+        })
+    ],
+    optimization: {
+        usedExports: false,
+    },
+    devtool: 'source-map'
+};
+module.exports = config;
+</pre>
+<p>仔细看看这里:</p>
+<pre class="language-json hljs">module : {
+    rules: [
+        {
+            test: /strings\.json$/,
+            use: ['webpack-json-access-optimizer'],
+            type: 'json'
+        }
+    ]
+},
+plugins: [
+    new ProvidePlugin({
+        $t: './$tProvider'
+    }),
+    new JsonAccessOptimizer({
+        accessorFunctionName: '$t', // i18n function name
+    })
+],
+</pre>
+<p>注意，我们告诉 webpack 使用<code>webpack-json-access-optimizer</code>插件解析<code>strings.json</code>,这样我们就可以对 JSON 文件进行树抖动。</p>
+<p>在<code>plugins</code>部分，我们让<code>$t</code>函数全局可用，这样所有文件都可以访问<code>strings.json</code>，比如:<code>$t('usedString1')</code>。</p>
+<p>现在，看看<code>./src/$tProvider.js</code>。</p>
+<pre class="language-json hljs">const t = require("./strings.json");
+const $t = keyString =&gt; {
+  return t?.[keyString];
+};
+module.exports = $t;
+</pre>
+<p>它从<code>strings.json</code>获取所有的键-值对，然后导出一个默认函数，该函数通过接受一个键字符串来返回值。</p>
+<p>让我们看看我们的<code>./src/index.js</code>文件。我们正在使用在全局范围内可用的<code>$t</code>函数。</p>
+<pre class="language-json hljs">console.log($t("usedString1"), $t("usedString2"));
+</pre>
+<p>现在，如果您编写<code>yarn build &amp;&amp; yarn start</code>代码，您应该会看到这样的输出。</p>
+<pre class="language-json hljs">➜  webpack-treeshaking-json git:(main) yarn start
+yarn run v1.19.1
+$ node dist/bundle.js
+Hello world! Hello world again!
+✨  Done in 0.26s.
+</pre>
+<h2>检查编译的代码</h2>
+<p>让我们来看看<code>./dist/bundle.js</code>中编译的代码:</p>
+<pre class="language-json hljs">(()=&gt;{var r,o={500:(r,o,e)=&gt;{const t=e(46);r.exports=r=&gt;t?.\[r]},46:r=&gt;{"use strict";r.exports=JSON.parse('["Hello world!","Hello world again!"]')}},e={};r=function r(t){var s=e[t];if(void 0!==s)return s.exports;var l=e[t]={exports:{}};return o[t\](l,l.exports,r),l.exports}(500),console.log(r(0),r(1))})();
+//# sourceMappingURL=bundle.js.map
+</pre>
+<p>您将看到它只使用了代码中实际使用的<code>strings.json</code>中的键值对，并且省略了<code>unusedString</code>。这样，您可以在最终版本中节省重要的空间。</p>
+<h2>晃动树并移除未使用的导出</h2>
+<p>让我们看看这个 JavaScript 文件。</p>
+<pre class="language-json hljs">const sum = (a, b) =&gt; {
+  return a + b;
+};
+
+const multiply = (a, b) =&gt; {
+  return a * b;
+};
+
+const divide = (a, b) =&gt; {
+  return a / b;
+};
+
+console.log(sum(1, 9));
+
+module.exports = { sum, multiply };
+</pre>
+<p>你可以看到<code>divide</code>函数出现在代码中，但是没有在任何地方被使用，但是像<code>sum</code>和<code>multiply</code>这样的函数在代码中被使用。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p><code>sum()</code>用在了<code>console.log()</code>语句中，当我们导出该函数时，也用在了<code>module.exports</code>中。<code>multiply()</code>用于导出函数后的<code>module.exports</code>。</p>
+<p>如果编译时不进行树抖动，那么<code>divide</code>函数将会出现在编译后的代码中，即使它没有被使用，也会占用空间。</p>
+<h2>额外学习</h2>
+<h3>使用 webpack 消除未使用的导出</h3>
+<p>使用 webpack 消除未使用的导出也有助于节省空间，大大减少最终的构建大小，并缩短页面加载时间。</p>
+<p>将此设置用于您的 webpack 配置:</p>
+<pre class="language-json hljs">optimization: {
+    usedExports: true
+}
+</pre>
+<p><code>webpack.config.js</code>现在应该是这样的:</p>
+<pre class="language-json hljs">const path = require('path');
+const DIST_DIR = path.resolve(__dirname, 'dist');
+
+const { JsonAccessOptimizer } = require('webpack-json-access-optimizer');
+const { ProvidePlugin } = require('webpack');
+
+let config = {
+    entry: './src/index.js',
+    output: {
+        filename: 'bundle.js',
+        path: DIST_DIR
+    },
+    resolve: {
+        extensions: ['.js', '.json']
+    },
+    module : {
+        rules: [
+            {
+                test: /strings\.json$/,
+                use: [
+                    'webpack-json-access-optimizer', 
+                ],
+                type: 'json'
+            }
+        ]
+    },
+    plugins: [
+        new ProvidePlugin({
+            $t: './$tProvider'
+        }),
+        new JsonAccessOptimizer({
+            accessorFunctionName: '$t', // i18n function name
+        })
+    ],
+    optimization: {
+        usedExports: true,
+    },
+    devtool: 'source-map'
+};
+
+module.exports = config;
+</pre>
+<p>注意上面的<code>usedExports: true</code>。有了它，未使用的函数和变量就不会出现在最终的构建和编译代码中。</p>
+<h3>摇树 CSS</h3>
+<p>如果您之前已经配置了 webpack 来导入 JS 中的 CSS 模块，那么您可能想要学习如何对正在导入的 CSS 进行树抖动。CSS 代码经常不被使用，所以这将有助于优化你的应用程序。</p>
+<p>假设您的 webpack 配置中有一个 CSS 规则:</p>
+<pre class="language-json hljs">{
+  test: /\.css$/,
+  use: ['style-loader', 'css-loader'],
+}
+</pre>
+<p>你只需要给它添加<code>sideEffects: true</code>属性。</p>
+<pre class="language-json hljs">{
+  test: /\.css$/,
+  use: ['style-loader', 'css-loader'],
+  sideEffects: true
+}
+</pre>
+<p>这样做之后，假设您的 webpack config <code>mode: 'production'</code>已经设置好了，它应该会在编译过程中对您导入的所有 CSS 文件进行树抖动——让您获得一个巨大的包大小缩减，使应用程序可以投入生产！</p>
+<h2>结论</h2>
+<p>当你编译代码的时候，抖动你的代码是至关重要的。Webpack 确实为 JavaScript 导出执行树抖动，但是它不会对 JSON 文件执行树抖动，除非您使用<a href="https://github.com/privatenumber/webpack-json-access-optimizer" target="_blank" rel="noopener">web pack-JSON-access-optimizer</a>。在你的项目中使用这些技术可以节省你的空间并优化你的应用。编码快乐！</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

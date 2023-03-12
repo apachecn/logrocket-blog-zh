@@ -1,0 +1,352 @@
+<html>
+<head>
+<title>Best practices for laying out your Flutter app - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>布局你的 Flutter 应用程序的最佳实践</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/best-practices-laying-out-flutter-app/#0001-01-01">https://blog.logrocket.com/best-practices-laying-out-flutter-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Flutter 中的几乎所有东西都是一个小部件，当您编写小部件时，您可以构建一个布局。例如，您可以在 column 小部件中添加几个小部件来创建垂直布局。随着您继续添加更多的小部件，您的 Flutter 应用程序布局将变得越来越复杂。</p>
+<p>在本文中，我将介绍一些在设计 Flutter 应用程序时要实施的最佳实践。</p>
+<h2>在颤振中使用<code>SizedBox</code>代替<code>Container</code></h2>
+<p>在很多情况下，您需要使用占位符。让我们看看下面的例子:</p>
+<pre class="language-dart hljs">return _isLoaded ? Container() : YourAwesomeWidget();
+</pre>
+<p><code>Container</code>是一个很棒的小部件，你会在 Flutter 中广泛使用。<a href="https://api.flutter.dev/flutter/widgets/Container/Container.html" target="_blank" rel="noopener"> <code>Container()</code> </a>扩展以适应父节点提供的约束，并且不是<code>const</code>构造函数。</p>
+<p>另一方面，<a href="https://api.flutter.dev/flutter/widgets/SizedBox/SizedBox.html" target="_blank" rel="noopener"> <code>SizedBox</code> </a>是一个<code>const</code>构造函数，创建一个固定大小的盒子。<a href="https://api.flutter.dev/flutter/widgets/SizedBox/width.html" target="_blank" rel="noopener">宽度</a>和<a href="https://api.flutter.dev/flutter/widgets/SizedBox/height.html" target="_blank" rel="noopener">高度</a>参数可以为空，表示盒子的大小不应该被约束在相应的维度中。</p>
+<p>因此，当我们实现一个占位符时，应该使用<code>SizedBox</code>而不是<code>Container</code>。</p>
+<pre class="language-dart hljs">return _isLoaded ? SizedBox() : YourAwesomeWidget();
+</pre>
+<h2>使用<code>if</code>条件代替三元运算符语法</h2>
+<p>在布局一个 Flutter 应用程序时，通常情况下，您希望有条件地呈现不同的小部件。您可能需要基于平台生成一个小部件，例如:</p>
+<pre class="language-dart hljs">Row(
+  children: [
+    Text("Majid"),
+    Platform.isAndroid ? Text("Android") : SizeBox(),
+    Platform.isIOS ? Text("iOS") : SizeBox(),
+  ]
+);
+</pre>
+<p>在这种情况下，您可以删除三元运算符，并利用 Dart 的内置语法在数组中添加一个<code>if</code>语句。</p>
+<pre class="language-dart hljs">Row(
+  children: [
+    Text("Majid"),
+    if (Platform.isAndroid) Text("Android"),
+    if (Platform.isIOS) Text("iOS"),
+  ]
+);
+</pre>
+<p>您还可以使用 spread 操作符扩展这个特性，并根据需要加载几个小部件。</p>
+<pre class="language-dart hljs">Row(
+  children: [
+    Text("Majid"),
+    if (Platform.isAndroid) Text("Android"),
+    if (Platform.isIOS) ...[
+      Text("iOS_1")
+      Text("iOS_2")
+    ],
+  ]
+);
+</pre>
+<h2>考虑成本的<code>build()</code>法在颤振中的应用</h2>
+<p>当祖先小部件正在重建小部件时，Flutter 小部件中的<code>build</code>方法可能会被频繁调用。在<code>build()</code>方法中避免重复和昂贵的工作是很重要的。</p>
+<p>一个例子是当你使用一个方法而不是在你的应用程序中创建小部件。让我详细说明一下:</p>
+<pre class="language-dart hljs">class MyAwesomeWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildHeaderWidget(),
+          _buildBodyWidget(context),
+          _buildFooterWidget(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderWidget() {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: FlutterLogo(
+          size: 50.0,
+      ),
+    );
+  }
+
+  Widget _buildBodyWidget(BuildContext context) {
+    return Expanded(
+      child: Container(
+        child: Center(
+          child: Text(
+            'Majid Hajian, Flutter GDE',
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooterWidget() {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Text('Footer'),
+    );
+  }
+}
+</pre>
+<p>这种方法的缺点是当<code>MyAwesomeWidget</code>需要重新构建时——这可能经常发生——在方法中创建的所有小部件也将被重新构建，导致浪费 CPU 周期和内存。</p>
+<p>因此，最好通过以下方式将这些方法转换成<code>StatelessWidgets</code>:</p>
+<pre class="language-dart hljs">class MyAwesomeWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HeaderWidget(),
+          BodyWidget(),
+          FooterWidget(),
+        ],
+      ),
+    );
+  }
+}
+
+class HeaderWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: FlutterLogo(
+          size: 50.0,
+      ),
+    );
+  }
+}
+
+class BodyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        child: Center(
+          child: Text(
+            'Majid Hajian, Flutter GDE',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FooterWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Text('Footer'),
+    );
+  }
+}
+</pre>
+<p>所有的<code>StatefulWidgets</code>或<code>StatelessWidgets</code>，基于键、小部件类型和属性，都有一个特殊的缓存机制，只在必要时才重建。我们甚至可以通过添加<code>const</code>来优化这些小部件，这将引导我们进入本文的下一部分。</p>
+<h2>尽可能使用<code>const</code>部件</h2>
+<p>在 Dart 中，尽可能使用<code>const</code>构造函数是一个好习惯，并且记住编译器会优化你的代码。现在，让我们回顾一下上面的例子。通过一个简单的步骤，我们可以使构建方法更加有效地工作:</p>
+<pre class="language-dart hljs">class MyAwesomeWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const HeaderWidget(),
+          const BodyWidget(),
+          const FooterWidget(),
+        ],
+      ),
+    );
+  }
+}
+
+class HeaderWidget extends StatelessWidget {
+  const HeaderWidget();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: FlutterLogo(
+          size: 50.0,
+      ),
+    );
+  }
+}
+
+class BodyWidget extends StatelessWidget {
+  const BodyWidget();
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        child: Center(
+          child: Text(
+            'Majid Hajian, Flutter GDE',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FooterWidget extends StatelessWidget {
+  const FooterWidget();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Text('Footer'),
+    );
+  }
+}
+</pre>
+<p>这个改变看起来很简单，但是它帮助我们避免了重新构建<code>const</code>小部件。</p>
+<h2>长列表的<code>ListView</code>中的编码<code>itemExtent</code></h2>
+<p>为了理解如何最好地使用<a href="https://api.flutter.dev/flutter/widgets/ListView/itemExtent.html" target="_blank" rel="noopener"> <code>itemExtent</code> </a>，假设我们有一个包含几千个元素的列表，当一个动作被触发时，例如当一个按钮被点击时，我们需要跳转到最后一个元素。这里是<code>itemExtent</code>可以大幅提高布局<code>ListView</code>的性能的时候。</p>
+<p>指定一个<code>itemExtent</code>比让孩子决定他们的范围更有效，因为滚动机器可以使用孩子范围的预知来节省工作，就像这样:</p>
+<pre class="language-dart hljs">class LongListView extends StatelessWidget {
+  final _scrollController = ScrollController();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(onPressed:() {
+        _scrollController.jumpTo(
+          _scrollController.position.maxScrollExtent,
+        );
+      }),
+      body: ListView(
+        controller: _scrollController,
+        children: List.generate(10000, (index) =&gt; Text('Index: $index')),
+        itemExtent: 400,
+      ),
+    );
+  }
+}
+</pre>
+<h2>避开大树</h2>
+<p>对于何时将小部件拆分成更小的小部件，没有硬性规定。但是，最好避免大树，因为有以下好处:</p>
+<ul>
+<li>提高可重用性</li>
+<li>提供更清晰的代码</li>
+<li>增强可读性</li>
+<li>启用封装</li>
+<li>提供缓存机制</li>
+</ul>
+<p>所以，你应该尽可能地将你的代码分成不同的部件。</p>
+<h2>理解颤振中的约束</h2>
+<p>每个 Flutter 开发人员都必须知道的 Flutter 布局的黄金法则是:约束减少，尺寸增加，父元素设置位置。</p>
+<p>我们来分析一下。</p>
+<p>小部件从其父部件获得自己的约束。约束只是一组四个双精度值:最小和最大宽度，以及最小和最大高度。</p>
+<p>然后，小部件遍历它自己的子列表。小部件一个接一个地告诉它的孩子它们的约束条件是什么(每个孩子的约束条件可能不同)，然后询问每个孩子它想要多大。</p>
+<p>接下来，小部件逐个定位其子部件(水平放置在<code>x</code>轴上，垂直放置在<code>y</code>轴上)。最后，小部件告诉它的父部件它自己的大小(当然，在原始约束内)。</p>
+<p>在 Flutter 中，所有的窗口小部件都基于父窗口或它们的盒子约束来呈现它们自己。这有一些限制。例如，假设您在父部件中有一个子部件，您想决定它的大小。小工具不能有任何大小！大小必须在其父级设置的约束范围内。</p>
+<p>与第一个例子类似，小部件不知道自己在屏幕上的位置，因为这是父部件的决定。</p>
+<p>也就是说，如果一个子部件决定了不同于其父部件的尺寸，而父部件没有足够的信息来对齐它，那么子部件的尺寸可能会被忽略。</p>
+<p>好了，让我们来看看实际情况。</p>
+<pre class="language-dart hljs">void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MyWidget();
+  }
+}
+
+class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+       constraints: const BoxConstraints(
+         maxHeight: 400,
+         minHeight: 100,
+         minWidth: 100,
+         maxWidth: 400,
+       ),
+      child: Container(
+        color: Colors.green,
+      ),
+    );
+  }
+}
+</pre>
+<p>如果您愿意，可以忽略<code>ConstrainedBox</code>并将高度和小部件添加到<code>Container</code>。</p>
+<pre class="language-dart hljs">class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return  Container(
+      height: 400, 
+      width: 400,
+      color: Colors.green,
+    );
+  }
+}
+</pre>
+<p>您可能希望上面的代码呈现一个最大高度和宽度为<code>400</code>的绿色<code>Container</code>。然而，当您运行这段代码时，您会感到惊讶。</p>
+<p><img data-attachment-id="67600" data-permalink="https://blog.logrocket.com/best-practices-laying-out-flutter-app/best-practices-flutter-app-container-green-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-e1632159930796.png" data-orig-size="730,220" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="best-practices-flutter-app-container-green-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-1024x309.png" decoding="async" class="aligncenter size-full wp-image-67600 jetpack-lazy-image" src="../Images/75de73b550a33494d293d6dff3a7d18d.png" alt="understanding parent and child constraints and containers in flutter" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-e1632159930796.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-e1632159930796.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="67600" data-permalink="https://blog.logrocket.com/best-practices-laying-out-flutter-app/best-practices-flutter-app-container-green-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-e1632159930796.png" data-orig-size="730,220" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="best-practices-flutter-app-container-green-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-1024x309.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-67600" src="../Images/75de73b550a33494d293d6dff3a7d18d.png" alt="understanding parent and child constraints and containers in flutter" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-container-green-screen-e1632159930796.png"/></noscript>
+<p>整个屏幕都将是绿色的！我不会在这里深入讨论细节，但是在构建 Flutter 布局时，您可能会看到几个类似的问题。</p>
+<p>让我们看看这是怎么回事。在上面的例子中，树看起来像这样:</p>
+<pre class="language-dart hljs">    - `MyApp`
+    - `MyWidget`
+    - `ConstrainedBox`
+    - `Container`
+</pre>
+<p>约束规则将从父部件传递给子部件，因此子部件可以在父部件给定的约束内决定其大小。因此，约束是适用的。</p>
+<p>因此，Flutter 将一个<a href="https://api.flutter.dev/flutter/rendering/BoxConstraints/BoxConstraints.tight.html" target="_blank" rel="noopener">紧约束</a>传递给<code>MyApp()</code>，然后<code>MyApp()</code>将其紧约束传递给<code>ConstrainedBox</code>。然后，<code>ConstrainedBox</code>被迫忽略它自己的约束，将使用它的父元素，在本例中，它是全屏大小，这就是为什么你会看到一个全屏的绿色框。</p>
+<p>通常，您会发现添加一个<code>Center</code>小部件可能会解决这个问题。让我们试一试:</p>
+<pre class="language-dart hljs">class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: MyWidget()
+    );
+  }
+}
+</pre>
+<p>瞧啊。修好了！</p>
+<p><img data-attachment-id="67603" data-permalink="https://blog.logrocket.com/best-practices-laying-out-flutter-app/best-practices-flutter-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-e1632160060537.png" data-orig-size="730,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="best-practices-flutter-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-1024x497.png" decoding="async" class="aligncenter size-full wp-image-67603 jetpack-lazy-image" src="../Images/04a72d43412b907790113982ed9a8b77.png" alt="best practice flutter app fixed green box constraints" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-e1632160060537.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-e1632160060537.png"/></p>
+<p><code>Center</code>小部件从<code>MyApp()</code>获取一个紧约束，并将其转换为其子部件<code>ConstrainedBox</code>的<a href="https://api.flutter.dev/flutter/rendering/BoxConstraints/BoxConstraints.loose.html" target="_blank" rel="noopener">松约束</a>。因此，<code>Container</code>遵循<code>ConstraiedBox</code>给出的约束，因此<code>Container</code>将应用最小和最大尺寸。</p><noscript><img data-lazy-fallback="1" data-attachment-id="67603" data-permalink="https://blog.logrocket.com/best-practices-laying-out-flutter-app/best-practices-flutter-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-e1632160060537.png" data-orig-size="730,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="best-practices-flutter-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-1024x497.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-67603" src="../Images/04a72d43412b907790113982ed9a8b77.png" alt="best practice flutter app fixed green box constraints" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/best-practices-flutter-app-e1632160060537.png"/></noscript>
+<p>在我们结束本节之前，让我快速地深入解释一下什么是紧约束和松约束。</p>
+<p>紧约束提供了一种可能性—精确的大小，这意味着它的最大宽度等于它的最小宽度，它的最大高度等于它的最小高度。</p>
+<p>如果您转到 Flutter 的<code>box.dart</code>文件并搜索<code>BoxConstraints</code>构造函数，您会发现如下内容:</p>
+<p>另一方面，宽松的约束设置最大宽度和高度，但允许小部件想多小就有多小。它的最小宽度和高度都等于<code>0</code>:</p>
+<pre class="language-dart hljs">BoxConstraints.tight(Size size)
+   : minWidth = size.width,
+     maxWidth = size.width,
+     minHeight = size.height,
+     maxHeight = size.height;
+</pre>
+<p>如果你重温上面的例子，它告诉我们,<code>Center</code>允许绿色的<code>Container</code>比屏幕小，但不是比屏幕大。当然，<code>Center</code>通过将松散的约束传递给<code>Container</code>来做到这一点。</p>
+<pre class="language-dart hljs">BoxConstraints.loose(Size size)
+   : minWidth = 0.0,
+     maxWidth = size.width,
+     minHeight = 0.0,
+     maxHeight = size.height;
+</pre>
+<p>结论</p>
+<h2>在本文中，我提到了在开始构建 Flutter 应用程序时应该采取的一些最佳实践。然而，还有更多的——更先进的——实践需要考虑，我建议你查看一下<a href="https://flutter.dev/docs" target="_blank" rel="noopener"> Flutter 的完整文档</a>。快乐编码。</h2>
+<p>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p>
+<p>Focus on the bugs that matter — <a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">try LogRocket today</a>.</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

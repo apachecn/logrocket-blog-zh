@@ -1,0 +1,348 @@
+<html>
+<head>
+<title>Crafting authentication schemes with Prisma in Express - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Express - LogRocket 博客中用 Prisma 设计认证方案</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/#0001-01-01">https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在我们开始本教程之前，我们首先要了解 Prisma 是什么，以及为什么它是新手开发者的好选择。我们还将讨论 PostgreSQL，以及如何将它用于数据库模式和结构化。</p>
+<p>我们还将了解 Prisma 的有效性，以及如何使用它进行基本的身份验证，还有代码示例和测试示例来帮助您完成本教程。</p>
+<h2>Prisma 是什么？</h2>
+<p>Prisma 是一个开源的 ORM，可以让你轻松地管理你的数据库并与之交互。这是通过<a href="https://www.prisma.io/docs/concepts/components/prisma-schema" target="_blank" rel="noopener"> Prisma schema </a>完成的，在这里你可以使用 Prisma schema 语言定义你的数据库模型和关系。</p>
+<p>您可以从头开始运行您的模式，或者通过自省现有数据库来生成它。然后，您可以使用 Prisma Client 与您的数据库进行交互，并使用 Prisma Migrate 将您的模式迁移到数据库。</p>
+<p>Prisma 支持 PostgreSQL、MySQL、SQLite 和 Microsoft SQL Server。Prisma 与每个 Node.js 后端框架交互，使数据库管理和迁移变得容易。</p>
+<h2>用 Prisma 在 Express 中构建认证方案</h2>
+<p>首先，我们将设置一个 Express 应用程序并添加 Prisma。然后，我们将使用 JWT 等第三方包进行基于令牌的身份验证，以创建一个身份验证方案。最后，我们将介绍如何运行测试，并确保我们的身份验证方案正确运行。</p>
+<h3>先决条件</h3>
+<p>要学习本教程，您应该具备这些技术的应用知识，以及安装在您计算机上的最新版本:</p>
+
+<h2>设置 Express</h2>
+<p>要安装 Express，我们必须首先使用 npm 初始化我们的应用程序。为此，请在您的终端中运行以下代码:</p>
+<pre>mkdir express-prisma
+cd express-prisma
+
+npm init -y
+</pre>
+<p>然后，我们可以在新创建的应用程序中使用 npm 安装 Express，代码如下:</p>
+<pre>npm install express
+</pre>
+<p>接下来，我们使用 Docker 设置 PostgreSQL。</p>
+<p>为此，我们将使用以下 composer 命令创建一个新的 Docker 文件:</p>
+<pre>nano docker-compose.yml
+</pre>
+<p>然后在我们的<code>docker-compose.yml</code>文件中，我们可以添加下面的代码来连接数据库:</p>
+<pre>version: '3.8'
+services:
+  postgres:
+    image: postgres:10.3
+    restart: always
+    environment:
+      - POSTGRES_USER=sammy
+      - POSTGRES_PASSWORD=your_password
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+volumes:
+  postgres:
+</pre>
+<p>请注意，<code>POSTGRES_USER</code>和<code>POST_PASSWORD</code>是预设的用户名和密码，将用于访问数据库。</p>
+<h2>安装和配置 Prisma</h2>
+<p>当我们的 Express 应用程序的安装和配置完成后，我们现在可以继续使用 npm 将 Prisma 安装到我们的应用程序中。为此，只需使用下面的命令:</p>
+<pre>npx prisma init
+</pre>
+<p>这将创建一个包含<code>schema.prisma</code>文件的新 Prisma 文件夹，如果不存在的话，还会创建一个<code>.env</code>文件。</p>
+<p>文件生成后，打开<code>.env</code>文件并添加一个到数据库的链接:</p>
+<pre>DATABASE_URL="postgresql://&lt;NAME_OF_DATABASE&gt;:&lt;DATABASE_PASSWORD&gt;@localhost:5432/express-prisma?schema=public"
+</pre>
+<p>确保使用您定制的数据库名称和密码。</p>
+<p>现在我们已经完成了 Prisma 配置，我们可以创建一个 Prisma 模式并添加我们的身份验证方案。</p>
+<h2>创建 Prisma 模式</h2>
+<p>我们将从创建一个模式开始，该模式将包含将要迁移到数据库的用户参数。这些将使我们能够与他们互动，以完成认证。</p>
+<p>要添加模式，转到<code>prisma/schema.prisma</code>文件并添加以下代码:</p>
+<pre>model User {
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
+  name     String?
+  password String?
+}
+</pre>
+<p>一旦完成，我们就可以运行我们的迁移，这将在数据库中创建表<code>user</code>并为其添加列。</p>
+<p>要运行迁移，请将以下代码添加到您的终端并运行它:</p>
+<pre>npx prisma migrate dev --name "init" --preview-feature
+</pre>
+<p>如果迁移成功，将在之前创建的<code>prisma</code>文件夹中创建一个<code>migrations</code>文件夹。该文件夹将被称为<code>migrations</code>，并将包含一个 SQL 文件。</p>
+<p>我的输出为<code>20210613163752_init/migration.sql</code>，文件<code>migration.sql</code>包含在模式中创建的 SQL 结构:</p>
+<pre>-- CreateTable
+CREATE TABLE "User" (
+    "id" SERIAL NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "password" TEXT,
+    PRIMARY KEY ("id")
+);
+-- CreateIndex
+CREATE UNIQUE INDEX "User.email_unique" ON "User"("email");
+</pre>
+<h2>使用 Prisma 客户端</h2>
+<p>Prisma Client 是一个自动生成的类型安全查询生成器，您可以使用它从 Node.js 或 TypeScript 应用程序中以编程方式读写数据库中的数据。您将在 REST API 路由中使用它进行数据库访问，取代传统的 ORM、普通 SQL 查询、定制数据访问层或任何其他与数据库对话的方法。</p>
+<p>要在项目中安装 Prisma Client，只需在终端中输入以下命令并运行它:</p>
+<pre>npm install @prisma/client
+</pre>
+<p>这将使您能够在项目的任何地方使用 Prisma Client，从而允许您与数据库进行交互。</p>
+<h2>索引要求</h2>
+<p>Prisma 客户端设置完成后，我们可以继续添加控制器，它将与我们的路由(指向控制器中的指定功能)进行交互。我们还将添加我们的服务，这些服务与数据库或 Prisma 交互。</p>
+<p>首先，我们将创建几个文件和文件夹来存放它们。首先是路线——我们将创建一个名为<code>routes</code>的文件夹，并添加我们的文件<code>index.js</code>和<code>auth.js</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>然后，我们在根文件<code>index.js</code>中启动我们的 Express 服务器，并将路由指向<code>routes/index.js</code>。</p>
+<p>接下来，我们要求 Prisma 客户端位于根文件<code>index.js</code>中:</p>
+<pre>const express = require('express');
+require('@prisma/client');
+const app = express();
+require('dotenv').config();
+const route = require('./routes');
+const bodyParser = require('body-parser');
+const multer = require('multer');
+app.use(bodyParser.urlencoded({ extended: true }))
+app.use(bodyParser.json())
+
+// redirect to routes/index.js
+const route = require('./routes');
+app.use('/', route);
+
+const port = process.env.PORT || 5000;
+app.listen(port, () =&gt; {
+    console.log(`server is running on port ${port}`);
+});
+</pre>
+<h2>索引路由</h2>
+<p>完成后，我们可以在<code>routes/index.js</code>文件中将我们的路线指向他们的各个目的地:</p>
+<pre>const express = require('express');
+const router = express.Router();
+const auth = require('./auth');
+const createError = require('http-errors')
+router.get('/', (req, res) =&gt; {
+    res.send('Hello World!');
+});
+router.use('/auth', auth);
+router.use( async (req, res, next) =&gt; {
+    next(createError.NotFound('Route not Found'))
+})
+router.use( (err, req, res, next) =&gt; {
+    res.status(err.status || 500).json({
+        status: false,
+        message: err.message
+    })
+})
+module.exports = router;
+</pre>
+<p>如果您注意到了，我需要我的<code>index.js</code>文件中的<code>http-errors</code>包。这是因为我将使用它来拦截错误，并将其作为消息正确地传递给客户端。</p>
+<p>要使用<code>http-errors</code>，您可以使用以下命令进行安装:</p>
+<pre>npm install http-errors
+</pre>
+<h2>创建授权服务</h2>
+<p>我们需要创建一个服务文件，以便在数据库和控制器之间进行通信。在服务文件中，我们将创建三个函数:<code>register</code>、<code>login</code>和<code>all</code>，它们将向数据库注册一个新用户，获取用户的信息，并让用户登录。</p>
+<p><code>all</code>函数将获取所有用户，这只有在请求具有登录或注册期间生成的有效令牌时才会发生。</p>
+<p>首先，我们将创建一个名为<code>services</code>的文件夹，然后在<code>services</code>文件夹中创建一个名为<code>auth.services.js</code>的文件。接下来，我们可以创建我们的<code>register</code>函数并安装 bcrypt 和 JWT，用于密码散列和生成令牌。</p>
+<p>要安装 bcrypt 和 JWT，请在您的终端上输入以下命令并运行它:</p>
+<pre>npm install bcryptjs jsonwebtoken
+</pre>
+<p>安装完成后，我们将创建一个名为<code>utils</code>的文件夹，以便添加我们的 JWT 函数，稍后我们将使用它来生成令牌。</p>
+<p>在我们的<code>utils</code>文件夹中，创建一个名为<code>jwt.js</code>的文件，并添加以下函数:</p>
+<pre>const jwt = require('jsonwebtoken')
+const createError = require('http-errors')
+require('dotenv').config()
+const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET
+module.exports = {
+    signAccessToken(payload){
+        return new Promise((resolve, reject) =&gt; {
+            jwt.sign({ payload }, accessTokenSecret, {
+            }, (err, token) =&gt; {
+                if (err) {
+                reject(createError.InternalServerError())
+                }
+                resolve(token)
+            })
+        })
+    },
+    verifyAccessToken(token){
+        return new Promise((resolve, reject) =&gt; {
+            jwt.verify(token, accessTokenSecret, (err, payload) =&gt; {
+                if (err) {
+                    const message = err.name == 'JsonWebTokenError' ? 'Unauthorized' : err.message
+                    return reject(createError.Unauthorized(message))
+                }
+                resolve(payload)
+            })
+        })
+    }
+}
+</pre>
+<p>然后在我们的<code>.env</code>文件中，我们添加我们的<code>ACCESS_TOKEN_SECRET</code>:</p>
+<pre>ACCESS_TOKEN_SECRET=&lt;CUSTOM_ACCESS_TOKEN&gt;
+</pre>
+<p>然后我们可以返回到<code>auth.service.js</code>并要求我们的 JWT 文件以及 bcrypt 和 Prisma:</p>
+<pre>// services/auth.service.js
+
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+require('dotenv').config();
+const bcrypt = require('bcryptjs');
+const jwt = require('../utils/jwt');
+</pre>
+<p>接下来，创建我们的<code>register</code>函数，向数据库添加一个新用户:</p>
+<pre>class AuthService {
+  static async register(data) {
+        const { email } = data;
+        data.password = bcrypt.hashSync(data.password, 8);
+        let user = prisma.user.create({
+            data
+        })
+        data.accessToken = await jwt.signAccessToken(user);
+
+        return data;
+    }
+}
+
+module.exports = authService;
+</pre>
+<p>同时，我们还可以添加我们的<code>login</code>和<code>all</code>函数:</p>
+<pre>// services/auth.service.js
+
+static async login(data) {
+        const { email, password } = data;
+        const user = await prisma.user.findUnique({
+            where: {
+                email
+            }
+        });
+        if (!user) {
+            throw createError.NotFound('User not registered')
+        }
+        const checkPassword = bcrypt.compareSync(password, user.password)
+        if (!checkPassword) throw createError.Unauthorized('Email address or password not valid')
+        delete user.password
+        const accessToken = await jwt.signAccessToken(user)
+        return { ...user, accessToken }
+    }
+    static async all() {
+        const allUsers = await prisma.user.findMany();
+        return allUsers;
+    }
+</pre>
+<h2>创建授权控制器</h2>
+<p>为了从我们的路由中获取请求体，我们将创建一个名为<code>controllers/auth.controller.js</code>的控制器，并添加我们的<code>register</code>、<code>login</code>和<code>all</code>函数来与我们各自的服务通信:</p>
+<pre>const auth = require('../services/auth.service');
+const createError = require('http-errors');
+class authController {
+    static register = async (req, res, next) =&gt; {
+        try {
+            const user = await auth.register(req.body);
+            res.status(200).json({
+                status: true,
+                message: 'User created successfully',
+                data: user
+            })
+        }
+        catch (e) {
+            next(createError(e.statusCode, e.message))
+        }
+    }
+    static login = async (req, res, next) =&gt; {
+         try {
+            const data = await auth.login(req.body)
+            res.status(200).json({
+                status: true,
+                message: "Account login successful",
+                data
+            })
+        } catch (e) {
+            next(createError(e.statusCode, e.message))
+        }
+    }
+    static all = async (req, res, next) =&gt; {
+        try {
+            const users = await auth.all();
+            res.status(200).json({
+                status: true,
+                message: 'All users',
+                data: users
+            })
+        }
+        catch (e) {
+            next(createError(e.statusCode, e.message))
+        }
+    }
+}
+module.exports = authController;
+</pre>
+<h2>创建授权保护</h2>
+<p>在添加了控制器之后，我们可以添加我们的 guard，它将保护一些像<code>all</code>这样的路由免受未登录用户的攻击。这个安全措施将验证我们发布的 jwt，如果有效，将允许用户访问这些路由。</p>
+<p>创建一个名为<code>middlewares/auth.js</code>的文件，并添加以下代码:</p>
+<pre>const jwt = require('../utils/jwt')
+const createError = require('http-errors')
+const auth = async (req, res, next) =&gt; {
+    if (!req.headers.authorization) {
+        return next(createError.Unauthorized('Access token is required'))
+    }
+    const token = req.headers.authorization.split(' ')[1]
+    if (!token) {
+        return next(createError.Unauthorized())
+    }
+    await jwt.verifyAccessToken(token).then(user =&gt; {
+        req.user = user
+        next()
+    }).catch (e =&gt; {
+        next(createError.Unauthorized(e.message))
+    })
+}
+module.exports = auth;
+</pre>
+<p>上述代码将从<code>routes</code>中添加的<code>headers</code>中获取传递的令牌来验证 JWT，并返回一个<code>true</code>或<code>false</code>。</p>
+<h2>创建授权路线</h2>
+<p>现在，我们已经完成了控制器、服务和防护。我们现在可以打开我们的<code>routes/auth.js</code>文件并添加我们的路线:</p>
+<pre>const router = require('express').Router();
+const user = require('../controllers/auth.controller');
+const auth = require('../middlewares/auth');
+// register
+router.post('/', user.register);
+// login
+router.post('/login', user.login);
+// all users
+router.get('/', auth, user.all);
+module.exports = router;
+</pre>
+<p>将<code>auth</code>保护添加到<code>all</code>路由中，以限制没有 jwt 的用户使用该路由。</p>
+<h2>测试</h2>
+<p>现在我们已经完成了应用程序的构建，我们可以测试它是否正常工作。我们将使用<a href="https://www.postman.com/" target="_blank" rel="noopener">邮递员</a>测试<code>register</code>、<code>login</code>和<code>all</code>路线。</p>
+<h3><code>Register</code></h3>
+<p><img data-attachment-id="58060" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-register-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png" data-orig-size="730,527" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-register-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test-300x217.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png" decoding="async" class="size-full wp-image-58060 aligncenter jetpack-lazy-image" src="../Images/a72f581e7ec42d4764151e73604be594.png" alt="Screenshot of successful register test in Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test-300x217.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="58060" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-register-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png" data-orig-size="730,527" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-register-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test-300x217.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png" decoding="async" loading="lazy" class="size-full wp-image-58060 aligncenter" src="../Images/a72f581e7ec42d4764151e73604be594.png" alt="Screenshot of successful register test in Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test-300x217.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-register-test.png"/></noscript>
+<p>正如上面的邮差截图所示，一旦你输入了你的邮箱、名字和密码，你就成功注册为新用户了。</p>
+<h3><code>Login</code></h3>
+<p><img data-attachment-id="58061" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-login-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-login-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png" decoding="async" class="size-full wp-image-58061 aligncenter jetpack-lazy-image" src="../Images/4df9184b129031f94f4b9992f1cc4c6d.png" alt="Screenshot of successful login test on Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="58061" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-login-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-login-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png" decoding="async" loading="lazy" class="size-full wp-image-58061 aligncenter" src="../Images/4df9184b129031f94f4b9992f1cc4c6d.png" alt="Screenshot of successful login test on Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-login-test.png"/></noscript>
+<p>当用户提供正确的电子邮件和密码时，他们将获得一个用于登录的访问令牌。这在请求中作为头传递，请求头中需要 jwt。</p>
+<h3><code>All users</code></h3>
+<p><img data-attachment-id="58062" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-all-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png" data-orig-size="730,532" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-all-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test-300x219.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png" decoding="async" class="size-full wp-image-58062 aligncenter jetpack-lazy-image" src="../Images/931876261ede801f39923c6a6edda2c3.png" alt="Screenshot of successful all users test on Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test-300x219.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="58062" data-permalink="https://blog.logrocket.com/crafting-authentication-schemes-with-prisma-in-express/postman-all-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png" data-orig-size="730,532" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Postman-all-test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test-300x219.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png" decoding="async" loading="lazy" class="size-full wp-image-58062 aligncenter" src="../Images/931876261ede801f39923c6a6edda2c3.png" alt="Screenshot of successful all users test on Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test-300x219.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Postman-all-test.png"/></noscript>
+<p><code>all</code>路由是一个受保护的路由，仅适用于拥有有效令牌的用户。正如您在上面的屏幕截图中看到的，令牌被添加到带有属性<code>BearerToken</code>的头中。</p>
+<h2>包扎</h2>
+<p>在本教程中，我们已经完成了使用 Prisma 为数据库模式和迁移构建经过验证的服务器端应用程序的过程。然后，使用迁移的数据，我们可以注册并登录一个用户，并创建接受有效令牌的受保护路由。</p>
+<p>对于更详细的代码库，您可以克隆<a href="https://github.com/Kennethekandem/express-prisma.git" target="_blank" rel="noopener">存储库</a>并对其进行配置。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

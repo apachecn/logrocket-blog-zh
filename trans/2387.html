@@ -1,0 +1,87 @@
+<html>
+<head>
+<title>Using Needle to send HTTP requests in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Node.js - LogRocket 博客中使用 Needle 发送 HTTP 请求</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-needle-send-http-requests-nodejs/#0001-01-01">https://blog.logrocket.com/using-needle-send-http-requests-nodejs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在处理后端时，有些情况下我们需要向其他 API 发出 HTTP 请求来获取信息。Node.js 中有很多不同的包对此有所帮助，比如<code>node-fetch</code>和<a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/" target="_blank" rel="noopener"> Axios </a>。</p>
+<p>今天我们要看看另一个叫做<a href="https://www.npmjs.com/package/needle"> Needle </a>的包，看看为什么要用它而不是 Axios 之类的东西。</p>
+<p>Needle 是为 Node 开发的 HTTP 客户机，它帮助我们向外部数据源发送 HTTP 请求来检索数据。当您不想向客户端应用程序公开 API 密钥等敏感信息时，应该在后端使用这种方法。</p>
+<p>让我们看看这个包实际上是如何工作的。在本教程中，我们将使用一个假的 REST API ( <a href="https://jsonplaceholder.typicode.com/" target="_blank" rel="noopener"> JSONPlaceholder </a>)通过我们的服务器用 Needle 发出 HTTP 请求来提供数据。</p>
+<h2>为什么你应该用针</h2>
+<p>我选择 Needle 而不是 Axios 的原因是，Needle 是为后端设计的，而 Axios 是为前端和后端设计的。不是说 Axios 是个坏包；这两个包我都用过不少，都很棒。但是 Needle 的特定用例位于后端，正如它的标语所写的，“Nodelands 中最精简、最漂亮的 HTTP 客户端”。</p>
+<p>Needle 是由特定于节点的库组成的，这意味着它不能在前端的浏览器中工作。如果我们仔细看看<code>User-Agent</code> header Needle 在其请求中的默认设置，它被设置为运行的节点平台和版本。这意味着 Needle 应该在 Node 上运行，并使用较小的节点包来执行请求。这使得后端的这个包不那么臃肿。</p>
+<p>此外，与 Axios 相比，Needle 的封装尺寸更小。虽然现在封装尺寸可能不那么重要了，但是像 Needle 这样较小的封装尺寸对于优化来说是非常好的。如果您关心包的大小，那么在后端使用 Needle，在前端使用 Axios 是有意义的。</p>
+<p>当你在后端工作时，你肯定知道代码不会以任何方式在前端使用，那么为什么不节省一些空间，使用 Needle 而不是 Axios 呢？</p>
+<p>使用 Axios 和 Needle 非常相似。在正常使用中，您不会发现性能差异，但是当您真的必须优化以使您的服务器更快时，使用像 Needle 这样的轻量级包是一个不错的选择。</p>
+<h2>创建一个示例 Node.js 服务器</h2>
+<p>让我们看看针的作用。我们的第一步是设置一个样本节点和 Express 服务器。</p>
+<p>为此，转到一个安全的项目工作区文件夹，键入以下命令来为我们的项目设置<code>package.json</code>:</p>
+<pre class="language-shell hljs">npm init -y
+</pre>
+<p>现在让我们像这样安装 Needle 和 Express 包:</p>
+<pre class="language-shell hljs">npm install needle express
+</pre>
+<p>接下来，创建一个名为<code>index.js</code>的新文件，并在您的终端中使用<code>node index</code>来运行它。我强烈推荐使用<code>nodemon</code>，因为一旦你修改了文件，它会自动重新加载服务器。</p>
+<p>使用以下命令安装它(您只需在每台机器上安装一次):</p>
+<pre class="language-shell hljs">npm install -g nodemon
+</pre>
+<h2>设置示例 Express 服务器</h2>
+<p>现在，转到<code>index.js</code>文件，使用下面的代码设置一个裸机 Express 应用程序。我们还将在此处进口针头以备将来使用:</p>
+<pre class="language-javascript hljs">const express = require("express");
+const needle = require("needle");
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, () =&gt; console.log(`Server running on port ${PORT}`));
+</pre>
+<p>在上面的代码中，<code>process.env.PORT || 8080</code>意味着如果环境变量中没有提供端口，服务器将在端口 8080 上运行。当你部署在像<a href="https://blog.logrocket.com/free-services-deploy-node-js-app/" target="_blank" rel="noopener"> Heroku </a>这样的服务上，并且你需要一些方法来本地测试服务器时，这是非常有用的。</p>
+<h2>设置路线和使用针</h2>
+<p>现在让我们创建一个路由，当发送一个请求时，它将从一个假 API 返回一个响应。这将是一个简单的<code>GET</code>请求:</p>
+<pre class="language-javascript hljs">app.get("/posts", async (req, res) =&gt; {
+  try {
+    const response = await needle(
+      "get",
+      "https://jsonplaceholder.typicode.com/posts"
+    );
+    console.log(response.body);
+    res.json(response.body);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+</pre>
+<p>让我们看看我们在上面的代码中做了什么。首先，我们在 route <code>/posts</code>处建立了一个快速路由，并使用了一个异步回调函数。然后，我们从 Needle 发出一个<code>GET</code>请求，并指定我们发送 HTTP 请求的 URL。</p>
+<p>我们的响应存储在<code>response.body</code>中，我们使用<code>res.json()</code>将这个响应发送回用户。</p>
+<p>如果在发出请求的过程中出现问题，我们使用<code>catch</code>块，如果出现问题，我们将发送一条错误消息作为响应。</p>
+<p>现在，如果你使用像 Postman 这样的 HTTP 客户端或者简单地使用浏览器点击<code><a href="http://localhost:8080/posts" rel="nofollow">http://localhost:8080/posts</a></code>，你将得到一个带有大量 JSON 格式的虚拟帖子的响应。</p>
+<p>我们可以做更多的事情，比如检查 HTTP 状态代码。让我们将从请求中获得的状态代码作为响应返回:</p>
+<pre class="language-javascript hljs">res.status(response.statusCode).json(response.body);
+</pre>
+<p>在上面的代码片段中，我们只是添加了来自 express 的<code>.status()</code>方法来返回一个状态代码作为响应。</p>
+<p>类似地，您可以将标头传递给请求，以发送请求数据，如 API 键</p>
+<pre class="language-javascript hljs">const response = await needle(
+  "get",
+  "https://jsonplaceholder.typicode.com/posts",
+  { headers: { "x-my-custom-key": "abc123" } }
+);
+</pre>
+<p>您可以像这样解析响应头:</p>
+<pre class="language-javascript hljs">console.log(response.headers);
+</pre>
+<h2>结论</h2>
+<p>Needle 已经存在很多年了，甚至比 Axios 还要早。一定要亲自尝试一次！今年越来越多的人开始使用 Needle，这表明 devs 想要更多的优化。第一步是使用更小尺寸的包装。</p>
+<p>然而，如果你只是一名学生，或者你正在做一个不一定需要优化的简单项目，我看不出使用 Axios 与使用 Needle 有什么不同。我认为优化部分在大规模的生产级应用中更有用，开发者需要尽可能保持事物的整洁。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

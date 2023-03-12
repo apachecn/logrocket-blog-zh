@@ -1,0 +1,498 @@
+<html>
+<head>
+<title>React useReducer Hook ultimate guide - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React useReducer Hook 终极指南- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-usereducer-hook-ultimate-guide/#0001-01-01">https://blog.logrocket.com/react-usereducer-hook-ultimate-guide/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:这篇文章最后一次更新是在 2022 年 3 月 28 日，包括了对更新的工具和框架的引用。</em></p>
+<p><code>useReducer</code>是 React v16.8 附带的附加钩子之一。作为<code>useState</code>钩子的替代，<code>useReducer</code>帮助您管理 React 应用程序中复杂的状态逻辑。当与其他钩子如<code>useContext</code>、<a href="https://blog.logrocket.com/use-hooks-and-context-not-react-and-redux/">、<code>useReducer</code>结合使用时，可以很好地替代 Redux、反冲或 MobX </a>。在某些情况下，这绝对是更好的选择。</p>
+<p>虽然 Redux、反冲和 MobX 通常是在大型 React 应用程序中管理全局状态的最佳选择，但许多 React 开发人员在可以用钩子有效处理状态的时候，往往会跳入这些第三方状态管理库。</p>
+<p>当您考虑开始使用像<a href="https://blog.logrocket.com/using-typescript-with-redux-toolkit/"> Redux 这样的第三方库的复杂性(Redux Toolkit </a>使其变得容易得多)以及所需的大量样板代码时，使用 React 钩子和上下文 API 管理状态就成了一个很有吸引力的选择。在我们的应用程序中，不需要安装外部包或添加一堆文件和文件夹来管理全局状态。</p>
+<p>但是，黄金法则仍然存在。组件状态为组件状态，Redux 为应用程序状态。在本教程中，我们将深入探索<code>useReducer</code>钩子，回顾你应该和不应该使用它的场景。我们开始吧！</p>
+<h2>目录</h2>
+
+<h2 id="how-usereducer-hook-work"><code>useReducer</code>挂钩是如何工作的？</h2>
+<p>与<code>useState</code>挂钩一样，<code>useReducer</code>挂钩用于存储和更新状态。它接受一个<code>reducer</code>函数作为第一个参数，初始状态作为第二个参数。</p>
+<p><code>useReducer</code>返回一个保存当前状态值的数组和一个<code>dispatch</code>函数，您可以向该函数传递一个动作并在以后调用它。虽然这类似于 Redux 使用的模式，但还是有一些不同。</p>
+<p>例如，<code>useReducer</code>函数与特定的减速器紧密耦合。我们只将动作对象分派给 reducer，而在 Redux 中，dispatch 函数将动作对象发送给存储。在分派时，组件不需要知道哪个缩减器将处理该动作。</p>
+<p>对于那些可能不熟悉 Redux 的人，我们将进一步探讨这个概念。Redux 中有三个主要构件:</p>
+<ul>
+<li>存储:保存应用程序状态数据的不可变对象</li>
+<li>reducer:返回一些状态数据的函数，由一个动作<code>type</code>触发</li>
+<li>一个动作:一个告诉缩减器如何改变状态的对象。它必须包含一个<code>type</code>属性，并且可以包含一个可选的<code>payload</code>属性</li>
+</ul>
+<p>让我们看看这些构建块与使用<code>useReducer</code>钩子管理状态相比如何。以下是 Redux 中的一个商店示例:</p>
+<pre class="“language-redux">import { createStore } from 'redux'
+
+const store = createStore(reducer, [preloadedState], [enhancer])
+</pre>
+<p>在下面的代码中，我们用<code>useReducer</code>钩子初始化状态:</p>
+<pre>const initialState = { count: 0 }
+
+const [state, dispatch] = useReducer(reducer, initialState)
+</pre>
+<p>Redux 中的 reducer 函数将接受前一个 app 状态和正在调度的动作，计算下一个状态，并返回新的对象。Redux 中的 Reducers 遵循以下语法:</p>
+<pre>(state = initialState, action) =&gt; newState
+</pre>
+<p>让我们考虑下面的例子:</p>
+<pre>// notice that the state = initialState and returns a new state
+
+const reducer = (state = initialState, action) =&gt; {
+   switch (action.type) {
+      case 'ITEMS_REQUEST':
+         return Object.assign({}, state, {
+            isLoading: action.payload.isLoading
+         })
+      case ‘ITEMS_REQUEST_SUCCESS':
+         return Object.assign({}, state, {
+            items: state.items.concat(action.items),
+            isLoading: action.isLoading
+         })
+      default:
+         return state;
+   }
+}
+export default reducer;
+</pre>
+<p>React 不使用<code>(state = initialState, action) =&gt; newState</code> Redux 模式，所以 reducer 函数的工作方式有点不同。下面的代码显示了如何使用 React 创建减速器:</p>
+<pre class="“language-react">function reducer(state, action) {
+  switch (action.type) {
+    case 'increment':
+      return {count: state.count + 1};
+    case 'decrement':
+      return {count: state.count - 1};
+    default:
+      throw new Error();
+  }
+}  
+</pre>
+<p>下面是一个可以在 Redux 中执行的操作的示例:</p>
+<pre class="“language-redux">{ type: ITEMS_REQUEST_SUCCESS, payload: { isLoading: false } }
+
+// action creators
+export function itemsRequestSuccess(bool) {
+   return {
+      type: ITEMS_REQUEST_SUCCESS,
+      payload: {
+      isLoading: bool,
+    }
+   }
+}
+
+// dispatching an action with Redux
+dispatch(itemsRequestSuccess(false))    // to invoke a dispatch function, you need to pass action as an argument to the dispatch function
+</pre>
+<p><code>useReducer</code>中的动作以类似的方式工作:</p>
+<pre class="“language-react">// not the complete code
+switch (action.type) {
+    case 'increment':
+      return {count: state.count + 1};
+    default:
+      throw new Error();
+  }
+
+// dispatching an action with useReducer
+ &lt;button onClick={() =&gt; dispatch({type: 'increment'})}&gt;Increment&lt;/button&gt;
+</pre>
+<p>如果上面代码中的动作类型是<code>increment</code>，我们的状态对象增加了<code>1</code>。</p>
+<h3 id="reducer-function">减速器功能</h3>
+<p>JavaScript <code>reduce()</code>方法对数组的每个元素执行一个 reducer 函数，并返回一个值。<code>reduce()</code>方法接受一个 reducer 函数，它本身最多可以接受四个参数。下面的代码片段说明了缩减器是如何工作的:</p>
+<pre class="“language-javascript">const reducer = (accumulator, currentValue) =&gt; accumulator + currentValue;
+[2, 4, 6, 8].reduce(reducer)
+// expected output: 20
+</pre>
+<p>在 React 中，<code>useReducer</code>本质上接受一个返回单个值的 reducer 函数:</p>
+<pre>  const [count, dispatch] = useReducer(reducer, initialState);
+</pre>
+<p>reducer 函数本身接受两个参数并返回一个值。第一个参数是当前状态，第二个是动作。状态就是我们正在操作的数据。reducer 函数接收一个由<code>dispatch</code>函数执行的动作:</p>
+<pre>function reducer(state, action) { }
+
+dispatch({ type: 'increment' })
+</pre>
+<p>这个动作就像是你传递给 reducer 函数的一个指令。基于指定的动作，reducer 函数执行必要的状态更新。如果您以前使用过像 Redux 这样的状态管理库，那么您一定遇到过这种状态管理模式。</p>
+<h3 id="specifying-initial-state">指定初始状态</h3>
+<p>初始状态是传递给<code>useReducer</code>钩子的第二个参数，它代表默认状态:</p>
+<pre class="“language-react">const initialState = { count: 1 }
+
+// wherever our useReducer is located
+const [state, dispatch] = useReducer(reducer, initialState, initFunc)
+</pre>
+<p>如果不向<code>useReducer</code>传递第三个参数，它会把第二个参数作为初始状态。第三个参数是<code>init</code>函数，是可选的。这种模式也遵循 Redux 状态管理的黄金法则之一；应该通过发出动作来更新状态。千万不要直接写信给政府。</p>
+<p>然而，值得注意的是，Redux <code>state = initialState</code>约定与<code>useReducer</code>的工作方式不同，因为初始值有时取决于道具。</p>
+<h3 id="creating-initial-state-lazily">懒惰地创建初始状态</h3>
+<p>在编程中，惰性初始化是一种策略，它将对象的创建、值的计算或其他一些昂贵的过程延迟到第一次需要它的时候。</p>
+<p>如上所述，<code>useReducer</code>可以接受第三个参数，这是一个可选的<code>init</code>函数，用于惰性地创建初始状态。它允许您提取逻辑来计算 reducer 函数之外的初始状态，如下所示:</p>
+<pre class="“language-react">const initFunc = (initialCount) =&gt; {
+    if (initialCount !== 0) {
+        initialCount=+0
+    }
+  return {count: initialCount};
+}
+
+// wherever our useReducer is located
+const [state, dispatch] = useReducer(reducer, initialCount, initFunc);
+</pre>
+<p>如果值还不是<code>0</code>，上面的<code>initFunc</code>将在页面装载时将<code>initialCount</code>重置为<code>0</code>，然后返回状态对象。注意这个<code>initFunc</code>是一个函数，不仅仅是一个数组或对象。</p>
+<h3 id="dispatch-method"><code>dispatch</code>法</h3>
+<p><code>dispatch</code>函数接受一个对象，该对象表示当它被调用时我们想要执行的动作类型。基本上，它将动作类型发送给 reducer 函数来执行它的工作，当然，这是更新状态。</p>
+<p>要执行的动作在我们的 reducer 函数中指定，然后传递给<code>useReducer</code>。reducer 函数将返回更新后的状态。</p>
+<p>将由我们的组件调度的动作应该总是被表示为一个带有<code>type</code>和<code>payload</code>键的对象，其中<code>type</code>代表被调度动作的标识符，<code>payload</code>是该动作将添加到状态中的信息。</p>
+<p><code>dispatch</code>是从<code>useReducer</code>钩子返回的第二个值，可以在我们的 JSX 中用来更新状态:</p>
+<pre class="“language-react">// creating our reducer function
+function reducer(state, action) {
+  switch (action.type) {
+   // ...
+      case 'reset':
+          return { count: action.payload };
+    default:
+      throw new Error();
+  }
+}
+
+// wherever our useReducer is located
+const [state, dispatch] = useReducer(reducer, initialCount, initFunc);
+
+// Updating the state with the dispatch functon on button click
+&lt;button onClick={() =&gt; dispatch({type: 'reset', payload: initialCount})}&gt; Reset &lt;/button&gt;
+</pre>
+<p>注意我们的 reducer 函数是如何使用从<code>dispatch</code>函数传递来的有效负载的。它将我们的状态对象设置为有效载荷，即无论<code>initialCount</code>是什么。</p>
+<p>注意，我们可以通过 props 将<code>dispatch</code>函数传递给其他组件，仅此一点就允许我们用<code>useReducer</code>替换 Redux。</p>
+<p>假设我们有一个组件，我们想把它作为道具传递给我们的调度函数。我们可以从父组件轻松做到这一点:</p>
+<pre>&lt;Increment count={state.count} handleIncrement={() =&gt; dispatch({type: 'increment'})}/&gt;
+</pre>
+<p>现在，在子组件中，我们接收 props，当发出 props 时，将触发 dispatch 函数并更新状态:</p>
+<pre>&lt;button onClick={handleIncrement}&gt;Increment&lt;/button&gt;
+</pre>
+<h3 id="bailing-out-dispatch">逃避急件</h3>
+<p>如果<code>useReducer</code>钩子返回与当前状态相同的值，React 将退出而不渲染子元素或触发效果，因为它使用了<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is#Description">Object.is</a></code>比较算法。</p>
+<h2 id="building-simple-counter-app-usereducer-hook">用<code>useReducer</code>钩子构建一个简单的计数器应用程序</h2>
+<p>现在，让我们通过使用<code>useReducer</code>钩子构建一个简单的计数器应用程序来运用我们的知识:</p>
+<pre class="“language-react">import React, { useReducer } from 'react';
+
+const initialState = { count: 0 }
+ // The reducer function
+function reducer(state, action) {
+  switch (action.type) {
+    case 'increment':
+      return { count: state.count + 1 }
+    case 'decrement':
+      return { count: state.count - 1 }
+    case 'reset':
+      return {count: state.count = 0}
+    default:
+     return { count: state.count  }
+  }
+}
+
+const Counter = () =&gt; {
+  const [state, dispatch] = useReducer(reducer, initialState)
+
+  return (
+    &lt;div&gt;
+      Count: {state.count}
+       &lt;br /&gt;
+       &lt;br/&gt;
+       &lt;button onClick={() =&gt; dispatch({ type: 'increment' })}&gt;Increment&lt;/button&gt;
+       &lt;button onClick={() =&gt; dispatch({ type: 'decrement'})}&gt;Decrement&lt;/button&gt;
+       &lt;button onClick={() =&gt; dispatch({ type: 'reset'})}&gt;Reset&lt;/button&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default Counter;
+</pre>
+<p>首先，我们用<code>0</code>初始化状态，然后我们创建一个 reducer 函数，它接受计数的当前状态作为参数和动作。缩减器根据动作类型更新状态。<code>increment</code>、<code>decrement</code>和<code>reset</code>都是动作类型，当它们被分派时，相应地更新我们的应用程序的状态。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>为了增加状态计数<code>const initialState = { count: 0 }</code>，当<code>increment</code>动作类型被分派时，我们简单地将<code>count</code>设置为<code>state.count + 1</code>。</p>
+<h2 id="usestate-usereducer"><code>useState</code>对<code>useReducer</code></h2>
+<p><a href="https://reactjs.org/docs/hooks-reference.html#basic-hooks"> <code>useState</code>是管理简单状态转换的基本钩子</a>，<a href="https://reactjs.org/docs/hooks-reference.html#additional-hooks"> <code>useReducer</code>是管理更复杂状态逻辑的附加钩子</a>。然而，值得注意的是，<code>useState</code>在内部使用<code>useReducer</code>，这意味着你可以使用<code>useReducer</code>做任何你可以用<code>useState</code>做的事情。</p>
+<p>然而，这两个挂钩之间有一些主要的区别。使用<code>useReducer</code>，您可以避免通过组件的不同级别传递回调。相反，<code>useReducer</code>允许您传递一个提供的<code>dispatch</code>函数，这反过来将提高触发深度更新的组件的性能。</p>
+<p>然而，这并不意味着在每次渲染时会重新调用<code>useState</code>更新函数。当您有一个复杂的逻辑来更新状态时，您不会直接使用 setter 来更新状态。相反，您将编写一个复杂的函数，该函数将调用带有更新状态的 setter。</p>
+<p>因此，建议使用<code>useReducer</code>，它返回一个在重新渲染之间不会改变的<code>dispatch</code>方法，并且您可以在 reducers 中拥有操作逻辑。</p>
+<p>同样值得注意的是，使用<code>useState</code>，调用状态更新函数来更新状态，但是使用<code>useReducer</code>，调用<code>dispatch</code>函数，并且至少有一个类型的动作被传递给它。</p>
+<p>现在，让我们看看这两个钩子是如何声明和使用的。</p>
+<h3 id="declaring-state-usestate">用<code>useState</code>声明状态</h3>
+<pre class="“language-react">const [state, setState] = useState('default state');
+</pre>
+<p><code>useState</code>返回保存当前状态值的数组和用于更新状态的<code>setStatemethod</code>。</p>
+<h3 id="declaring-state-usereducer">用<code>useReducer</code>声明状态</h3>
+<pre>const [state, dispatch] = useReducer(reducer, initialState)
+</pre>
+<p><code>useReducer</code>返回一个保存当前状态值的数组和一个在逻辑上实现与<code>setState</code>相同目标的<code>dispatchmethod</code>，更新状态。</p>
+<p>用<code>useState</code>更新状态如下:</p>
+<pre class="“language-react">&lt;input type='text' value={state} onChange={(e) =&gt; setState(e.currentTarget.value)} /&gt;
+</pre>
+<p>用<code>useReducer</code>更新状态如下:</p>
+<pre class="“language-react">&amp;lt;button onClick={() =&gt; dispatch({ type: 'decrement'})}&gt;Decrement&lt;/button&gt;
+</pre>
+<p>我们将在本教程的后面更深入地讨论<code>dispatch</code>函数。可选地，一个动作对象也可以有一个<code>payload</code>:</p>
+<pre class="“language-react">&lt;button onClick={() =&gt; dispatch({ type: 'decrement', payload: 0})}&gt;Decrement&lt;/button&gt;
+</pre>
+<p><code>useReducer</code>在管理复杂的状态形状时非常方便，例如，当状态不仅仅由原始值组成时，如嵌套数组或对象:</p>
+<pre class="“language-react">const [state, dispatch] = useReducer(loginReducer,
+  {
+    users: [
+      { username: 'Philip', isOnline: false},
+      { username: 'Mark', isOnline: false },
+      { username: 'Tope', isOnline: true},
+      { username: 'Anita', isOnline: false },
+    ],
+    loading: false,
+    error: false,
+  },
+);
+</pre>
+<p>管理这种本地状态更容易，因为参数相互依赖，并且所有的逻辑都可以封装到一个 reducer 中。</p>
+<h2 id="when-usereducer-hook">何时使用<code>useReducer</code>钩</h2>
+<p>随着应用程序规模的增长，您很可能会处理更复杂的状态转换，此时您最好使用<code>useReducer</code>。</p>
+<p><code>useReducer</code>提供了比<code>useState</code>更可预测的状态转换，当状态变化变得如此复杂，以至于您希望有一个地方来管理状态时，这变得更加重要，就像 render 函数一样。</p>
+<p>一个很好的经验是，当您不再管理原始数据，即字符串、整数或布尔值，而是必须管理一个复杂的对象，如数组和其他原始数据时，您可能更适合使用<code>useReducer</code>。</p>
+<p>如果你是一个视觉学习者，下面的视频给出了详细的解释，以及何时使用<code>useReducer</code>钩子的实际例子。</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/o-nCM1857AQ?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h3 id="create-login-component">创建登录组件</h3>
+<p>为了更好地理解何时使用<code>useReducer</code>，让我们创建一个登录组件，并比较我们如何使用<code>useState</code>和<code>useReducer</code>钩子来管理状态。</p>
+<p>首先，让我们用<code>useState</code>创建登录组件:</p>
+<pre class="“language-react">import React, { useState } from 'react';
+
+export default function LoginUseState() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, showLoader] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const onSubmit = async (e) =&gt; {
+    e.preventDefault();
+    setError('');
+    showLoader(true);
+    try {
+      await function login({ username, password }) {
+        return new Promise((resolve, reject) =&gt; {
+          setTimeout(() =&gt; {
+            if (username === 'ejiro' &amp;&amp; password === 'password') {
+              resolve();
+            } else {
+              reject();
+            }
+          }, 1000);
+        });
+      }
+      setIsLoggedIn(true);
+    } catch (error) {
+      setError('Incorrect username or password!');
+      showLoader(false);
+      setUsername('');
+      setPassword('');
+    }
+  };
+  return (
+    &lt;div className='App'&gt;
+      &lt;div className='login-container'&gt;
+        {isLoggedIn ? (
+          &lt;&gt;
+            &lt;h1&gt;Welcome {username}!&lt;/h1&gt;
+            &lt;button onClick={() =&gt; setIsLoggedIn(false)}&gt;Log Out&lt;/button&gt;
+          &lt;/&gt;
+        ) : (
+          &lt;form className='form' onSubmit={onSubmit}&gt;
+            {error &amp;&amp; &lt;p className='error'&gt;{error}&lt;/p&gt;}
+            &lt;p&gt;Please Login!&lt;/p&gt;
+            &lt;input
+              type='text'
+              placeholder='username'
+              value={username}
+              onChange={(e) =&gt; setUsername(e.currentTarget.value)}
+            /&gt;
+            &lt;input
+              type='password'
+              placeholder='password'
+              autoComplete='new-password'
+              value={password}
+              onChange={(e) =&gt; setPassword(e.currentTarget.value)}
+            /&gt;
+            &lt;button className='submit' type='submit' disabled={isLoading}&gt;
+              {isLoading ? 'Logging in...' : 'Log In'}
+            &lt;/button&gt;
+          &lt;/form&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>请注意我们是如何处理所有这些状态转换的，比如<code>username</code>、<code>password</code>、<code>isLoading</code>、<code>error</code>和<code>isLoggedIn</code>，而我们实际上应该更关注用户想要在登录组件上采取的动作。</p>
+<p>我们使用了五个<code>useState</code>钩子，我们不得不担心这些状态何时被转换。我们可以重构上面的代码，使用<code>useReducer</code>并将所有的逻辑和状态转换封装在一个 reducer 函数中:</p>
+<pre class="“language-react">import React, { useReducer } from 'react';
+
+function loginReducer(state, action) {
+  switch (action.type) {
+    case 'field': {
+      return {
+        ...state,
+        [action.fieldName]: action.payload,
+      };
+    }
+    case 'login': {
+      return {
+        ...state,
+        error: '',
+        isLoading: true,
+      };
+    }
+    case 'success': {
+      return {
+        ...state,
+        isLoggedIn: true,
+        isLoading: false,
+      };
+    }
+    case 'error': {
+      return {
+        ...state,
+        error: 'Incorrect username or password!',
+        isLoggedIn: false,
+        isLoading: false,
+        username: '',
+        password: '',
+      };
+    }
+    case 'logOut': {
+      return {
+        ...state,
+        isLoggedIn: false,
+      };
+    }
+    default:
+      return state;
+  }
+}
+const initialState = {
+  username: '',
+  password: '',
+  isLoading: false,
+  error: '',
+  isLoggedIn: false,
+};
+export default function LoginUseReducer() {
+  const [state, dispatch] = useReducer(loginReducer, initialState);
+  const { username, password, isLoading, error, isLoggedIn } = state;
+  const onSubmit = async (e) =&gt; {
+    e.preventDefault();
+    dispatch({ type: 'login' });
+    try {
+      await function login({ username, password }) {
+        return new Promise((resolve, reject) =&gt; {
+          setTimeout(() =&gt; {
+            if (username === 'ejiro' &amp;&amp; password === 'password') {
+              resolve();
+            } else {
+              reject();
+            }
+          }, 1000);
+        });
+      }
+      dispatch({ type: 'success' });
+    } catch (error) {
+      dispatch({ type: 'error' });
+    }
+  };
+  return (
+    &lt;div className='App'&gt;
+      &lt;div className='login-container'&gt;
+        {isLoggedIn ? (
+          &lt;&gt;
+            &lt;h1&gt;Welcome {username}!&lt;/h1&gt;
+            &lt;button onClick={() =&gt; dispatch({ type: 'logOut' })}&gt;
+              Log Out
+            &lt;/button&gt;
+          &lt;/&gt;
+        ) : (
+          &lt;form className='form' onSubmit={onSubmit}&gt;
+            {error &amp;&amp; &lt;p className='error'&gt;{error}&lt;/p&gt;}
+            &lt;p&gt;Please Login!&lt;/p&gt;
+            &lt;input
+              type='text'
+              placeholder='username'
+              value={username}
+              onChange={(e) =&gt;
+                dispatch({
+                  type: 'field',
+                  fieldName: 'username',
+                  payload: e.currentTarget.value,
+                })
+              }
+            /&gt;
+            &lt;input
+              type='password'
+              placeholder='password'
+              autoComplete='new-password'
+              value={password}
+              onChange={(e) =&gt;
+                dispatch({
+                  type: 'field',
+                  fieldName: 'password',
+                  payload: e.currentTarget.value,
+                })
+              }
+            /&gt;
+            &lt;button className='submit' type='submit' disabled={isLoading}&gt;
+              {isLoading ? 'Logging in...' : 'Log In'}
+            &lt;/button&gt;
+          &lt;/form&gt;
+        )}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>请注意使用<code>useReducer</code>的新实现如何让我们更加关注用户将要采取的行动。比如，当<code>login</code>动作被调度时，我们可以清楚地看到我们想要发生的事情。我们希望返回当前状态的副本，将我们的<code>error</code>设置为空字符串，并将<code>isLoading</code>设置为 true:</p>
+<pre class="“language-react">case 'login': {
+      return {
+        ...state,
+        error: '',
+        isLoading: true,
+      };
+    }
+</pre>
+<p>我们当前实现的美妙之处在于，我们不再需要关注状态转换。相反，我们热衷于用户要执行的动作。</p>
+<h2 id="when-not-usereducer-hook">何时不使用<code>useReducer</code>挂钩</h2>
+<p>尽管能够在我们的应用中使用<code>useReducer</code>钩子来处理复杂的状态逻辑，但重要的是要注意，在某些场景中，像<a href="https://blog.logrocket.com/why-use-redux-reasons-with-clear-examples-d21bffd5835/"> Redux 这样的第三方状态管理库可能是更好的选择</a>。</p>
+<p>一个简单的答案是，除非 vanilla React 有问题，否则应该避免使用 Redux 或任何其他第三方状态管理库。如果你仍然不清楚是否需要它，很可能你并不需要。</p>
+<p>让我们回顾一些使用像 Redux 或 MobX 这样的库更有意义的具体案例。</p>
+<h3 id="single-source-truth">当您的应用程序需要单一的真实来源时</h3>
+<p>使用像 Redux 这样的库来集中应用程序的状态和逻辑使得创建通用应用程序状态变得轻而易举，因为来自服务器的状态可以很容易地序列化到客户端应用程序。拥有单一的事实来源也使得实现强大的功能变得容易，比如撤销/重做特性。</p>
+<h3 id="predictable-state">当你想要一个更可预测的状态时</h3>
+<p>使用像 Redux 这样的库可以帮助您编写在不同环境中运行时行为一致的应用程序。如果将相同的状态和动作传递给一个 reducer，总是会产生相同的结果，因为 reducer 是纯函数。另外，Redux 中的状态是只读的，改变状态的唯一方法是发出一个动作，一个描述发生了什么的对象。</p>
+<h3>当状态提升到顶层组件不再足够时</h3>
+<p>当将所有东西都保持在顶级 React 组件的状态中不再足够时，使用像 Redux 这样的库是最好的。</p>
+<h3 id="state-persistence">状态持久性</h3>
+<p>有了像 Redux 和 MobX 这样的库，您可以轻松地将状态保存到<code>localStorage</code>中，并让最终用户可以使用它，甚至在页面刷新之后。</p>
+<p>有了所有这些好处，还值得注意的是，使用像 Redux 这样的库，而不是使用带有<code>useReducer</code>的纯 React，会带来一些折衷。例如，Redux 有一个巨大的学习曲线，通过使用 Redux 工具包的<a href="https://redux.js.org/introduction/getting-started#redux-toolkit-example">可以最小化，这肯定不是编写代码的最快方法。相反，它旨在为您提供一种管理应用程序状态的绝对且可预测的方式。</a></p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们深入探讨了 React 的<code>useReducer</code>钩子，回顾了它是如何工作的，何时使用它，并将其与<code>useState</code>钩子进行了比较。</p>
+<p>我希望你喜欢这篇文章，如果你有任何问题，一定要留下评论。编码快乐！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,265 @@
+<html>
+<head>
+<title>Handling side effects in an Angular + Redux application - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Angular + Redux 应用程序中处理副作用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/handling-side-effects-angular-redux-application/#0001-01-01">https://blog.logrocket.com/handling-side-effects-angular-redux-application/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>随着 Redux 在前端生态系统中的广泛流行，Angular 和其他领先的前端框架已经将它作为一个可靠的状态管理库。</p>
+<p>但不幸的是，Redux 架构没有提供任何内置功能来处理 Redux 状态树的异步数据更改(也称为副作用)。因此，当这些异步操作完成时，Redux 状态树将受到影响。</p>
+<p>本文将介绍@ngrx/effects 库，这是一个用于处理 ngrx 应用程序中副作用的特殊包，以及如何使用它来处理 NgRx 应用程序中的副作用。</p>
+<h3>先决条件</h3>
+<ol>
+<li>角度的知识</li>
+<li>NgRx 知识</li>
+<li>打字知识</li>
+</ol>
+<h2>有什么副作用？</h2>
+<p>副作用是从远程服务器获取数据、访问本地存储、记录分析事件以及访问通常在未来某个时间完成的文件等操作。</p>
+<p>知道了副作用之后，假设我们想要向 API 端点发出请求，以获取应用程序中的用户列表。考虑到这种操作将是异步的，将考虑以下情况:</p>
+<ol>
+<li><code>FETCHING_USERS</code></li>
+<li><code>USERS_FETCH_SUCCESSFUL</code></li>
+<li><code>ERROR_FETCHING_USERS</code></li>
+</ol>
+<p>让我们通过做一些练习弄脏我们的手。</p>
+<h2>环境设置</h2>
+<p>使用以下命令创建一个新的角度项目:</p>
+<pre>ng new side-effects
+</pre>
+<p>运行以下命令安装本练习所需的依赖项:</p>
+<pre>npm install --save @ngrx/effects @ngrx/store rxjs
+</pre>
+<p>接下来，我们将运行以下命令为用户创建一个功能模块:</p>
+<pre>ng generate module user
+</pre>
+<p>然后，我们将创建一个<code>constants.ts</code>文件来保存<code>FETCHING USERS</code>、<code>USERS FETCH SUCCESSFUL</code>和<code>ERROR FETCHING USERS</code>，如下所示:</p>
+<pre>//src/app/user/user.constants.ts
+export const FETCHING_USERS = "FETCHING_USERS";
+export const USERS_FETCH_SUCCESSFUL = "USERS_FETCH_SUCCESSFUL";
+export const ERROR_FETCHING_USERS = "ERROR_FETCHING_USERS";
+</pre>
+<h2>动作创建者</h2>
+<p>动作创建器是创建和返回动作的辅助函数。知道了这一点，让我们创建一个如下:</p>
+<pre>//src/app/user/user.actions.ts
+import {
+    USERS_FETCH_SUCCESSFUL,
+    ERROR_FETCHING_USERS,
+    FETCHING_USERS
+} from "./user.constants";
+export const usersFetchSuccessful = users =&gt; ({
+    type: USERS_FETCH_SUCCESSFUL,
+    payload: users
+});
+export const fetchError = error =&gt; ({
+    type: ERROR_FETCHING_USERS,
+    payload: error
+});
+
+export const fetchingUsers = () =&gt; ({ type: FETCHING_USERS });
+</pre>
+<p>这里我们导出了<code>usersFetchSuccessful</code>、<code>fetchError</code>和<code>fetchingUsers</code>，在组件中需要它们来与 NgRx 存储交互。</p>
+<p>如果发生错误，将调用<code>fetchError()</code>动作创建器，一旦数据从端点成功返回，将调用<code>usersFetchSuccessful()</code>动作创建器，一旦发起 API 请求，将调用<code>fetchingUsers()</code>动作创建器。</p>
+<h2>创建减速器</h2>
+<p>Reducers 是不会改变状态的纯函数。相反，它们产生了一个新的状态。reducer 指定应用程序的状态如何改变以响应触发的动作。</p>
+<p>让我们按如下方式创建我们的减速器:</p>
+<pre>//src/app/user/user.reducers.ts
+import {
+    USERS_FETCH_SUCCESSFUL,
+    ERROR_FETCHING_USERS,
+    FETCHING_USERS
+} from "./user.constants";
+import { User } from "./user.model";
+import { ActionReducerMap } from "@ngrx/store/src/models";
+const initialState = {
+    loading: false,
+    list: [],
+    error: void 0
+};
+export interface UserState {
+    loading: boolean;
+    list: Array&lt;User&gt;;
+    error: string;
+}
+export interface FeatureUsers {
+    users: UserState;
+}
+export const UserReducers: ActionReducerMap&lt;FeatureUsers&gt; = {
+    users: userReducer
+};
+export function userReducer(state = initialState, action) {
+    switch (action.type) {
+        case USERS_FETCH_SUCCESSFUL:
+            return { ...state, list: action.payload, loading: false };
+        case ERROR_FETCHING_USERS:
+            return { ...state, error: action.payload, loading: false };
+        case FETCHING_USERS:
+            return { ...state, loading: true };
+        default:
+            return state;
+    }
+}
+</pre>
+<p>每次从连接到存储的任何组件调度一个动作时，reducer 都会接收该动作，并针对每种情况测试该动作的类型属性。如果测试不满足这些情况中的任何一个，它将返回当前状态。</p>
+<h2>创造效果</h2>
+<p>效果允许我们执行一个特定的任务，然后在任务完成后调度一个动作。</p>
+<p>知道了这一点，让我们创建我们的效果，它将处理发送请求、接收请求以及在请求失败时接收错误响应的整个过程:</p>
+<pre>//src/app/user/user.effect.ts
+import { Actions, Effect, ofType } from "@ngrx/effects";
+import { HttpClient } from "@angular/common/http";
+import { FETCHING_USERS } from "./product.constants";
+import { Injectable } from "@angular/core";
+import { Observable } from "rxjs/Observable";
+import { delay, map, catchError, switchMap } from "rxjs/operators";
+import { usersFetchSuccessful, fetchError } from "./user.actions";
+import { Action } from "@ngrx/store";
+import { of } from "rxjs/observable/of";
+@Injectable()
+export class UserEffects {
+    @Effect()
+    users$: Observable&lt;Action&gt; = this.actions$.pipe(
+        ofType(FETCHING_USERS),
+        switchMap(action =&gt;
+            this.http
+                .get("https://jsonplaceholder.typicode.com/users")
+                .pipe(
+                    delay(3000),
+                    map(usersFetchSuccessful),
+                    catchError(err =&gt; of(fetchError(err)))
+                )
+         )
+    );
+    constructor(private actions$: Actions&lt;Action&gt;, private http: HttpClient) {
+        console.log("user effects initialized");
+    }
+}
+</pre>
+<p>这里，<code>@Injectable</code>装饰器用于装饰<code>Effect</code>类。</p>
+<p><code>ofType()</code>方法允许我们监听特定的调度动作，在我们的例子中，<code>FETCHING_USERS</code>触发<code>switchMap()</code>方法允许我们将当前的可观察对象转换为 AJAX 服务。<code>delay()</code>方法允许我们显示一段时间的负载指示器。<code>map()</code>方法允许我们在 AJAX 响应成功时分派一个动作。</p>
+<h2>记录效果</h2>
+<p>有两种方法记录效果。我们可以在根模块或特征模块中这样做。前一种方法使效果可以在整个应用程序中全局访问，而后一种方法将其可访问性限制在特定的模块中。出于代码可重用性的考虑，后者是首选。</p>
+<pre>//src/app/user/user.module.ts
+import { NgModule } from "@angular/core";
+import { UserComponent } from "./user.component";
+import { BrowserModule } from "@angular/platform-browser";
+import { UserEffects } from "./user.effect";
+import { EffectsModule } from "@ngrx/effects";
+import { StoreModule, Action } from "@ngrx/store";
+import { UserReducers } from "./user.reducers";
+import { HttpClientModule } from "@angular/common/http";
+
+@NgModule({
+    imports: [
+        BrowserModule,
+        StoreModule.forFeature("featureUsers", UserReducers),
+        EffectsModule.forFeature([UserEffects]),
+        HttpClientModule
+    ],
+    exports: [UserComponent],
+    declarations: [UserComponent],
+    providers: []
+})
+export class UserModule {}
+</pre>
+<p>对于一个特性模块，我们将在<code>EffectsModule</code>上使用<code>forFeature()</code>方法。</p>
+<p>现在我们已经完成了效果的创建和注册，让我们从组件中访问效果。</p>
+<h2>创建选择器</h2>
+<p>如果你以前用过 Vuex，你会很熟悉 getters，类似于<a href="https://blog.logrocket.com/angular-state-management-made-simple-with-ngrx/">NgRx</a>T2s<a href="https://blog.logrocket.com/angular-state-management-made-simple-with-ngrx/">选择者</a>。选择器用于从存储状态中获取计算信息。我们可以在动作和组件中多次调用 getters。</p>
+<p>了解了这一点，让我们创建我们的选择器:</p>
+<pre>//src/app/user/user.selector.ts
+import { AppState } from "../app-state";
+export const getList = (state: AppState) =&gt; state.featureUsers.users.list;
+export const getError = (state: AppState) =&gt;
+    state.featureUsers.users.error;
+export const isLoading = (state: AppState) =&gt;
+    state.featureUsers.users.loading;
+</pre>
+<p>在等待 AJAX 请求完成时，我们需要一个组件来显示加载指示器。如果请求成功，该组件将显示我们的数据，否则将显示一条错误消息。</p>
+<h2>创建组件</h2>
+<p>当 AJAX 请求挂起时，让我们创建一个组件来显示数据和加载指示器:</p>
+<pre>//src/app/user/user.component.ts
+import { Component, OnInit } from "@angular/core";
+import { AppState } from "../app-state";
+import { Store } from "@ngrx/store";
+import { fetchingUsers } from "./user.actions";
+import { getList, isLoading, getError } from "./user.selector";
+@Component({
+    selector: "users",
+    template: `
+        Users:
+        &lt;div *ngFor="let user of users$ | async"&gt;
+            {{ user.email }}
+        &lt;/div&gt;
+        &lt;div *ngIf="loading$ | async; let loading"&gt;
+            &lt;div *ngIf="loading"&gt;
+            fetching users...
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div *ngIf="error$ | async; let error" &gt;
+            &lt;div *ngIf="error"&gt;{{ error }}&lt;/div&gt;
+        &lt;/div&gt;
+`
+})
+export class UserComponent implements OnInit {
+    users$;
+    loading$;
+    error$;
+    constructor(private store: Store&lt;AppState&gt;) {
+        this.users$ = this.store.select(getList);
+        this.loading$ = this.store.select(isLoading);
+        this.error$ = this.store.select(getError);
+    }
+    ngOnInit() {
+        this.store.dispatch(fetchingUsers());
+    }
+}
+</pre>
+<p>这里存储是通过构造函数注入的，所以我们可以通过存储的<code>select()</code>方法从存储中访问状态对象的属性。商店的<code>select</code>方法返回一个使用异步管道在模板中呈现的可观察对象。</p>
+<p>有了这个，我们来更新一下<code>AppState</code>:</p>
+<pre>//src/app/app-state.ts
+import { FeatureUsers } from "./user/user.reducer";
+export interface AppState {
+    featureUsers: FeatureUsers;
+}
+</pre>
+<p>因为<code>AppState</code>现在知道了结果用户对象的结构，所以我们的组件能够触发<code>store.select()</code>方法。</p>
+<p>还有，我们来更新一下<code>appModule</code>:</p>
+<pre>import { BrowserModule } from "@angular/platform-browser";
+import { NgModule } from "@angular/core";
+import { EffectsModule } from "@ngrx/effects";
+import { AppComponent } from "./app.component";
+import { StoreModule } from "@ngrx/store";
+import { UserModule } from "./user/user.module";
+@NgModule({
+    declarations: [AppComponent],
+    imports: [
+        BrowserModule,
+        EffectsModule,
+        StoreModule.forRoot({}),
+        EffectsModule.forRoot([]),
+        UserModule
+    ],
+    providers: [],
+    bootstrap: [AppComponent]
+})
+export class AppModule {}
+</pre>
+<p>让我们用下面的命令来看看到目前为止我们在浏览器上构建了什么:</p>
+<pre>npm start
+</pre>
+<h2>结论</h2>
+<p>在本文中，我们展示了如何使用<code>@ngrx/effects</code>库处理 NgRx 应用程序中的副作用，同时构建一些<a href="https://blog.logrocket.com/8-definitive-rules-building-apps-redux/"> R </a> <a href="https://blog.logrocket.com/8-definitive-rules-building-apps-redux/"> edux 概念</a>，如动作、归约器和常数。此外，我们能够创建处理未决请求、AJAX 请求中的错误和成功的 AJAX 请求的效果。</p>
+<p>关于 NgRx 的更多信息，你可以<a href="https://ngrx.io/docs">在这里</a>查阅 NgRx 的官方文档。这里是本教程的<a href="https://github.com/emmanuelhashy/ngrx-effect"> GitHub repo </a>。</p>
+<p>如果您有任何问题或建议，请在下面的评论区联系我们。</p><div class="code-block code-block-19">
+<div class="blog-plug inline-plug angular-plug"><h2>像用户一样体验 Angular 应用程序</h2><p>调试 Angular 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，</p><a href="https://lp.logrocket.com/blg/angular-signup">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你网站上发生的一切，包括网络请求、JavaScript 错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket NgRx 插件将角度状态和动作记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化调试 Angular 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

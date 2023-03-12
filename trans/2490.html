@@ -1,0 +1,190 @@
+<html>
+<head>
+<title>Data visualization with D3.js and Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 D3.js 和 Node.js 实现数据可视化</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/data-visualization-d3-js-node-js/#0001-01-01">https://blog.logrocket.com/data-visualization-d3-js-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>理解大量数据既费时又困难。然而，使用图形、图表、地图等的数据可视化。是理解大型数据集的最有效的方法之一。</p>
+<p>但是你问，什么是数据可视化？</p>
+<p>数据可视化是将大型数据集和指标呈现为图表、图形和其他视觉效果的实践，以便于概览和分析。</p>
+<p>许多工具允许您可视化不同级别的数据，但在本文中，我们将探索<a href="https://d3js.org/" target="_blank" rel="noopener"> D3.js </a>，这是一个强大的 JavaScript 库，允许开发人员创建和呈现易于消化、有吸引力的交互式数据可视化体验。</p>
+<h2>你会学到什么</h2>
+<ul>
+<li>如何用 Express 设置 Node.js 应用程序并集成 D3.js</li>
+<li>如何使用 D3 以条形图为例可视化数据</li>
+</ul>
+<h2>设置 Node.js 和 Express</h2>
+<p>您需要安装 Node.js 才能继续。可以从<a href="https://nodejs.org/en/" target="_blank" rel="noopener">官网</a>下载。</p>
+<p>运行以下命令来安装依赖项，我们需要用<a href="https://expressjs.com/" target="_blank" rel="noopener"> Express </a>和<a href="https://www.npmjs.com/package/express-handlebars" target="_blank" rel="noopener"> Handlebars </a>来设置一个基本的节点应用程序:</p>
+<pre class="language-bash hljs">npm install express express-handlebars nodemon  
+</pre>
+<p>或者，将以下对象添加到您的<code>package.json</code>文件中，并在您的终端上运行<code>npm install</code>。</p>
+<pre class="language-json hljs">{ 
+ "express": "^4.17.1",
+  "express-handlebars": "^6.0.2",
+  "nodemon": "^2.0.15"
+}
+</pre>
+<p>创建如下所示的开发目录:</p>
+<pre class="language-json hljs">.
+├── package-lock.json
+├── package.json
+├── public
+│   └── static
+│       ├── css
+│       │   └── index.css
+│       └── js
+│           ├── index.js
+├── readme.md
+├── server.js
+└── views
+    ├── home.handlebars
+    └── layouts
+        └── main.handlebars
+</pre>
+<p>将带有 Express 服务器代码的简单节点服务器添加到<code>server.js</code>文件中。</p>
+<pre class="language-javascript hljs">const express = require('express');
+const { engine } = require('express-handlebars');
+const app = express();
+app.use(express.static('public'));
+app.engine('handlebars', engine());
+app.set('view engine', 'handlebars');
+app.set('views', './views');
+
+app.get('/', (req, res) =&gt; {
+    res.render('home');
+});
+app.get('/api/data', (req, res) =&gt; {
+    const data = [100, 50, 300, 40, 350, 250]; // assuming this is coming from the database
+    res.json(data);
+});
+
+app.listen(3000);
+</pre>
+<p>在上面的代码中，我们有一个 API 路由(<code>/api/data</code>)和一个 home 路由(<code>/</code>)。API route 将与数据库对话，并返回我们需要在 home route 中可视化的数据。</p>
+<p>在前端，我们将使用 D3 来可视化数据。我们将使用从 API 获得的数据创建一个条形图。假设来自 API 的数据是一些高中生的成绩，我们将创建一个可视化视图，以查看学生成绩模式的概况。</p>
+<p>将以下 HTML 代码添加到您的车把模板中:</p>
+<p><code>/view/home.handlebars</code></p>
+<pre class="language-xml hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;D3 Bar Chart&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h2&gt; D3 Bar Chart&lt;/h2&gt;
+    &lt;svg class="bar-chart"&gt;&lt;/svg&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+
+&lt;script type="module" src="./static/js/index.js"&gt;&lt;/script&gt;
+</pre>
+<p>注意，我们添加了一个 SVG 元素和一个类<code>class="bar-chart"</code>,因为我们将把图表作为 SVG 加载。现在让我们使用 D3 来创建条形图。</p>
+<p>注意:除了图表之外，还可以用 D3 创建许多可视化效果。例如，您可以用地图、图形、文字云和热图来可视化数据。</p>
+<p>下面是前端的 JavaScript 代码。这里是我们使用 D3 创建条形图的地方:</p>
+<p><code>/public/static/index.js</code></p>
+<pre>import * as d3 from "https://cdn.skypack.dev/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a8cc9be89f">[email protected]</a>";
+import axios from 'https://cdn.skypack.dev/axios';
+
+const dataSet = async function getData() {
+    return await axios.get('/api/data');
+}
+async function drawChart() {
+    const data = await dataSet();
+    const svgWidth = 500;
+    const svgHeight = 500;
+    const barPadding = 5;
+    const barWidth = svgWidth / data.data.length;
+
+    let svg = d3.select("svg");
+    let width = svg
+        .attr("width", svgWidth)
+        .attr("height", svgHeight);
+
+    svg
+        .selectAll("rect")
+        .data(data.data)
+        .enter()
+        .append("rect")
+        .attr("y", (d) =&gt; svgHeight - d)
+        .attr("height", (d) =&gt; d)
+        .attr("width", () =&gt; barWidth - barPadding)
+        .attr("transform", (d, i) =&gt; {
+            let translate = [barWidth * i, 0];
+            return `translate(${translate})`;
+        })
+        .style("fill", "steelblue");
+}
+drawChart();
+</pre>
+<p>我们将使用<code>getData</code>函数通过一个简单的 Axios get 请求从 API 获取数据，如下所示:</p>
+<pre>const dataSet = async function getData() {
+    return await axios.get('/api/data');
+}
+</pre>
+<p>在<code>drawChart</code>函数中，我们将首先设置我们需要的属性:获取要呈现的数据、SVG 高度和宽度以及图表的参数，比如填充和宽度。</p>
+<pre>    const data = await dataSet();
+    const svgWidth = 500;
+    const svgHeight = 500;
+    const barPadding = 5;
+    const barWidth = svgWidth / data.data.length;
+</pre>
+<p>接下来，我们将使用<code>d3.select</code>函数选择<code>&lt;svg&gt;</code>标签，如下所示:</p>
+<pre>let svg = d3.select("svg");
+</pre>
+<p>这将允许我们修改 SVG 并创建条形图。因此，让我们设置 SVG 元素的宽度。</p>
+<pre>    let width = svg
+        .attr("width", svgWidth)
+        .attr("height", svgHeight);
+</pre>
+<p>然后，选择 SVG 中的所有矩形，即使此时没有矩形。接下来，我们将把想要可视化的数据添加到<code>data</code>链接函数中:</p>
+<pre>.data(data.data)
+</pre>
+<p>然后我们将使用<code>enter</code>函数迭代数据以创建矩形并将它们附加到 SVG 中。</p>
+<pre>.enter()
+</pre>
+<p>对于每一次迭代，<code>enter()</code>函数都会生成一个矩形，最终形成图表。</p>
+<pre>.append("rect")
+</pre>
+<p>生成的 HTML 应该是这样的:</p>
+<p><img data-attachment-id="83456" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/html-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png" data-orig-size="730,102" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="HTML example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example-300x42.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png" decoding="async" class="aligncenter size-full wp-image-83456 jetpack-lazy-image" src="../Images/a4b8658b9da8185a9777ea23a5f6ea85.png" alt="HTML Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/html-example-300x42.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83456" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/html-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png" data-orig-size="730,102" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="HTML example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example-300x42.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83456" src="../Images/a4b8658b9da8185a9777ea23a5f6ea85.png" alt="HTML Example" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/html-example-300x42.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/html-example.png"/></noscript>
+<p>接下来，设置每个矩形的高度和宽度。矩形的高度将基于数据，特别是数组项，而宽度将是我们已经设置的条形的宽度，减去我们已经设置的条形图的填充。</p>
+<p>此外，我们需要将 Y 轴设置为 SVG 的高度，减去数据项。否则，我们的棒线会看起来颠倒:</p>
+<p><img data-attachment-id="83458" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/inverted-bar-graph/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png" data-orig-size="730,484" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Inverted bar graph" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph-300x199.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png" decoding="async" class="aligncenter size-full wp-image-83458 jetpack-lazy-image" src="../Images/91bc0ac202a8196360fdb6f65336b278.png" alt="Inverted Bar Graph" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph-300x199.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83458" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/inverted-bar-graph/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png" data-orig-size="730,484" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Inverted bar graph" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph-300x199.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83458" src="../Images/91bc0ac202a8196360fdb6f65336b278.png" alt="Inverted Bar Graph" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph-300x199.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inverted-bar-graph.png"/></noscript>
+<pre>        .attr("y", (d) =&gt; svgHeight - d)
+        .attr("height", (d) =&gt; d)
+        .attr("width", () =&gt; barWidth - barPadding)
+</pre>
+<p>最后，我们将使用 SVG 的 transform 属性的 translate 形式来可视化地分离每个矩形。否则，所有的矩形将连接成一个矩形，如下所示:</p>
+<p><img data-attachment-id="83460" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/one-long-rectangle-bar-graph/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png" data-orig-size="730,537" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="One long rectangle bar graph" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png" decoding="async" class="aligncenter size-full wp-image-83460 jetpack-lazy-image" src="../Images/faa3c5859129bd66a126226c20901d80.png" alt="One Long Rectangle Bar Graph" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83460" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/one-long-rectangle-bar-graph/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png" data-orig-size="730,537" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="One long rectangle bar graph" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83460" src="../Images/faa3c5859129bd66a126226c20901d80.png" alt="One Long Rectangle Bar Graph" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/one-long-rectangle-bar-graph.png"/></noscript>
+<p>当我们转换时，它看起来像这样:</p>
+<p><img data-attachment-id="83462" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/svg-transform-translate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png" data-orig-size="730,496" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SVG with transform translate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate-300x204.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png" decoding="async" class="aligncenter size-full wp-image-83462 jetpack-lazy-image" src="../Images/d4e6bc88aabb19004d630403f066498a.png" alt="SVG With Transform Translate" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate-300x204.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83462" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/svg-transform-translate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png" data-orig-size="730,496" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SVG with transform translate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate-300x204.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83462" src="../Images/d4e6bc88aabb19004d630403f066498a.png" alt="SVG With Transform Translate" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate-300x204.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/svg-transform-translate.png"/></noscript>
+<pre>.attr("transform", (d, i) =&gt; {
+      let translate = [barWidth * i, 0];
+      return `translate(${translate})`;
+})
+</pre>
+<p>在最后一部分，我们添加了风格。您可以使用<code>.style</code>属性向 D3 添加 CSS 样式。</p>
+<pre>.style("fill", "steelblue");
+</pre>
+<p>最后，图表看起来是这样的:</p>
+<p><img data-attachment-id="83464" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/student-score-bar-chart/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png" data-orig-size="730,496" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Student score bar chart" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart-300x204.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png" decoding="async" class="aligncenter size-full wp-image-83464 jetpack-lazy-image" src="../Images/930ad16d9a10089f9d0ca4ca272aa5a4.png" alt="Student Score Bar Chart" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart-300x204.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83464" data-permalink="https://blog.logrocket.com/data-visualization-d3-js-node-js/student-score-bar-chart/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png" data-orig-size="730,496" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Student score bar chart" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart-300x204.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83464" src="../Images/930ad16d9a10089f9d0ca4ca272aa5a4.png" alt="Student Score Bar Chart" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart-300x204.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/student-score-bar-chart.png"/></noscript>
+<p>当然，还可以做更多的工作来改进这个图表。您可以使用 D3 创建更加复杂的数据可视化体验。</p>
+<p>你应该看一下<a href="https://d3js.org/" target="_blank" rel="noopener">文档</a>，因为它提供了许多你可以直接编辑的例子，这样你就能感受到它是如何工作的。</p>
+<h2>结论</h2>
+<p>D3 是一个强大的工具，可以让你创建复杂的数据可视化，而不仅仅是条形图。你可以在<a href="https://observablehq.com/@d3/gallery" target="_blank" rel="noopener"> D3 图库</a>中查看可能的例子。</p>
+<p>我们只是触及了表面。我期待你用 D3 和 Node 构建的东西。编码快乐！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

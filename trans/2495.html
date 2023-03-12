@@ -1,0 +1,279 @@
+<html>
+<head>
+<title>Building a Vue 3 component library - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>构建 Vue 3 组件库- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-vue-3-component-library/#0001-01-01">https://blog.logrocket.com/building-vue-3-component-library/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>组件库是将通用 UI 解决方案收集到一个包中的好方法，您可以在自己的项目中重用该包，或者与 Vue 开源社区共享该包。</p>
+<p>在本指南中，您将学习创建<a href="https://v3.vuejs.org/" target="_blank" rel="noopener"> Vue 3 </a>组件库的关键步骤，包括:</p>
+<ul>
+<li>使用 Vue 3 设置组件库</li>
+<li>创建插件以在项目中安装组件库</li>
+<li>在 npm 上发布库</li>
+<li>使用<a href="https://vuepress.vuejs.org/" target="_blank" rel="noopener"> VuePress </a>创建文档</li>
+<li>在 GitHub 上发布文档</li>
+</ul>
+<p>我们开始吧！</p>
+<h2>基本设置</h2>
+<p>为了创建我们的组件库，我们不会使用 Vue.js 项目的正常搭建过程，即 Vue CLI。相反，我们将从头开始创建一个项目文件夹，在那里我们将初始化 npm 和<a href="https://git-scm.com/" target="_blank" rel="noopener"> Git </a>。</p>
+<pre>$ mkdir vue3-component-library
+$ cd vue3-component-library
+$ npm init -y
+$ git init
+$ touch .gitignore
+$ echo 'node_modules' &gt;&gt; .gitignore
+</pre>
+<p>在本教程结束时，我们将拥有如下所示的文件夹结构:</p>
+<pre>.gitignore
+package.json
+rollup.config.js
+dist/
+  library.mjs
+  library.js
+docs/
+  .vuepress
+  components
+node_modules/
+src/
+  InputText.vue
+  InputTextarea.vue
+</pre>
+<h2>在 Vue 中创建组件</h2>
+<p>当然，组件库需要一些组件。让我们创建一个<code>src</code>文件夹，并添加以下两个简单的 Vue 3 组件:</p>
+<blockquote><p>请注意，我有意将这些组件保持简单，以确保本文将重点放在发布组件上。实际上，您的组件要比这些复杂和有趣得多。</p></blockquote>
+<p><code>src/InputText.vue</code></p>
+<pre>&lt;template&gt;
+    &lt;input type="text" /&gt;
+&lt;/template&gt;
+&lt;script&gt;
+export default {
+  name: 'InputText'
+}
+&lt;/script&gt;
+</pre>
+<p><code>src/InputTextarea.vue</code></p>
+<pre>&lt;template&gt;
+    &lt;textarea /&gt;
+&lt;/template&gt;
+&lt;script&gt;
+export default {
+  name: 'InputTextarea'
+}
+&lt;/script&gt;
+</pre>
+<h2>创建插件</h2>
+<p>接下来，我们将创建一个文件，注册我们希望在库中共享的所有组件。我们称之为<code>components.js</code>，在其中，我们简单地导入组件，然后在单个对象中导出它们。</p>
+<p><code>src/components.js</code></p>
+<pre>import InputText from './InputText.vue'
+import InputTextarea from './InputTextarea.vue'
+
+export default { InputTextarea, InputText }
+</pre>
+<p>我们现在将创建一个 Vue 3 插件，它将在一个消费项目中从你的库中全局注册组件。</p>
+<p>在文件的顶部，我们将导入注册的组件。然后，在插件安装方法中，我们将迭代 components 对象，并在 Vue 实例上全局注册每个组件。</p>
+<p><code>src/index.js</code></p>
+<pre>import components from'./components'
+
+const plugin = {
+  install (Vue) {
+    for (const prop in components) {
+      if (components.hasOwnProperty(prop)) {
+        const component = components[prop]
+        Vue.component(component.name, component)
+      }
+    }
+  }
+}
+
+export default plugin
+</pre>
+<p>任何使用这个库的项目都需要安装 Vue 3，所以让我们把它作为一个对等依赖添加到<code>package.json</code>中，这样如果用户没有 Vue 3，npm 就会警告用户。</p>
+<pre>{
+  "peerDependencies": {
+    "vue": "^3.2.21"
+  }
+}
+</pre>
+<h2>构建插件</h2>
+<p>我们现在需要创建一个将在 npm 模块中共享的库版本。为此，我们将使用<a href="https://rollupjs.org/guide/en/" target="_blank" rel="noopener">汇总</a>捆绑器结合<a href="https://rollup-plugin-vue.vuejs.org/" target="_blank" rel="noopener"> Vue 汇总插件</a>和<a href="https://www.npmjs.com/package/rollup-plugin-peer-deps-external" target="_blank" rel="noopener">汇总插件对等 Deps 外部</a>。使用这些，我们将能够轻松地为多种环境创建高效的构建:</p>
+<pre>$ npm i -D rollup rollup-plugin-vue rollup-plugin-peer-deps-external
+</pre>
+<blockquote><p>注意安装命令中的<code>-D</code>标志。重要的是将这些插件作为开发依赖项安装，以确保它们不会被安装在用户的项目中！</p></blockquote>
+<p>现在让我们通过在项目的根目录下创建一个<code>rollup.config.js</code>文件来配置 Rollup。为了提供足够的灵活性，您可能需要为这些场景创建不同的版本:</p>
+
+<p>然而，我刚刚在下面展示了如何配置 CommonJS 和 ES 模块。您可以在<a href="https://rollup-plugin-vue.vuejs.org/examples.html" target="_blank" rel="noopener"> Vue 汇总文档</a>中找到其他构建类型的详细信息。</p>
+<p>注意，我们添加了<code>vue</code>插件，它编译我们的组件模板，还添加了<code>peerDepsExternal</code>插件，它自动将对等依赖(即 Vue 3)外部化，以确保它们不包含在您的构建中。</p>
+<p><code>rollup.config.js</code></p>
+<pre>import vue from 'rollup-plugin-vue'
+import peerDepsExternal from 'rollup-plugin-peer-deps-external'
+
+export default [
+  {
+    input: 'src/index.js',
+    output: [
+      {
+        format: 'esm',
+        file: 'dist/library.mjs'
+      },
+      {
+        format: 'cjs',
+        file: 'dist/library.js'
+      }
+    ],
+    plugins: [
+      vue(), peerDepsExternal()
+    ]
+  }
+]
+</pre>
+<p>为了运行构建，我们将在<code>package.json</code>中创建一个构建脚本。</p>
+<pre>{
+    "scripts": {
+      "build": "rollup -c"
+    }
+}
+</pre>
+<p>一旦我们运行<code>npm run build</code>，您将看到两个新文件被创建，<code>dist/library.mjs</code>和<code>dist/library.js</code>，它们分别是您的 es 模块和 CommonJS 构建。</p>
+<h2>发布插件</h2>
+<p>为了分发我们的组件库，我们将把它发布到 npm 注册中心。第一步是确保您的<code>package.json</code>文件具有发布所需的配置。您需要的基本价值是:</p>
+<ul>
+<li><code>name</code>:这在整个 npm 中必须是唯一的，因此可以在前面加上<code>@yourname/</code></li>
+<li><code>version</code>:从 0.0.1 开始(或者你喜欢的任何地方)，每次更新你的库时递增。在这里了解更多关于语义版本的信息<a href="https://docs.npmjs.com/about-semantic-versioning" target="_blank" rel="noopener"/></li>
+<li>这是访问您的包的“入口文件”。这应该指向 CommonJS 构建文件</li>
+<li><code>module</code>:与<code>main</code>相同，但应指向 ES 模块构建文件</li>
+<li>这是 npm 将在发布的包中包含的文件的白名单。因为我们的构建文件是自包含的，所以我们只需要包含<code>dist</code></li>
+</ul>
+<pre>{
+  "name": "@yourname/yourlibrary",
+  "version": "0.0.1",
+  "main": "dist/library.js",
+  "module": "dist/library.mjs",
+  "files": [
+    "dist/*"
+  ]
+}</pre>
+<blockquote><p>如果您想允许您的组件在没有插件的情况下单独导入，您可能还想将您的组件源文件添加到<code>package.json</code>中的<code>files</code>白名单中。</p></blockquote>
+<p>既然我们的包配置正确，让我们发布它。在终端中运行<code>npm login</code>以确保您登录到 npm。然后运行<code>npm publish --access=public</code>来发布您的包。</p>
+<pre>$ npm login
+$ npm publish --access=public
+</pre>
+<p>一旦完成，我们就可以检查 npm 注册表，看看是否能找到我们发布的包。运行<code>npm view @yourname/yourlibrary</code>。如果发布成功，您将在控制台中看到软件包信息。</p>
+<h2>使用已发布的 Vue 3 库</h2>
+<p>现在我们的组件库已经在 npm 上公开发布了，我们可以像使用任何其他 npm 模块一样在项目中使用它。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>以下是如何使用 ES 模块将库包含在 Vue 3 项目中。一旦插件安装完毕，你就可以在这个项目的任何 Vue 模板中引用你的组件了。</p>
+<pre>import { createApp } from 'vue'
+import App from './App.vue'
+
+import plugin from '@yourname/yourlibrary'
+
+createApp(App)
+  .use(plugin)
+  .mount('#app')
+</pre>
+<h2>设置文档网站</h2>
+<p>您的库现在可以使用了，但是我们还没有完成！如果你要发布一个组件库，你需要提供文档以便开发者知道如何使用它。</p>
+<p>幸运的是，Vue 生态系统有自己的文档框架，非常适合这项工作:VuePress。VuePress 允许你创建一个简单但好看的静态文档网站，里面有降价内容。</p>
+<p>因为我们的项目是 Vue 3，我们需要 VuePress v2。这个版本还在测试中，我们可以用包版本<code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8dfbf8fdffe8fefecde3e8f5f9">[email protected]</a></code>来安装。</p>
+<pre>$ npm i -D <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="730506160301160000331d160b07">[email protected]</a>
+</pre>
+<p>为了设置我们的文档，我们将首先创建一个目录<code>docs</code>，并添加文件<a href="http://README.md" target="_blank" rel="noopener"> README.md </a>，VuePress 将使用该文件作为主页的内容。</p>
+<p>与您见过的大多数 docs 站点一样，主页是提供库简介、快速入门说明等的好地方。</p>
+<pre># My Component library
+
+Here's a brief introduction.
+
+### Installation
+
+$ npm install @yourname/yourlibrary
+</pre>
+<h2>运行 vexpress dev 服务器</h2>
+<p>我们现在将向<code>package.json</code>添加两个脚本，一个用于运行 VuePress dev 服务器，另一个用于创建生产版本。</p>
+<pre>"scripts": {
+  "build": "rollup -c",
+  "docs:dev": "vuepress dev docs",
+  "docs:build": "vuepress build docs"
+},
+</pre>
+<p>让我们用命令<code>npm run docs:dev</code>运行开发服务器。第一次运行时，VuePress 会创建一个名为<code>docs/.vuepress</code>的子文件夹，稍后我们会添加更多的配置。</p>
+<h2>在 Vue 3 中记录组件</h2>
+<p>为了在库中记录这两个组件，让我们在另一个新的子文件夹<code>docs/components</code>中创建两个 markdown 文件。在这些文件中，您将解释组件 API，提供使用示例，以及任何对用户有帮助的东西。</p>
+<pre># input-text
+
+`InputText` is a cool component. Here's how to use it...
+
+&lt;template&gt;
+  &lt;input-text /&gt;
+&lt;/template&gt;
+</pre>
+<blockquote><p>除了常规的降价文本和代码，VuePress 还允许通过将组件安装到 docs 页面中的 Vue 实例来进行交互式组件演示。你可以在这里了解更多关于那个<a href="https://dev.to/siegerts/creating-a-vue-js-component-library-part-iv-documentation-with-vuepress-56h5" target="_blank" rel="noopener">。</a></p></blockquote>
+<p>当 VuePress 运行时，这些降价文件将作为页面发布。为了使这些页面可访问，我们将通过向 VuePress 配置文件添加以下主题信息来将它们添加到 docs 侧栏:</p>
+<pre>module.exports = {
+  themeConfig: {
+    sidebar: [
+      {
+        title: 'Components',
+        collapsable: false,
+        children: [
+          '/components/input-text.md',
+          '/components/input-textarea.md'
+        ]
+      }
+    ]
+  }
+}
+</pre>
+<p>检查浏览器。您的 VuePress 网站现在看起来像这样:</p>
+<p><img data-attachment-id="83698" data-permalink="https://blog.logrocket.com/building-vue-3-component-library/vuepress-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="VuePress example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png" decoding="async" class="aligncenter size-full wp-image-83698 jetpack-lazy-image" src="../Images/86519642b613f0f678d7ee9fe5c281b5.png" alt="VuePress Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83698" data-permalink="https://blog.logrocket.com/building-vue-3-component-library/vuepress-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="VuePress example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83698" src="../Images/86519642b613f0f678d7ee9fe5c281b5.png" alt="VuePress Example" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/vuepress-example.png"/></noscript>
+<h2>将文档发布到 GitHub 页面</h2>
+<p>为了公开发布我们的文档，我们可以使用<a href="https://pages.github.com/" target="_blank" rel="noopener"> GitHub Pages </a>，它允许免费的静态托管。</p>
+<p>假设您不想要自定义域，您的 Pages 站点 URL 可能是这样的:</p>
+<pre>https://&lt;yourname&gt;.github.io/&lt;yourlibrary&gt;/
+</pre>
+<p>需要注意的重要一点是，它将位于一个子文件夹中，而不是根目录中。因此，您需要在 VuePress 配置中提供一个<code>base</code>配置选项，以便相对路径能够正确工作。</p>
+<p><code>docs/.vuepress/config.js</code></p>
+<pre>module.exports = {
+  ...
+  base: '/yourlibrary/'
+}
+</pre>
+<p>完成后，我们现在将创建一个部署脚本。这个脚本将构建文档，将构建提交到分支<code>gh-pages</code>，然后将提交推送到 GitHub，在那里发布。</p>
+<p>如果您还没有，请确保您的组件库已经发布到 GitHub <code>(yourname/yourlibrary)</code>。运行脚本，您的静态构建将被推送到 repo。</p>
+<p><code>deploy.sh</code></p>
+<pre>#!/usr/bin/env sh
+
+set -e
+
+npm run docs:build
+cd docs/.vuepress/dist
+
+git init
+git add -A
+git commit -m 'deploy'
+
+git push -f <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="02656b7642656b766a77602c616d6f">[email protected]</a>:yourname/yourlibrary.git master:gh-pages
+
+cd -
+</pre>
+<p>要让 GitHub 发布站点，可以在 repo 设置中打开 Pages 功能。确保从根目录中选择分支<code>gh-pages</code>和源文件。</p>
+<p><img data-attachment-id="83701" data-permalink="https://blog.logrocket.com/building-vue-3-component-library/github-pages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png" data-orig-size="730,406" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHub pages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png" decoding="async" class="aligncenter size-full wp-image-83701 jetpack-lazy-image" src="../Images/e6b4e7e2a1c3e6d45f64f21ce8f6ca7d.png" alt="GitHub Pages" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages-300x167.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="83701" data-permalink="https://blog.logrocket.com/building-vue-3-component-library/github-pages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png" data-orig-size="730,406" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHub pages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-83701" src="../Images/e6b4e7e2a1c3e6d45f64f21ce8f6ca7d.png" alt="GitHub Pages" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages-300x167.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/github-pages.png"/></noscript>
+<h2>结论</h2>
+<p>在本文中，我们看到了如何创建 Vue 3 组件库并将其发布到 npm，以及在 GitHub 页面上发布文档。</p>
+<p>有了这个方法，您可以创建库，这些库将允许您自己的项目之间的一致性，或者向 Vue 社区提供一些优秀的开源组件。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的 Vue 应用</h2><p>调试 Vue.js 应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的 Vue 突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Vue 应用程序中发生的一切，包括网络请求、JavaScript 错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex 插件将 Vuex 突变记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试 Vue 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,256 @@
+<html>
+<head>
+<title>TypeScript 4.1: New features and improvements - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>TypeScript 4.1:新特性和改进- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/typescript-4-1-new-features-and-improvements/#0001-01-01">https://blog.logrocket.com/typescript-4-1-new-features-and-improvements/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>TypeScript 4.1 在 11 月下旬成为该语言的最新稳定版本。这个新版本的语言建立在 4.0 版本中的特性<a href="https://blog.logrocket.com/whats-new-in-typescript-4-0/">之上，改进包括新的检查标志、生产力跟踪和错误修复，以帮助开发人员以更精确的方式表达类型。</a></p>
+<p>在本文中，我们将看看这个版本中包含的一些特性将如何影响我们今后编写代码的方式。</p>
+<h2>如何升级到 TypeScript 4.1</h2>
+<p>您可以通过 npm 安装或升级到最新版本的 TypeScript:</p>
+<pre>$ npm install -D typescript
+</pre>
+<p>如果你想跳过安装，可以通过<a href="https://www.typescriptlang.org/play?ts=4.1.2#code/Q"> TypeScript Playground </a>尝试一下 TypeScript 中的新功能。TypeScript Playground 支持最新版本，因此您可以在不离开 web 浏览器的情况下测试本文中包含的任何代码。</p>
+<p>让我们继续研究 TypeScript 4.1 中提供的一些最有趣的特性:</p>
+<h2 id="h2templateliteraltypes">模板文字类型</h2>
+<p>TypeScript 有两种方式来表示语言中的字符串:一种是覆盖所有字符串的<code>string</code>类型，另一种是只匹配特定字符串的字符串<a href="https://www.typescriptlang.org/docs/handbook/literal-types.html">文字类型</a>。您可以将联合类型与字符串文字类型结合使用，以便在允许的字符串输入方面更加精确。看一看以下内容:</p>
+<pre>let a: string = 'Hello'
+a = 'World' // works
+
+let b: 'Hello' = 'Hello'
+b = 'World' // Type '"World"' is not assignable to type '"Hello"'.
+
+declare function selectOperatingSystem(os: 'windows' | 'linux' | 'macos'): void
+
+selectOperatingSystem('windows'); // works
+selectOperatingSystem('linux'); // works
+selectOperatingSystem('android');
+// Argument of type '"android"' is not assignable to parameter of type '"windows" | "linux" | "macos"'.
+</pre>
+<p>有了 TypeScript 4.1，现在可以在模板文本字符串类型的帮助下在类型中使用连接字符串。它使用与 JavaScript 中的<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals">模板文字</a>相同的语法，但是在类型位置。模板文本字符串类型通过连接模板字符串的内容来生成新的字符串文本类型:</p>
+<pre>type Name = 'John';
+type Greeting = `Hello ${Name}`;
+// Equal to: type Greeting = 'Hello John'
+</pre>
+<p>当您在替换位置使用联合类型时，模板文字类型的威力变得显而易见。生成的类型将是字符串文字的所有可能组合的并集:</p>
+<pre>type Names = 'John' | 'Jake' | 'Sarah';
+type Greeting = `Hello ${Name}`;
+// Equal to: type Greeting = 'Hello John' | 'Hello Jake' | 'Hello Sarah'
+</pre>
+<p>您还可以在模板文本中有多个联合类型，这将在结果类型中产生具有每种可能类型组合的联合:</p>
+<pre>type Suit =
+  "Hearts" | "Diamonds" |
+  "Clubs" | "Spades";
+
+type Rank =
+  "Ace" | "Two" | "Three" | "Four" | "Five" |
+  "Six" | "Seven" | "Eight" | "Nine" | "Ten" |
+  "Jack" | "Queen" | "King";
+
+type Card = `${Rank} of ${Suit}`;
+
+declare function printCard(c: Card): void
+
+printCard('Ace of Spades'); // works
+printCard('Ace of Diamond'); // error
+</pre>
+<p>当您将鼠标悬停在编辑器中的<code>type</code>上时，这一点变得很明显:</p>
+<figure class="wp-caption alignnone"><img decoding="async" src="../Images/1c70c4ae7f1409dab79801bb4cd92036.png" alt="typescript 4.1 template literal types" data-lazy-src="https://paper-attachments.dropbox.com/s_067DEBB29CCB0AE17D5959BBB98A6403498F546FF5F7A6AF16B74B1973B69168_1608501306877_2020-12-20_21-29.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropbox.com/s_067DEBB29CCB0AE17D5959BBB98A6403498F546FF5F7A6AF16B74B1973B69168_1608501306877_2020-12-20_21-29.png"/><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" src="../Images/1c70c4ae7f1409dab79801bb4cd92036.png" alt="typescript 4.1 template literal types" data-original-src="https://paper-attachments.dropbox.com/s_067DEBB29CCB0AE17D5959BBB98A6403498F546FF5F7A6AF16B74B1973B69168_1608501306877_2020-12-20_21-29.png"/></noscript><figcaption class="wp-caption-text">typescript 4.1 template literal types</figcaption></figure>
+<p>这个特性支持的一个很棒的用例是能够解析 Node.js web 框架中的路由参数，比如<a href="https://expressjs.com/"> Express </a>，其中通常使用占位符来表示路由的动态部分(比如<code>ID</code>)。</p>
+<pre>app.get("/users/:userId", (req, res) =&gt; {
+    const { userId } = req.params;
+    res.send(`User ID: ${userId}`);
+});
+</pre>
+<p><code>req.params</code>对象是一个具有以下签名的<code>ParamsDictonary</code>:</p>
+<pre>interface ParamsDictionary {
+    [key: string]: string;
+}
+</pre>
+<p>TypeScript 只知道对象将具有带字符串值的字符串键。如果你试图访问一个没有在 route path 中指定的参数，那么编译器无论如何都会允许，因为它不知道只有<code>userId</code>可以存在。</p>
+<p>通过从替换位置进行推断，我们可以使用模板文字类型为<code>req.params</code>对象提供更准确的类型:</p>
+<pre>type ExtractRouteParams&lt;T extends string&gt; =
+  string extends T
+  ? Record&lt;string, string&gt;
+  : T extends `${infer Start}:${infer Param}/${infer Rest}`
+  ? {[k in Param | keyof ExtractRouteParams&lt;Rest&gt;]: string}
+  : T extends `${infer Start}:${infer Param}`
+  ? {[k in Param]: string}
+  : {};
+
+type params = ExtractRouteParams&lt;'/users/:userId/posts/postId'&gt;;
+// Same as: type params = { userId: string; postId: string; }
+</pre>
+<p>让我们把它分解一下:</p>
+<ul>
+<li>如果<code>T</code>是<code>string</code>或<code>any</code>，则第一种情况匹配。在这种情况下，不能从参数中推断出任何东西。</li>
+<li>第二种情况匹配路径开头的参数，并使用字符串的较短部分递归调用自身。</li>
+<li>第三种情况匹配路径末端的参数。</li>
+<li>在第四种情况下，返回一个空对象。</li>
+</ul>
+<p>这种模式使得从<code>/users/:userId</code>中提取有效类型的<code>{userId: string}</code>变得容易，如示例所示。在这个<a href="https://github.com/ghoullier/awesome-template-literal-types"> GitHub 库</a>中可以找到一系列其他(有时甚至超出顶部)用例。</p>
+<h2 id="h2checkindexedaccess">检查索引访问</h2>
+<p>索引签名是向 TypeScript 编译器指定可以访问未在类型上显式定义的对象属性的一种方式。</p>
+<pre>type Person = {
+  name: string;
+  email: string;
+
+  // index signature
+  [key: string]: string;
+}
+
+function logPerson(p: Person): void {
+  console.log(p.name) // string
+  console.log(p.email) // string
+  console.log(p.nationality.toLowerCase()) // OK, nationality is a string
+}
+
+const person: Person = {
+  name: "Jack",
+  email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="355f54565e75504d54584559501b565a58">[email protected]</a>",
+};
+
+logPerson(person);
+</pre>
+<p>除了明确列出的属性外，在<code>Person</code>下访问的任何属性都将具有类型<code>string</code>。这个特性的问题是，任何解析为索引签名的属性访问都可能是<code>undefined</code>，但是这并没有反映在类型中。例如，在上面的块中，<code>p.nationality</code>可能是未定义的，但是类型信息是<code>string</code>。</p>
+<p>TypeScript 4.1 通过引入<code>noUncheckedIndexAccess</code>标志提供了一种修复这种不良行为的方法。启用时，解析为索引签名的任何属性或索引访问现在将解析为指定类型和<code>undefined</code>的并集。看看下面的例子:</p>
+<pre>function logPerson(p: Person): void {
+  console.log(p.name) // string
+  console.log(p.email) // string
+  console.log(p.nationality.toLowerCase()) // Error when noUncheckedIndexedAccess is enabled
+  //          ~~~~~~~~~~~~~ Object is possibly 'undefined'.
+}
+</pre>
+<p>要修复这个错误，现在可以使用类型保护来缩小非空断言操作符(<code>!</code>)的类型:</p>
+<pre>if (p.nationality) {
+  console.log(p.nationality.toLowerCase())
+}
+
+console.log(p.nationality!.toLowerCase())
+</pre>
+<p>启用<code>noUncheckedIndexedAccess</code>标志的另一个效果是，对数组进行索引也会产生数组元素类型和<code>undefined</code>的并集，即使索引已经过边界检查。</p>
+<pre>let arr = [1, 2, 3, 4];
+for (let i = 0; i &lt; arr.length; i++) {
+    const n: number = arr[i]; // Error
+    // Type 'number | undefined' is not assignable to type 'number'.
+    console.log(n);
+}
+</pre>
+<p>即使使用数组方法，如<code>forEach()</code>，也会出现同样的错误:</p>
+<pre>let arr = [1, 2, 3, 4];
+arr.forEach((e, i) =&gt; {
+  const n: number = arr[i]; // Error
+  // Type 'number | undefined' is not assignable to type 'number'.
+  console.log(n);
+});
+</pre>
+<p>当然，您可以在上面的示例中直接使用元素，而不用通过它的索引来访问它，但是这个用例说明了在您的代码库中启用这个标志的效果。如果在不检查元素是否存在的情况下对数组执行索引访问，您可能会得到很多错误，但是，和以前一样，您可以使用类型保护或非空运算符来修复错误。</p>
+<p><strong>注意</strong>:这种行为不是作为<code>strict</code>级别选项的一部分启用的，所以您需要在您的配置文件中通过将<code>noUncheckedIndexedAccess</code>选项设置为<code>compilerOptions</code>下的<code>true</code>来显式启用它。</p>
+<h2 id="h2keyremappinginmappedtypes">映射类型中的键重新映射</h2>
+<p>映射类型是 TypeScript 中一个非常有价值的工具。它们是从其他类型派生类型的有用工具，可以限制重复，同时确保类型保持同步。</p>
+<p>下面是一个示例，它基于另一个对象类型创建一个新的对象类型，从而使新类型的所有属性都可以为空:</p>
+<pre>type Person = {
+  name: string;
+  age: number;
+}
+
+// `Nullable&lt;T&gt;` is the same as T but each property is nullable
+type Nullable&lt;T&gt; = {
+  [K in keyof T]: T[K] | null;
+};
+
+type NullablePerson = Nullable&lt;Person&gt;
+// same as
+//   type NullablePerson = {
+//     name: string | null;
+//     age: number | null;
+//   };
+</pre>
+<p>在 TypeScript 4.1 中，现在可以用新的<code>as</code>子句重新映射对象键。这通过允许从现有的属性名创建新的属性名提供了灵活性。请注意在下面的示例中如何使用模板文字类型来促进对象键的重新映射:</p>
+<pre>type Company = {
+  name: string;
+  employees: number;
+  ceo: string;
+}
+
+type Getters&lt;T&gt; = {
+  [K in keyof T as `get${Capitalize&lt;string &amp; K&gt;}`]: () =&gt; T[K];
+};
+
+type ComapanyAccessors = Getters&lt;Company&gt;
+// same as
+//   type ComapanyAccessors = {
+//     getName: () =&gt; string;
+//     getEmployees: () =&gt; number;
+//     getCeo: () =&gt; string
+//   };
+</pre>
+<p>如您所见，键已经通过<code>Capitalize</code>助手被大写。类似的帮手有:<code>Uncapitalize&lt;T&gt;</code>、<code>Uppercase&lt;T&gt;</code>、<code>Lowercase&lt;T&gt;</code>。</p>
+<h2 id="h2recursiveconditionaltypes">递归条件类型</h2>
+<p>当条件类型在 2.8 版本中首次引入时，它们被限制为非递归的，以防止当时不太支持的无限递归。随着 TypeScript 4.1 的发布，现在可以表达直接在其分支内引用自身的条件类型。看看下面的例子，看看<code>Awaited</code>如何深入地解开承诺:</p>
+<pre>type Awaited&lt;T&gt; =
+    T extends PromiseLike&lt;infer U&gt; ? Awaited&lt;U&gt; :
+    T;
+
+type P1 = Awaited&lt;Promise&lt;string&gt;&gt;;  // string
+type P2 = Awaited&lt;Promise&lt;Promise&lt;string&gt;&gt;&gt;;  // string
+type P3 = Awaited&lt;Promise&lt;string | Promise&lt;Promise&lt;number&gt; | undefined&gt;&gt;&gt;;  // string | number | undefined
+</pre>
+<p>请注意，TypeScript 编译器需要更多时间来对递归类型进行类型检查。如果达到内部递归深度限制，将会发生编译时错误。尽管这些递归类型很强大，但微软警告说，应该负责任地谨慎使用它们，以避免在复杂输入中使用它们时出现故障。</p>
+<h2 id="h2jsxfactoriesinreact">JSX 工厂对此有何反应</h2>
+<p>对 React 17 即将推出的<code>jsx</code>和<code>jsxs</code>工厂函数的支持已经通过<code>jsx</code>编译器标志的<code>react-jsx</code>和<code>react-jsxdev</code>选项包含在这个版本中。<code>react-jsx</code>扩展用于生产构建，而后者<code>react-jsxdev</code>用于开发。</p>
+<pre>{
+  "compilerOptions": {
+      "module": "esnext",
+      "target": "es2015",
+      "strict": true,
+      "jsx": "react-jsx"
+  },
+  "include": [ "./**/*" ]
+}
+</pre>
+<p>TypeScript 的打字和语法可能很难跟上，尤其是在与 React 一起使用时。点击了解更多<a href="https://blog.logrocket.com/your-reference-guide-to-using-typescript-in-react/">。</a></p>
+<h2 id="h2notablementions">值得注意的提及</h2>
+<p>设置<code>checkJs</code>编译器选项还会启用 TypeScript 4.1 中的<code>allowJs</code>。以前，这两个选项都必须显式设置，这似乎是多余的。</p>
+<p>另一个值得注意的改进是 Promise 构造函数中的参数<code>resolve()</code>不再是可选的，除非<code>Promise&lt;void&gt;</code>被设置为泛型类型参数。</p>
+<p>例如，当您编写如下代码时…</p>
+<pre>function resolveAfter2Seconds() {
+  return new Promise(resolve =&gt; {
+    setTimeout(() =&gt; {
+      resolve();
+    }, 2000);
+  });
+}
+</pre>
+<p>…您可能会得到如下错误:</p>
+<pre>Expected 1 arguments, but got 0.
+Did you forget to include 'void' in your type argument to 'Promise'?
+</pre>
+<p>修复方法是根据错误提示添加<code>void</code>通用参数:</p>
+<pre>function resolveAfter2Seconds() {
+  return new Promise&lt;void&gt;(resolve =&gt; {
+    setTimeout(() =&gt; {
+      resolve();
+    }, 2000);
+  });
+}
+</pre>
+<h2 id="h2conclusion">结论</h2>
+<p>看到 TypeScript 朝着更好的开发人员体验和更简单、更直观的 API 不断发展，这是令人鼓舞的。本文只详细介绍了 4.1 版本中的主要特性和改进，而不是历史 TypeScript 特性。如果你对所有的变化都很好奇，一定要查看官方发布说明。</p>
+<p>感谢您的阅读，祝您编码愉快！</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket 不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自 Redux、Vuex 和@ngrx/store 的额外上下文。</p>
+<p>除了记录 Redux 操作和状态，LogRocket 还记录控制台日志、JavaScript 错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用 DOM 来记录页面上的 HTML 和 CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,156 @@
+<html>
+<head>
+<title>Using Redis pub/sub with Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>通过 Node.js - LogRocket Blog 使用 Redis 发布/订阅</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-redis-pub-sub-node-js/#0001-01-01">https://blog.logrocket.com/using-redis-pub-sub-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如今，在构建应用程序时，开发人员经常会遇到将系统解耦并分离成组件的需求。但是，由于应用程序内置于不同的组件中，每个组件都无法与其他组件通信或理解其他组件的工作方式。</p>
+<p>它们之间唯一能够提供这种通信和信息的通信是使用发布/订阅(pub/sub)模式。</p>
+<p>在本文中，我们将研究发布/订阅模式，如何在 Node.js 应用程序中设置它，如何实现该模式，并了解使用 Redis 的替代方案。这包括:</p>
+
+<p>在我们这样做之前，在深入了解在 Node.js 中使用该模式的本质之前，充分理解该模式是很重要的。</p>
+<ul>
+<li>Node.js(节点. js)</li>
+<li>再说一遍</li>
+<li>redis client for node . js 节点的用户端</li>
+</ul>
+<h2 id="Understanding-pub-sub-pattern">了解发布/订阅模式</h2>
+<p>发布/订阅是一种消息传递模式，其中不同的组件相互发布和订阅，以相互通知和发送数据。</p>
+<p>它还允许组件的解耦，每个组件都依赖于一个消息代理。基本上，发布者发布消息，订阅者订阅发布者以从消息代理接收消息。</p>
+<p>使用这种模式提供了简单的开发，因此开发人员可以工作并关注他们的组件或服务，而不需要理解其他组件的接口。</p>
+<p>这种模式还提供了可伸缩性，因此组件是松散耦合的，很容易变得健壮和安全。</p>
+<h2 id="using-redis">使用 Redis</h2>
+<p>Redis 是一个内存系统，可以以特定的格式存储所有类型的数据，它的主要目的是缓存数据，通常选择它而不是替代系统，<a href="https://blog.logrocket.com/11-database-drivers-and-orms-for-rust-that-are-ready-for-production/#memcachehttpsdocsrsmemcache0140memcache">尤其是</a> <code><a href="https://blog.logrocket.com/11-database-drivers-and-orms-for-rust-that-are-ready-for-production/#memcachehttpsdocsrsmemcache0140memcache">memcached</a></code>，因为它能够以健壮的方式存储任何类型的数据。</p>
+<p>还需要注意的是，Redis 使用一种数据结构来保存数据，并且没有查询语言或者没有灵活性来执行一些特别的查询。</p>
+<h3 id="using-redis-pub-sub">将 Redis 用于发布/订阅</h3>
+<p>当使用发布/订阅时，我确实倾向于使用 Redis，因为它很简单；不需要什么硬科学，但前提是应用程序简单且不复杂。</p>
+<p>另外，请注意 Redis 是一个内存系统，只有在分配给它的 RAM 有能力的情况下，才能处理数据。这意味着 Redis 适用于实时消息传递和快速无延迟发送数据的系统。</p>
+<p>缓存的其他用例包括。</p>
+<h2 id="setting-up-redis-pub-sub">为发布/订阅设置 Redis</h2>
+<p>在开始之前，我们知道 Redis 实现了发布/订阅消息传递模式，这意味着发布者向订阅者发送消息，订阅者收到消息。请注意，一个以上的组件可以订阅一个发布者。</p>
+<p>让我们看看它在 Redis-CLI 上是如何工作的:</p>
+<pre class="language-javascript hljs">Vectormikes-MacBook-Pro:Projects macbookpro$ redis-cli
+127.0.0.1:6379&gt; SUBSCRIBE article
+Reading messages... (press Ctrl-C to quit)
+1) "subscribe"
+2) "article"
+3) (integer) 1
+</pre>
+<p>上面的终端显示用户订阅了一个名为<code>article</code>的频道。</p>
+<p>现在让我们打开一个新的终端窗口:</p>
+<pre class="language-javascript hljs">Vectormikes-MacBook-Pro:Projects macbookpro$ redis-cli
+127.0.0.1:6379&gt; PUBLISH article Pub/Sub
+(integer) 1
+127.0.0.1:6379&gt; 
+</pre>
+<p>然后，我们可以将消息<code>Pub/Sub</code>发布到同一个通道<code>article</code>:</p>
+<pre class="language-javascript hljs">Vectormikes-MacBook-Pro:Projects macbookpro$ redis-cli
+127.0.0.1:6379&gt; SUBSCRIBE article
+Reading messages... (press Ctrl-C to quit)
+1) "subscribe"
+2) "article"
+3) (integer) 1
+1) "message"
+2) "article"
+3) "Pub/Sub"
+</pre>
+<p>同一频道的所有用户都收到相同的消息。</p>
+<p>请注意，在开始之前，Redis 服务器必须安装在您的计算机上。</p>
+<p>接下来，创建一个包含工作目录的文件夹，并将其命名为<code>redisNode</code>:</p>
+<pre class="language-bash hljs">$ mkdir redisNode &amp;&amp; cd redisNode
+</pre>
+<p>理想情况下，我们希望创建两个不同的文件作为发布者和订阅者。但是，让我们首先创建两个文件夹，它们将是具有各自服务器的独立组件:</p>
+<pre class="language-bash hljs">$ mkdir publish subscribe
+</pre>
+<p>接下来，初始化发布组件的项目:</p>
+<pre class="language-bash hljs">$ cd publish &amp;&amp; npm init -y
+</pre>
+<p>然后，为发布组件初始化项目:</p>
+<pre class="language-bash hljs">$ cd subscribe &amp;&amp; npm init -y
+</pre>
+<p>现在，我们的服务器有两个独立的组件，一个作为发布者，另一个作为订阅者。</p>
+<h2 id="implementing-publish-node-js-redis">用 Redis 在 Node.js 中实现发布</h2>
+<p>我们这里的重点是实现将消息发布到特定通道的组件。</p>
+<p>要在 Node.js 中使用<a href="https://github.com/NodeRedis/node-redis"> Redis，我们需要安装<code>redis</code>包。它充当我们机器上 Redis 实例的客户机:</a></p>
+<pre class="language-bash hljs">$ npm install redis
+</pre>
+<p>现在我们可以在发布目录中创建一个包含我们代码的<code>server.js</code>文件:</p>
+<pre class="language-javascript hljs">const redis = require('redis');
+const publisher = redis.createClient();
+
+(async () =&gt; {
+
+  const article = {
+    id: '123456',
+    name: 'Using Redis Pub/Sub with Node.js',
+    blog: 'Logrocket Blog',
+  };
+
+  await publisher.connect();
+
+  await publisher.publish('article', JSON.stringify(article));
+})();
+</pre>
+<p>在上面的代码中，我们导入 Redis 并调用<code>createClient()</code>方法。现在，我们想发布一个包含<code>id</code>、<code>name</code>和<code>blog</code>的<code>article</code>对象。</p>
+<p>有了这个对象，我们可以将它作为消息发送到<code>article</code>通道:</p>
+<pre class="language-bash hljs">$ publisher.publish('article', JSON.stringify(article));
+</pre>
+<h2 id="implementing-subscribe-node-js-redis">用 Redis 在 Node.js 中实现 subscribe</h2>
+<p>既然我们已经有了一个准备发布消息的组件，那么让我们实现一个将接收这些消息的<code>subscribe</code>组件。理想情况下，我们可以创建或拥有多个组件。</p>
+<p>首先，确保安装了 Redis:</p>
+<pre class="language-bash hljs">$ npm install express redis
+</pre>
+<p>接下来，在您的<code>subscribe</code>目录中创建一个<code>server.js</code>文件来包含实现:</p>
+<pre class="language-bash hljs">const redis = require('redis');
+
+(async () =&gt; {
+
+  const client = redis.createClient();
+
+  const subscriber = client.duplicate();
+
+  await subscriber.connect();
+
+  await subscriber.subscribe('article', (message) =&gt; {
+    console.log(message); // 'message'
+  });
+
+})();
+</pre>
+<p>要订阅，请打开您的终端并运行订阅文件<code>server.js</code>，并在发布消息后等待消息:</p>
+<pre class="language-javascript hljs">Vectormikes-MacBook-Pro:subscribe macbookpro$ node server.js
+{"id":"123456","name":"Using Redis Pub/Sub with Node.js","blog":"Logrocket Blog"}
+</pre>
+<p>要发布，请打开另一个终端并运行发布文件。</p>
+<p>相反，如果您希望在同一个服务器上实现发布/订阅，而不是在不同的服务器上，那么需要注意的是，您不能在同一个 Redis 客户端上实现，因为一个 Redis 客户端不能处理发布/订阅；必须有两个可用。</p>
+<p>因此，您必须添加两个 Redis 客户端来提供订阅和发布功能:</p>
+<pre class="language-javascript hljs">const subscriber = redis.createClient({ ... })
+const publisher = redis.createClient({ ... })
+</pre>
+<p>另外，不要忘记在异步函数中连接 Redis 客户机:</p>
+<pre class="language-javascript hljs">await client.connect()
+</pre>
+<h2 id="alternatives-using-redis">使用 Redis 的替代方法</h2>
+<p>除了使用 Redis 之外，我们确实有 Redis 的替代方案来实现发布/订阅模式，尤其是在 Node.js 应用程序中。以下是 Redis 的常用替代方案列表。</p>
+<h3>阿帕奇卡夫卡</h3>
+<p>Apache Kafka 比 Redis 快得多，<a href="https://engineering.linkedin.com/kafka/benchmarking-apache-kafka-2-million-writes-second-three-cheap-machines">比 Redis </a>能处理更多的数据。Kafka 也倾向于长时间保存数据。</p>
+<h3>兔子 q</h3>
+<p>RabbitMQ 是一个比 Redis 更高级的专用消息代理，因为它被设计为发布/订阅模式的消息代理，提供更多的配置和场景。Redis 只是一个内存存储，是一个理想的数据库。</p>
+<h3>谷歌云发布/订阅</h3>
+<p>与 Redis 相比，Google Cloud Pub/Sub 更具<a href="https://cloud.google.com/pubsub/architecture#scalability">可扩展性，如果不是高度可扩展性的话</a>。但是，它<a href="https://firebase.google.com/docs/firestore/data-model">比 Redis </a>更难配置。</p>
+<h3>Firebase 云消息传递</h3>
+<p>说到<a href="https://blog.logrocket.com/using-firebase-cloud-messaging-as-a-pub-sub-service/"> Firebase 云消息</a>，选择权在你，但是 Firebase 提供了一个文档模型，而不是 Redis 中的内存。</p>
+<h2>结论</h2>
+<p>在这个简短的教程中，我们研究了如何快速设置 Node.js 应用程序，以使用 Redis 启动发布/订阅模式。这种方法适合微服务或松散耦合的架构。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

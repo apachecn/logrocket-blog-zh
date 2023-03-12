@@ -1,0 +1,130 @@
+<html>
+<head>
+<title>A guide to mocking in Rust using Mockall - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 Mockall - LogRocket 博客在 Rust 中嘲讽的指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/guide-mocking-rust-mockall/#0001-01-01">https://blog.logrocket.com/guide-mocking-rust-mockall/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>测试是软件工程不可或缺的一部分。对于初学者来说，编写一个测试用例可以确保你的代码完全按照你的期望去做。每种编程语言都有不同的框架来帮助你测试你的代码。</p>
+<p>小的宠物项目可以不进行测试，但是随着应用程序的扩展，你会遇到碰壁的风险，在你把一个新的特性推向生产之后，你会变得偏执。</p>
+<p>一些团队使用执行回归测试的手工测试人员。这在理论上是很棒的，但是一个手工测试人员不能捕获运行时出现的所有错综复杂的事情。并且，考虑到自动化测试可用的工具，使用手动测试人员是昂贵且低效的。</p>
+<p>尽管如此，喜欢测试他们的代码的工程师的百分比非常小；但是如果你看看那些构建高质量软件的最好的工程团队，测试将是他们工作流程中不可或缺的一部分。</p>
+<p>在本文中，我们将深入探讨嘲讽锈病。我们将理解模拟与一般单元测试的不同之处，以及如何使用 Mockall 库实现模拟。</p>
+<p>本文假设您对 Rust 有所了解。如果你是 Rust 的新手，你可以在这里阅读 Rust 的介绍。</p>
+
+<h2 id="what-is-unit-testing">什么是单元测试？</h2>
+<p>既然你知道了测试你的代码的重要性，让我们看看单元测试是如何工作的。当你理解单元测试是如何工作的时候，你就会明白嘲笑的必要性。</p>
+<p>让我们假设您有一个函数，它接受两个数字并返回这两个数字的除法。</p>
+<pre class="language-rust hljs">function divide (a,b){
+        return a / b
+}
+</pre>
+<p>相当简单的功能。你提供两个数字，你得到一个输出；但是，问题是，情况总是这样吗？</p>
+<p>如果<code>b</code>是 0 呢？在大多数语言中，它会产生<a href="https://stackoverflow.com/questions/29836964/error-python-zerodivisionerror-division-by-zero" target="_blank" rel="noopener">零除误差</a>，因为任何被零除的东西都是无穷大。</p>
+<p>如果<code>a</code>和<code>b</code>是数组呢？您能确定调用您的函数的代码将只传递预期的数据类型吗？不幸的是，你不能。</p>
+<p>这就是单元测试的用武之地。单元测试以多种方式测试您的代码，以确保您的代码可以处理这些类型的异常。</p>
+<p>好吧，它不会自动这么做——你必须自己编写那些测试用例。</p>
+<p>例如，要测试除法函数，您需要编写一些测试用例，如下所示:</p>
+<pre class="language-rust hljs">expect divide(2,2) to be 1
+
+expect divide (1,0) to throw an error
+</pre>
+<p>现在你知道为什么开发人员通常不喜欢写测试用例了吧。这是一项繁重的工作，但是一旦你习惯了，它的好处会证明你的努力是值得的。</p>
+<h2 id="what-is-mocking">什么是嘲讽？</h2>
+<p>所以，单元测试听起来很简单；现在，到底什么是嘲笑？</p>
+<p>示例除法函数很简单。真实世界的函数可能非常复杂。此外，函数可能会使用许多依赖项。</p>
+<p>例如，要转换的函数。pdf 转文本可能会使用类似于<a href="https://lib.rs/crates/pdf-extract" target="_blank" rel="noopener"> pdf-extract </a>的外部依赖项。为了测试这些复杂的功能，你必须在你的测试用例中包含所有的外部依赖。</p>
+<p>这让事情变得太复杂了。如果有更简单的方法呢？有，叫做“嘲讽”</p>
+<p>正在测试的对象/功能可能依赖于其他对象。为了隔离您试图测试的函数的行为，您可以通过使用模拟来替换对象。简单地说，“模拟”可以模拟复杂函数的行为，而不需要包含它们。</p>
+<p>当真实的函数/对象很难包含在测试用例中时，这通常是有用的。例如，为了测试一些数据库操作，可以使用一个简单的内存存储来读写数据。</p>
+<p>这将模拟数据库的操作，而不需要建立一个实际的数据库来测试它的功能。这是嘲讽背后的核心思想。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>这里有一篇关于嘲讽一般是如何运作的优秀文章。现在，让我们看看铁锈是如何帮助我们模仿的。</p>
+<h2 id="methods-of-mocking-in-rust">生锈的方法</h2>
+<p>Rust 有各种各样的模仿库，以不同的方式工作。每个 mocking 库都有自己的一套特性、优点和缺点。在本文中，我们将关注<a href="https://docs.rs/mockall/latest/mockall/">M</a>T2【ockall】库。</p>
+<h3 id="mockall">马克尔</h3>
+<p>虽然 Rust 有很多模仿库，但 Mockall 是目前最强大的模仿库。它结合了许多其他模仿库的优点。它还有一个用户友好的界面。它不使用任何不安全的代码，运行在稳定的 Rust 上。此外，Mockall 包含开发结构或特征的模拟版本的工具。</p>
+<h3 id="how-does-mockall-work">Mockall 是如何工作的？</h3>
+<p>在我们开始编写模拟之前，理解结构和特征之间的区别很重要。简单地说，结构和特征类似于大多数语言中的类和属性。这里的是一篇学习更多关于结构、特征和 impl 块的好文章。</p>
+<p>下面是使用模拟调用的两种主要方法:</p>
+<ol>
+<li>#[automock]，模仿只有一个<em> impl </em>块的特征或结构</li>
+<li>嘲笑！，对于第一种方法中没有包括的其余内容</li>
+</ol>
+<p>让我们写一些代码。首先，让我们编写一个简单的例子来模拟一个特征，并期望它返回我们所期望的结果。</p>
+<pre class="language-rust hljs">#[automock]
+trait MyNewTrait {
+    fn func1(&amp;self) -&gt; u32;
+    fn func2(&amp;self, x: u32, y: u32) -&gt; u32;
+}
+
+let mut mock = MockMyNewTrait::new();
+mock.expect_func1()
+    .return_const(42u32);
+mock.expect_func2()
+    .returning(|x, y| x + y);
+</pre>
+<p>上面的例子显示了我们如何使用#[automock]定义模仿一个简单的特征。</p>
+<p>现在，让我们模仿一个结构。因为#[automock]只对具有单个 impl 块的结构有效，所以我们必须使用！模拟定义。我们将编写一个实现多个特征的模拟结构。</p>
+<pre class="language-rust hljs">pub trait Trait1 {
+    fn func1(&amp;self);
+}
+
+pub trait Trait2: Trait1 {
+    fn func2(&amp;self);
+}
+
+mock! {
+    Trait3 {}
+    impl Trait1 for Trait3 {
+        fn func1(&amp;self);
+    }
+    impl Trait2 for Trait3 {
+        fn func2(&amp;self);
+    }
+}
+let mut mock = MockTrait3::new();
+mock.expect_func1().returning(|| ());
+mock.func2().returning(|| ());
+mock.func1();
+mock.func2();
+</pre>
+<p>在上面的例子中，我们有两个特征，后面跟着一个实现这两个特征的模拟结构。这使用了！模拟宏，因为有不止一个实现。</p>
+<p>这是使用 Mockall 的两种方法。除了模仿结构和特征，您还可以使用 Mockall 库模仿整个模块。</p>
+<h2 id="alternatives-for-mocking-in-rust">铁锈的替代方案</h2>
+<p>除了 Mockall，Rust 中还有其他嘲讽选项。让我们浏览一下其中的一些。</p>
+<h3 id="mockers">嘲弄者</h3>
+<p>Mockers 是 Rust 最古老的嘲讽库，灵感来自 GoogleMock。模仿者有许多助手方法，以及一个有效的语法，仍然在稳定的 Rust 上使用。但是，需要夜间支持来处理通用函数。</p>
+<h3 id="mock-derive">模拟派生</h3>
+<p><a href="https://github.com/DavidDeSimone/mock_derive" target="_blank" rel="noopener"> Mock Derive </a>是第一个引入了从目标特征“派生”模拟对象概念的模拟库。这有助于简化整个模仿过程。</p>
+<p>Mock Derive 以其用户友好性而闻名。然而，它的主要缺点是不能验证方法参数。此外，不能对泛型特征、泛型方法特征或多个特征使用 Mock Derive。与其他可用的库相比，它也没有得到积极的开发。</p>
+<h3 id="galvanic-mock">电流模拟</h3>
+<p>Galvanic-mock 是与 galvanic-test 和 galvanic-asset 一起工作的测试库的一部分。它为 Rust 程序提供了全面的测试功能。</p>
+<p>Galvanic-mock 的显著特征是它区分了 mock 的实际功能和该 mock 的预期使用方式。</p>
+<h3 id="pseudo">假的</h3>
+<p>模仿需要夜间编译器的库提供了一些好处，比如调整语言语法的能力。然而，这样的库本质上是不稳定的。不能保证每晚运行的代码也能在未来的编译器上运行。</p>
+<p><a href="https://docs.rs/pseudo/0.2.0/pseudo/struct.Mock.html" target="_blank" rel="noopener">伪</a>消除了这个问题。它移除了每夜依赖的特性，比如确保它可以在稳定的铁锈上工作。值得注意的是，Pseudo 理解和使用起来相当复杂，尤其是对初学者而言。</p>
+<h3 id="mockit">模仿它</h3>
+<p>Mock-it 是 Rust 中的另一个模仿库。由于它的简单性，它正变得流行起来。使用 Mock-it 的主要好处是它可以在稳定的 Rust 上运行，而 Rust 中的大多数 Mock 库都是使用代码生成的实验性库。不利的一面是，Mock-它没有高级 API。因此，它在大规模模拟中的实际应用非常有限。</p>
+<h3 id="mocktopus">Mocktopus</h3>
+<p>Mocktopus 从 Rust 的一长串嘲讽库中脱颖而出。它专注于自由函数，而不是专注于嘲讽特性。使用 Mocktopus 有三个主要好处。</p>
+<p>首先，它的入门技能门槛很低。其次，它可以处理通用函数。第三，它可以模仿结构和自由函数。</p>
+<h2 id="conclusion">结论</h2>
+<p>模仿是软件测试的核心组成部分。除了单元测试之外，mocking 允许您模拟复杂组件的行为，同时保持您的测试用例更容易编写和执行。Mockall 是一个很棒的库，它提供了 Rust 中模仿所需的所有工具。</p>
+<p>Mockall 持续流行背后的一个主要原因是它适用于结构、特征和函数。Mockall 正在成为 Rust 中嘲讽的首选解决方案。它还附带了<a href="https://docs.rs/mockall/latest/mockall/" target="_blank" rel="noopener">详细的文档</a>和例子来帮助你快速开始使用 Rust 中的嘲讽。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust 应用的 web 前端的全面可见性</h2><p>调试 Rust 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪 Rust 应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Rust 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>现代化调试 Rust 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

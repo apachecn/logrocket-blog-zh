@@ -1,0 +1,212 @@
+<html>
+<head>
+<title>How to test code that depends on external APIs in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在 Node.js - LogRocket 博客中测试依赖外部 API 的代码</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/#0001-01-01">https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>依赖于外部 API 的单元测试代码带来了各种各样的挑战。由于网络中断，一些外部 API 很慢，容易出错，受到速率限制，并且很难跟踪，因为它们可能在没有通知的情况下改变或消失。幸运的是，这些问题相对容易克服。</p>
+<p>在本文中，我们将介绍两种最常用的测试使用第三方 API 的代码的模式。我将通过以下方式演示如何从直接调用外部 API 的测试转到移除外部依赖的测试:</p>
+<ul>
+<li>用预定义的响应模仿请求</li>
+<li>拦截请求并保存它们的响应以备后用</li>
+</ul>
+<h2><strong>测试使用外部 API 的代码</strong></h2>
+<p>为了演示使用外部 API 的测试代码，我们将使用一个例子来检索由<a href="https://jsonplaceholder.typicode.com/"> JSON 占位符</a>提供的用户 ID 过滤的一系列帖子。</p>
+<pre>// post.js
+const fetch = require('node-fetch');
+
+async function getPosts(userId) {
+  const response = await fetch(
+    `https://jsonplaceholder.typicode.com/posts?userId=${userId}`
+  );
+
+  if (!response.ok) {
+    throw new Error(response.statusText);
+  }
+
+  return await response.json();
+}
+
+module.exports = {
+  getPosts,
+};
+</pre>
+<p>让我们假设您有一个调用外部 API 的函数，如上所示，并以下面的<a href="https://jsonplaceholder.typicode.com/posts?userId=1">格式</a>生成一个 JSON 响应:</p>
+<pre>[
+  {
+    "userId": 1,
+    "id": 1,
+    "title": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
+    "body": "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+  },
+  {
+    "userId": 1,
+    "id": 2,
+    "title": "qui est esse",
+    "body": "est rerum tempore vitae\nsequi sint nihil reprehenderit dolor beatae ea dolores neque\nfugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis\nqui aperiam non debitis possimus qui neque nisi nulla"
+  }
+]
+</pre>
+<p>现在，我们将编写一个测试来确认返回的帖子有一个与传递给<code>getPost()</code>函数的值相匹配的<code>userId</code>。尽管我选择使用<a href="http://Jestjs.io/"> Jest </a>进行测试是因为它很受欢迎，但是同样的原则也可以应用于其他测试框架，比如<a href="https://mochajs.org/"> Mocha </a>或者<a href="https://jasmine.github.io/"> Jasmine </a>。</p>
+<pre>// post.test.js
+const { getPosts } = require('./post');
+
+test('return a list of posts by a user', () =&gt; {
+  const userId = 1;
+  return getPosts(userId).then((data) =&gt; {
+    expect(data.length).toBeGreaterThan(0);
+    data.forEach((post) =&gt; {
+      expect(post).toEqual(
+        expect.objectContaining({
+          userId,
+        })
+      );
+    });
+  });
+});
+</pre>
+<p>上面的测试确认了预期数据不为空，并且每个对象中的<code>userId</code>与函数的参数匹配。这个测试的问题是它调用真正的 API，这使得它完成起来很慢，因为实际的请求是通过网络发送的。例如，这个特定的测试花了一秒多的时间在我的机器上运行。</p>
+<p><img data-attachment-id="45199" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/external-api-tst-userid-getpost-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="external-api-test-userid-getpost-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png" decoding="async" class="aligncenter wp-image-45199 size-full jetpack-lazy-image" src="../Images/e7db07e1ce22ccebbf560f73baa24df6.png" alt="External Api Test UserId GetPost Function" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="45199" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/external-api-tst-userid-getpost-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="external-api-test-userid-getpost-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png" decoding="async" loading="lazy" class="aligncenter wp-image-45199 size-full" src="../Images/e7db07e1ce22ccebbf560f73baa24df6.png" alt="External Api Test UserId GetPost Function" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/external-api-tst-userid-getpost-function.png"/></noscript>
+<p>虽然一个缓慢的测试本身可能没什么大不了的，但是当您运行许多这样的测试时，整个测试套件会变得越来越慢，越来越脆弱，这可能会受到连接性问题和速率限制的影响。</p>
+<p>此外，一些 API 需要认证或授权。如果它是由付费服务提供的，调用 API 的成本可能会增加。由于这些原因，使用下面描述的策略将测试从 API 调用中分离出来是很重要的。</p>
+<h2 id="h2manuallymockingthehttprequest">手动模拟 HTTP 请求</h2>
+<p>模仿是一种单元测试的方法，在这种方法中，外部依赖关系被模拟其行为的对象所取代。这使得将被测试的代码从它的外部依赖项中分离出来变得容易，并且避免了由于与外部系统的交互而产生的负面影响。对于外部 API，模仿包括拦截 HTTP 请求并返回真实场景中预期的响应。</p>
+<p>Jest 库为模仿外部依赖提供了有用的<a href="https://jestjs.io/docs/mock-functions">方法</a>。在这种情况下，我们想要模拟对<code>getPosts</code>函数中的<code>fetch</code>的调用，以便它返回一个固定的响应，而不是到达真正的 API。这可以在测试文件中实现:</p>
+<pre>// post.test.js
+jest.mock('node-fetch');
+
+const fetch = require('node-fetch');
+const getPostResponse = require('./testdata/postResponse');
+const { getPosts } = require('./post');
+const { Response } = jest.requireActual('node-fetch');
+
+test('return a list of posts by a user', () =&gt; {
+  const userId = 1;
+
+  fetch.mockResolvedValue(new Response(JSON.stringify(getPostResponse)));
+
+  return getPosts(userId).then((data) =&gt; {
+    expect(data.length).toBeGreaterThan(0);
+    data.forEach((post) =&gt; {
+      expect(post).toEqual(
+        expect.objectContaining({
+          userId,
+        })
+      );
+    });
+  });
+});
+</pre>
+<p>在第一行中，<code>jest.mock()</code>方法用于模拟整个<code>node-fetch</code>模块。这将每个模块导出设置为<code>jest.fn()</code>，后者返回<code>undefined</code>。有了这个，您可以将由<code>node-fetch</code>导出的任何方法的返回值指定为您想要的任何值。</p>
+<p>在上面的代码片段中，<code>fetch</code>被分配了一个承诺的返回值，该值通过<code>mockResolvedValue()</code>方法解析为预定义的响应。这里有必要使用<code>jest.requireActual()</code>助手来保留<code>Response</code>对象的实际行为，而不是不符合原始行为的模仿版本。</p>
+<p>在执行测试之前，预期的响应应该放在一个单独的文件中:</p>
+<pre>// testdata/postResponse.js
+module.exports = [
+  {
+    userId: 1,
+    id: 1,
+    title:
+      'sunt aut facere repellat provident occaecati excepturi optio reprehenderit',
+    body:
+      'quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto',
+  },
+  {
+    userId: 1,
+    id: 2,
+    title: 'qui est esse',
+    body:
+      'est rerum tempore vitae\nsequi sint nihil reprehenderit dolor beatae ea dolores neque\nfugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis\nqui aperiam non debitis possimus qui neque nisi nulla',
+  },
+  // truncated for brevity
+];
+</pre>
+<p>如果您再次运行测试，它将不再调用外部 API。相反，它将从指定的文件中检索响应，并将其用作来自<code>fetch</code>的解析值，这样测试仍然会通过:</p>
+<p><img data-attachment-id="45202" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/test-retrieve-response-fetch-resolved-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png" data-orig-size="730,389" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-retrieve-response-fetch-resolved-value" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value-300x160.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png" decoding="async" class="aligncenter wp-image-45202 size-full jetpack-lazy-image" src="../Images/7d72f8592821185a1d5e011db70edbb3.png" alt="Test Retrieve Response Fetch Resolved Value" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value-300x160.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="45202" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/test-retrieve-response-fetch-resolved-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png" data-orig-size="730,389" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-retrieve-response-fetch-resolved-value" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value-300x160.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png" decoding="async" loading="lazy" class="aligncenter wp-image-45202 size-full" src="../Images/7d72f8592821185a1d5e011db70edbb3.png" alt="Test Retrieve Response Fetch Resolved Value" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value-300x160.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-retrieve-response-fetch-resolved-value.png"/></noscript>
+<p>如果您想确定您正在测试的是固定的响应，请编辑 response 对象中的一个字段，这样测试就会失败。例如，您可以将其中一个<code>userId</code>字段更改为<code>2</code>。您将得到如下所示的错误:</p>
+<p><img data-attachment-id="45203" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/test-failure-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png" data-orig-size="730,449" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-failure-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message-300x185.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png" decoding="async" class="aligncenter wp-image-45203 size-full jetpack-lazy-image" src="../Images/d5a401857bde64b79356a9161858ad0f.png" alt="Test Failure Error Message" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message-300x185.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="45203" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/test-failure-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png" data-orig-size="730,449" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-failure-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message-300x185.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png" decoding="async" loading="lazy" class="aligncenter wp-image-45203 size-full" src="../Images/d5a401857bde64b79356a9161858ad0f.png" alt="Test Failure Error Message" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message-300x185.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/test-failure-error-message.png"/></noscript>
+<p>尽管模仿是对依赖外部服务的代码进行单元测试的有效方法，但它也有一些缺陷。</p>
+<p>被模仿的响应可能与真实的 API 不同步，这可能导致潜在的误导性结果。您的测试将会成功，但是如果外部依赖关系发生变化，而模拟仍然基于旧版本，那么您的功能可能会在生产中失败。如果被模仿的对象中有尚未被考虑的突破性改变，这尤其可能。</p>
+<p>此外，如果过度使用模拟对象，您需要对测试本身执行的维护量可能会增加。</p>
+<p>因此，在使用这种技术时，及时了解 API 返回的数据的变化是非常重要的。幸运的是，这可以通过像<a href="https://github.com/nock/nock"> Nock </a>这样的工具来自动完成，我们将在下一节讨论。</p>
+<h2 id="recordingsavingandreusingapiresponseswithnock">用 Nock 记录、保存和重用 API 响应</h2>
+<p>Nock 可以用来模仿单个 API 的响应，就像我们在上一节中使用<code>jest.mock()</code>一样。像所有其他节点包一样，在脚本中需要它之前，您必须先安装它:</p>
+<pre>$ yarn add nock -D
+</pre>
+<p>在下面的代码片段中，Nock 用于通过指定主机名和请求路径以及预期的 HTTP 状态代码和响应正文来拦截 GET 请求。这允许 Nock 拦截来自<code>getPosts()</code>的请求，以便返回指定的响应体并对其进行测试。</p>
+<pre>const nock = require('nock');
+const { getPosts } = require('./post');
+const getPostResponse = require('./testdata/postResponse');
+
+test('return a list of posts by a user', () =&gt; {
+  const userId = 1;
+
+  nock('https://jsonplaceholder.typicode.com')
+    .get(`/posts?userId=${userId}`)
+    .reply(200, getPostResponse);
+
+  return getPosts(userId).then((data) =&gt; {
+    expect(data.length).toBeGreaterThan(0);
+    data.forEach((post) =&gt; {
+      expect(post).toEqual(
+        expect.objectContaining({
+          userId,
+        })
+      );
+    });
+  });
+});
+</pre>
+<p>Nock 还有另一个锦囊妙计，它允许我们保存拦截 HTTP 请求的真实响应，以备后用；它记录外部 API 请求的输出，并将其作为 fixture 添加到初始运行中。下次运行测试时，将使用记录的夹具。下面是它的使用方法:</p>
+<pre>const nockBack = require('nock').back;
+const path = require('path');
+const { getPosts } = require('./post');
+
+nockBack.fixtures = path.join(__dirname, '__nock-fixtures__');
+nockBack.setMode('record');
+
+test('return a list of posts by a user', async () =&gt; {
+  const userId = 1;
+
+  const { nockDone } = await nockBack('post-data.json');
+
+  const data = await getPosts(userId);
+
+  expect(data.length).toBeGreaterThan(0);
+  data.forEach((post) =&gt; {
+    expect(post).toEqual(
+      expect.objectContaining({
+        userId,
+      })
+    );
+  });
+
+  nockDone();
+});
+</pre>
+<p>在运行测试之前，您需要通过<code>fixtures</code>属性配置记录响应的位置。之后，将<a href="https://github.com/nock/nock#modes">模式</a>设置为<code>record</code>，以便使用任何记录的 Nocks，并记录缺失的 Nocks。</p>
+<p>在测试函数中，将一个文件名传递给<code>nockBack</code>,以便将记录的输出保存在那里。一旦测试期望被断言，调用<code>nockDone()</code>方法。</p>
+<p>当测试第一次运行时，Nock 将向 real API 发出实际的请求，并将响应记录到一个文件中<code>__nock-fixtures__/post-data.json</code>。在后续运行中，将使用记录的响应，而不是再次点击记录的 API。</p>
+<p><img data-attachment-id="45205" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/run-test-nock-recorded-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="run-test-nock-recorded-response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png" decoding="async" class="aligncenter wp-image-45205 size-full jetpack-lazy-image" src="../Images/3dea8eb8f24fe22fc8d873a4255afdfb.png" alt="Run Test Nock Recorded Response" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="45205" data-permalink="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/run-test-nock-recorded-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="run-test-nock-recorded-response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png" decoding="async" loading="lazy" class="aligncenter wp-image-45205 size-full" src="../Images/3dea8eb8f24fe22fc8d873a4255afdfb.png" alt="Run Test Nock Recorded Response" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/run-test-nock-recorded-response.png"/></noscript>
+<p>这种方法的主要好处是，您不再需要手动模拟每个 HTTP 请求。这使您可以避免潜在的误导结果和不必要的维护。在运行测试之前，只需删除先前保存的版本，就可以很容易地重新记录 fixture。</p>
+<h2 id="conclusion">结论</h2>
+<p>模仿是保持测试快速和确定性的一种简便方法。使用 mocking，您可以移除任何与外部依赖的耦合，这样它们就不再是被测单元的约束了。如果没有嘲讽，可能很难诊断测试失败是由于我们的代码还是依赖。</p>
+<p>在本文中，我们考虑了在 Node.js 测试套件中模仿外部 API 的两种方法，但在这方面，使用<a href="https://jestjs.io/docs/"> Jest </a>和<a href="https://github.com/nock/nock"> Nock </a>仅仅触及了表面。它们都有非常详细的文档，非常值得研究。</p>
+<p>感谢阅读，祝测试愉快！</p>
+<p> </p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

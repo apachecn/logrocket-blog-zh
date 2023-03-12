@@ -1,0 +1,222 @@
+<html>
+<head>
+<title>Using Storybook and Mock Service Worker for mocked API responses - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用故事书和模拟服务工作者模拟 API 响应</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/#0001-01-01">https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Storybook 是为 JavaScript 应用程序开发 UI 组件的最佳方式之一，因为它允许在多种状态下预览组件，充当代码的交互式文档，并具有支持故事优先开发的实时环境。</p>
+<p>虽然在 Storybook 中呈现小的 UI 单元很简单，但是当涉及到发出 API 请求的组件时，开发人员必须寻求一个 API 模拟解决方案来控制响应，并从故事中去掉实际的 HTTP 通信。</p>
+<p>在本文中，我们将把一个名为 Mock Service Worker 的 API 模仿库集成到一个故事书项目中。</p>
+<h2>什么是模拟服务人员？</h2>
+<p><a href="http://mswjs.io" target="_blank" rel="noopener"> Mock Service Worker </a> (MSW)是一个针对 browser 和 Node.js 的 API 模仿库，除了对<a href="https://en.wikipedia.org/wiki/Representational_state_transfer" target="_blank" rel="noopener"> REST </a>和<a href="https://graphql.org/" target="_blank" rel="noopener"> GraphQL API </a>的丰富支持之外，该库的关键特性是通过 Service Worker 在网络层面上拦截请求。这意味着对您正在测试或开发的组件绝对不做任何更改，因为它意识不到任何类型的嘲笑，并继续发出与生产中相同的请求。</p>
+<p>与 Storybook 相结合，MSW 通过提供一种无缝的方式来控制内部和外部 API 通信，提供了无与伦比的组件开发体验。难怪 MSW 是故事书里<a href="https://storybook.js.org/docs/react/workflows/build-pages-with-storybook#specific-mocks" target="_blank" rel="noopener">推荐的拦截 API </a>的方式之一！</p>
+<hr/>
+<h2>设置故事书和模拟服务人员项目</h2>
+<p>我们将使用一个新的<a href="https://create-react-app.dev/" target="_blank" rel="noopener"> Create React App </a>项目。Storybook 和 MSW 都是与框架无关的工具，因此您可以使用本文中的步骤将它们集成到任何其他 JavaScript 项目中，无论是<a href="https://angular.io/" target="_blank" rel="noopener"> Angular </a>、<a href="https://vuejs.org/" target="_blank" rel="noopener"> Vue.js </a>还是<a href="https://svelte.dev/" target="_blank" rel="noopener"> Svelte </a>。</p>
+<blockquote><p>你可以在<a href="https://github.com/mswjs/examples/tree/master/examples/with-storybook" target="_blank" rel="noopener"> GitHub </a>上看到该项目的完整源代码。</p></blockquote>
+<h3>安装故事书</h3>
+<p>让我们从安装故事书开始:</p>
+<pre>$ npx sb init
+</pre>
+<blockquote><p>请参见故事书文档中的<a href="https://storybook.js.org/docs/react/get-started/install" target="_blank" rel="noopener">入门</a>页，了解更多关于安装的详细信息。</p></blockquote>
+<p>一旦故事书安装完毕，您应该会在项目中看到几个新目录:</p>
+<pre>|-- .storybook
+|   |-- main.js
+|   |-- preview.js
+|-- src
+|   |-- /stories
+</pre>
+<p>接下来，让我们添加<code>msw</code>包:</p>
+<pre>$ npm install msw --save-dev
+</pre>
+<h3>正在初始化服务工作者</h3>
+<p>模拟服务工作器使用一个工作器脚本来实现浏览器中的请求拦截。该库附带了一个指定的 CLI 来自动初始化该工作脚本。</p>
+<p>要初始化 worker 脚本，运行<code>npx msw init</code>命令，并为其提供项目公共目录的相对路径，在 create-react-app 的情况下，该路径是<code>./public</code>文件夹:</p>
+<pre>$ npx msw init ./public
+</pre>
+<blockquote><p>公共目录可能因项目而异。请参见<a href="https://mswjs.io/docs/getting-started/integrate/browser#where-is-my-public-directory" target="_blank" rel="noopener">常用公共目录列表</a>进行参考。</p></blockquote>
+<h2>创建反应组件</h2>
+<p>我们的项目将是一个显示 GitHub 用户简短信息的 React 组件。其意图是将组件呈现如下:</p>
+<pre>&lt;GitHubUser username="any-username" /&gt;
+</pre>
+<p>让我们简单看一下<code>GitHubUser</code>组件的源代码:</p>
+<pre>// src/GitHubUser.jsx
+import React from 'react'
+import { useFetch } from '../../../hooks/useFetch'
+import './GitHubUser.css'
+
+export const GitHubUser = ({ username }) =&gt; {
+  // Fetch user details from the GitHub API V3.
+  const { data, loading, error, refetch } = useFetch(
+    `https://api.github.com/users/${username}`
+  )
+  const { name, login, avatar_url } = data || {}
+
+  // Compose some conditional classes based on the request state.
+  const containerClassNames = [
+    'container',
+    loading &amp;&amp; 'loading',
+    error &amp;&amp; 'error',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  // Eventually, render some markup.
+  return (
+    &lt;div className={containerClassNames}&gt;
+      &lt;div className="avatar-container"&gt;
+        {avatar_url &amp;&amp; &lt;img className="avatar" src={avatar_url} alt={name} /&gt;}
+      &lt;/div&gt;
+      {error ? (
+        &lt;div&gt;
+          &lt;p&gt;Failed to fetch a GitHub user.&lt;/p&gt;
+          &lt;button onClick={refetch}&gt;Retry&lt;/button&gt;
+        &lt;/div&gt;
+      ) : (
+        &lt;div&gt;
+          &lt;p className="name"&gt;{name}&lt;/p&gt;
+          &lt;p className="username"&gt;{login}&lt;/p&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/div&gt;
+  )
+}
+</pre>
+<p>为了获取给定用户的详细信息，该组件通过自定义的<code>useFetch</code>钩子调用 GitHub API V3——这是对原生<code>window.fetch</code>的一个微小抽象。当 API 调用失败时，它还有一个很好的“重试”功能。</p>
+<p>虽然这是组件行为的有效部分，但它发出的 HTTP 请求不属于 Storybook。在一个故事中发出实际请求，尤其是向第三方提供者发出请求，将会使我们的 UI 与相应的服务建立紧密的依赖关系，从而阻止我们编写的故事被复制，并禁止离线使用 Storybook。</p>
+<h2>写故事</h2>
+<p>因为我们今天关注故事书中的 API 模仿，所以让我们为我们的<code>GitHubUser</code>组件添加一个故事，展示它的默认(成功)行为:</p>
+<pre>// stories/GitHubUser.stories.js
+import { GitHubUser } from '../src/GitHubUser'
+
+export default {
+  title: 'GitHub User',
+  component: GitHubUser,
+}
+
+export const DefaultState = () =&gt; &lt;GitHubUser username="hamilton.elly" /&gt;
+</pre>
+<blockquote><p>在故事书文档中了解更多关于<a href="https://storybook.js.org/docs/react/get-started/whats-a-story" target="_blank" rel="noopener">写故事</a>的信息。</p></blockquote>
+<p>此时，组件将呈现，但仍然发出实际的 HTTP 请求。是时候添加一些 API 模拟了。</p>
+<h2>实现 API 模拟</h2>
+<p>为了让 MSW 知道要模拟哪些 API 调用，我们需要声明一组<em>请求处理程序</em>——描述请求谓词(捕获什么请求)和响应解析器(如何响应这些请求)的函数。之后，可以使用相同的请求处理程序声明一个用于浏览器内模拟的 worker，或者一个用于 Node.js 环境中模拟的“server”。</p>
+<h3>声明请求处理程序</h3>
+<p>在您的项目中创建一个<code>src/mocks</code>目录来存储与 API 模仿相关的所有内容。在该目录中，创建一个名为<code>handlers.js</code>的文件，并为一个<code>GET /user/:userId</code>请求声明请求处理程序，如下所示:</p>
+<pre>// src/mocks/handlers.js
+import { rest } from 'msw'
+
+export const handlers = [
+  // Capture a GET /user/:userId request,
+  rest.get('/user/:userId', (req, res, ctx) =&gt; {
+    // ...and respond with this mocked response.
+    return res(ctx.json({}))
+  }),
+]
+</pre>
+<blockquote><p>我们在一个单独的模块中声明请求处理程序，因为它们可以被重用用于多种目的:在您的故事书中，在本地开发期间，用于测试，或者用于调试。一次编写，随处重用。</p></blockquote>
+<p>当编写模拟时，将 MSW 想象成一个被模拟的“服务器”虽然这个库没有建立任何实际的服务器，但是它充当了应用程序的服务器。考虑到这一点，我建议在全局<code>mocks/handlers.js</code>模块中保留任何 API 的“成功”路径，同时将每个场景的覆盖(例如错误响应)委托给更接近每个单独的使用表面(例如，一个特定的故事，或者一个集成测试)。</p>
+<p>MSW 使用服务人员在浏览器中拦截请求和模拟响应。这就是为什么我们要创建一个负责拦截的<code>worker</code>实例。</p>
+<p>使用<code>setupWorker</code> API 并为其提供之前声明的请求处理程序，以注册并激活您在设置步骤中初始化的服务工作器。</p>
+<pre>// src/mocks/browser.js
+import { setupWorker } from 'msw'
+import { handlers } from './handlers'
+
+export const worker = setupWorker(...handlers)
+</pre>
+<p><code>worker</code>接口公开了一个<a href="https://mswjs.io/docs/api/setup-worker" target="_blank" rel="noopener"> API 来控制它</a>(比如<code>start</code>和<code>stop</code>方法)，但是我们现在还不打算使用它。相反，我们将在下一步把这个责任委托给 Storybook。</p>
+<h2>MSW 和 API 集成</h2>
+<p>对于我们使用的工具来说，适应变化是至关重要的。这是采用 MSW 的主要原因之一:它与请求客户端无关，允许您使用相同的集成，即使您的应用程序明天迁移到不同的请求库或完全不同的 API 约定。</p>
+<p>现在，让我们在 Storybook 中启用 API 模拟，方法是编辑<code>.storybook/preview.js</code>文件，有条件地要求 worker 并启动它:</p>
+<pre>// .storybook/preview.js
+if (typeof global.process === 'undefined') {
+  const { worker } = require('../src/mocks/browser')
+  worker.start()
+}
+</pre>
+<blockquote><p><code>global.process</code>检查确保 Storybook 不会试图在非浏览器环境中激活服务人员，因为在 Node.js 中运行的 Storybook 构建过程中也会执行<code>preview.js</code>。</p></blockquote>
+<p>完成此步骤后，您可以在您的故事中的浏览器 DevTools 中看到来自 MSW 的成功激活消息:</p>
+<figure id="attachment_33812" aria-describedby="caption-attachment-33812" class="wp-caption aligncenter"><img data-attachment-id="33812" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png" decoding="async" class="wp-image-33812 size-full jetpack-lazy-image" src="../Images/9996eb8cdcd5ccef532b2e8a1df5ccb5.png" alt="GitHubUser Component on Storybook" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="33812" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png" decoding="async" loading="lazy" class="wp-image-33812 size-full" src="../Images/9996eb8cdcd5ccef532b2e8a1df5ccb5.png" alt="GitHubUser Component on Storybook" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook.png"/></noscript><figcaption id="caption-attachment-33812" class="wp-caption-text">Storybook page showcasing our “GitHubUser” component receiving the mocked response.</figcaption></figure>
+<p>您可以在 UI 和 DevTools 的控制台中看到 MSW 已经成功处理了我们的请求。这种设置最大的好处是我们不需要修改任何应用程序的代码！它仍然与 GitHub API 通信，但是接收我们指定的模拟响应。</p>
+<p><code>src/mocks/handlers.js</code>中列出的全局请求处理程序对于保持成功的 API 交互非常有用。然而，并不是所有的互动都是成功的。</p>
+<p>如果您希望构建一个防弹 UI，您应该预料到错误，并确保您的组件可以为用户优雅地处理它们。此外，您应该能够在各自的故事中浏览您的组件在多个网络相关状态下的可视化插图。</p>
+<h2>每个故事的 API 响应</h2>
+<p>Storybook 的好处之一是能够以多种状态展示单个组件。对于我们的组件，我们可以说明各种 HTTP 通信场景的处理:组件等待响应时的加载状态，以及来自 GitHub API 的错误响应。为此，您可以基于每个故事重写请求处理程序。</p>
+<p>我们将使用<a href="https://storybook.js.org/docs/react/writing-stories/decorators" target="_blank" rel="noopener">story decorator</a>通过<a href="https://mswjs.io/docs/api/setup-worker/use" target="_blank" rel="noopener">运行时请求处理器</a>来增强一个单独的故事，运行时请求处理器是一个 API，用于在运行时当故事呈现时追加或重写处理器。</p>
+<h3>模拟装载状态</h3>
+<p>异步操作可能需要时间，HTTP 调用也不例外。为了保证出色的用户体验，我们的组件必须能够处理加载状态，而我们的故事书应该以可重复和可预测的方式来说明加载状态。</p>
+<p>幸运的是，你负责被嘲笑的反应，包括它们的反应时间。但是，您不希望影响不相关的故事，所以在全局请求处理程序中模仿加载状态不是最好的选择。相反，将加载状态的嘲讽逻辑放在故事本身的旁边。你可以这样做:</p>
+<pre>// src/stories/Component.story.js
+import { rest } from 'msw'
+import { worker } from '../mocks/browser'
+
+// Create a new loading state story.
+const LoadingState = () =&gt; &lt;GitHubUser username="hamilton.elly" /&gt;
+
+// Use Storybook decorators and MSW runtime handlers
+// to handle the same HTTP call differently for this particular story.
+LoadingState.decorators = [
+  (Story) =&gt; {
+    worker.use(
+      rest.get('https://api.github.com/users/:username', (req, res, ctx) =&gt; {
+        // Mock an infinite loading state.
+        return res(ctx.delay('infinite'))
+      })
+    )
+    return &lt;Story /&gt;
+  },
+]
+</pre>
+<p>注意我们如何使用一个<code>worker.use()</code>方法来提供一个<em>运行时请求处理器</em>。我们仍然提供相同的请求方法和 URL，但是不同的解析器函数无限延迟响应(参见<code><a href="https://mswjs.io/docs/api/context/delay" target="_blank" rel="noopener">ctx.delay</a></code>实用程序)。这将响应保持在挂起状态，这正是您在 UI 中呈现组件如何处理加载状态所需要的。</p>
+<figure id="attachment_33814" aria-describedby="caption-attachment-33814" class="wp-caption aligncenter"><img data-attachment-id="33814" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook-loading/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook in loading state" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png" decoding="async" class="wp-image-33814 size-full jetpack-lazy-image" src="../Images/67bcbba4a9231843c78d7472b5103f3f.png" alt="GitHubUser component on Storybook in Loading State" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="33814" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook-loading/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook in loading state" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png" decoding="async" loading="lazy" class="wp-image-33814 size-full" src="../Images/67bcbba4a9231843c78d7472b5103f3f.png" alt="GitHubUser component on Storybook in Loading State" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-loading.png"/></noscript><figcaption id="caption-attachment-33814" class="wp-caption-text">Storybook page showcasing our “GitHubUser” component in a loading state.</figcaption></figure>
+<p>通过检查您浏览器的 DevTools 中的<strong> Network </strong>选项卡，您可以看到 GitHub API 请求从未解决，这允许我们在我们的故事中预览该状态。这正是我们在这里需要 API 模拟的原因——以获得灵活性并控制我们的组件发出的 API 调用。</p>
+<blockquote><p>MSW 附带了一个简单的 API 和各种实用程序来模拟响应<a href="https://mswjs.io/docs/api/context/status" target="_blank" rel="noopener">状态码</a>、<a href="https://mswjs.io/docs/api/context/set" target="_blank" rel="noopener">头</a>、<a href="https://mswjs.io/docs/recipes/cookies" target="_blank" rel="noopener">服务器 cookie</a>和许多其他工具，以模拟真实世界的场景，如身份验证、CORS 或媒体内容流。</p></blockquote>
+<h3>模拟错误响应</h3>
+<p>与加载状态类似，您可以为错误响应创建一个单独的故事，并拥有一个运行时请求处理程序，它总是用特定的 HTTP 服务器错误进行响应。</p>
+<pre>// src/stories/Component.story.js
+import { msw } from 'msw'
+import { worker } from '../mocks/browser'
+
+const ErrorState = () =&gt; &lt;GitHubUser username="hamilton.elly" /&gt;
+ErrorState.decorators = [
+  (Story) =&gt; {
+    worker.use(
+      rest.get('https://api.github.com/users/:username', (req, res, ctx) =&gt; {
+        // Respond with a 500 response status code.
+        return res(ctx.status(500))
+      })
+    )
+    return &lt;Story /&gt;
+  },
+]
+</pre>
+<blockquote><p>使用<code><a href="https://mswjs.io/docs/api/context/status" target="_blank" rel="noopener">ctx.status</a></code>和其他<a href="https://mswjs.io/docs/api/context" target="_blank" rel="noopener">上下文实用程序</a>来建模精确的 HTTP 响应，以展示组件的行为。</p></blockquote>
+<p>保存更改并导航到 Storybook，我们看到一个可重现的错误状态:</p>
+<figure id="attachment_33815" aria-describedby="caption-attachment-33815" class="wp-caption aligncenter"><img data-attachment-id="33815" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook experiencing an error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png" decoding="async" class="wp-image-33815 size-full jetpack-lazy-image" src="../Images/4cebd8db64bf2c14ed6a0b66e37e2cc4.png" alt="GitHubUser Component on Storybook Experiencing an Error" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="33815" data-permalink="https://blog.logrocket.com/using-storybook-and-mock-service-worker-for-mocked-api-responses/githubuser-component-on-storybook-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubUser component on Storybook experiencing an error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png" decoding="async" loading="lazy" class="wp-image-33815 size-full" src="../Images/4cebd8db64bf2c14ed6a0b66e37e2cc4.png" alt="GitHubUser Component on Storybook Experiencing an Error" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/githubuser-component-on-storybook-error.png"/></noscript><figcaption id="caption-attachment-33815" class="wp-caption-text">Storybook page showcasing our “GitHubUser” component’s behavior when it receives an error.</figcaption></figure>
+<p>虽然我们的故事现在显示了错误处理，但单击<strong>重试</strong>按钮仍然会导致一个总是返回 500 响应的请求，就像我们在运行时请求处理程序中指定的那样。</p>
+<p>如果能在第一次请求 GitHub API 时返回错误响应就太好了。您可以通过在运行时处理程序中使用<code>res.once</code>函数而不是<code>res</code>来实现这一点:</p>
+<pre>rest.get('https://api.github.com/users/:username', (req, res, ctx) =&gt; {
+-  return res(ctx.status(500))
++  return res.once(ctx.status(500))
+})
+</pre>
+<hr/>
+<h2>结论</h2>
+<p>在本教程中，我们已经了解了 Storybook 和 Mock Service Worker 之间的协同作用，当涉及到以多种状态呈现同一组件时，对模拟 API 响应进行粒度控制的好处，以及如何以无缝的方式将这两种技术集成在一起。</p>
+<p>此外，由于 MSW 可以在 browser 和 Node.js 中运行，我们可以重用相同的 API 模拟逻辑进行测试和开发，从而实现富有成效的无缝集成。</p>
+<p>你可以在<a href="https://github.com/mswjs/examples/tree/master/examples/with-storybook" target="_blank" rel="noopener"> GitHub </a>上找到这个例子的源代码，并在<a href="https://mswjs.io/docs" target="_blank" rel="noopener"> MSW 文档</a>中了解更多关于 API 嘲讽的信息。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,391 @@
+<html>
+<head>
+<title>Svelte vs. Vue: Comparing framework internals - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Svelte vs. Vue:比较框架内部结构</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/#0001-01-01">https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>React、Angular 和 Ember 曾一度站在 web 开发的最前沿，竞相成为最好的 JavaScript 框架，后来 Vue 迅速走红，取代了 Ember 的位置。</p>
+<p>快进到 2022 年，历史似乎在重演<a href="https://blog.logrocket.com/building-a-pwa-with-svelte/">苗条，一个相对新的框架</a> <a href="https://blog.logrocket.com/building-a-pwa-with-svelte/">，</a>正以指数速度流行。我们不禁要问自己，斯维特是否具备成为顶级竞争者的条件。</p>
+<p>Svelte 似乎从 Vue 的剧本中吸取了一页，实现并改进了最初让我们喜欢 Vue 的东西，比如高性能、轻量级和熟悉的模板语法以及简单的学习曲线。</p>
+<p>在本文中，我们将检查 Svelte 和 Vue 之间的语法差异，比较它们如何在幕后工作。</p>
+<h3>目录</h3>
+
+<h2 id="fundamentals-vue">Vue 的基础知识</h2>
+<p>Vue 是一个渐进的开源 JavaScript 框架，用于构建用户界面和单页面应用程序。</p>
+<p>Vue 被设计成渐进式集成，这意味着你可以将 Vue 添加到现有前端项目的任何部分，而不必重新构建整个项目。Vue 只依赖 JavaScript，不像 Svelte 这样的框架使用编译器。</p>
+<p>要用 Vue 构建一个单页面应用程序，您必须使用它的 CLI，这是一个命令行实用工具，用于快速搭建具有不同构建系统的 Vue 样板项目。</p>
+<p>Vue 的核心是继承自其竞争对手 Angular 和 React 的一些概念。首先，Vue 利用 Angular 的反应式<a href="https://angular.io/guide/two-way-binding">双向数据绑定</a>，这在模型和视图之间创建了一个反应式连接。另一个是 React 的虚拟 DOM diffing，它可以防止 Vue 在每次发生变化时都像外科手术一样更新 DOM。</p>
+<p>部分受 MVVM 设计模式的启发，Vue 的重点是视图层，或模板。然而，Vue 应用程序中的每个组件实例都被称为一个<a href="https://012.vuejs.org/guide/#ViewModel">view mod</a>T4】El 或<code>vm</code>变量。<code>vm</code>是连接视图和模型-视图层的数据绑定系统。</p>
+<h2 id="fundamentals-svelte">苗条的基础</h2>
+<p>Svelte 是一个用于创建交互式用户界面的开源前端框架。与 Vue 不同，Svelte 是一个编译器，它将声明式状态驱动的组件转换为直接更新 DOM 的命令式 JavaScript 代码。</p>
+<p>借助虚拟 DOM diffing 技术，单体框架在运行时编译声明性代码。虽然这种方法高效快速，但它需要浏览器在渲染网页之前执行额外的任务，从而产生影响应用性能的开销。</p>
+<p>通过将其声明性代码解析并编译成浏览器在构建时可以使用的 JavaScript 代码，Svelte 避免了这种性能开销，<a href="https://krausest.github.io/js-framework-benchmark/2022/table_chrome_97.0.4692.71.html">使其比使用虚拟 DOM 并在运行时编译的框架</a>快 2 倍。</p>
+<h2 id="getting-started">入门指南</h2>
+<p>在我们对比这两个框架之前，让我们为每个框架建立一个示例应用程序，以便在整篇文章中引用。首先，创建两个新文件夹，每个框架一个。打开你机器的命令行工具，<code>cd</code> <em> <em/> </em>进入各个文件夹，然后在各自的文件夹中运行下面的命令。</p>
+<h3>某视频剪辑软件</h3>
+<p>以下命令将在您的计算机上安装 Vue CLI:</p>
+<pre class="language-bash hljs">npm install -g @vue/cli
+# OR
+yarn global add @vue/cli
+</pre>
+<p>安装完成后，运行以下命令来搭建 Vue 项目:</p>
+<pre class="language-bash hljs">vue create vue-sample-app
+</pre>
+<p>要运行应用程序，请将<code>cd</code>放入<code>vue-sample-app</code>文件夹:</p>
+<pre class="language-bash hljs">cd vue-sample-app
+</pre>
+<p>然后，按如下方式启动开发服务器:</p>
+<pre class="language-bash hljs">npm run serve
+</pre>
+<h3>苗条的</h3>
+<p>使用下面的命令打开一个新的 Svelte 项目:</p>
+<pre class="language-bash hljs">npx degit sveltejs/template
+</pre>
+<p>运行以下命令安装所需的依赖项:</p>
+<pre class="language-bash hljs">npm install
+</pre>
+<p>现在，启动一个新的开发服务器:</p>
+<pre class="language-bash hljs">npm run dev
+</pre>
+<p>虽然我们可以为我们的应用程序的源代码创建单独的组件，并将它们导入到项目中更高级别的组件<code>App.svelte</code>和<code>App.vue</code>中，但为了简单起见，我们将使用更高级别的组件。</p>
+<p>让我们清理<code>App.svelte</code>和<code>App.vue</code>组件，并将以下代码块放入它们各自的文件中:</p>
+<pre class="language-vue hljs">//VUE
+
+&lt;template&gt;
+  &lt;label&gt;City &lt;/label&gt;
+  &lt;input type="text" v-model="city"/&gt;
+  &lt;label&gt;Town &lt;/label&gt;
+  &lt;input type="text" v-model="town"/&gt;
+  &lt;div class="location"&gt;Location: {{location}} &lt;/div&gt;
+  &lt;button v-on:click="handleReset"&gt;Reset&lt;/button&gt;
+&lt;/template&gt;
+&lt;script&gt;
+export default {
+  name: 'App',
+  data(){
+    return{
+      city: "",
+      town: ""
+    }
+  },
+  methods: {
+    handleReset(){
+        this.city = ""
+        this.town = ""
+    }
+  },
+  computed: {
+    location(){
+      return this.city + " " + this.town
+    }
+  }
+}
+&lt;/script&gt;
+&lt;style scoped&gt;
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+}
+input{
+  display: block;
+  margin-bottom: 15px;
+  width: 200px;
+  height: 35px;
+}
+button{
+  width: 60px;
+  height: 30px;
+}
+.location{
+  margin-bottom: 10px;
+}
+&lt;/style&gt;</pre>
+<pre class="language-svelte hljs">//SVELTE
+
+&lt;script&gt;
+    let city = "";
+    let town = "";
+    $: location = "Location: " + city + ' ' + town;
+    const reset = () =&gt; {
+        city = "";
+        town = "";
+    }
+&lt;/script&gt;
+&lt;main&gt;
+    &lt;div&gt;
+        &lt;label&gt;City&lt;/label&gt;
+        &lt;input type="text" bind:value={city}&gt;
+        &lt;label&gt;Town&lt;/label&gt;
+        &lt;input type="text" bind:value={town}&gt;
+        &lt;button on:click={reset}&gt;Reset&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div&gt;
+        {location}
+    &lt;/div&gt;
+&lt;/main&gt;
+&lt;style&gt;
+  main{
+    background-color: white;
+  }
+&lt;/style&gt;
+</pre>
+<p>每个应用程序包含两个反应变量<code>city</code>和<code>town</code>，两个绑定到反应变量的输入字段，以及一个带有事件处理程序的按钮，该事件处理程序在被触发时重置反应变量。</p>
+<blockquote><p>注意:因为我们使用我们的应用程序只是为了比较，所以没有必要设计样式。</p></blockquote>
+<h2 id="component-structure">组件结构和语法比较</h2>
+<p>您可能已经注意到，Svelte 和 Vue 在模板结构和语法元素方面有很多共同的特性。两者都使用单文件组件，这是一种特殊的文件格式，将组件的模板、逻辑和样式封装在单个<code>.svelte</code>或<code>.vue</code>文件中。</p>
+<p>单文件组件由三部分组成:</p>
+<ul>
+<li>模板:<code>&lt;template&gt;&lt;/template</code>部分包含组件的普通 HTML 标记</li>
+<li>脚本:<code>&lt;script&gt;&lt;/script&gt;</code>部分包含组件中的所有 JavaScript 逻辑</li>
+<li>style:<code>&lt;style&gt;&lt;/style&gt;</code>部分包含一个局部作用于组件的样式</li>
+</ul>
+<p>Svelte 没有像 Vue 的<code>&lt;template&gt;</code>那样在组件中封装标记的专用模板标签。HTML 标记可以直接在组件内部以任何顺序定义。</p>
+<h3 id="declarative-rendering">声明性渲染</h3>
+<p>两个模板之间最明显的区别是引用声明性数据属性到模板的方法。细长使用单花括号<code>{ }</code>:</p>
+<pre class="language-svelte hljs">&lt;div&gt;
+  {location}
+&lt;/div&gt;
+</pre>
+<p>另一方面，Vue 使用了双花括号<code>{{ }}</code>，这也被称为 mustache 语法:</p>
+<pre class="language-vue hljs">&lt;div&gt;
+  {{location}}
+&lt;/div&gt;
+</pre>
+<h3 id="data-binding">数据绑定</h3>
+<p>为了将数据从模型绑定到模板，Svelte 和 Vue 使用了称为指令的特殊属性。指令的工作是当它的表达式的值改变时，对 DOM 反应性地应用副作用。</p>
+<p><code>bind</code>是在 Vue 和 Svelte 中绑定数据的指令。<code>bind</code>指令接受由冒号表示的参数，以及将绑定到定义它的元素的数据属性或反应变量。</p>
+<p>下面的代码包含了一个来自我们的样本 Svelte 应用程序的输入字段元素。<code>bind</code>指令被赋予一个<code>value</code>自变量和一个反应变量<code>city</code>:</p>
+<pre class="language-svelte hljs">&amp;lt;input type="text" bind:value={city}&gt;
+</pre>
+<p>在上面的代码中，<code>bind</code>指令将输入字段值绑定到反应变量<code>city</code>。当输入字段的状态改变时，反应变量将相应地更新。</p>
+<p>Vue 在其指令中添加了一个<code>v-</code>前缀，因此,<code>bind</code>指令在 Vue 中的定义如下:</p>
+<pre class="language-vue hljs">v-bind:value
+</pre>
+<p>在 Vue 应用中，我们用<code>v-model</code>替换了<code>v-bind</code>指令。在 Vue 中，<code>v-bind</code>仅单向绑定数据，而<code>v-model</code>创建双向绑定。</p>
+<p>现在，假设我们使用<code>v-bind</code>将输入字段绑定到模型中的数据属性。只有输入场状态的变化才会触发反应。但是对于<code>v-model</code>，数据属性和输入元素状态的变化都会触发反应。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="computed-property">计算属性</h3>
+<p>在我们的细长应用程序中，另一个特殊的语法是美元符号<code>$:</code>标签，它用于定义一个计算值，方法是将它作为一个顶级赋值或者不在代码块或函数内的赋值的前缀。</p>
+<p>计算值或属性是一个反应式声明，它接受反应式变量作为赋值。当反应变量改变时，计算值起反应。基本上，计算值是一个依赖于其他状态的状态。</p>
+<p>直接出现在<code>$:</code>块中的值将成为反应语句的依赖项。</p>
+<p>在我们这个苗条的应用程序中，<code>location</code>值是一个根据反应变量<code>city</code>和<code>town</code>计算出来的值。我们将反应变量分配给计算值，并在模板中引用结果:</p>
+<pre class="language-svelte hljs">$: location = "Location: " + city + ' ' + town;
+</pre>
+<p>无论何时<code>city</code>或<code>town</code>发生变化，<code>location</code>都会相应地重新计算和更新 DOM。</p>
+<p>在 Vue 中，计算属性在<code>component</code>对象中定义，并被分配命名函数，这些函数根据数据模型返回代码表达式:</p>
+<pre class="language-vue hljs">export default {
+  name: 'App',
+  data(){
+    return{
+      city: "",
+      town: ""
+    }
+  },
+  computed: {
+    location(){
+      return this.city + " " + this.town
+    }
+  }
+}
+</pre>
+<p>在我们的 Vue 示例应用程序的这个摘录中，我们创建了一个计算属性，并在其中定义了一个<code>location</code>函数。然后，我们返回了一个连接函数中的<code>city</code>和<code>town</code>数据属性的表达式。每当这些数据属性改变时，computed 属性将重新计算并更新它在 DOM 中的值。</p>
+<blockquote><p>注意:<code>this</code>关键字用于引用数据属性。</p></blockquote>
+<h2 id="events">事件</h2>
+<p>这两个框架使用<code>on</code>指令以相似的方式处理事件，该指令接受由冒号表示的参数，就像<code>bind</code>指令一样:</p>
+<pre class="language-svelte hljs">//Svelte
+On:click</pre>
+<pre class="language-vue hljs">//Vue
+v-on:click
+</pre>
+<p>事件处理程序指令通常会调用一个函数，该函数在被触发时会返回一个表达式。简单地说，我们可以像定义其他函数一样定义这个函数:</p>
+<pre class="language-svelte hljs">const reset = () =&gt; {
+  city = "";
+  town = "";
+}
+</pre>
+<p>然而，在 Vue 中，我们必须在组件模型中创建一个<code>method</code>属性，就像我们对<code>computed</code>属性所做的那样，并为它分配一个函数，该函数将在事件被触发时返回一个表达式:</p>
+<pre class="language-vue hljs">&amp;lt;template&gt;
+  &lt;button ="handleReset"&gt;Reset&lt;/button&gt;
+&lt;/template&gt;
+
+...
+
+methods: {
+  handleReset(){
+      this.city = ""
+      this.town = ""
+  }
+}
+</pre>
+<p>在上面的例子中，我们创建了一个<code>method</code>属性，并在<code>data</code>函数、<code>city</code>和<code>town</code>中定义了一个重置反应属性的函数。然后，我们将函数名<code>handleReset</code>分配给按钮上的事件处理器指令。</p>
+<p>在 Vue 中，表达式和函数名用引号定义或分配给指令:</p>
+<pre class="language-vue hljs">&lt;input type="text" v-model="city"/&gt;
+</pre>
+<p>像在大多数框架中一样，函数和代码表达式被分配给带有花括号的指令:</p>
+<pre class="language-svelte hljs">&lt;input type="text" bind:value={town}&gt;
+</pre>
+<h2 id="reactivity">反应</h2>
+<p>反应性是一种编程风格，允许我们声明性地调整以适应变化，但它在 JavaScript 中并不是现成的。如果我们存储两个变量的和，然后重新分配这些变量，原始和不会改变:</p>
+<pre class="language-javascript hljs">let a = 10;
+let b = 5;
+let sum = a + b;
+console.log(sum); // sum is 15
+b = 15;
+console.log(sum); // sum is still 15
+</pre>
+<p>为了在 JavaScript 中做出反应，我们必须检测其中一个值何时发生变化，跟踪改变它的函数，并触发该函数，以便它可以更新最终值。</p>
+<p>大多数 JavaScript 框架都提供了特殊的 API 函数来处理这种逻辑。例如，为了创建反应变量，Vue 使用 option API 中的<code>data</code>对象和 Composition API 中的<code>ref()</code>方法。另一方面，React 使用<code>useState()</code>钩，Angular 使用<code>detectChanges()</code>方法。</p>
+<p>然而，Svelte 并不使用特殊的 API 来产生反应。默认情况下，反应变量是通过赋值创建的，每个用<code>let</code>关键字声明的变量都是自动反应的。</p>
+<p>让我们分别看看 Vue 和 Svelte 在运行时和构建时是如何处理反应的。</p>
+<h3 id="build-time-reactivity">构建时间反应性</h3>
+<p>为了理解 Svelte 如何在内部处理反应，我们需要首先理解 Svelte 编译器是如何工作的。</p>
+<p>当将细长组件编译成命令式 JavaScript 时，编译器会经历一个流水线过程，就像虚拟 DOM 一样。唯一的区别是虚拟 DOM 在运行时操作，而 Svelte 编译器在构建时操作。让我们回顾一下整个过程。</p>
+<p>在编译期间，Svelte 实现了一个解析器，它能够解析 HTML 元素、逻辑块和条件，但不能解析组件的<code>style</code>和<code>script</code>标签中的 CSS 内容或 JavaScript 表达式。</p>
+<p>每当解析器遇到<code>script</code>标签或花括号内的任何代码表达式，它就会将操作交给<a href="https://github.com/acornjs/acorn"> Acorn JavaScript 解析器</a>。同样，当解析器遇到<code>style</code>标签时，Svelte 会将操作交给 CSS 树来处理解析。</p>
+<p>接下来，编译器将把解析后的代码分解成更小的称为标记的部分。然后，编译器从标记列表中创建一个树状结构，称为抽象语法树(AST)。AST 是输入代码的表示:</p>
+<p><img data-attachment-id="88176" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/abstract-syntax-tree-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png" data-orig-size="730,516" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="abstract-syntax-tree-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example-300x212.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png" decoding="async" class="aligncenter wp-image-88176 size-full jetpack-lazy-image" src="../Images/67a6805579fc3e042fa183f726dd6fe1.png" alt="Abstract Syntax Tree Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example-300x212.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="88176" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/abstract-syntax-tree-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png" data-orig-size="730,516" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="abstract-syntax-tree-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example-300x212.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png" decoding="async" loading="lazy" class="aligncenter wp-image-88176 size-full" src="../Images/67a6805579fc3e042fa183f726dd6fe1.png" alt="Abstract Syntax Tree Example" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example-300x212.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/abstract-syntax-tree-example.png"/></noscript>
+<p>基于 AST，编译器将生成一个代码输出。在静态分析和呈现阶段，代码输出将被分析并用于生成 JavaScript 代码。</p>
+<h2 id="svelte-static-analysis-phase">苗条静态分析阶段</h2>
+<p>为了分析所创建的 AST，编译器将创建一个组件实例，它是一个组件类，存储一个瘦组件的信息，如反应变量、编译选项等。这就是所谓的静态分析阶段。</p>
+<p>首先，组件类将遍历脚本 AST，并查找组件中声明的所有变量和函数。在我们的例子中，它将发现<code>city</code>变量、<code>town</code>变量、<code>reset</code>函数和<code>location</code>计算值。</p>
+<p>每当这些变量中的任何一个发生变化，组件类都会将它们标记为<code>reassigned</code>。接下来，它将遍历模板 AST 并查找之前收集的变量和函数，将它们标记为<code>references</code>:</p>
+<p><img data-attachment-id="88179" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/gpdo2e5s/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png" data-orig-size="430,275" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ast-reference-variables" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png" decoding="async" class="aligncenter wp-image-88179 size-full jetpack-lazy-image" src="../Images/31bc760a3999494a1872950c07285ca2.png" alt="AST Reference Variables" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png 430w, https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s-300x192.png 300w" data-lazy-sizes="(max-width: 430px) 100vw, 430px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="88179" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/gpdo2e5s/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png" data-orig-size="430,275" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ast-reference-variables" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png" decoding="async" loading="lazy" class="aligncenter wp-image-88179 size-full" src="../Images/31bc760a3999494a1872950c07285ca2.png" alt="AST Reference Variables" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png 430w, https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s-300x192.png 300w" sizes="(max-width: 430px) 100vw, 430px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/gpDo2e5s.png"/></noscript>
+<p>模板中没有引用的变量不一定是反应性的。此外，模板中引用变量的元素将变量作为依赖项。因此，只要它们在运行时发生变化，这些元素就需要更新。</p>
+<p>最后，Svelte 将遍历 CSS AST，将 CSS 选择器更新为组件范围，并警告任何未使用的选择器。</p>
+<h2 id="svelte-rendering-phase">苗条渲染阶段</h2>
+<p>为了生成输出代码，Svelte 将基于一个<code>compile</code>选项创建一个渲染器实例。它将为客户端呈现创建一个 DOM 呈现器，或者为服务器端呈现创建一个 SSR 呈现器。</p>
+<p>我们的示例应用程序不是 SSR 应用程序，因此 Svelte 将使用 DOM 渲染器来生成运行时代码输出:</p>
+<p><img data-attachment-id="88183" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/svelte-dom-renderer-runtime-code-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png" data-orig-size="730,397" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="svelte-dom-renderer-runtime-code-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output-300x163.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png" decoding="async" class="aligncenter wp-image-88183 size-full jetpack-lazy-image" src="../Images/7d9d9bbb73b1252d202f34fe0cd75207.png" alt="Svelte DOM Renderer Runtime Code Output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output-300x163.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="88183" data-permalink="https://blog.logrocket.com/svelte-vs-vue-comparing-framework-internals/svelte-dom-renderer-runtime-code-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png" data-orig-size="730,397" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="svelte-dom-renderer-runtime-code-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output-300x163.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png" decoding="async" loading="lazy" class="aligncenter wp-image-88183 size-full" src="../Images/7d9d9bbb73b1252d202f34fe0cd75207.png" alt="Svelte DOM Renderer Runtime Code Output" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output-300x163.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/svelte-dom-renderer-runtime-code-output.png"/></noscript>
+<p>要查看运行时代码，打开浏览器的 DevTool，导航到 Firefox 中的<strong> <code>source</code> </strong>选项卡，或<strong>调试器选项卡</strong>。您应该会在侧边栏中看到一个<code>build</code>文件夹。在这个文件夹中有一个<code>bundle.js</code>文件，里面存放了编译器生成的所有运行时 JavaScript 代码。</p>
+<p>如果您查看<code>bundle.js</code>文件，您会注意到它包含了跨越几行的代码块。我们对<code>$$instance</code>代码块感兴趣，它是包装我们应用程序上下文的函数:</p>
+<pre class="language-javascript hljs">function instance($$self, $$props, $$invalidate) {
+    let location;
+    let { $$slots: slots = {}, $$scope } = $$props;
+    validate_slots('App', slots, []);
+    let city = "";
+    let town = "";
+
+    const reset = () =&gt; {
+      $$invalidate(0, city = "");
+      $$invalidate(1, town = "");
+    };
+
+    const writable_props = [];
+
+    Object.keys($$props).forEach(key =&gt; {
+            if (!~writable_props.indexOf(key) &amp;&amp; key.slice(0, 2) !== '$$' &amp;&amp; key !== 'slot') console.warn(`&lt;App&gt; was created with unknown prop '${key}'`);
+    });
+
+    function input0_input_handler() {
+        city = this.value;
+        $$invalidate(0, city);
+    }
+
+    function input1_input_handler() {
+        town = this.value;
+        $$invalidate(1, town);
+    }
+
+    $$self.$capture_state = () =&gt; ({ city, town, reset, location });
+
+    $$self.$inject_state = $$props =&gt; {
+        if ('city' in $$props) $$invalidate(0, city = $$props.city);
+        if ('town' in $$props) $$invalidate(1, town = $$props.town);
+        if ('location' in $$props) $$invalidate(2, location = $$props.location);
+    };
+
+    if ($$props &amp;&amp; "$$inject" in $$props) {
+        $$self.$inject_state($$props.$$inject);
+    }
+
+    $$self.$$.update = () =&gt; {
+        if ($$self.$$.dirty &amp; /*city, town*/ 3) {
+                $$invalidate(2, location = "Location: " + city + ' ' + town);
+        }
+    };
+
+  return [city, town, location, reset, input0_input_handler, input1_input_handler];
+}
+</pre>
+<p><code>$$invalidate</code>方法用于包装<code>instance</code>函数不同部分的反应分配，当分配改变时通知 Svelte。</p>
+<p><code>$$invalidate</code>方法是一种促进苗条身材反应的内部功能。它将每个值发生变化的变量标记为<code>dirty</code>，然后调度更新。Svelte 调用<code>update</code>函数来执行检查并确定哪个变量需要更新:</p>
+<pre class="language-svelte hljs">$$self.$$.update = () =&gt; {
+    if ($$self.$$.dirty &amp; /*city, town*/ 3) {
+        $$invalidate(2, location = "Location: " + city + ' ' + town);
+    }
+};
+</pre>
+<p>在<code>reset</code>和<code>input_handler</code>函数中调用了<code>$$invalidate</code>方法，这是应用程序中发生变化的部分。前者是我们在应用程序中创建的用于重置反应变量的函数，而后者是由 Svelte 创建的用于将输入字段值绑定到反应变量的函数:</p>
+<pre class="language-svelte hljs">const reset = () =&gt; {
+    $$invalidate(0, city = "");
+    $$invalidate(1, town = "");
+};
+</pre>
+<p><code>input_handler</code>函数是由我们分配给模板中输入字段的<code>bind</code>指令创建的:</p>
+<pre class="language-svelte hljs">bind:value = {city}
+</pre>
+<p>上面的指令将被编译成以下代码:</p>
+<pre class="language-svelte hljs">function input0_input_handler(){
+    city = this.value; 
+}
+</pre>
+<h2 id="vue-runtime-reactivity">Vue 运行时反应性</h2>
+<p>Vue 由三个促进框架功能的核心模块组成，即反应模块、挂载模块和呈现模块。</p>
+<h3 id="reactivity-module">反应模块</h3>
+<p>反应模块允许我们创建反应 JavaScript 对象，我们可以观察变化。我们可以在代码运行时跟踪依赖于这些对象的代码，这样当反应性对象发生变化时，可以重新运行这些代码。</p>
+<h3 id="mount-module">安装模块</h3>
+<p>安装模块将 HTML 模板编译成呈现函数。呈现函数可能类似于下面的代码:</p>
+<pre class="language-html hljs">render() {
+  return h(
+    'h' + this.level, // tag name
+    {}, // props/attributes
+    this.$slots.default() // array of children
+  )
+}
+</pre>
+<h3 id="render-module">渲染器模块</h3>
+<p>渲染器模块将组件渲染并更新到网页上。这个过程分为三个不同的阶段。</p>
+<p>在呈现阶段，渲染器模块调用 render 函数，它返回一个虚拟 DOM 节点或 VNode，用 JavaScript 对象表示 DOM 元素。例如，<code>HTML: &lt;div&gt;logRocket&lt;/div&gt;</code>可以由 VNode 表示如下:</p>
+<pre class="language-javascript hljs">{
+  tag: "div",
+  children: [
+    {
+    text: "logRocket"
+    }
+  ]
+}
+</pre>
+<p>在挂载阶段，渲染器获取 VNode 并调用 DOM JavaScript 来创建网页。</p>
+<p>最后，在修补阶段，呈现器获取旧的和新的 VNodes，比较两者，并且仅更新网页中已经改变的部分。当反应对象改变时，反应模块触发修补阶段。</p>
+<p>使用虚拟 DOM，Vue 确保这些功能在一个大的组件树上是可执行的。</p>
+<p>为了满足我们之前陈述的核心反应性需求，反应性模块将首先基于<code>data</code>函数中的数据属性创建 JavaScript 对象。然后，它将把对象包装在一个<code>proxy</code>中，并将其存储为<code>this.$data</code>，这意味着我们的示例应用程序中的数据属性<code>this.city</code>和<code>this.town</code>将变成<code>this.$data.city</code>和<code>this.$data.town</code>。前者的数据属性是后者的别名。</p>
+<p>代理是一个 ES6 JavaScript 对象，它封装了另一个对象，并允许您拦截与该对象的任何交互。接下来，代理将把计算出的属性<code>location</code>包装在一个<code>effect</code>函数中，每当访问计算出的属性时，该函数就会运行。该效果将运行<code>location</code>函数中的表达式，例如，连接<code>city</code>和<code>town</code>数据属性。</p>
+<p>在这个操作过程中，代理将调用一个<code>handler</code>函数。使用<code>handler</code>函数内的<code>get</code>处理程序中的<code>track</code>函数，<code>handler</code>函数将跟踪并记录当前正在运行的效果。</p>
+<p>Vue 知道将数据属性<code>city</code>和<code>town</code>标记为效果的<code>dep</code>，意味着<code>location</code>依赖于<code>city</code>和<code>town</code>，因此它们是<code>location</code>的<code>deps</code>，依赖关系。</p>
+<p>最后，该模块将在<code>handler</code>函数中创建一个<code>set</code>处理程序，每当<code>deps</code>改变时，该处理程序将重新运行效果。在<code>set</code>处理程序中有一个<code>trigger</code>函数，它将查找依赖于属性的效果，然后启动重新运行过程。</p>
+<h2 id="conclusion">结论</h2>
+<p>尽管 Svelte 带来了额外的好处，但许多开发人员还没有准备好迁移到它，主要是因为它缺乏灵活性和较小的社区支持。</p>
+<p>毫无疑问，Svelte 是一个高性能的框架，但是 Vue 已经有多年的时间和大量的支持来实现和改进这些方面。Svelte 是一个相对较新的框架，它仍在试图在生态系统中找到自己的立足点。</p>
+<p>希望 Svelte 的创造者 Rich Harris 和 Vercel 之间的合作将推动 Svelte 达到应有的高度。我希望你喜欢这篇文章！</p>
+<p> </p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的 Vue 应用</h2><p>调试 Vue.js 应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的 Vue 突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Vue 应用程序中发生的一切，包括网络请求、JavaScript 错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex 插件将 Vuex 突变记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试 Vue 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

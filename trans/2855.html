@@ -1,0 +1,423 @@
+<html>
+<head>
+<title>Pagination and infinite scroll with React Query v3 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React Query v3 的分页和无限滚动</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/pagination-infinite-scroll-react-query-v3/#0001-01-01">https://blog.logrocket.com/pagination-infinite-scroll-react-query-v3/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当大型数据集处理不当时，开发人员和最终用户都会感受到负面影响。前端开发人员可以用来有效呈现大型数据集的两种流行的 UI 模式是分页和无限滚动。这些模式通过一次只呈现或获取小块数据来提高应用程序的性能，通过允许用户轻松浏览数据来大大提高 UX。</p>
+<p>在本教程中，我们将学习如何使用 React Query 实现分页和无限滚动。我们将使用<a href="https://randomuser.me/documentation">随机用户 API </a>，它允许您在一个请求中或者在带有分页的小块中获取多达 5000 个随机用户。本文假设您对 React 有基本的了解。下面的 gif 是我们将要构建的一个演示:</p>
+<p><img data-attachment-id="103074" data-permalink="https://blog.logrocket.com/pagination-infinite-scroll-react-query-v3/react-query-random-user-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif" data-orig-size="480,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-query-random-user-api" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api-300x165.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif" decoding="async" class="aligncenter wp-image-103074 size-full jetpack-lazy-image" src="../Images/244ce898b8803cb5e1a787b3e3c3d547.png" alt="React Query Random User API" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="103074" data-permalink="https://blog.logrocket.com/pagination-infinite-scroll-react-query-v3/react-query-random-user-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif" data-orig-size="480,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-query-random-user-api" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api-300x165.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif" decoding="async" loading="lazy" class="aligncenter wp-image-103074 size-full" src="../Images/244ce898b8803cb5e1a787b3e3c3d547.png" alt="React Query Random User API" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/react-query-random-user-api.gif"/></noscript>
+<p>我们开始吧！</p>
+
+<h2 id="react-query">反应查询</h2>
+<p><a href="https://blog.logrocket.com/whats-new-in-react-query-3/"> React Query 使得在 React 应用中获取、缓存、同步和更新服务器状态</a>变得容易。React Query 提供了一些功能，如数据缓存、对同一数据的多个请求进行重复数据删除、在后台更新状态数据、性能优化，如分页和延迟加载数据、记忆查询结果、预取数据、突变等，这些功能允许无缝管理服务器端状态。</p>
+<p>所有这些功能都是用几行代码实现的，React Query 会在后台为您处理其余的工作。</p>
+<h2 id="set-up-project">设置项目</h2>
+<p>我们首先初始化一个新的 React 应用程序并安装 React Query，如下所示:</p>
+<pre class="“language-bash">npx create-react-app app-name
+npm install react-query
+</pre>
+<p>用<code>npm start</code>启动服务器，让我们开始吧！</p>
+<h3 id="set-up-react-query">设置反应查询</h3>
+<p>为了初始化 React Query 的新实例，我们将从 React Query 导入<code>QueryClient</code>和<code>QueryClientProvider</code>。然后，我们用<code>QueryClientProvider</code>包装这个应用，如下所示:</p>
+<pre class="“language-javascript">//App.js
+
+import {
+  QueryClient,
+  QueryClientProvider,
+} from 'react-query'
+
+const queryClient = new QueryClient()
+
+ReactDOM.render(
+  &lt;React.StrictMode&gt;
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;App /&gt;
+    &lt;/QueryClientProvider&gt;
+  &lt;/React.StrictMode&gt;,
+  document.getElementById('root')
+);
+</pre>
+
+<p><code>useQuery</code>钩子用于从 API 获取数据。查询是对具有唯一键的异步数据源的声明性依赖。为了实现分页，我们理想情况下需要增加或减少查询的<code>pageIndex</code>或光标。将<code>keepPreviousData</code>设置为<code>true</code>会给我们带来以下好处:</p>
+<ul>
+<li>即使查询关键字已更改，上次成功提取的数据仍将可用</li>
+<li>一旦新数据到达，以前的数据将与新数据交换</li>
+<li><code>isPreviousData</code>检查查询当前提供了哪些数据</li>
+</ul>
+<p>在 React Query 以前的版本中，分页是用<a href="https://react-query.tanstack.com/guides/migrating-to-react-query-3"> <code>usePaginatedQuery()</code> </a>实现的，在编写本文时已经弃用。让我们在<code>src</code>文件夹中创建一个新组件，并将其命名为<code>Pagination.js</code>:</p>
+<pre class="“language-javascript">// Pagination.js
+
+import React from 'react'
+
+function Pagination() {
+  return (
+    &lt;div&gt;Pagination View&lt;/div&gt;
+  )
+}
+
+export default Pagination;
+</pre>
+<p>接下来，我们将编写一个获取数据并将其传递给<code>useQuery</code>钩子的函数:</p>
+<pre class="“language-javascript">// Pagination.js
+
+const [page, setPage] = useState(1);
+
+const fetchPlanets = async (page) =&gt; {
+  const res = await fetch(`https://randomuser.me/api/page=${page}&amp;results=10&amp;seed=03de891ee8139363`);
+  return res.json();
+}
+
+const {
+    isLoading,
+    isError,
+    error,
+    data,
+    isFetching,
+    isPreviousData
+  } = useQuery(['users', page], () =&gt; fetchPlanets(page), { keepPreviousData: true });
+</pre>
+<p>注意我们是如何传入一个页码和<code>results=10</code>的，每页只获取 10 个结果。</p>
+<p><code>useQuery</code>钩子返回数据和重要的状态，可以用来随时跟踪请求。在任何给定时刻，查询只能处于其中一种状态。</p>
+<ul>
+<li><code>isLoading or status === 'loading'</code>:查询没有数据，当前正在提取</li>
+<li><code>isError or status === 'error'</code>:查询遇到错误</li>
+<li><code>isSuccess or status === 'success'</code>:查询成功，有数据</li>
+</ul>
+<p>我们还有<code>isPreviousData</code>，它之所以可用是因为我们将<code>keepPreviousData</code>设置为<code>true</code>。使用这些信息，我们可以在 JSX 中显示结果:</p>
+<pre class="“language-javascript">// Pagination.js
+
+if (isLoading) {
+    return &lt;h2&gt;Loading...&lt;/h2&gt;
+  }
+
+  if (isError) {
+    return &lt;h2&gt;{error.message}&lt;/h2&gt;
+  }
+
+return (
+ &lt;div&gt;
+
+      &lt;h2&gt;Paginated View&lt;/h2&gt;
+
+      {data &amp;&amp; (
+        &lt;div className="card"&gt;
+          {data?.results?.map(user =&gt; &lt;Users key={user.id} user={user} /&gt;)}
+        &lt;/div&gt;
+      )}
+
+      &lt;div&gt;{isFetching ? 'Fetching...' : null}&lt;/div&gt;
+    &lt;/div&gt;
+)
+</pre>
+<p>为了显示获取的数据，我们将创建一个名为<code>Users</code>的可重用无状态组件:</p>
+<pre class="“language-javascript">//Users.js
+
+import React from 'react';
+
+const Users = ({ user }) =&gt; {
+  return (
+    &lt;div className='card-detail'&gt;
+      &amp;lt;img src={user.picture.large} /&gt;
+      &lt;h3&gt;{user.name.first}{user.name.last}&lt;/h3&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default Users;
+</pre>
+<p>接下来，在<code>Pagination.js</code>文件中，我们将为用户实现在不同页面之间导航的导航:</p>
+<pre class="“language-javascript">  // Pagination.js
+
+   &lt;div className='nav btn-container'&gt;
+        &lt;button
+          onClick={() =&gt; setPage(prevState =&gt; Math.max(prevState - 1, 0))}
+          disabled={page === 1}
+        &gt;Prev Page&lt;/button&gt;
+
+        &lt;button
+          onClick={() =&gt; setPage(prevState =&gt; prevState + 1)}
+        &gt;Next Page&lt;/button&gt;
+      &lt;/div&gt;
+</pre>
+<p>在下面的代码中，我们根据用户点击的按钮增加或减少传递给 API 的页码:</p>
+<pre class="“language-javascript">// Pagination.js
+
+import React, { useState } from 'react';
+import { useQuery } from 'react-query';
+import User from './User';
+
+const fetchUsers = async (page) =&gt; {
+  const res = await fetch(`https://randomuser.me/api/?page=${page}&amp;results=10&amp;seed=03de891ee8139363`);
+  return res.json();
+}
+
+const Pagination = () =&gt; {
+  const [page, setPage] = useState(1);
+
+  const {
+    isLoading,
+    isError,
+    error,
+    data,
+    isFetching,
+  } = useQuery(['users', page], () =&gt; fetchUsers(page), { keepPreviousData: true });
+
+
+  if (isLoading) {
+    return &lt;h2&gt;Loading...&lt;/h2&gt;
+  }
+
+  if (isError) {
+    return &lt;h2&gt;{error.message}&lt;/h2&gt;
+  }
+
+  return (
+    &lt;div&gt;
+
+      &lt;h2&gt;Paginated View&lt;/h2&gt;
+
+      {data &amp;&amp; (
+        &lt;div className="card"&gt;
+          {data?.results?.map(user =&gt; &lt;User key={user.id} user={user} /&gt;)}
+        &lt;/div&gt;
+      )}
+      &lt;div className='nav btn-container'&gt;
+        &lt;button
+          onClick={() =&gt; setPage(prevState =&gt; Math.max(prevState - 1, 0))}
+          disabled={page === 1}
+        &gt;Prev Page&lt;/button&gt;
+
+        &lt;button
+          onClick={() =&gt; setPage(prevState =&gt; prevState + 1)}
+        &gt;Next Page&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div&gt;{isFetching ? 'Fetching...' : null}&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default Pagination;
+</pre>
+
+<p>代替<code>useQuery</code>钩子，我们将使用<code>useInfiniteQuery</code>钩子将更多的数据加载到现有的数据集上。</p>
+<p>关于<code>useInfiniteQuery</code>，有几点需要注意:</p>
+<ul>
+<li><code>data</code>现在是一个包含无限查询数据的对象</li>
+<li><code>data.pages</code>是包含提取页面的数组</li>
+<li><code>data.pageParams</code>是包含用于获取页面的页面参数的数组</li>
+<li><code>fetchNextPage</code>和<code>fetchPreviousPage</code>功能现已可用</li>
+<li><code>getNextPageParam</code>和<code>getPreviousPageParam</code>选项均可用于确定是否有更多数据要加载，以及是否有更多信息要获取</li>
+<li>一个<code>hasNextPage</code>，如果<code>getNextPageParam</code>返回一个非未定义的值，则为<code>true</code></li>
+<li>一个<code>hasPreviousPage</code>，如果<code>getPreviousPageParam</code>返回一个非未定义的值，则为<code>true</code></li>
+<li><code>isFetchingNextPage</code>和<code>isFetchingPreviousPage</code>布尔值区分后台刷新状态和加载更多状态</li>
+</ul>
+<blockquote><p>注意:<code>getNextPageParam</code>和<code>getPreviousPageParam</code>提供的信息是查询函数中的一个附加参数，在调用<code>fetchNextPage</code>或<code>fetchPreviousPage</code>函数时可以随意覆盖。</p></blockquote>
+<p>让我们在<code>src</code>文件夹中创建另一个名为<code>InfiniteScroll.js</code>的组件。我们将编写获取数据的函数，并将其传递给<code>useInfiniteQuery</code>钩子，如下所示:</p>
+<pre class="“language-javascript">//InfiniteScroll.js
+
+const fetchUsers = async ({ pageParam = 1 }) =&gt; {
+    const res = await fetch(`https://randomuser.me/api/?page=${pageParam}&amp;results=10`);
+    return res.json();
+}
+
+    const {
+        isLoading,
+        isError,
+        error,
+        data,
+        fetchNextPage,
+        isFetching,
+        isFetchingNextPage
+    } = useInfiniteQuery(['colors'], fetchUsers, {
+        getNextPageParam: (lastPage, pages) =&gt; {
+            return lastPage.info.page + 1
+        }
+    })
+</pre>
+<p>使用上面的代码，我们可以很容易地在 UI 上实现一个 load more 按钮，方法是等待获取第一批数据，在<code>getNextPageParam</code>中返回下一个查询的信息，然后调用<code>fetchNextPage</code>获取下一批数据。</p>
+<p>让我们呈现检索到的数据并实现一个 load more 按钮:</p>
+<pre class="“language-javascript">// InfiniteScroll.js
+if (isLoading) {
+        return &lt;h2&gt;Loading...&lt;/h2&gt;
+    }
+
+    if (isError) {
+        return &lt;h2&gt;{error.message}&lt;/h2&gt;
+    }
+
+    return (
+        &lt;&gt;
+            &lt;h2&gt;Infinite Scroll View&lt;/h2&gt;
+            &lt;div className="card"&gt;
+                {data.pages.map(page =&gt;
+                    page.results.map(user =&gt; &lt;User key={user.id} user={user} /&gt;)
+                )}
+            &lt;/div&gt;
+            &lt;div className='btn-container'&gt;
+                &lt;button onClick={fetchNextPage}&gt;Load More&lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div&gt;{isFetching &amp;&amp; !isFetchingNextPage ? 'Fetching...' : null}&lt;/div&gt;
+        &lt;/&gt;
+    )
+</pre>
+<p>为了显示数据，我们重用了<code>Users</code>组件。</p>
+<p>注意当点击<strong> load more </strong>按钮时，我们是如何调用<code>fetchNextPage</code>的。<code>getNextPageParam</code>中返回的值被自动传递给端点，以便获取另一组数据:</p>
+<pre class="“language-javascript">// InfiniteScroll.js
+
+import { useInfiniteQuery } from 'react-query'
+import User from './User';
+
+
+const fetchUsers = async ({ pageParam = 1 }) =&gt; {
+    const res = await fetch(`https://randomuser.me/api/?page=${pageParam}&amp;results=10`);
+    return res.json();
+}
+
+const InfiniteScroll = () =&gt; {
+
+
+    const {
+        isLoading,
+        isError,
+        error,
+        data,
+        fetchNextPage,
+        isFetching,
+        isFetchingNextPage
+    } = useInfiniteQuery(['colors'], fetchUsers, {
+        getNextPageParam: (lastPage, pages) =&gt; {
+            return lastPage.info.page + 1
+        }
+    })
+
+    if (isLoading) {
+        return &lt;h2&gt;Loading...&lt;/h2&gt;
+    }
+
+    if (isError) {
+        return &lt;h2&gt;{error.message}&lt;/h2&gt;
+    }
+
+    return (
+        &lt;&gt;
+            &lt;h2&gt;Infinite Scroll View&lt;/h2&gt;
+            &lt;div className="card"&gt;
+                {data.pages.map(page =&gt;
+                    page.results.map(user =&gt; &lt;User key={user.id} user={user} /&gt;)
+                )}
+            &lt;/div&gt;
+            &lt;div className='btn-container'&gt;
+                &lt;button onClick={fetchNextPage}&gt;Load More&lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div&gt;{isFetching &amp;&amp; !isFetchingNextPage ? 'Fetching...' : null}&lt;/div&gt;
+        &lt;/&gt;
+    )
+}
+
+export default InfiniteScroll;
+</pre>
+<p>让我们导入<code>App.js</code>中的组件，并适当地渲染它们:</p>
+<pre class="“language-javascript">// App.js
+
+import './App.css';
+import Pagination from './Pagination';
+import InfiniteScroll from './InfiniteScroll';
+import { useState } from 'react';
+
+function App() {
+  const [view, setView] = useState('pagination')
+
+  return (
+    &lt;div &gt;
+      &lt;h1&gt;Welcome to Random Users&lt;/h1&gt;
+
+      &lt;nav className='nav'&gt;
+        &lt;button onClick={() =&gt; setView('pagination')}&gt;Pagination&lt;/button&gt;
+        &lt;button onClick={() =&gt; setView('infiniteScroll')}&gt;Infinite Scroll&lt;/button&gt;
+      &lt;/nav&gt;
+
+      {view === 'pagination' ? &lt;Pagination /&gt; : &lt;InfiniteScroll /&gt;}
+    &lt;/div&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>最后，我们添加 CSS:</p>
+<pre class="“language-css">body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #222;
+  color: #ddd;
+  text-align: center;
+}
+
+.card{
+  display: flex;
+  justify-content: space-between;
+  text-align: center;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.card-detail{
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  width: 15rem;
+  height: 15rem;
+  margin: 1rem;
+
+}
+
+.card-detail h3{
+
+  color: #ffff57;
+}
+
+.btn-container{
+  text-align: center;
+  margin-bottom: 5rem;
+  margin-top: 2rem;
+}
+
+.nav{
+  text-align: center;
+}
+
+.nav button{
+  margin-right: 2rem;
+}
+
+button{
+  padding: 0.5rem;
+  background-color: aqua;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们学习了如何使用 React Query 实现分页和无限滚动，React Query 是一个非常流行的状态管理 React 库。React Query 经常被描述为 React 生态系统中的缺失部分。在本文中，我们已经看到了如何通过调用一个钩子并传入一个函数来完全管理整个请求-响应周期，而不会产生歧义。</p>
+<p>我希望你喜欢这篇文章！如果你有任何问题，一定要留下评论。编码快乐！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用 LogRocket 消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款 React analytics 解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket 告诉您 React 应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS 异常、前端性能指标和用户交互。然后，LogRocket 使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的 React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试 LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,158 @@
+<html>
+<head>
+<title>Provider vs. Riverpod: Comparing state managers in Flutter - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>提供商 vs. Riverpod:在 Flutter - LogRocket 博客中比较状态管理器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/provider-vs-riverpod-comparing-state-managers-in-flutter/#0001-01-01">https://blog.logrocket.com/provider-vs-riverpod-comparing-state-managers-in-flutter/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>面对如此多的选项，在为您的应用程序选择状态管理器时很容易不知所措。似乎各种各样的状态管理解决方案发布的频率超出了人们的想象，每种解决方案都希望呈现一种独特的、更简单的状态处理方式。</p>
+<p>在本文中，我们将介绍两种不同的状态管理工具:Provider 和 Riverpod。我们将简要介绍每个工具，以了解 Riverpod 提供的改进以及为什么人们会选择它而不是提供商，然后重点介绍提供商在 Riverpod 提供的解决方案方面存在的问题。</p>
+<p>这篇文章假设你熟悉 Flutter。因为这不是对 Riverpod 或提供者状态管理包的介绍，所以我们不会对它们的特性进行太深入的研究——仅仅指出它们之间的比较就足够了。这篇文章关注 Riverpod 作为 Provider 的自然继承者。</p>
+<h2>什么是国家？</h2>
+<p>状态是小部件在构建时保存的一条信息，并且可以在小部件刷新时改变。在应用程序的小部件之间或内部存储和传递的某些数据或信息被称为“状态”</p>
+<p>Flutter 中的一切都与处理和操纵精确的细节有关，要么从用户那里检索，要么以某种形式显示给用户。您选择的处理状态的方法会直接影响应用程序的行为和安全性。</p>
+<h2>状态管理</h2>
+<p>状态管理指的是用于处理应用程序状态的技术或方法。状态管理技术多种多样，适合各种需求。任何状态管理技术都没有放之四海而皆准的方法；<a href="https://blog.logrocket.com/flutter-state-management-methods/" target="_blank" rel="noopener">你挑选一个符合你需求的</a>并且最适合你的。</p>
+<h2>Riverpod</h2>
+<p><a href="https://riverpod.dev/" target="_blank" rel="noopener"> Riverpod </a>是 Remi Rousselet(提供者的创建者)发布的状态管理包。Rousselet 通过重新排列单词“Provider”的字母得到了单词 Riverpod。</p>
+<p>Riverpod 主要是为了解决 Provider 的缺陷而构建的(我们将在后面讨论其中的一些缺陷)。它快速易用，开箱即用，是一个快速、轻量级的状态管理包。</p>
+<p>自从正式发布以来，Riverpod 已经在状态管理社区掀起了一股浪潮，因为它以编译安全的方式对状态进行了直接而强大的处理。</p>
+<p>在 Riverpod 中，您可以声明提供者，并在任何您想使用它的地方调用它。Riverpod 简单快捷。</p>
+<p>看看这个用 Riverpod 进行状态管理的例子。首先，我们将整个应用程序包装在一个<code>ProviderScope</code>中。<code>ProviderScope</code>确定应用程序中创建的所有提供者的范围，并允许全局使用任何声明的提供者:</p>
+<pre>import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+void main() =&gt; runApp(ProviderScope(child: RiverPodApp()));
+</pre>
+<p>接下来，声明提供者:</p>
+<pre>final favoriteProvider = ChangeNotifierProvider((ref) =&gt; new Favorites());
+</pre>
+<p>这里我们使用了<code>ChangeNotifierProvider</code>。这个提供者将一直为我们提供<code>Favorites</code>类。</p>
+<p>为了利用我们的小部件中的提供者，扩展<code>ConsumerWidget</code>:</p>
+<pre>class RiverPodApp extends ConsumerWidget {
+ const RiverPodApp({Key? key}) : super(key: key);
+ @override
+ Widget build(BuildContext context, ScopedReader watch) {
+  return MaterialApp(
+   home: Scaffold(
+    appBar: AppBar(
+     title: Text('My favorite fruit is ' + watch(favoriteProvider).fruit),
+    ),
+    body: Center(
+     child: Column(
+      children: [
+       FruitButton('Apples'),
+       FruitButton('Oranges'),
+       FruitButton('Bananas'),
+      ],
+     ),
+    ),
+   ),
+  );
+ }
+}
+</pre>
+<p>注意，<code>ConsumerWidget</code>让我们可以访问<code>build</code>方法中的<code>ScopedReader</code>，它提供了对提供者内容的访问。</p>
+<p>在这个例子中，我们为不同的水果创建了三个按钮。当每个按钮被点击时，应用程序栏中的水果名称会发生变化。当你启动应用程序时，应用程序栏上写着，“我最喜欢的水果是未知的。”当每个水果按钮被点击时，水果的名称改变。</p>
+<p>这种改变是可能的，因为 app bar 监视在<code>Favorite</code>类中创建的变量<code>fruit</code>(默认情况下，它被称为“未知”)。当每个按钮被点击时，调用<code>changeFruit</code>函数，给水果变量赋一个新值并更新小部件:</p>
+<pre>class FruitButton extends StatelessWidget {
+ final String fruit;
+ FruitButton(this.fruit);
+ @override
+ Widget build(BuildContext context) {
+  return ElevatedButton(
+   child: Text(fruit),
+   onPressed: () {
+    context.read(favoriteProvider).changeFruit(fruit);
+   },
+  );
+ }
+}
+class Favorites extends ChangeNotifier {
+ String fruit = 'unknown';
+ void changeFruit(String newFruit) {
+  fruit = newFruit;
+  notifyListeners();
+ }
+}
+</pre>
+<h2>为什么选择 Riverpod？</h2>
+<p>下面列出了选择 Riverpod 的各种原因:</p>
+<ul>
+<li>Riverpod 是编译时安全的</li>
+<li>它不直接依赖于 Flutter SDK</li>
+<li>Riverpod 可用于创建和实施具有不可变模型类的单向数据流(意味着它们不会改变)</li>
+<li>Riverpod 不直接依赖于小部件树；其操作类似于服务定位器。这些提供程序是全局声明的，可以在应用程序中的任何地方使用</li>
+<li>Riverpod 通过<code>ScopedReader</code>让小部件访问提供者，这被传递给 build 方法，并最终通过<code>ConsumerWidget</code>类消费</li>
+</ul>
+<h2>Riverpod 解决的提供商问题</h2>
+<p>Riverpod 解决了 Provider 的几个缺陷。</p>
+<p>首先，与 Riverpod 不同，提供商完全依赖于 Flutter。因为它的窗口小部件用于提供对象或状态，所以它完全依赖于 Flutter，导致 UI 代码和依赖注入的混合。</p>
+<p>另一方面，Riverpod 不依赖于小部件；您可以在 Riverpod 中声明一个提供者，并在应用程序中的任何地方使用它，而不考虑父小部件。Riverpod 中的提供者被声明为全局变量并放在任何文件中。</p>
+<p>提供者也只依赖对象类型来解析小部件请求的对象。如果你提供两个相同的，你只能得到一个更接近调用点。但是，Riverpod 支持同一类型的多个提供者，您可以随时随地使用它们。</p>
+<p>使用 Provider，如果您尝试访问未提供的类型，将会在运行时出现错误。这个运行时错误不应该这样，因为我们应该在编译应用程序时尽可能多地捕捉错误。Riverpod 通过在编译应用程序时捕捉错误来解决这一问题，使用户体验更加无缝。</p>
+<p>组合两个或更多的提供者会导致可怕的嵌套代码。Riverpod 使用<code>ProviderReference</code>来处理这个问题。提供者的依赖关系是随时注入和调用的，这意味着一个提供者可以依赖另一个提供者，并且可以通过<code>ProviderReference</code>轻松调用。</p>
+<p>这里有一个例子:</p>
+<pre>Future&lt;void&gt; main() async {
+ WidgetsFlutterBinding.ensureInitialized();
+ final sharedPreferences = await SharedPreferences.getInstance();
+ runApp(MultiProvider(
+  providers: [
+   Provider&lt;SharedPreferences&gt;(create: (_) =&gt; sharedPreferences),
+   ChangeNotifierProxyProvider&lt;SharedPreferences, HomeViewModel&gt;(
+    create: (_) =&gt; HomeViewModel(sharedPreferences),
+    update: (context, sharedPreferences, _) =&gt;
+      HomeViewModel(sharedPreferences),
+   ),
+  ],
+  child: Consumer&lt;HomeViewModel&gt;(
+   builder: (_, viewModel) =&gt; HomeView(viewModel),
+  ),
+ ));
+}
+</pre>
+<p>在这个例子中，我们有<code>HomeView</code>，它有一个<code>HomeViewModel</code>参数。但是因为<code>HomeViewModel</code>依赖于<code>SharedPreferences</code>，所以我们需要<code>MultiProvider</code>和<code>ProxyProvider</code>小部件来把所有东西放在一起。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>考虑到这一点，我们可以看到有太多的样板代码。如果所有这些提供者都在小部件之外，而不是在小部件树之内，那就更好了。</p>
+<p>相比之下，在 Riverpod 中，以下是一个依赖于另一个提供者的提供者的示例，没有提供者出现的嵌套问题:</p>
+<pre>final appTokenProvider = StateProvider&lt;String&gt;((_) =&gt; '');
+
+final authenticateFBUser = FutureProvider&lt;void&gt;(
+  (ref) async {
+    final authFBResult = await ref.read(authProvider).login();
+    ref.read(appTokenProvider).state = authFBResult.token;
+  },
+);
+</pre>
+<p>在上面的例子中，<code>authenticateFBUser</code>提供者依赖于<code>appTokenProvider</code>，它通过提供的<code>ProviderReference</code> (ref) Riverpod 调用该提供者。</p>
+<h2>比较提供商和 Riverpod</h2>
+<p>以下是 Provider 和 Riverpod 之间的一些比较:</p>
+<ul>
+<li>Provider 存在运行时异常，但 Riverpod 会处理和纠正这些异常</li>
+<li>提供程序不是编译安全的，而 Riverpod 是</li>
+<li>在 Provider 中，您不能声明多个相同类型的提供者，而在 Riverpod 中，您可以在不覆盖其他提供者的情况下做到这一点</li>
+<li>您可以声明提供者及其类，而无需将应用程序的根文件分散在 Riverpod 中</li>
+<li>在 Riverpod 中，提供者是全局声明的，可以在应用程序的任何地方使用<code>Consumer</code>小部件或<code>context.read</code></li>
+<li>在 Provider 中，依赖可能导致可怕的嵌套代码，而在 Riverpod 中，一个提供者使用<code>ProviderReference</code>消费另一个提供者是很容易的</li>
+</ul>
+<h2>结论</h2>
+<p>正如我前面提到的，Riverpod 是 Provider 的继任者，它们都是由 Remi Rousselet 创建的。Riverpod 可以被视为没有缺点的提供商；它纠正了提供商的许多缺陷。</p>
+<p>然而，如前所述，每个状态管理包都有其优缺点，这完全取决于您的具体用例。我希望这篇文章为你提供了必要的比较，让你在两个选项之间做出正确的决定。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,241 @@
+<html>
+<head>
+<title>Avoiding common mistakes in React Hooks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>避免 React Hooks 中的常见错误</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/avoiding-common-mistakes-in-react-hooks/#0001-01-01">https://blog.logrocket.com/avoiding-common-mistakes-in-react-hooks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>尽管 React Hooks 组件已经存在好几年了，但是在使用这些特性时仍然会经常出现一些错误。在本文中，我们将讨论在转换到 React 挂钩时的一些常见失误，以及如何避免它们。</p>
+<h2 id="codeduplicationduetosideeffects">副作用导致的代码重复</h2>
+<p>虽然 React Hooks 组件允许我们实现与其前身相同的功能，但实现的过程却有很大的不同。对于<code>class</code>组件，副作用会在不同的组件生命周期中运行。相比之下，React Hooks 会因为组件状态的改变而产生副作用。这有时会导致重复。</p>
+<p>以一个<code>Counter</code>组件为例，它在状态<code>count</code>更新时更新页面标题:</p>
+<pre>class Counter extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      count: 0
+    };
+  }
+
+  componentDidMount() {
+    document.title = `You clicked ${this.state.count} times`;
+  }
+  componentDidUpdate() {
+    document.title = `You clicked ${this.state.count} times`;
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;p&gt;You clicked {this.state.count} times&lt;/p&gt;
+        &lt;button onClick={() =&gt; this.setState({ count: this.state.count + 1 })}&gt;
+          Click me
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+</pre>
+<p>你会注意到<code>componentDidMount</code>和<code>componentDidUpdate</code>有相同的代码。这是因为当组件被添加到 DOM 时，以及在所有后续状态更新时，代码都必须运行。这种重复的发生是因为我们必须在组件生命周期的不同阶段运行相同的副作用。即使代码被提取到一个方法中，该方法仍然要被调用两次，这无助于避免重复。</p>
+<p>由于 React 挂钩会因状态改变而产生副作用，因此可以避免复制问题，如下所示:</p>
+<pre>import React, { useState, useEffect } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() =&gt; {
+    document.title = `You clicked ${count} times`;
+  });
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {count} times&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>由于默认情况下<code>useEffect</code>在每次渲染和后续更新后运行，它解决了复制的问题。</p>
+<p>您还可以使用<code>useState</code>对特定状态变量的状态变化做出反应(没有双关的意思):</p>
+<pre>function Counter() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() =&gt; {
+    document.title = `You clicked ${count} times`;
+  }, [count]);
+
+  ...
+}
+</pre>
+<p>在这种情况下,“效果”在状态<code>count</code>改变时运行。这使得状态和副作用的逻辑紧密联系在一起，更容易阅读和理解。</p>
+<h2 id="handlingactionswithuseeffect">用<code>useEffect</code>处理动作</h2>
+<p>尽管<code>useEffect</code>钩子很有用，但有时它会变得“太有用”,从而导致代码过于复杂。这可以从下面的<code>TodoList</code>组件中看出:</p>
+<pre>function TodoList({ onSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [todos, setTodos] = useState(null);
+
+  const fetchTodos = () =&gt; {
+    setLoading(true);
+    callApi()
+      .then((res) =&gt; setTodos(res))
+      .catch((err) =&gt; setError(err))
+      .finally(() =&gt; setLoading(false));
+  };
+
+  useEffect(() =&gt; {
+    fetchTodos();
+  }, []);
+
+  useEffect(() =&gt; {
+    if (!loading &amp;&amp; !error &amp;&amp; todos) {
+      onSuccess();
+    }
+  }, [loading, error, todos, onSuccess]);
+
+  return &lt;div&gt;{todos.map(todo =&gt; &lt;Todo item={todo} /&gt; )}&lt;/div&gt;;
+}
+</pre>
+<p>有两个<code>useEffect</code>钩子:一个在初始渲染时运行，第二个在<code>loading</code>和<code>error</code>为假但<code>todos</code>已被填充时运行(换句话说，当 API 调用成功并调用作为<code>prop</code>传递的方法<code>onSuccess</code>)。这是一个过度工程化的例子，实际上会使代码变得复杂。</p>
+<p>因为我们只想在 API 调用成功时运行<code>onSuccess</code>，所以可以在<code>.then</code>处理程序和组件中调用它，如下所示:</p>
+<pre>function TodoList({ onSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [todos, setTodos] = useState(null);
+
+  const fetchTodos = () =&gt; {
+    setLoading(true);
+    callApi()
+      .then((res) =&gt; {
+         setTodos(res);
+         onSuccess();
+      })
+      .catch((err) =&gt; setError(err))
+      .finally(() =&gt; setLoading(false));
+  };
+
+  useEffect(() =&gt; {
+    fetchTodos();
+  }, []);
+
+  return &lt;div&gt;{todos.map(todo =&gt; &lt;Todo item={todo} /&gt; )}&lt;/div&gt;;
+}
+</pre>
+<p>为了限制代码的复杂性，避免用<code>useEffect</code>处理动作。</p>
+<h2 id="usingusestatewhennorerenderisrequired">不需要重新渲染时使用<code>useState</code></h2>
+<p>任何 React 组件的关键元素之一是它驱动数据流时的状态，以及由此产生的对用户界面的更新。每次状态改变都会触发组件及其子组件的重新呈现。为了避免性能问题，只有在绝对必要时才使用<code>useState</code>。</p>
+<p>为了理解这一点，让我们看一个简单的组件，它有两个按钮——一个更新状态<code>count</code>,另一个使用状态<code>count</code>进行 API 调用:</p>
+<pre>function ClickButton(props) {
+  const [count, setCount] = useState(0);
+
+  const onClickCount = () =&gt; {
+    setCount((c) =&gt; c + 1);
+  };
+
+  const onClickRequest = () =&gt; {
+    apiCall(count);
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;button onClick={onClickCount}&gt;Counter&lt;/button&gt;
+      &lt;button onClick={onClickRequest}&gt;Submit&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>在本例中，您将看到状态从未在<code>render</code>方法中使用，这意味着每次状态改变时都会导致不必要的渲染。在这种情况下，使用<code>useRef</code>钩子会更合适，因为它在渲染之间保留了它的值，也不会导致重新渲染。</p>
+<p>组件应该这样写:</p>
+<pre>function ClickButton(props) {
+  const count = useRef(0);
+
+  const onClickCount = () =&gt; {
+    count.current++;
+  };
+
+  const onClickRequest = () =&gt; {
+    apiCall(count.current);
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;button onClick={onClickCount}&gt;Counter&lt;/button&gt;
+      &lt;button onClick={onClickRequest}&gt;Submit&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>为了避免不必要的重新渲染，避免在状态不更新用户界面时使用<code>useState</code>。</p>
+<h2 id="usingonclicktotriggernavigation">使用<code>onClick</code>触发导航</h2>
+<p>这个问题是 web 开发中的一个普遍的不良实践，并不是 React Hooks 所特有的。假设我们有一个链接到另一个页面的按钮:</p>
+<pre>function ClickButton(props) {
+  const history = useHistory();
+
+  const onClick = () =&gt; {
+    history.push('/next-page');
+  };
+
+  return &lt;button onClick={onClick}&gt;Go to next page&lt;/button&gt;;
+}
+</pre>
+<p>在按钮上贴一个<code>onClick</code>监听器并使用<code>useHistory</code>导航到下一页可能很诱人，因为这是简单的客户端导航…对吗？不对。</p>
+<p>这个场景中的第一个问题是这个按钮没有被检测为链接，这使得屏幕阅读器几乎不可能检测到它。此外，将鼠标悬停在按钮上不会在屏幕底部显示后续链接，尽管这是一个 UX 提示，许多用户已经开始将它与链接联系起来。</p>
+<p>为了避免给用户造成混乱，应该总是使用<code>&lt;Link /&gt;</code>来触发导航，如下所示:</p>
+<pre>function ClickButton(props) {
+  return (
+    &lt;Link to="/next-page"&gt;
+      &lt;span&gt;Go to next page&lt;/span&gt;
+    &lt;/Link&gt;
+  );
+}
+</pre>
+<h2 id="rewritingtestsforreacthooks">重写 React 钩子的测试</h2>
+<p>当一个类组件被转换成带有钩子的函数组件时，重写测试就成了一个问题。理解测试是否需要重写取决于测试是否依赖于组件的实现细节。下面是一个示例测试:</p>
+<pre>test('updateCount updates the count state', () =&gt; {
+  // using enzyme
+  const wrapper = mount(&lt;Counter initialCount="0" /&gt;)
+  expect(wrapper.state('count')).toBe(0)
+  wrapper.instance().updateCount(1)
+  expect(wrapper.state('count')).toBe(1)
+})
+</pre>
+<p>如果组件是用钩子编写的，那么测试将会中断，因为它依赖于特定于类组件的属性(即<code>.state</code>)。</p>
+<p>更好的方法是从用户的角度进行测试，因为用户不关心组件的实现细节。在这种情况下，重写测试将如下所示:</p>
+<pre>import { render, screen } from '@testing-library/react';
+
+test('updateCount updates the count state', () =&gt; {
+  // using React Testing Library
+  render(&lt;Counter initialCount="0" /&gt;)
+  expect(screen.getByText("Initial count: 0")).toBeInTheDocument()
+
+  userEvent.click(screen.getByText("Update count"))
+  expect(screen.getByText("Initial count: 1")).toBeInTheDocument()
+})
+</pre>
+<p>使用这种方法，测试不会因为实现细节的变化而中断。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们已经了解了在转换到 React 钩子时出现的一些常见错误。我们还了解了如何避免这些错误以及应该遵循的最佳实践。点击了解更多关于 React 钩子<a href="https://reactjs.org/docs/hooks-intro.html">的信息。</a></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

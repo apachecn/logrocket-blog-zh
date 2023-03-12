@@ -1,0 +1,528 @@
+<html>
+<head>
+<title>How to implement infinite scroll pagination in Flutter - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在 Flutter - LogRocket 博客中实现无限滚动分页</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/#0001-01-01">https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>你有没有想过 Instagram 和 Twitter 这样的社交媒体平台如何在用户滚动应用程序时不断向他们提供帖子？感觉这些页面永远不会结束，即使你可能也注意到了屏幕上周期性出现的加载指示器。</p>
+<p>这是无限滚动分页的可视化实现的一个例子。它有时也被称为无限滚动分页、自动分页、延迟加载分页或渐进加载分页。</p>
+<p>在软件开发中，分页是将数据分成连续段的过程，从而允许用户以他们期望的速度使用数据位。当您的应用程序提供大量有序的数据时，这非常有用，就像用户在浏览 Instagram 或 Twitter 时的体验一样。这也是有益的，因为一次加载所有数据可能会降低应用程序的性能，并且用户可能不会消耗掉您提供的所有数据。</p>
+<p>在本教程中，您将学习如何使用<a href="https://api.flutter.dev/flutter/widgets/ListView-class.html" target="_blank" rel="noopener"> ListView </a>、<a href="https://api.flutter.dev/flutter/widgets/ScrollController-class.html" target="_blank" rel="noopener"> ScrollController </a>和<a href="https://pub.dev/packages/infinite_scroll_pagination" target="_blank" rel="noopener">infinite _ scroll _ pagination</a>包对您的 Flutter 小部件进行分页，并给用户一种无限滚动的感觉。</p>
+<p>我们将具体介绍以下几个部分:</p>
+
+<h2 id="getting-started">入门指南</h2>
+<h3 id="prerequisites">先决条件</h3>
+
+
+<p>本教程将演示如何通过构建一个基本的博客应用程序来实现无限滚动分页。应用程序利用<a href="https://jsonplaceholder.typicode.com/" target="_blank" rel="noopener"> JSONPlaceholder API </a>的<code>Post</code>资源作为其数据源。屏幕上显示的每个帖子都将提供其标题和正文，如下所示:</p>
+<p><img data-attachment-id="114364" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/infinite-scroll-pagination-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example.gif" data-orig-size="730,1640" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scroll-pagination-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example-134x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example-456x1024.gif" decoding="async" class="aligncenter size-full wp-image-114364 jetpack-lazy-image" src="../Images/42d4a87a4c2e0df88565e53807edc616.png" alt="An example of infinite scroll pagination" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114364" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/infinite-scroll-pagination-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example.gif" data-orig-size="730,1640" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scroll-pagination-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example-134x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example-456x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114364" src="../Images/42d4a87a4c2e0df88565e53807edc616.png" alt="An example of infinite scroll pagination" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/infinite-scroll-pagination-example.gif"/></noscript>
+<p>应用程序从获取前十篇文章开始。当用户向下滚动页面时，它会获取更多的帖子。</p>
+<p>请注意出现在屏幕上加载的帖子之前的圆形进度指示器的位置。同样，屏幕底部的第二个指示器指示更多的帖子正在被获取。</p>
+
+<p>应用程序获取下一组文章的时间点取决于您的偏好。当用户到达屏幕上最后一个可用的帖子时，您可以选择获取更多数据，因为此时，您可以确定用户有兴趣查看更多帖子。</p>
+<p>然而，等待这么长时间也会迫使用户每次到达屏幕底部时都要等待应用程序获取帖子；你应该知道这个指标的位置会影响你的应用程序的 UX。用户等待你的帖子越多，他们对你的应用程序就越不感兴趣。</p>
+<p>通常建议您在用户看到时间线上 60-80%的数据后获取新的或额外的数据。这样，当您推断用户对查看更多数据感兴趣时，您也在获取和准备数据。在用户查看完文章的当前部分之前获取附加数据需要更短的等待时间。</p>
+<p>另一方面，当用户还没有到达时间线的一半时获取更多的数据可能会导致应用程序用尽不必要的资源来获取用户可能不感兴趣或不想看到的数据。</p>
+
+<p>错误通信是另一个要考虑的事情。在获取数据时，有两个要点可能会出现错误:</p>
+<ol>
+<li>当应用程序正在获取第一个分页数据时:此时，屏幕上没有帖子，当出现错误时，错误显示在屏幕的中央，如下所示:<br/> <img data-attachment-id="114367" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-fetching-first-paginated-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png" data-orig-size="386,716" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-fetching-first-paginated-data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data-162x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png" decoding="async" class="aligncenter size-full wp-image-114367 jetpack-lazy-image" src="../Images/5a7bad44635112df78d0d3bc2af34cd5.png" alt="The message displayed when there is an error fetching the first set of paginated data" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png 386w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data-162x300.png 162w" data-lazy-sizes="(max-width: 386px) 100vw, 386px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png"/> <noscript> <img data-lazy-fallback="1" data-attachment-id="114367" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-fetching-first-paginated-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png" data-orig-size="386,716" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-fetching-first-paginated-data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data-162x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114367" src="../Images/5a7bad44635112df78d0d3bc2af34cd5.png" alt="The message displayed when there is an error fetching the first set of paginated data" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png 386w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data-162x300.png 162w" sizes="(max-width: 386px) 100vw, 386px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-first-paginated-data.png"/> </noscript></li>
+<li>当应用程序获取更多分页数据时:这里，应用程序已经在屏幕上呈现了帖子。此时出现的错误应显示一条消息，表明用户仍可访问先前加载的数据，并可请求重试:<br/> <img data-attachment-id="114369" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-fetching-more-paginated-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png" data-orig-size="730,1374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-fetching-more-paginated-data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-544x1024.png" decoding="async" class="aligncenter size-full wp-image-114369 jetpack-lazy-image" src="../Images/a32d358efe2dc0b86f159e36c95ffb63.png" alt="The message displayed when there is an error fetching more paginated data" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-159x300.png 159w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-544x1024.png 544w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png"/> <noscript> <img data-lazy-fallback="1" data-attachment-id="114369" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-fetching-more-paginated-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png" data-orig-size="730,1374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-fetching-more-paginated-data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-544x1024.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114369" src="../Images/a32d358efe2dc0b86f159e36c95ffb63.png" alt="The message displayed when there is an error fetching more paginated data" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-159x300.png 159w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data-544x1024.png 544w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-fetching-more-paginated-data.png"/> </noscript></li>
+</ol>
+
+<p><a href="https://api.flutter.dev/flutter/widgets/ListView-class.html" target="_blank" rel="noopener"> <code>ListView</code> </a>是一个给你可滚动功能的抖动窗口小部件。这允许您拥有一个小部件集合，这些小部件不必完全适合屏幕，但可以在您滚动屏幕时单独查看。让我们从零开始，用<code>ListView</code>来看看无限卷轴的上述特性的实现。</p>
+<p>在终端中运行以下命令创建项目文件夹，然后用您喜欢的代码编辑器打开它:</p>
+<pre class="language-bash hljs">flutter create infinite_scroll
+</pre>
+<p>创建一个名为<code>post</code>的 Dart 文件来包含<code>Post</code>模型的代码，然后将以下代码添加到该文件中:</p>
+<pre class="language-dart hljs">class Post {
+  final String title;
+  final String body;
+  Post(this.title, this.body);
+
+}
+</pre>
+<p>接下来，创建一个名为<code>post_item</code>的小部件文件，包含 post 小部件所需的代码。该文件应包含以下内容:</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+
+class PostItem extends StatelessWidget {
+
+  final String title;
+  final String body;
+
+  PostItem(this.title, this.body);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 220,
+      width: 200,
+      decoration: const BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(15)),
+          color: Colors.amber
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: &lt;Widget&gt;[
+            Text(title,
+              style: const TextStyle(
+                  color: Colors.purple,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold
+              ),),
+            const SizedBox(height: 10,),
+            Text(body,
+              style: const TextStyle(
+                  fontSize: 15
+              ),)
+          ],
+        ),
+      ),
+    );
+  }
+}
+</pre>
+<p>上面的代码片段呈现了一个包含文章标题和正文的<code>Container</code>小部件。一个<a href="https://api.flutter.dev/flutter/painting/BoxDecoration-class.html" target="_blank" rel="noopener"> <code>BoxDecoration</code> </a>小部件样式化容器，给出如下输出:</p>
+<p id="gdcalert4"><img data-attachment-id="114372" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/container-body-title-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png" data-orig-size="730,457" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="container-body-title-post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post-300x188.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png" decoding="async" class="aligncenter size-full wp-image-114372 jetpack-lazy-image" src="../Images/9752c0320a5ca3632f738baf516f672a.png" alt="The container with the title and body of our post" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post-300x188.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114372" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/container-body-title-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png" data-orig-size="730,457" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="container-body-title-post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post-300x188.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114372" src="../Images/9752c0320a5ca3632f738baf516f672a.png" alt="The container with the title and body of our post" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post-300x188.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/container-body-title-post.png"/></noscript>
+<p>下一步是创建一个名为<code>post-overview_screen</code>的 Dart 文件，该文件将使用一个<code>ListView</code>以可滚动的格式呈现文章。将以下代码添加到文件中:</p>
+<pre class="language-dart hljs">import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+
+import '../model/post.dart';
+import '../widgets/post_item.dart';
+
+class PostsOverviewScreen extends StatefulWidget {
+
+  @override
+  _PostsOverviewScreenState createState() =&gt; _PostsOverviewScreenState();
+}
+class _PostsOverviewScreenState extends State&lt;PostsOverviewScreen&gt; {
+  late bool _isLastPage;
+  late int _pageNumber;
+  late bool _error;
+  late bool _loading;
+  final int _numberOfPostsPerRequest = 10;
+  late List&lt;Post&gt; _posts;
+  final int _nextPageTrigger = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageNumber = 0;
+    _posts = [];
+    _isLastPage = false;
+    _loading = true;
+    _error = false;
+    fetchData();
+  }
+
+}
+</pre>
+<p>上面的代码片段包含了构建页面所必需的属性的初始化。其中包括:</p>
+<ul>
+<li><code>_isLastPage</code>:一个<code>boolean</code>变量，指示是否有更多数据要提取</li>
+<li><code>_pageNumber</code>:一个<code>int</code>变量，决定要取的分页数据的段。它的初始值为零，因为来自 JSONPlaceholder API 的分页数据是从零开始的</li>
+<li><code>_error</code>:一个<code>boolean</code>变量，指示在获取数据时是否发生了错误</li>
+<li><code>_loading</code>:另一个<code>boolean</code>变量，取决于应用程序当前是否正在请求数据</li>
+<li><code>_numberOfPostsPerRequest</code>:确定每个请求要获取的元素数量</li>
+<li><code>_posts</code>:保存所有提取的帖子的变量</li>
+<li><code>_nextPageTrigger</code>:确定下一次请求获取更多数据的时间点。将值初始化为<code>3</code>意味着当用户在当前页面上还有三篇文章需要查看时，应用程序将请求更多的数据；您可以用不同的值测试应用程序，并比较体验</li>
+</ul>
+<p>接下来，将下面的方法添加到<code>_PostsOverviewScreenState</code>类中。该方法执行从 API 获取数据的逻辑，并使用响应创建一个存储在<code>_posts</code>变量中的<code>Post</code>对象列表。</p>
+<pre class="language-dart hljs">Future&lt;void&gt; fetchData() async {
+    try {
+      final response = await get(Uri.parse(
+          "https://jsonplaceholder.typicode.com/posts?_page=$_pageNumber&amp;_limit=$_numberOfPostsPerRequest"));
+      List responseList = json.decode(response.body);
+      List&lt;Post&gt; postList = responseList.map((data) =&gt; Post(data['title'], data['body'])).toList();
+
+      setState(() {
+        _isLastPage = postList.length &lt; _numberOfPostsPerRequest;
+        _loading = false;
+        _pageNumber = _pageNumber + 1;
+        _posts.addAll(postList);
+      });
+    } catch (e) {
+      print("error --&gt; $e");
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
+    }
+  }
+</pre>
+<p>上面的<code>fetchData</code>方法使用<code>_pageNumber</code>和<code>_numberOfPostsPerRequest</code>变量作为参数，向 API 的 post 资源发送 GET 请求。接收的数据是包含不同帖子值的 JSON 对象列表。下面是从 API 接收的一个数据示例:</p>
+<pre class="language-json hljs">{
+    "userId": 1,
+    "id": 1,
+    "title": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
+    "body": "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
+  }
+</pre>
+<p>当对 API 的请求成功时，<code>json.decode</code>对响应进行解码。每个提取的标题和主体用于创建<code>Post</code>对象的列表。使用<code>setState</code>，变量接收更新。</p>
+<p><code>_isLastPage</code>的值取决于新接收的数据量是否小于请求的数据量。例如，如果应用程序请求了 10 个帖子，但收到了 7 个，这意味着它已经耗尽了帖子的来源。</p>
+<p><code>_pageNumber</code>的值也增加，以便应用程序可以在下一次请求时请求下一个分页数据。</p>
+<p>接下来，仍然在同一个类中，添加以下代码来处理错误:</p>
+<pre class="language-dart hljs">Widget errorDialog({required double size}){
+    return SizedBox(
+      height: 180,
+      width: 200,
+      child:  Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('An error occurred when fetching the posts.',
+            style: TextStyle(
+                fontSize: size,
+                fontWeight: FontWeight.w500,
+                color: Colors.black
+            ),
+          ),
+          const SizedBox(height: 10,),
+          FlatButton(
+              onPressed:  ()  {
+                setState(() {
+                  _loading = true;
+                  _error = false;
+                  fetchData();
+                });
+              },
+              child: const Text("Retry", style: TextStyle(fontSize: 20, color: Colors.purpleAccent),)),
+        ],
+      ),
+    );
+  }
+</pre>
+<p>上面的小部件包含一列传达错误的文本和一个允许用户重试加载帖子的按钮。</p>
+<p>将下面的<code>build</code>方法添加到文件中:</p>
+<pre class="language-dart hljs">@override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Blog App"), centerTitle: true,),
+      body: buildPostsView(),
+    );
+  }
+
+  Widget buildPostsView() {
+    if (_posts.isEmpty) {
+      if (_loading) {
+        return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(),
+            ));
+      } else if (_error) {
+        return Center(
+            child: errorDialog(size: 20)
+        );
+      }
+    }
+      return ListView.builder(
+          itemCount: _posts.length + (_isLastPage ? 0 : 1),
+          itemBuilder: (context, index) {
+
+            if (index == _posts.length - _nextPageTrigger) {
+              fetchData();
+            }
+            if (index == _posts.length) {
+              if (_error) {
+                return Center(
+                    child: errorDialog(size: 15)
+                );
+              } else {
+                return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: CircularProgressIndicator(),
+                    ));
+              }
+            }
+            final Post post = _posts[index];
+            return Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: PostItem(post.title, post.body)
+            );
+          });
+    }
+</pre>
+<p>上面的<code>build</code>方法检查 post 列表是否为空，然后进一步检查应用程序当前是否正在加载或者是否发生了错误。如果是前者，它会在屏幕中央呈现进度指示器；否则，它会显示<code>errorDialog</code>小部件。</p>
+<p id="gdcalert5"><img data-attachment-id="114374" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/progress-indicator-center-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png" data-orig-size="730,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="progress-indicator-center-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-144x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-492x1024.png" decoding="async" class="aligncenter size-full wp-image-114374 jetpack-lazy-image" src="../Images/ab369896abe54ee6c9128492164d5b04.png" alt="Our progress indicator is rendered in the center of the screen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-144x300.png 144w, https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-492x1024.png 492w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114374" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/progress-indicator-center-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png" data-orig-size="730,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="progress-indicator-center-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-144x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-492x1024.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114374" src="../Images/ab369896abe54ee6c9128492164d5b04.png" alt="Our progress indicator is rendered in the center of the screen" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-144x300.png 144w, https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen-492x1024.png 492w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/progress-indicator-center-screen.png"/></noscript>
+<p>如果应用程序当前没有加载，并且在向 API 发出第一个请求时没有发生错误，那么应用程序将使用<code>PostItem</code>小部件呈现<code>Post</code>对象列表中的数据。</p>
+<p>此时，它会进一步检查当前是否正在请求更多数据，为此，它会在屏幕底部显示加载指示器。如果加载更多数据时出现错误，它会在屏幕底部显示<code>errorDialog</code>。</p>
+<p id="gdcalert6"><img data-attachment-id="114376" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-dialog-bottom-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png" data-orig-size="730,832" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-dialog-bottom-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen-263x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png" decoding="async" class="aligncenter size-full wp-image-114376 jetpack-lazy-image" src="../Images/b3c80573fbf52f552a3af3598bbd0649.png" alt="An error dialog appears at the bottom of the screen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen-263x300.png 263w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114376" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-dialog-bottom-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png" data-orig-size="730,832" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-dialog-bottom-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen-263x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114376" src="../Images/b3c80573fbf52f552a3af3598bbd0649.png" alt="An error dialog appears at the bottom of the screen" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen-263x300.png 263w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-dialog-bottom-screen.png"/></noscript>
+<p>如果两者都不是，那么成功获取的数据将呈现在屏幕上。</p>
+<p>最后，这里是<code>main.dart</code>文件:</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+import 'package:infinte_scroll/base_infinite_scroll/post_overview_screen.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+
+        primarySwatch: Colors.purple,
+      ),
+      home:  MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  @override
+  State&lt;MyHomePage&gt; createState() =&gt; _MyHomePageState();
+}
+
+class _MyHomePageState extends State&lt;MyHomePage&gt; {
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: PostsOverviewScreen()
+    );
+  }
+}
+</pre>
+
+<p>Flutter <a href="https://api.flutter.dev/flutter/widgets/ScrollController-class.html" target="_blank" rel="noopener"> <code>ScrollController</code> </a>是<a href="https://api.flutter.dev/flutter/foundation/Listenable-class.html" target="_blank" rel="noopener"> <code>Listenable abstract</code>类</a>的后代，它允许您在客户端正在监听的小部件有更新时通知客户端。您可以使用<code>ScrollController</code>来收听类似于<a href="https://api.flutter.dev/flutter/widgets/ListView-class.html" target="_blank" rel="noopener"><code>ListView</code></a><a href="https://api.flutter.dev/flutter/widgets/GridView-class.html" target="_blank" rel="noopener"><code>GridView</code></a>和<a href="https://api.flutter.dev/flutter/widgets/CustomScrollView-class.html" target="_blank" rel="noopener"> <code>CustomScrollView</code> </a>的可滚动小工具。</p>
+<p>在我们的 tutorial 应用程序的上下文中，<code>ScrollController</code>将负责监控用户向下滚动页面的距离。基于这些信息和您为<code>nextPageTrigger</code>值设置的阈值，它触发从 API 获取数据的方法。</p>
+<p>在<code>post_overview_screen</code>文件中声明并初始化一个<code>ScrollController</code>对象，如下所示:</p>
+<pre class="language-dart hljs">class ScrollControllerDemo extends StatefulWidget {
+
+  @override
+  _ScrollControllerDemoState createState() =&gt; _ScrollControllerDemoState();
+}
+class _ScrollControllerDemoState extends State&lt;ScrollControllerDemo&gt; {
+  late bool _isLastPage;
+  late int _pageNumber;
+  late bool _error;
+  late bool _loading;
+  late int _numberOfPostsPerRequest;
+  late List&lt;Post&gt; _posts;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageNumber = 0;
+    _posts = [];
+    _isLastPage = false;
+    _loading = true;
+    _error = false;
+    _numberOfPostsPerRequest = 10;
+    _scrollController = ScrollController();
+    fetchData();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _scrollController.dispose();
+  }
+
+}
+</pre>
+<p>然后用以下内容替换<code>build</code>方法:</p>
+<pre class="language-dart hljs">@override
+  Widget build(BuildContext context) {
+    _scrollController.addListener(() {
+// nextPageTrigger will have a value equivalent to 80% of the list size.
+      var nextPageTrigger = 0.8 * _scrollController.position.maxScrollExtent;
+
+// _scrollController fetches the next paginated data when the current postion of the user on the screen has surpassed 
+      if (_scrollController.position.pixels &gt; nextPageTrigger) {
+        _loading = true;
+        fetchData();
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Blog App"), centerTitle: true,),
+      body: buildPostsView(),
+    );
+  }
+
+  Widget buildPostsView() {
+    if (_posts.isEmpty) {
+      if (_loading) {
+        return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(),
+            ));
+      } else if (_error) {
+        return Center(
+            child: errorDialog(size: 20)
+        );
+      }
+    }
+    return ListView.builder(
+        controller: _scrollController,
+        itemCount: _posts.length + (_isLastPage ? 0 : 1),
+        itemBuilder: (context, index) {
+
+          if (index == _posts.length) {
+            if (_error) {
+              return Center(
+                  child: errorDialog(size: 15)
+              );
+            }
+            else {
+              return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(),
+                  ));
+            }
+          }
+
+            final Post post = _posts[index];
+            return Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: PostItem(post.title, post.body)
+            );
+        }
+        );
+  }
+</pre>
+<p>在 build 方法中，<code>scrollController</code>对象添加了一个监听器来监视<code>ListView</code>的滚动。然后，当用户使用了帖子列表中 80%以上的数据时，它会调用<code>fetchData</code>方法。</p>
+
+<p>有时，您可能不想从头开始构建和配置分页滚动。<code><a href="https://pub.dev/packages/infinite_scroll_pagination" target="_blank" rel="noopener">infinite scroll pagination package</a></code>是一个外部包，您可以安装它来处理无限滚动操作的数据分页。当请求第一个或额外的分页数据时，这个包抽象了错误和进度处理的过程。</p>
+<p>负责构建无限卷轴的包有三个基本组件，都是泛型类:</p>
+<ol>
+<li><code>PagingController</code>:监视分页数据的状态，并在监听器通知时请求额外的数据</li>
+<li><code>PagedListView</code>:负责接收所需控制器的页面上呈现的数据的视图；在这种情况下，负责分页的<code>pagingController</code></li>
+<li><code>PagedChildBuilderDelegate</code>:负责构建视图中的每一项，并为错误和进度处理构建默认或定制的小部件</li>
+</ol>
+<p>下面是使用这个包构建基本博客应用程序的实现，在前面的章节中已经演示过了:</p>
+<p>在您的终端中运行以下命令，将包添加到您的<code>pubspec.yaml</code>文件中:</p>
+<pre class="language-bash hljs">flutter pub add infinite_scroll_pagination
+</pre>
+<p>下载依赖关系:</p>
+<pre class="language-bash hljs">flutter pub get
+</pre>
+<p>创建一个新的 Dart 文件，并向其中添加以下代码:</p>
+<pre class="language-dart hljs">import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+
+import '../model/post.dart';
+import '../widgets/post_item.dart';
+
+class InfiniteScrollPaginatorDemo extends StatefulWidget {
+  @override
+  _InfiniteScrollPaginatorDemoState createState() =&gt; _InfiniteScrollPaginatorDemoState();
+}
+
+class _InfiniteScrollPaginatorDemoState extends State&lt;InfiniteScrollPaginatorDemo&gt; {
+  final _numberOfPostsPerRequest = 10;
+
+  final PagingController&lt;int, Post&gt; _pagingController =
+  PagingController(firstPageKey: 0);
+
+  @override
+  void initState() {
+    _pagingController.addPageRequestListener((pageKey) {
+      _fetchPage(pageKey);
+    });
+    super.initState();
+  }
+
+ @override
+  void dispose() {
+    _pagingController.dispose();
+    super.dispose();
+  }
+
+}
+</pre>
+<p>回想一下，<code>PagingController</code>是一个接收两个泛型类型参数的泛型类，如上所示。第一个参数<code>int</code>，表示您想要消费的 API 的页码的数据类型。JSONPlaceholder 使用<code>int</code>值来表示每个页面。这个值可能因 API 而异，因此从您想要使用的 API 中找出这个值是很重要的。</p>
+<p><code>firstPageKey</code>参数表示您想要请求的第一个页面的索引。该参数的初始值为零，因为 JSONPlacholder 中的页面有一个从零开始的索引，即第一页的页码是<code>0</code>而不是<code>1</code>。</p>
+<p>在<code>initState</code>，<code>_pagingController</code>设置一个监听器，根据<code>pageKey</code>的当前值获取页面。</p>
+<p>下面是获取页面的实现。在类中添加此方法:</p>
+<pre class="language-dart hljs">Future&lt;void&gt; _fetchPage(int pageKey) async {
+    try {
+      final response = await get(Uri.parse(
+          "https://jsonplaceholder.typicode.com/posts?_page=$pageKey&amp;_limit=$_numberOfPostsPerRequest"));
+      List responseList = json.decode(response.body);
+      List&lt;Post&gt; postList = responseList.map((data) =&gt;
+          Post(data['title'], data['body'])).toList();
+      final isLastPage = postList.length &lt; _numberOfPostsPerRequest;
+      if (isLastPage) {
+        _pagingController.appendLastPage(postList);
+      } else {
+        final nextPageKey = pageKey + 1;
+        _pagingController.appendPage(postList, nextPageKey);
+      }
+    } catch (e) {
+      print("error --&gt; $e");
+      _pagingController.error = e;
+    }
+  }
+</pre>
+<p><code>fetchPage</code>方法接收<code>pageKey</code>作为其参数，并使用其值和数据的首选大小从 API 获取页面。它使用来自 API 响应的数据创建一个<code>Post</code>对象列表。控制器然后使用<code>appendLastPage</code>或<code>appendPage</code>方法保存创建的列表，这取决于新获取的数据是否在最后一页。如果在获取数据时出现错误，控制器使用其<code>error</code>属性来处理它。</p>
+<p>下面是屏幕的<code>build</code>方法:</p>
+<pre class="language-dart hljs"> @override
+  Widget build(BuildContext context) {
+      return Scaffold(
+        appBar:
+          AppBar(title: const Text("Blog App"), centerTitle: true,),
+        body: RefreshIndicator(
+          onRefresh: () =&gt; Future.sync(() =&gt; _pagingController.refresh()),
+          child: PagedListView&lt;int, Post&gt;(
+            pagingController: _pagingController,
+            builderDelegate: PagedChildBuilderDelegate&lt;Post&gt;(
+              itemBuilder: (context, item, index) =&gt;
+                  Padding(
+                    padding: const EdgeInsets.all(15.0),
+                    child: PostItem(
+                        item.title, item.body
+                    ),
+                  ),
+
+            ),
+
+          ),
+        ),
+      );
+}
+</pre>
+<p><a href="https://pub.dev/packages/infinite_scroll_pagination/install" target="_blank" rel="noopener"> <code>infinite scroll pagination</code> </a>包让你可以灵活地将你的小部件包裹在<a href="https://api.flutter.dev/flutter/material/RefreshIndicator-class.html" target="_blank" rel="noopener">刷新指示器</a>周围。这允许您向下拖动屏幕来触发刷新。刷新实现调用控制器的<code>refresh</code>方法来清除其数据。</p>
+<p><code>PageListView</code>也接收您在创建控制器时分配的相同类型的通用类。通过分配给其<code>builderDelegate</code>参数的<code>PageChildBuilderDelegate</code>实例，它构建每个<code>PostItem</code>小部件。</p>
+<h3 id="customizing-your-progress-indicators-error-handling">定制您的进度指示器和错误处理</h3>
+<p>请注意，您不需要像在前面几节中那样配置进度指示器或错误处理操作。这是因为软件包使用其默认值为您处理所有这些。<br/> <img data-attachment-id="114378" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-message-infinite-scroll-pagination-package/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png" data-orig-size="730,1449" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-message-infinite-scroll-pagination-package" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-151x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-516x1024.png" decoding="async" class="aligncenter size-full wp-image-114378 jetpack-lazy-image" src="../Images/67219b71476b9c5fdb75373e2dec77b4.png" alt="The center-screen error message rendered by the infinite_scroll_pagination package" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-151x300.png 151w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-516x1024.png 516w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114378" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/error-message-infinite-scroll-pagination-package/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png" data-orig-size="730,1449" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="error-message-infinite-scroll-pagination-package" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-151x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-516x1024.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114378" src="../Images/67219b71476b9c5fdb75373e2dec77b4.png" alt="The center-screen error message rendered by the infinite_scroll_pagination package" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-151x300.png 151w, https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package-516x1024.png 516w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/error-message-infinite-scroll-pagination-package.png"/></noscript><br/>
+<img data-attachment-id="114380" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/bottom-screen-error-message-infinite-scroll-pagination-package/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png" data-orig-size="730,1378" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bottom-screen-error-message-infinite-scroll-pagination-package" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-542x1024.png" decoding="async" class="aligncenter size-full wp-image-114380 jetpack-lazy-image" src="../Images/b16d34fce4f6cd52ad15e7dbd34aa8cb.png" alt="The bottom-screen error message rendered by the infinite_scroll_pagination package" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-159x300.png 159w, https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-542x1024.png 542w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="114380" data-permalink="https://blog.logrocket.com/implement-infinite-scroll-pagination-flutter/bottom-screen-error-message-infinite-scroll-pagination-package/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png" data-orig-size="730,1378" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bottom-screen-error-message-infinite-scroll-pagination-package" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-542x1024.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114380" src="../Images/b16d34fce4f6cd52ad15e7dbd34aa8cb.png" alt="The bottom-screen error message rendered by the infinite_scroll_pagination package" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-159x300.png 159w, https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package-542x1024.png 542w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/bottom-screen-error-message-infinite-scroll-pagination-package.png"/></noscript>
+<p><code>PageChildBuilderDelegate</code>对象还通过以下可选参数为您提供了定制错误处理和进度操作的灵活性:</p>
+<ul>
+<li><code>newPageErrorIndicatorBuilder</code>:处理更多数据请求时出现的错误。它接收一个小部件，当发生错误时，该部件将在已经加载的数据下面呈现</li>
+<li><code>firstPageErrorIndicatorBuilder</code>:处理第一次请求数据时出现的错误。分配给该操作的小部件呈现在屏幕的中央，因为此时屏幕是空的</li>
+<li><code>firstPageProgressIndicatorBuilder</code>:当应用程序请求它的第一个分页数据时，它接收一个出现在屏幕中央的小部件</li>
+<li><code>newPageProgressIndicatorBuilder</code>:当应用程序请求更多数据时，它会接收一个出现在已有数据下方的小部件</li>
+<li><code>noItemsFoundIndicatorBuilder</code>:当 API 返回一个空的数据集合时，它接收一个小部件。这不被认为是一个错误，因为从技术上讲，API 调用是成功的，但是没有找到数据</li>
+<li><code>noMoreItemsIndicatorBuilder</code>:当用户用尽 API 返回的所有数据时，它接收要呈现的小部件</li>
+</ul>
+<h2>结论</h2>
+<p>在本教程中，您了解了对提供给用户的数据进行分页的必要性，以及在构建分页无限滚动时需要考虑的事项。您还构建了一个基本的博客应用程序，该应用程序从头开始使用<a href="https://api.flutter.dev/flutter/widgets/ListView-class.html" target="_blank" rel="noopener"> <code>ListView</code> </a>、<a href="https://api.flutter.dev/flutter/widgets/ScrollController-class.html" target="_blank" rel="noopener"> <code>ScrollController</code> </a>来跟踪分页，并使用<a href="https://pub.dev/packages/infinite_scroll_pagination" target="_blank" rel="noopener"> <code>&gt;infinite_scroll_pagination</code> </a>外部包来执行无限滚动操作。</p>
+<p>该应用可从<a href="https://github.com/olu-damilare/infinite_scroll_pagination" target="_blank" rel="noopener"> GitHub </a>获取更多信息。干杯！</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

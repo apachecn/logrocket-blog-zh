@@ -1,0 +1,530 @@
+<html>
+<head>
+<title>Build a Rust + WebAssembly frontend web app with Yew - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 Yew - LogRocket 博客构建 Rust + WebAssembly 前端 web 应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/#0001-01-01">https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>虽然 Rust 以其后端 web 开发能力而闻名，但 WebAssembly (Wasm)的出现使得在 Rust 中构建丰富的前端应用成为可能。</p>
+<p/>
+<p>对于那些渴望探索 Rust 开发前端的人，我们将学习如何使用 Yew web 框架构建一个非常基本的前端 web 应用程序。</p>
+<p>如果您熟悉 React 或其他 JavaScript 前端框架，您会觉得使用 Yew 很舒服；它使用与 JSX 类似的语法和应用程序结构。</p>
+<p>为了展示 Rust 和 Yew 的互操作性，我们的前端应用程序将包含一个简单的待办事项列表(原创，我知道！)使用 JSONPlaceholder 作为获取数据的后端。该列表将提供一个列表视图，每个待办事项选项的详细视图，以及一个刷新数据的选项。</p>
+<p>然而，值得注意的是，Wasm 生态系统和 Yew 仍然处于开发的早期阶段，因此，尽管本教程在今天是准确的，但 Wasm 和 Yew 的一些功能在未来可能会发生变化。这可能会稍微影响设置和库生态系统，但我们仍然可以使用这个堆栈构建真正的 Rust 应用程序。</p>
+<p>现在，让我们开始吧！</p>
+<h2>设置 web 应用程序</h2>
+<p>确保<a href="https://blog.logrocket.com/why-is-rust-popular/"> Rust </a> 1.50 或更高和<a href="https://github.com/thedodd/trunk#install"> Trunk </a>都已安装。Trunk 是一个用于基于 Rust 的<a href="https://webassembly.org/"> Wasm </a>应用程序的构建和管道工具，它提供了一个本地开发服务器，自动文件监视，并简化了向 Wasm 发送 Rust 代码。</p>
+<p>要了解如何使用<a href="https://blog.logrocket.com/the-current-state-of-rust-web-frameworks/"> Yew 框架</a>开发应用程序，请查阅<a href="https://yew.rs/"> Yew 文档</a>。</p>
+<h3>创建 Rust 项目</h3>
+<p>让我们从创建一个新的 Rust 项目开始，如下所示:</p>
+<pre>cargo new --lib rust-frontend-example-yew
+cd rust-frontend-example-yew
+</pre>
+<p>用下面的代码添加所需的依赖项来编辑<code>Cargo.toml</code>文件:</p>
+<pre>[dependencies]
+yew = "0.18"
+wasm-bindgen = "0.2.67"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+anyhow = "1"
+yew-router = "0.15.0"
+</pre>
+<p>通过添加<code>Yew</code>和<code>Yew-Router</code>，我们可以开始在 Yew 框架内工作。我们还添加了用于基本错误处理的<code>anyhow</code>，用于 JSON 的<code>serde</code>，以及用于 Rust 的 JavaScript 的<a href="https://github.com/rustwasm/wasm-bindgen"> <code>[wasm-bindgen]</code> </a>。</p>
+<p>设置完成后，让我们开始构建。</p>
+<h3>带主干的 HTML 设置</h3>
+<p>因为我们正在构建一个前端 web 应用程序，所以我们需要一个 HTML 基础。使用<code>Trunk</code>，我们可以在我们的项目根中创建一个最小的<code>index.html</code>,如下所示:</p>
+<pre>&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Rust Frontend Example with Yew&lt;/title&gt;
+    &lt;style&gt;
+        body {
+            font-size: 14px;
+            font-family: sans-serif;
+        }
+        a {
+            text-decoration: none;
+            color: #339;
+        }
+        a:hover {
+            text-decoration: none;
+            color: #33f;
+        }
+        .todo {
+            background-color: #efefef;
+            margin: 100px 25% 25% 25%;
+            width: 50%;
+            padding: 10px;
+        }
+        .todo .nav {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .todo .refresh {
+            text-align: center;
+            margin: 10px 0 10px 0;
+        }
+        .todo .list .list-item {
+            margin: 2px;
+            padding: 5px;
+            background-color: #cfc;
+        }
+        .todo .list .completed {
+            text-decoration: line-through;
+            background-color: #dedede;
+        }
+        .detail {
+            font-size: 16px;
+        }
+        .detail h1 {
+            font-size: 24px;
+        }
+        .detail .id {
+            color: #999;
+        }
+        .detail .completed {
+            color: #3f3;
+        }
+        .detail .not-completed {
+            color: #f33;
+        }
+    &lt;/style&gt;
+  &lt;/head&gt;
+&lt;/html&gt;
+</pre>
+<p>通过一个最小的 HTML 框架和一些非常基本的 CSS，Trunk 创建了注入了<code>body</code>的<code>dist/index.html</code>，为我们的 Wasm 应用程序保留了入口点。</p>
+<p>打开<code>src/lib.rs</code>文件，我们现在可以为我们的<a href="https://github.com/yewstack/yew"> Yew </a> web 应用程序创建基础。</p>
+<h3>用基本布线设置<code>TodoApp</code></h3>
+<p>通过实现基本的路由，我们可以从高级路由定义一直到实际的路由实现。</p>
+<p>首先，让我们为<code>TodoApp</code>创建一个类型:</p>
+<pre>struct TodoApp {
+    link: ComponentLink&lt;Self&gt;,
+    todos: Option&lt;Vec&lt;Todo&gt;&gt;,
+    fetch_task: Option&lt;FetchTask&gt;,
+}
+
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Todo {
+    pub user_id: u64,
+    pub id: u64,
+    pub title: String,
+    pub completed: bool,
+}
+</pre>
+<p>这个结构包括在这个组件中注册回调的<code>link</code>。我们还将使用<code>Option&lt;Vec&lt;Todo&gt;&gt;</code>和<code>fetch_task</code>定义一个可选的待办事项列表来获取数据。</p>
+<p>要创建一个根组件作为入口点，我们必须实现<code>Component</code>特征:</p>
+<pre>enum Msg {
+    MakeReq,
+    Resp(Result&lt;Vec&lt;Todo&gt;, anyhow::Error&gt;),
+}
+
+impl Component for TodoApp {
+    type Message = Msg;
+    type Properties = ();
+    fn create(_: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        Self {
+            link,
+            todos: None,
+            fetch_task: None,
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        true
+    }
+
+    fn change(&amp;mut self, _props: Self::Properties) -&gt; ShouldRender {
+        false
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div class=classes!("todo")&gt;
+                ...
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>通过定义<code>Msg</code>结构，即组件的<code>Message</code>的类型，我们可以编排组件内部的消息传递。在我们的例子中，我们将定义<code>MakeReq</code>消息和<code>Resp</code>消息来发出 HTTP 请求并接收响应。</p>
+<p>稍后，我们将使用这些状态来构建一个状态机，告诉我们的应用程序在触发请求和响应到达时如何做出反应。</p>
+<p>特性定义了六个生命周期功能:</p>
+<ul>
+<li><code>create</code>是一个接受道具和<code>ComponentLink</code>的构造函数</li>
+<li><code>view</code>渲染组件</li>
+<li>当一个<code>Message</code>被发送到组件时，调用<code>update</code>，实现消息传递逻辑</li>
+<li><code>change</code>重新渲染更改，优化渲染速度</li>
+<li><code>rendered</code>在<code>view</code>之后但在浏览器更新之前被调用一次，以区分第一次渲染和连续渲染</li>
+<li>当组件被卸载并且需要清理操作时，调用<code>destroy</code></li>
+</ul>
+<p>由于我们的根组件没有任何道具，我们可以让<code>change</code>返回 false。</p>
+<p>我们还不会在<code>update</code>中实现任何东西，所以我们将定义组件必须在<code>Message</code>到来时重新呈现。</p>
+<p>在<code>view</code>中，我们将使用<code>html!</code>宏构建一个基本的外部<code>div</code>和<code>classes!</code>宏为其创建 HTML 类，我们将在后面实现。</p>
+<p>要呈现该组件，我们需要以下代码片段:</p>
+<pre>#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::&lt;TodoApp&gt;::new().mount_to_body();
+}
+</pre>
+<p>这个代码片段使用了<code>wasm-bindgen</code>并将这个函数定义为我们的入口点，将<code>TodoApp</code>组件作为根安装在主体中。</p>
+<h2>获取数据</h2>
+<p>很好，现在基础已经就绪，让我们看看如何获取一些数据。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>我们将从更改<code>create</code>生命周期方法开始，在创建组件以立即获取数据时发送一条<code>MakeReq</code>消息:</p>
+<pre>    fn create(_: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        link.send_message(Msg::MakeReq);
+        Self {
+            link,
+            todos: None,
+            fetch_task: None,
+        }
+    }
+</pre>
+<p>然后，我们实现<code>update</code>:</p>
+<pre>    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakeReq =&gt; {
+                self.todos = None;
+                let req = Request::get("https://jsonplaceholder.typicode.com/todos")
+                    .body(Nothing)
+                    .expect("can make req to jsonplaceholder");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;Vec&lt;Todo&gt;, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::Resp(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) =&gt; {
+                if let Ok(data) = resp {
+                    self.todos = Some(data);
+                }
+            }
+        }
+        true
+    }
+</pre>
+<p>这是相当多的代码，所以让我们一步一步来理解它。</p>
+<p>Yew 提供了<a href="https://docs.rs/yew/0.2.0/yew/services/index.html">服务</a>，这些服务是为日志记录或使用 HTTP<code>fetch()</code>(JavaScript<code>fetch()</code>)之类的事情预先构建的抽象。</p>
+<p>在我们的代码中，我们可以将<code>self.todos</code>设置为<code>None</code>，当我们获取数据时，数据总是会重置。通过添加<code>FetchService</code>，我们创建了一个对<a href="http://jsonplaceholder.typicode.com/"> JSONPlaceholder </a>的 HTTP <code>GET</code>请求。</p>
+<p>定义一个回调解析对 JSONPlaceholder 的响应，并发送一个带有返回数据的<code>Msg::Resp</code>消息。</p>
+<p>当我们用请求和回调来启动准备好的<code>fetch()</code>调用时，我们还将组件的<code>fetch_task</code>设置为返回的<code>FetchService::fetch</code>任务，以保持<code>fetch-task</code>活动。</p>
+<p>处理响应很简单:如果一个<code>Msg::Resp</code>进来，我们可以检查是否有数据。如果有数据，我们可以将<code>self.todos</code>设置为该数据。</p>
+<p>这也是我们可以做一些错误处理的地方，如果请求失败或者数据无效，我们可以设置一个错误消息来显示。</p>
+<p>最后，我们必须使用<code>view</code>方法显示新获取的数据:</p>
+<pre>    fn view(&amp;self) -&gt; Html {
+        let todos = self.todos.clone();
+        let cb = self.link.callback(|_| Msg::MakeReq);
+        ConsoleService::info(&amp;format!("render TodoApp: {:?}", todos));
+        html! {
+            &lt;div class=classes!("todo")&gt;
+              &lt;div&gt;
+                  &lt;div class=classes!("refresh")&gt;
+                      &lt;button onclick=cb.clone()&gt;
+                          { "refresh" }
+                      &lt;/button&gt;
+                  &lt;/div&gt;
+                  &lt;todo::list::List todos=todos.clone()/&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+</pre>
+<p>通过获取待办事项并使用<code>ConsoleService</code>，我们可以在每次呈现该组件时记录它们，这对调试很有用。</p>
+<p>创建一个简单的带有<code>onclick</code>处理程序的<code>refresh</code>按钮可以让我们调用我们的数据获取管道，允许我们从<code>html!</code>标记中调用动作。</p>
+<p>将待办事项传递给<code>todo::list::List</code>组件，我们可以在 web 应用程序中显示待办事项。</p>
+<h2>添加<code>List</code>组件</h2>
+<p>要开始构建我们的<code>List</code>组件，我们必须创建一个<code>todo</code>文件夹，其中的<code>mod.rs</code>包含<code>pub mod list</code>和<code>list.rs</code>文件。</p>
+<p>在<code>list.rs</code>中，我们必须以实现<code>TodoApp</code>的相同方式实现<code>List</code>组件:</p>
+<pre>#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub todos: Option&lt;Vec&lt;Todo&gt;&gt;,
+}
+
+pub struct List {
+    props: Props,
+}
+
+pub enum Msg {}
+
+impl Component for List {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, _link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        Self { props }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_list(&amp;self.props.todos)}
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, _msg: Self::Message) -&gt; ShouldRender {
+        true
+    }
+
+    fn change(&amp;mut self, props: Self::Properties) -&gt; ShouldRender {
+        self.props = props;
+        true
+    }
+}
+</pre>
+<p>通过为<code>list</code>组件的 props 定义<code>List</code>结构，我们可以包含待办事项列表。然后，我们实现了<code>Component</code>特征。</p>
+<p>每当有道具变化进来的时候，我们都要设置好道具，重新渲染。因为我们没有任何消息传递，所以我们可以忽略<code>Msg</code>结构和<code>update</code>函数。</p>
+<p>在<code>view</code>中，让我们创建一个<code>div</code>来调用<code>self.render_list</code>。</p>
+<p>我们可以在<code>List</code>本身中实现这种渲染:</p>
+<pre>impl List {
+    fn render_list(&amp;self, todos: &amp;Option&lt;Vec&lt;Todo&gt;&gt;) -&gt; Html {
+        if let Some(t) = todos {
+            html! {
+                &lt;div class=classes!("list")&gt;
+                    { t.iter().map(|todo| self.view_todo(todo)).collect::&lt;Html&gt;() }
+                &lt;/div&gt;
+            }
+        } else {
+            html! {
+                &lt;div class=classes!("loading")&gt;{"loading..."}&lt;/div&gt;
+            }
+        }
+    }
+
+    fn view_todo(&amp;self, todo: &amp;Todo) -&gt; Html {
+        let completed = if todo.completed {
+            Some("completed")
+        } else {
+            None
+        };
+        html! {
+            &lt;div class=classes!("list-item", completed)&gt;
+                { &amp;todo.title }
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>如果我们在<code>render_list</code>中没有任何待办事项，我们可以在浏览器中显示<strong> loading… </strong>,以指示正在获取数据。</p>
+<p>如果数据已经存在，我们可以使用 Yew 的表达式语法在<code>html!</code>中迭代待办事项列表。分别调用<code>view_todo</code>并收集到<code>Html</code>在<code>html!</code>内渲染。</p>
+<p>当待办事项在浏览器中被标记为完成时，我们还通过在<code>view_todo</code>中将它们设置为<code>completed</code>来为我们的应用程序添加条件样式；如果它们没有被标记为完成，则不会应用 CSS 样式。</p>
+<p>要为每个待办事项创建标题，我们只需在每个待办事项的标记中创建一个<code>div</code>来包含相应的标题。</p>
+<p>下一步是使这个标题成为一个链接，这样我们就可以从列表视图切换到详细视图。但为此，我们必须首先在我们的应用程序中设置导航，也称为路由。</p>
+<h2>使用 Yew 的基本应用程序路由</h2>
+<p>为了给我们的应用程序创建基本的路由，我们将使用<code>Yew-router</code>。</p>
+<p>在<code>Switch</code>特征和<code>pub</code>枚举中，我们可以定义我们在<code>AppRoute</code>的路线:</p>
+<pre>#[derive(Switch, Clone, Debug)]
+pub enum AppRoute {
+    #[to = "/todo/{id}"]
+    Detail(i32),
+    #[to = "/"]
+    Home,
+}
+</pre>
+<p>在这个枚举中定义<code>Detail</code>路线需要一个在<code>/todo/$id</code>的待办事项 ID 和<code>Home</code>路线，这是我们的列表视图。</p>
+<p>现在，我们必须修改我们的<code>view</code>方法，以包含以下路由机制:</p>
+<pre>    fn view(&amp;self) -&gt; Html {
+        let todos = self.todos.clone();
+        let cb = self.link.callback(|_| Msg::MakeReq);
+        ConsoleService::info(&amp;format!("render TodoApp: {:?}", todos));
+        html! {
+            &lt;div class=classes!("todo")&gt;
+                &lt;div class=classes!("nav")&gt;
+                    &lt;Anchor route=AppRoute::Home&gt;{"Home"}&lt;/Anchor&gt;
+                &lt;/div&gt;
+                &lt;div class=classes!("content")&gt;
+                    &lt;Router&lt;AppRoute, ()&gt;
+                        render = Router::render(move |switch: AppRoute| {
+                            match switch {
+                                AppRoute::Detail(todo_id) =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;todo::detail::Detail todo_id=todo_id/&gt;
+                                        &lt;/div&gt;}
+                                }
+                                AppRoute::Home =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;div class=classes!("refresh")&gt;
+                                                &lt;button onclick=cb.clone()&gt;
+                                                    { "refresh" }
+                                                &lt;/button&gt;
+                                            &lt;/div&gt;
+                                            &lt;todo::list::List todos=todos.clone()/&gt;
+                                        &lt;/div&gt;
+                                    }
+                                }
+                            }
+                        })
+                    /&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+</pre>
+<p>在我们的列表上方，我们可以创建一个导航<code>div</code>，其中包含一个返回到<code>Home</code>的链接，这样我们就可以随时返回。</p>
+<p>在此之下，我们可以定义一个包含一个<code>Router&lt;AppRoute,()&gt;</code>的内容<code>div</code>。在这个路由器中，我们可以定义一个<code>render</code>函数，告诉路由器基于当前的路径呈现什么。</p>
+<p>在<code>render</code>方法中，我们可以打开给定的<code>AppRoute</code>，在<code>Home</code>和<code>Detail</code>上显示待办事项列表，在<code>Home</code>上显示<code>refresh</code>按钮。</p>
+<p>最后，我们必须修改<code>list.rs</code>中的<code>view_todo</code>函数，以包含一个到待办事项详细页面的链接:</p>
+<pre>    fn view_todo(&amp;self, todo: &amp;Todo) -&gt; Html {
+        let completed = if todo.completed {
+            Some("completed")
+        } else {
+            None
+        };
+        html! {
+            &lt;div class=classes!("list-item", completed)&gt;
+                &lt;Anchor route=AppRoute::Detail(todo.id as i32)&gt;
+                    { &amp;todo.title }
+                &lt;/Anchor&gt;
+            &lt;/div&gt;
+        }
+    }
+</pre>
+<p>为此，我们将使用<code>Yew-router</code>的<code>Anchor</code>组件。这个方便的机制让我们可以使用<code>AppRoute</code>枚举在应用程序内部进行路由，消除了类型错误的可能性。这意味着我们对路由进行了编译器级别的类型检查。非常酷！</p>
+<p>为了完成我们的应用程序，让我们实现单个待办事项的详细视图。</p>
+<h2>实现详细视图</h2>
+<p>要开始实现我们应用程序的待办事项详细视图，打开<code>todo</code>文件夹，将<code>pub mod detail;</code>添加到<code>mod.rs</code>，并添加一个<code>detail.rs</code>文件。</p>
+<p>现在我们可以实现另一个组件。然而，为了使它更有趣，我们将(在本例中没有必要)实现一些数据获取。因为我们只将待办事项的 ID 传递给详细视图，所以我们必须在详细视图中重新提取待办事项的数据。</p>
+<p>虽然在我们的例子中使用这个特性没有提供太多的价值，但是具有多个数据源、大型产品列表和丰富的详细信息页面的 web 商店可以从数据获取的效率中受益。</p>
+<p>同样，从基础开始，我们将添加以下内容:</p>
+<pre>#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub todo_id: i32,
+}
+
+pub struct Detail {
+    props: Props,
+    link: ComponentLink&lt;Self&gt;,
+    todo: Option&lt;Todo&gt;,
+    fetch_task: Option&lt;FetchTask&gt;,
+}
+
+pub enum Msg {
+    MakeReq(i32),
+    Resp(Result&lt;Todo, anyhow::Error&gt;),
+}
+</pre>
+<p>组件的<code>Detail</code>结构包括获取数据的<code>link</code>和<code>fetch_task</code>以及保存待办事项 ID 的道具。</p>
+<p><code>Component</code>特征的实现类似于我们的<code>TodoApp</code>组件:</p>
+<pre>impl Component for Detail {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        link.send_message(Msg::MakeReq(props.todo_id));
+        Self {
+            props,
+            link,
+            todo: None,
+            fetch_task: None,
+        }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_detail(&amp;self.todo)}
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakeReq(id) =&gt; {
+                let req = Request::get(&amp;format!(
+                    "https://jsonplaceholder.typicode.com/todos/{}",
+                    id
+                ))
+                .body(Nothing)
+                .expect("can make req to jsonplaceholder");
+
+                let cb =
+                    self.link
+                        .callback(|response: Response&lt;Json&lt;Result&lt;Todo, anyhow::Error&gt;&gt;&gt;| {
+                            let Json(data) = response.into_body();
+                            Msg::Resp(data)
+                        });
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) =&gt; {
+                if let Ok(data) = resp {
+                    self.todo = Some(data);
+                }
+            }
+        }
+        true
+    }
+
+    fn change(&amp;mut self, props: Self::Properties) -&gt; ShouldRender {
+        self.props = props;
+        true
+    }
+}
+</pre>
+<p>同样，使用<code>FetchService</code>从<code>/todos/$todo_id</code>获取数据，我们可以在组件中设置返回的数据。</p>
+<p>在这种情况下，让我们直接在<code>Detail</code>上实现<code>render_detail</code>方法:</p>
+<pre>impl Detail {
+    fn render_detail(&amp;self, todo: &amp;Option&lt;Todo&gt;) -&gt; Html {
+        match todo {
+            Some(t) =&gt; {
+                let completed = if t.completed {
+                    Some("completed")
+                } else {
+                    Some("not-completed")
+                };
+                html! {
+                    &lt;div class=classes!("detail")&gt;
+                        &lt;h1&gt;{&amp;t.title}{" ("}&lt;span class=classes!("id")&gt;{t.id}&lt;/span&gt;{")"}&lt;/h1&gt;
+                        &lt;div&gt;{"by user "}{t.user_id}&lt;/div&gt;
+                        &lt;div class=classes!(completed)&gt;{if t.completed { "done" } else { "not done" }}&lt;/div&gt;
+                    &lt;/div&gt;
+                }
+            }
+            None =&gt; {
+                html! {
+                    &lt;div class=classes!("loading")&gt;{"loading..."}&lt;/div&gt;
+                }
+            }
+        }
+    }
+}
+</pre>
+<p>同样，如果我们还没有数据，我们显示一个简单的<strong>加载… </strong>消息。基于我们正在处理的待办事项中的<code>completed</code>状态，我们可以设置一个不同的类来将文本颜色设置为绿色(如果已完成)或红色(如果未完成),就像在浏览器中看到的那样。</p>
+<figure id="attachment_54837" aria-describedby="caption-attachment-54837" class="wp-caption aligncenter"><img data-attachment-id="54837" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/detailed-view-completed-to-do-item/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg" data-orig-size="730,88" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Detailed view completed to do item" data-image-description="" data-image-caption="&lt;p&gt;The detailed view for a completed to-do item&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item-300x36.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg" decoding="async" class="size-full wp-image-54837 jetpack-lazy-image" src="../Images/9c9d289fca114e3bfa10fd99f0b80e38.png" alt="Detailed View Completed To-Do Item" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item-300x36.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="54837" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/detailed-view-completed-to-do-item/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg" data-orig-size="730,88" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Detailed view completed to do item" data-image-description="" data-image-caption="&lt;p&gt;The detailed view for a completed to-do item&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item-300x36.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg" decoding="async" loading="lazy" class="size-full wp-image-54837" src="../Images/9c9d289fca114e3bfa10fd99f0b80e38.png" alt="Detailed View Completed To-Do Item" srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item-300x36.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-completed-to-do-item.jpeg"/></noscript><figcaption id="caption-attachment-54837" class="wp-caption-text">The detailed view for a completed to-do item</figcaption></figure>
+<figure id="attachment_54839" aria-describedby="caption-attachment-54839" class="wp-caption aligncenter"><img data-attachment-id="54839" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/detailed-view-open-to-do-item/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg" data-orig-size="730,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Detailed view open to-do item" data-image-description="" data-image-caption="&lt;p&gt;The detailed view for an open to-do item&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item-300x38.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg" decoding="async" class="size-full wp-image-54839 jetpack-lazy-image" src="../Images/c9cb0e951dbd0afa4fe6307ffa870822.png" alt="Detailed View Open To-Do Item" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item-300x38.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="54839" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/detailed-view-open-to-do-item/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg" data-orig-size="730,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Detailed view open to-do item" data-image-description="" data-image-caption="&lt;p&gt;The detailed view for an open to-do item&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item-300x38.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg" decoding="async" loading="lazy" class="size-full wp-image-54839" src="../Images/c9cb0e951dbd0afa4fe6307ffa870822.png" alt="Detailed View Open To-Do Item" srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item-300x38.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/Detailed-view-open-to-do-item.jpeg"/></noscript><figcaption id="caption-attachment-54839" class="wp-caption-text">The detailed view for an open to-do item</figcaption></figure>
+<h2>运行最终 Rust 项目</h2>
+<p>当我们在本地使用<code>trunk serve</code>运行我们的项目时，一个服务器在<a href="http://localhost:8080" rel="nofollow"> http://localhost:8080 </a>上启动；我们现在知道一个漂亮的，基于 Rust 的前端 web 应用程序。</p>
+<figure id="attachment_54840" aria-describedby="caption-attachment-54840" class="wp-caption aligncenter"><img data-attachment-id="54840" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/list-view/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg" data-orig-size="730,240" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="List view" data-image-description="" data-image-caption="&lt;p&gt;The list view&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view-300x99.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg" decoding="async" class="size-full wp-image-54840 jetpack-lazy-image" src="../Images/eb45a8e8d835189ccafabd710f928209.png" alt="List View" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/List-view-300x99.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="54840" data-permalink="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/list-view/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg" data-orig-size="730,240" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="List view" data-image-description="" data-image-caption="&lt;p&gt;The list view&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view-300x99.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg" decoding="async" loading="lazy" class="size-full wp-image-54840" src="../Images/eb45a8e8d835189ccafabd710f928209.png" alt="List View" srcset="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/06/List-view-300x99.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/06/List-view.jpeg"/></noscript><figcaption id="caption-attachment-54840" class="wp-caption-text">The list view</figcaption></figure>
+<p>点击一个待办事项会将我们带到它的详细信息页面，点击<strong>主页</strong>会将我们带回列表视图。</p>
+<p>随着待办事项应用的完成，你可以在<a href="https://github.com/zupzup/rust-frontend-example-yew"> GitHub </a>上找到这个例子的完整代码。</p>
+<h2>结论</h2>
+<p>WebAssembly 的出现使得用 Rust 构建前端 web 应用成为可能，就像我们刚刚构建的那样，为开发者拓展了开发机会。</p>
+<p>虽然本文中的所有库、框架和技术都还处于开发的早期阶段，但是可用的特性和功能已经成熟和稳定，为将来更大的项目开辟了可能性。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust 应用的 web 前端的全面可见性</h2><p>调试 Rust 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪 Rust 应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Rust 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>现代化调试 Rust 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

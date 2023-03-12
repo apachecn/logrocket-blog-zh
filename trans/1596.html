@@ -1,0 +1,214 @@
+<html>
+<head>
+<title>What's new in Go 1.16 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Go 1.16 的新功能- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/whats-new-in-go-1-16/#0001-01-01">https://blog.logrocket.com/whats-new-in-go-1-16/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Go 编程语言的第 17 个主要版本 Go 1.16 刚刚发布。这是一次重大的升级，为语言带来了许多期待已久的特性和改进。默认情况下，模块感知模式是启用的，Apple silicon 支持是活动的，静态资产的原生嵌入是在这里，并且<code>io/ioutil</code>包中的方法已经过重新组织，因此它现在具有逻辑意义。在本文中，我们将看看这个版本的一些亮点。</p>
+<h2>苹果芯片的原生支持</h2>
+<p>从一开始，Go 就优先考虑不同操作系统和架构之间的可移植性，这反映在它对各种操作系统和架构组合的支持上。</p>
+<p>在过去的几个月里，由于其在 CPU、GPU 和电池性能方面令人印象深刻的飞跃，苹果首款 64 位 ARM Mac 的发布一直是开发人员最主要的话题之一。Go 项目迅速做出反应，通过<code>GOOS=darwin</code>和<code>GOARCH=arm64</code>环境变量增加了对 ARM Macs 的原生支持。</p>
+<p>如果你有一台 M1 Mac，你现在可以在你的电脑上构建和运行 Go 程序，如果你在不同的操作系统或基于英特尔的 Mac 上，你可以在为你的程序构建二进制文件时通过设置上面的环境变量来定位 ARM Macs:</p>
+<pre>GOARCH=arm64 GOOS=darwin go build myapp
+</pre>
+<h2>静态文件的本机嵌入</h2>
+<p>Go 最大的好处之一是编译后的程序可以作为一个独立的二进制文件来分发和执行。当程序依赖静态文件(如 HTML 模板、数据库迁移文件、web 应用程序资产(如 JavaScript)或图像文件(如这些文件通常必须与二进制文件一起分发)时，这种优势会有所抵消，除非它们在第三方包(如<a href="https://github.com/markbates/pkger" target="_blank" rel="noopener"> pkger </a>或<a href="https://github.com/gobuffalo/packr" target="_blank" rel="noopener"> packr </a>的帮助下嵌入到二进制文件中。随着 Go 1.16 的发布，现在可以通过新的<code>embed</code>包在 Go 二进制文件中包含静态文件。</p>
+<p>下面是这个特性如何工作的最基本的例子。假设您有一个内容如下所示的<code>sample.txt</code>文件:</p>
+<pre>Hello from text file
+</pre>
+<p>和一个<code>main.go</code>文件在同一个目录下，内容如下:</p>
+<pre>package main
+
+import (
+    _ "embed"
+    "fmt"
+)
+
+//go:embed sample.txt
+var text string
+
+func main() {
+    fmt.Print(text)
+}
+</pre>
+<p>位于<code>text</code>变量上方的<code>go:embed</code>指令指示编译器将<code>sample.txt</code>文件的内容作为字符串嵌入到<code>text</code>变量中。如果您用<code>go build</code>构建程序，并将生成的二进制文件移动到不同的位置，您会注意到执行它会将嵌入文件的内容打印到标准输出中。这是因为<code>sample.txt</code>文件的所有内容都包含在二进制文件中，所以它可以按原样分发:</p>
+<pre>$ mv main /tmp
+$ cd /tmp
+$ ./main
+Hello from text file
+</pre>
+<p>对于一个更现实的例子，假设我们有一个 web 应用程序项目，其目录结构如下:</p>
+<pre>.
+├── assets
+│   ├── css
+│   │   └── style.css
+│   └── js
+│       └── script.js
+├── go.mod
+├── index.html
+├── main.go
+└── random
+</pre>
+<p>我们可以像这样将所有文件嵌入到<code>assets</code>文件夹和<code>index.html</code>文件中:</p>
+<pre>package main
+
+import (
+    "embed"
+    "net/http"
+)
+
+//go:embed assets/*
+var assets embed.FS
+
+//go:embed index.html
+var html []byte
+
+func main() {
+    fs := http.FileServer(http.FS(assets))
+    http.Handle("/assets/", fs)
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Add("Content-Type", "text/html")
+        w.Write(html)
+    })
+    http.ListenAndServe(":8080", nil)
+}
+</pre>
+<p><code>FS</code>类型对于嵌入文件树很有用，比如 web 服务器资产的目录，就像上面的例子。对于嵌入像<code>index.html</code>这样的单个文件，类型为<code>string</code>或<code>[]byte</code>的变量是最好的。如果您构建并执行该程序，并导航到<a href="http://localhost:8080" rel="nofollow"> http://localhost:8080 </a>，您将看到正确应用了静态资产的 HTML 文件的内容:</p>
+<pre>$ go version
+go version go1.16rc1 linux/amd64
+$ go build -o main
+$ mv main /tmp
+$ cd /tmp &amp;&amp; ./main
+</pre>
+<p><img data-attachment-id="34702" data-permalink="https://blog.logrocket.com/whats-new-in-go-1-16/hex-color-generator/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png" data-orig-size="730,479" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Hex color generator" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator-300x197.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png" decoding="async" class="aligncenter size-full wp-image-34702 jetpack-lazy-image" src="../Images/44f39ba3698eff9b9df537ff24f8907b.png" alt="Hex Color Generator" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator-300x197.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34702" data-permalink="https://blog.logrocket.com/whats-new-in-go-1-16/hex-color-generator/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png" data-orig-size="730,479" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Hex color generator" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator-300x197.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-34702" src="../Images/44f39ba3698eff9b9df537ff24f8907b.png" alt="Hex Color Generator" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator-300x197.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/hex-color-generator.png"/></noscript>
+<p>如果您想在本地运行这个示例，可以下载<a href="https://gist.github.com/finallyayo/c8959c7f95565bd6eb111719006381c3" target="_blank" rel="noopener">index.html</a>、<a href="https://gist.github.com/finallyayo/2b44f3204a4d414db5a715601ce2bfc9" target="_blank" rel="noopener"> style.css </a>和<a href="https://gist.github.com/finallyayo/00ad1c09b053c69b9be38e32865a0aaa" target="_blank" rel="noopener"> script.js </a>文件的内容。更多细节，请参见新嵌入包的<a href="https://tip.golang.org/pkg/embed/" target="_blank" rel="noopener">文档</a>。</p>
+<h2>一些问题</h2>
+<p>在使用<code>//go:embed</code>指令之前，您必须导入<code>embed</code>包。否则，您会得到一个错误:</p>
+<pre>$ go run main.go
+# command-line-arguments
+./main.go:8:3: //go:embed only allowed in Go files that import "embed"
+</pre>
+<p>如果您没有直接使用来自<code>embed</code>的任何导出标识，请确保在 import 语句前加上下划线:</p>
+<pre>import (
+    _ "embed"
+)
+</pre>
+<p>另一件需要注意的事情是<code>//go:embed</code>只对包级变量有效。如果您试图在函数中使用它，您的代码将无法编译:</p>
+<pre>package main
+
+import (
+    _ "embed"
+    "fmt"
+)
+
+func main() {
+    //go:embed index.html
+    var html string
+    fmt.Println(html)
+}
+</pre>
+<pre>$ go run main.go
+# command-line-arguments
+./main.go:9:4: go:embed cannot apply to var inside func
+</pre>
+<h2>默认情况下，模块感知模式处于启用状态</h2>
+<p>在<a href="https://golang.org/doc/go1.11" target="_blank" rel="noopener"> Go 1.11 </a>中<a href="https://blog.golang.org/using-go-modules" target="_blank" rel="noopener"> Go 模块</a>的引入预示着依赖性管理将远离<code>GOPATH</code>语义。在最初的版本和<a href="https://golang.org/doc/go1.12" target="_blank" rel="noopener"> Go 1.12 </a>中，模块仍然是实验性的，必须用环境变量<code>GO111MODULE=on</code>激活。<a href="https://golang.org/doc/go1.13" target="_blank" rel="noopener"> Go 1.13 </a>确保当<code>go.mod</code>文件出现在当前工作目录或父目录中时自动激活模块感知模式，即使该目录在<code>GOPATH</code>中，这种情况在<a href="https://golang.org/doc/go1.14" target="_blank" rel="noopener"> Go 1.14 </a>和<a href="https://golang.org/doc/go1.15" target="_blank" rel="noopener"> 1.15 </a>中仍然存在。</p>
+<p>随着 Go 1.16 的发布，<code>GO111MODULE</code>变量现在默认为<code>on</code>，这意味着默认启用模块感知模式，而不管当前目录中是否存在<code>go.mod</code>文件。如果您想恢复到之前的行为，请将<code>GO111MODULE</code>设置为<code>auto</code>。</p>
+<p>在其他相关变更中，<code>go build</code>和<code>go test</code>默认不再修改<code>go.mod</code>和<code>go.sum</code>文件。相反，如果需要添加或更新模块要求或校验和，则会报告错误。然后，您可以使用<code>go mod tidy</code>或<code>go get</code>来相应地调整要求。</p>
+<p><code>go install</code>命令现在也是模块感知的，这意味着它不会影响当前目录或任何父目录(如果有的话)中的<code>go.mod</code>文件。此外，它现在可以将版本号作为后缀。例如:</p>
+<pre>$ go install github.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d4b1acb5b9a4b8b194a2e7fae1fae4">[email protected]</a>
+</pre>
+<p>在 Go 1.16 中，使用<code>go get</code>构建和安装包已经被弃用，取而代之的是<code>go install</code>。在未来的版本中，<code>go get</code>将不再能够构建和安装包，但会像现在一样启用<code>-d</code>标志，这意味着它将在不构建包的情况下调整当前模块的依赖性。<code>-insecure</code>或<code>-i</code> a 旗也已被弃用。</p>
+<h2>软件包作者现在可以收回旧版本</h2>
+<p>从 Go 1.16 开始，新的退刀指令将出现在<code>go.mod</code>文件中。这允许包作者将旧的包版本标记为不安全或损坏，或者某个版本是无意中发布的。下面是它的使用方法:</p>
+<pre>module example
+
+go 1.16
+
+retract v1.1.1 // retract single version
+retract [v1.1.1, v1.3.2] // closed interval, so anything between v1.1.1 and v1.3.2
+</pre>
+<h2><code>io/ioutil</code>包现在已被弃用</h2>
+<p>整个<code>ioutil</code>包现在在 Go 1.16 中被弃用，它的功能被移到了其他包中。明确地说，利用这个包的现有代码将继续工作，但是鼓励您迁移到<code>io</code>和<code>os</code>包中的新定义。</p>
+<p>使用<code>ioutil</code>进行代码迁移应该很简单。这个包中一个流行的方法是<code>ReadAll()</code>方法，它通常用于将 HTTP 请求的整个响应体读入一个字节片。这个方法已经被移动到<code>io</code>包中:</p>
+<pre>resp, err := http.Get(url)
+if err != nil {
+    return err
+}
+
+defer resp.Body.Close()
+
+// old way: body, err := ioutil.ReadAll(resp.Body)
+body, err := io.ReadAll(resp.Body)
+if err != nil {
+    return err
+}
+</pre>
+<p>导出的<code>io/ioutil</code>方法的新位置的完整列表如下所示:</p>
+
+<h2><code>io/fs</code>套餐</h2>
+<p>通过添加<code>io/fs</code>和<code>testing/testfs</code>包，对 Go 标准库的改进并没有被排除在这个版本之外。这些新的包使得在测试中抽象文件系统变得更加容易，这使得它们更容易被复制，而不管它们运行在什么操作系统上。访问文件也将更快，而且你不必事后清理临时文件。</p>
+<p>在 Go 1.16 之前，模拟文件系统的任务经常落到流行的<a href="https://github.com/spf13/afero" target="_blank" rel="noopener"> afero </a>包身上，该包提供了一个<a href="https://pkg.go.dev/github.com/spf13/afero#Fs" target="_blank" rel="noopener">接口类型</a>，必须满足该接口类型才能实现真实或模拟的文件系统。它还提供了一些提供该接口的常见实现，如<a href="https://pkg.go.dev/github.com/spf13/afero#MemMapFs" target="_blank" rel="noopener"> afero。MemMapFs </a>是一个内存支持的文件系统，对于测试中的模拟非常有用。</p>
+<p>与 afero 的<a href="https://pkg.go.dev/github.com/spf13/afero#Fs" target="_blank" rel="noopener"> Fs </a>接口在编写时定义了 13 个方法不同，<code>io/fs</code>包提供的<a href="https://tip.golang.org/pkg/io/fs/#FS" target="_blank" rel="noopener"> FS </a>接口相当简单:</p>
+<pre>type FS interface {
+    Open(name string) (File, error)
+}
+</pre>
+<p>要实现这个接口，您需要做的就是一个<code>Open</code>方法，该方法可以在一个路径下打开一个文件，并返回一个实现如下所示的<code>fs.File</code>接口的对象:</p>
+<pre>type File interface {
+    Stat() (FileInfo, error)
+    Read([]byte) (int, error)
+    Close() error
+}
+</pre>
+<p>从上面的界面中，您会注意到缺少允许您修改文件的方法。这是因为<code>io/fs</code>包只为文件系统提供了一个只读接口，不像 Afero 在这方面更完整。这个决定的<a href="https://github.com/golang/go/issues/41190#issuecomment-690848889" target="_blank" rel="noopener">原因</a>是阅读比写作更容易抽象，写作更复杂。</p>
+<blockquote><p>所有这些都是为了说明我认为将这个提议限制为只读操作的设计决策是一个好的决策。事实上，正是这个关键的见解(由@robpike 提出)解开了多年来的僵局，让我们在定义这个接口上取得了任何进展。</p></blockquote>
+<h2>值得注意的提及</h2>
+<p>现在，当在测试或基准测试期间创建的 goroutine 中对<code>testing.T</code>或<code>testing.B</code>的<code>Fatal</code>、<code>Fatalf</code>或<code>FailNow</code>方法进行无效调用时，vet 工具会发出警告。这是因为这些方法退出 goroutine，而不是测试或基准函数:</p>
+<pre>package main
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+    go func() {
+        if true {
+            t.Fatal("Test failed") // exits the goroutine instead of TestFoo
+        }
+    }()
+}
+</pre>
+<p><img data-attachment-id="34703" data-permalink="https://blog.logrocket.com/whats-new-in-go-1-16/ubuntu-screenshot/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png" data-orig-size="730,316" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu screenshot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot-300x130.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png" decoding="async" class="aligncenter size-full wp-image-34703 jetpack-lazy-image" src="../Images/ea12462873292591769e24c62ecf5730.png" alt="Ubuntu Screenshot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot-300x130.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34703" data-permalink="https://blog.logrocket.com/whats-new-in-go-1-16/ubuntu-screenshot/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png" data-orig-size="730,316" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu screenshot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot-300x130.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-34703" src="../Images/ea12462873292591769e24c62ecf5730.png" alt="Ubuntu Screenshot" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot-300x130.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/ubuntu-screenshot.png"/></noscript>
+<p>对上述方法的调用可以用<code>t.Error()</code>来代替，以表示测试失败，并用<code>return</code>语句来退出 goroutine:</p>
+<pre>package main
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+    go func() {
+        if true {
+            t.Error("Test failed.")
+            return
+        }
+    }()
+}
+</pre>
+<p>对标准库包也有一些小的更新和修正。完整的变更列表可以在<a href="https://tip.golang.org/doc/go1.16#minor_library_changes" target="_blank" rel="noopener">发行说明</a>中找到。</p>
+<h2>结论</h2>
+<p>如果你想探索这个版本中包含的错误修复和功能的完整列表，我鼓励你查看 GitHub 上的<a href="https://github.com/golang/go/milestone/145" target="_blank" rel="noopener"> Go 1.16 里程碑</a>中的已关闭问题列表。</p>
+<p>感谢您的阅读，祝您编码愉快！</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

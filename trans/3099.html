@@ -1,0 +1,239 @@
+<html>
+<head>
+<title>Reduce maintenance effort with shared ESLint and Prettier configs - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>通过共享的 ESLint 和更漂亮的配置减少维护工作量</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/#0001-01-01">https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果你参与多个项目，你可能会在每个项目中使用相同的<a href="https://eslint.org/" target="_blank" rel="noopener"> ESLint </a>和<a href="https://prettier.io/" target="_blank" rel="noopener">beautiful</a>设置。当然，使用同样方便的 ESLint 插件和配置有利于一致性，但是你必须从你的<code>package.json</code>、<code>.eslintrc.js</code>和<code>.prettierrc</code>中一遍又一遍地复制和粘贴你的依赖项:</p>
+<p>对于每一个新的项目，这种方法会越来越多地导致维护问题。如果您想要(或者需要)定期地改变您的规则集，您必须接触所有的项目，并且手动地确保它们不会彼此偏离。</p>
+<p>这不是一个枯燥的方法，这实质上意味着每条信息都应该有一个真实的来源。重复的代码(或其他信息)被认为是反模式，应该重构为唯一的表示。</p>
+<p>当谈到减少您必须使用 ESLint 和更漂亮的配置进行复制的数量时，将它们捆绑到您自己的自定义 npm 包中可以节省大量时间和精力。使用这种方法，您只需在一个地方进行更改，发布一个新版本，并更新项目中的依赖项版本。此外，您可以添加或覆盖规则，或者添加特定于项目的配置。</p>
+<p>在本帖中，我们将通过以下部分讨论如何捆绑您的 ESLint 和更漂亮的配置，以便更容易地跨项目使用:</p>
+
+<h2 id="overview-eslint-prettier-setup">ESLint 和更漂亮的设置概述</h2>
+<p>要跟进，请看下面的 GitHub 项目:</p>
+
+<p>一方面，ESLint 包是本文的基础，因为它包含了我长期以来在所有 React 项目中使用的首选 ESLint 配置。这个配置停用了 ESLint 的所有格式化规则，并确保了更漂亮的用于代码美化。</p>
+<h2 id="monorepo-setup-shared-libraries">共享库的 Monorepo 设置</h2>
+<p>我的目标是提供两个 npm 包，将 ESLint 和更漂亮的配置外包到单独的 npm 包中。因此，我使用一个 monorepo 项目来促进包的单独发布，但这绝不是使用 monorepo 设置所必需的。这篇文章没有解释 monorepos 的 npm 工作空间是如何工作的，但是如果你对此感兴趣，你可以跟随我的<a href="https://blog.logrocket.com/exploring-workspaces-other-advanced-package-manager-features/" target="_blank" rel="noopener">详细指南</a>。</p>
+<p>npm 项目的文件夹结构如下所示:</p>
+<pre class="language-plaintext hljs">.
+├── packages/
+│   ├── eslint-config/
+│   │   ├── eslint-config.js
+│   │   └── package.json
+│   └── prettier-config/
+│       ├── package.json
+│       └── prettier-config.json    
+├── .gitignore
+└── package.json
+</pre>
+<p>根<code>package.json</code>定义了工作区<code>eslint-config</code>和<code>prettier-config</code>的位置。</p>
+<pre class="language-json hljs">{
+  "name": "Shared ESLint and Prettier config",
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "publish-eslint-config": "npm publish --workspace @doppelmutzi/eslint-config-react",
+    "publish-prettier-config": "npm publish --workspace @doppelmutzi/prettier-config"
+  }
+}
+</pre>
+<p>在脚本<code>publish-eslint-config</code>和<code>publish-prettier-config</code>的帮助下，您可以将每个包发布到各自的公共<a href="https://www.npmjs.com/" target="_blank" rel="noopener"> npm 注册表</a>。</p>
+<p>说到包，接下来让我们深入研究包<code>@doppelmutzi/eslint-config-react</code>的实现。</p>
+<h2 id="shared-eslint-configuration">共享 ESLint 配置(<code>@doppelmutzi/eslint-config-react</code>)</h2>
+<p>这个部分处理工作区<code>@doppelmutzi/eslint-config-react</code>，它暴露了我们的 ESLint 配置。</p>
+<h3 id="package-json"><code>package.json</code></h3>
+<p>让我们来看看我们在提供的 GitHub 回购中的<code><a href="https://github.com/doppelmutzi/shared-eslint/blob/main/packages/eslint-config/package.json" target="_blank" rel="noopener">eslint-config/package.json</a></code>。</p>
+<pre class="language-javascript hljs">{
+    "name": "@doppelmutzi/eslint-config-react",
+    "version": "1.0.0",
+    "main": "./eslint-config.js",    
+    "peerDependencies": {
+        "@babel/eslint-parser": "7.16.5",
+        "eslint": "8.5.0",
+        "eslint-config-prettier": "8.3.0",
+        "eslint-config-standard": "16.0.3",
+        "eslint-import-resolver-node": "0.3.6",
+        "eslint-plugin-import": "2.25.3",
+        "eslint-plugin-node": "11.1.0",
+        "eslint-plugin-prettier": "4.0.0",
+        "eslint-plugin-promise": "6.0.0",
+        "eslint-plugin-react": "7.28.0",
+        "eslint-plugin-react-hooks": "4.3.0",
+        "prettier": "2.5.1"
+    },
+    "scripts": {
+        "publish-manual": "npm publish"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    // ...    
+}
+</pre>
+<p>最重要的部分是<code>main</code>属性，它引用保存我们的 ESLint 配置的文件。我们一会儿就来看看。在发布新版本之前，需要设置<code>version</code>属性。</p>
+<p>属性定义了你需要安装到你的项目中来使用我们的共享库的包。我将在使用这个库的 React 示例项目中进行更详细的介绍。</p>
+<p>属性是特定于 npm 的，它使我们能够将这个项目发布到公共的 npm 注册表。<code>publish-manual</code>脚本只是使用内置的 npm CLI 命令来发布这个包。在本节的最后，我们将调用这个脚本来发布这个包的一个版本。</p>
+<h3 id="eslint-config-js-file"><code>eslint-config.js</code>文件</h3>
+<p><a href="https://github.com/doppelmutzi/shared-eslint/blob/main/packages/eslint-config/eslint-config.js" target="_blank" rel="noopener"> <code>eslint-config.js</code> </a>保存了我们希望在项目中重用的 ESLint 配置。我们可以随意命名它，但是必须在我们的<code>package.json</code>的<code>main</code>字段中引用它。</p>
+<p>具体来说，这个文件保存您通常放入<a href="https://eslint.org/docs/user-guide/configuring/configuration-files#using-configuration-files" target="_blank" rel="noopener"> ESLint 配置文件</a> ( <code>.eslintrc</code>，<code>.eslintrc.js</code>)等的内容。)在您的项目中。</p>
+<pre class="language-javascript hljs">// .eslintrc.js
+module.exports = {
+  // ...
+  extends: [
+    "plugin:react/recommended",
+    "standard",
+    "plugin:prettier/recommended",
+  ],
+  parser: "@babel/eslint-parser",
+  parserOptions: {
+    ecmaFeatures: {
+      jsx: true,
+    },
+    ecmaVersion: 12,
+    sourceType: "module",
+  },
+  plugins: ["react"],
+};
+</pre>
+<p>正如我在简介中描述的，这是我首选的 React 设置。</p>
+<h3 id="publish-npm">发布到 npm</h3>
+<p>让我们将它发布到公共 npm 注册中心。在<code>packages/eslint-config/</code>文件夹中，我们可以直接执行<code>$ npm run publish-manual</code>或者<code>$ npm publish</code>。此外，通过这个 npm 工作区设置，我们还可以使用根文件夹(<code>$ npm run publish-eslint-config</code>)中的脚本<code>publish-eslint-config</code>将其推送到注册表中。</p>
+<pre class="language-json hljs">{
+  // root package.json
+  "description": "Shared ESLint and Prettier config",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "publish-eslint-config": "npm publish --workspace @doppelmutzi/eslint-config-react",
+    "publish-prettier-config": "npm publish --workspace @doppelmutzi/prettier-config"
+  }
+}
+</pre>
+<figure id="attachment_122016" aria-describedby="caption-attachment-122016" class="wp-caption aligncenter"><img data-attachment-id="122016" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/execution-output-npmpublish-large/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg" data-orig-size="730,513" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Execution output of npm publish command" data-image-description="" data-image-caption="&lt;p&gt;Execution and output of the ”npm publish” command&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large-300x211.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg" decoding="async" class="size-full wp-image-122016 jetpack-lazy-image" src="../Images/3f04452d637c6cc5770216288e7dc626.png" alt="Execution and output of the npm publish command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large-300x211.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="122016" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/execution-output-npmpublish-large/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg" data-orig-size="730,513" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Execution output of npm publish command" data-image-description="" data-image-caption="&lt;p&gt;Execution and output of the ”npm publish” command&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large-300x211.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg" decoding="async" loading="lazy" class="size-full wp-image-122016" src="../Images/3f04452d637c6cc5770216288e7dc626.png" alt="Execution and output of the npm publish command" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large-300x211.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/execution-output-npmpublish-Large.jpeg"/></noscript><figcaption id="caption-attachment-122016" class="wp-caption-text">Execution and output of the <code>npm publish</code> command</figcaption></figure>
+<p>确保您已经将<code>packages/eslint-config/package.json</code>中的版本号调整为新版本；否则你会得到一个<code>403</code>错误。如果出版工作，你会在 npm 上找到你的新版本。</p>
+<figure id="attachment_122018" aria-describedby="caption-attachment-122018" class="wp-caption aligncenter"><img data-attachment-id="122018" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/version-publish-npm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Version gets published to npmjs" data-image-description="" data-image-caption="&lt;p&gt;Version gets published to npmjs&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png" decoding="async" class="size-full wp-image-122018 jetpack-lazy-image" src="../Images/6bfc7b54d9d81372dde479a9ea265534.png" alt="Version gets published to npmjs" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm-300x167.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="122018" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/version-publish-npm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Version gets published to npmjs" data-image-description="" data-image-caption="&lt;p&gt;Version gets published to npmjs&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png" decoding="async" loading="lazy" class="size-full wp-image-122018" src="../Images/6bfc7b54d9d81372dde479a9ea265534.png" alt="Version gets published to npmjs" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm-300x167.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/version-publish-npm.png"/></noscript><figcaption id="caption-attachment-122018" class="wp-caption-text">Version gets published to npmjs</figcaption></figure>
+<h2 id="shared-prettier-configuration">共享更漂亮的配置(<code>@doppelmutzi/prettier-config</code>)</h2>
+<p>在这一节中，我将解释如何将您的自定义漂亮配置外包到一个单独的包中，就像我在示例 GitHub repo 中对<code>@doppelmutzi/prettier-config</code>所做的那样。</p>
+<h3 id="prettier-json-package"><code>package.json</code></h3>
+<p>再来看看我们现在的<code><a href="https://github.com/doppelmutzi/shared-eslint/blob/main/packages/prettier-config/package.json" target="_blank" rel="noopener">prettier-config/package.json</a></code>。</p>
+<pre class="language-json hljs">{
+    "name": "@doppelmutzi/prettier-config",
+    "version": "1.0.0",
+    "main": "./prettier-config.json",
+    "peerDependencies": {
+        "prettier": "2.5.1"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "publish-manual": "npm publish"
+    },
+    // ...
+}
+</pre>
+<p>同样，最有趣的部分是<code>main</code>字段，它指向提取的更漂亮的配置。</p>
+<p>其他字段的含义与我们在 ESLint 部分给出的相同；唯一的对等依赖本身更漂亮。在下一节我们将包含这个库时，这将变得相关。</p>
+<h3 id="prettier-config-json-file"><code>prettier-config.json</code>文件</h3>
+<p><a href="https://github.com/doppelmutzi/shared-eslint/blob/main/packages/prettier-config/prettier-config.json" target="_blank" rel="noopener"> <code>prettier-config.json</code> </a>构成了<a href="https://prettier.io/docs/en/configuration.html" target="_blank" rel="noopener">配置文件</a>。我们将用它来覆盖 Prettier 的默认行为。</p>
+<p>在我们的例子中，我们使用单引号(<code>singleQuote</code>)来定义 beauty，并避免在单个箭头函数参数(<code>arrowParens</code>)周围使用括号。</p>
+<pre class="language-json hljs">{
+    "singleQuote": true,
+    "arrowParens": "avoid"
+}
+</pre>
+<h3 id="prettier-publish-npm">发布到 npm</h3>
+<p>这类似于发布<code>@doppelmutzi/eslint-config-react</code>包。调整完<code>version</code>字段后，我们只需调用根文件夹中的<code>$ npm run publish-prettier-config</code>。</p>
+<h2 id="using-shared-libraries-react">在 React 项目中使用共享库</h2>
+<p>我构建的<a href="https://github.com/doppelmutzi/companion-project-use-shared-eslint" target="_blank" rel="noopener"> React 示例项目</a>展示了如何使用我们的库。在这一节中，我将逐步解释如何在您自己的 React 项目中使用它。</p>
+<h3 id="install-eslint-prettier-packages">安装定制的 ESLint 和更漂亮的软件包</h3>
+<p>要将这些库引入 React 项目，必须首先将它们作为依赖项添加。</p>
+<pre class="language-bash hljs"># add eslint-config-react as dev dependency
+$ npm i -D @doppelmutzi/eslint-config-react
+# add prettier-config as dev dependency
+$ npm i -D @doppelmutzi/prettier-config
+</pre>
+<h3 id="install-peer-dependencies">安装对等依赖项</h3>
+<p>在这之后，我们必须安装我们在每个库的<code>package.json</code>文件中定义的对等依赖项。为此，我们可以利用 npm 包<code><a href="https://github.com/nathanhleung/install-peerdeps" target="_blank" rel="noopener">install-peerdeps</a></code>。</p>
+<pre class="language-bash hljs"># install eslint-config-react's peer dependencies as dev peerDependencies
+$ npx install-peerdeps --dev @doppelmutzi/eslint-config-react
+# install prettier-config's peer dependencies as dev dependencies
+$ npx install-peerdeps --dev @doppelmutzi/prettier-config
+</pre>
+<p>或者，您可以将在<code>peerDependencies</code>字段中定义的库复制到您的<code>package.json</code>的<code>devDependencies</code>部分，并调用<code>$ npm install</code>。</p>
+<p>最后，您的<code>package.json</code>将会是这样的:</p>
+<pre class="language-json hljs">{
+  // ...
+  "devDependencies": {
+    "@babel/eslint-parser": "7.16.5",
+    "eslint": "8.5.0",
+    "eslint-config-prettier": "8.3.0",
+    "eslint-config-standard": "16.0.3",
+    "eslint-import-resolver-node": "0.3.6",
+    "eslint-plugin-import": "2.25.3",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-prettier": "4.0.0",
+    "eslint-plugin-promise": "6.0.0",
+    "eslint-plugin-react": "7.28.0",
+    "eslint-plugin-react-hooks": "4.3.0",
+    "prettier": "2.5.1",
+    // your other dependencies
+  }
+}
+</pre>
+<h3 id="set-up-configuration-files">设置配置文件</h3>
+<p>最后一步是设置我们的配置文件<code>.eslintrc.js</code>和<code>.prettierrc</code>。要在<code>@doppelmutzi/eslint-config-react</code>中使用 ESLint 配置，您需要以下配置:</p>
+<pre class="language-json hljs">module.exports = {
+  extends: ['@doppelmutzi/eslint-config-react'],
+};
+</pre>
+<p>您仍然可以选择使用特定于项目的配置来覆盖或扩展此设置。<br/>为了更美观的设置，你只需将以下内容放入<code>.prettierrc</code>。</p>
+<pre class="language-json hljs">"@doppelmutzi/prettier-config"
+</pre>
+<h3 id="configure-vs-code-intellij">配置 VS 代码和 IntelliJ</h3>
+<p>最后一步是正确配置您的 IDE。我的首选设置是在保存时自动修复 ESLint 问题；因此，我需要提供一个配置来启用作为用户或工作区配置的保存操作。</p>
+<p>对于工作区配置，您必须打开工作区设置，切换到 JSON 编辑器，并将以下内容粘贴到其中。</p>
+<pre class="language-json hljs">  "editor.codeActionsOnSave": {
+    "source.fixAll": true,
+    "source.fixAll.eslint": true
+  },
+  "editor.formatOnSave": true,
+  "javascript.format.enable": false,
+  "[javascript]": {
+    "editor.formatOnSave": false
+  },
+  "[javascriptreact]": {
+    "editor.formatOnSave": false
+  },
+  // ...
+</pre>
+<p>VS 代码在项目的根文件夹中生成一个<code>.vscode/settings.json</code>文件。来自配套项目的这个<a href="https://github.com/doppelmutzi/companion-project-use-shared-eslint/blob/main/.vscode/settings.json" target="_blank" rel="noopener"> <code>settings.json</code>文件</a>也包含了启用带有纱线浆果 PnP 项目的 ESLint 工作流程所需的配置。</p>
+<p>要了解更多关于 ESLint 和 Yarn Berry 的信息，你可以阅读我之前关于包管理器的 LogRocket 文章。</p>
+<p>要配置 IntelliJ，你必须进入<strong>偏好菜单</strong>的<strong>代码质量工具</strong>部分。选择<strong>自动 ESLint 配置</strong>让 IntelliJ 从<code>node_modules</code>文件夹中提取 ESLint 包。另外，还需要检查<code>Run eslint --fix on save</code>。</p>
+<figure id="attachment_122021" aria-describedby="caption-attachment-122021" class="wp-caption aligncenter"><img data-attachment-id="122021" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/intellij-quality-tools-preferences/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png" data-orig-size="730,214" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="IntelliJ Code Quality Tools" data-image-description="" data-image-caption="&lt;p&gt;IntelliJ’s Code Quality Tools preferences to activate ESLint&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences-300x88.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png" decoding="async" class="size-full wp-image-122021 jetpack-lazy-image" src="../Images/3422934a24e2b057f3f6f68b94023b6d.png" alt="IntelliJ's code quality tools preferences to activate ESLint" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences-300x88.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="122021" data-permalink="https://blog.logrocket.com/reduce-effort-shared-eslint-prettier-configs/attachment/intellij-quality-tools-preferences/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png" data-orig-size="730,214" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="IntelliJ Code Quality Tools" data-image-description="" data-image-caption="&lt;p&gt;IntelliJ’s Code Quality Tools preferences to activate ESLint&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences-300x88.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png" decoding="async" loading="lazy" class="size-full wp-image-122021" src="../Images/3422934a24e2b057f3f6f68b94023b6d.png" alt="IntelliJ's code quality tools preferences to activate ESLint" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences-300x88.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intellij-quality-tools-preferences.png"/></noscript><figcaption id="caption-attachment-122021" class="wp-caption-text">IntelliJ’s Code Quality Tools preferences to activate ESLint</figcaption></figure>
+<h2>结论</h2>
+<p>本文解释了如何在一个单独的包中提供 ESLint 和更漂亮的配置。有了这个地方，您就有了一个独特地方来存放支持可重用性的代码，并构成了一个单点真理。这种干巴巴的方法减少了维护工作量，因为更改只需进行一次，就能反映到所有应用中。</p>
+<p>如果你想了解更多关于我在自己的 React 项目中使用 ESLint 和 Prettier 的方法，请随意阅读我在个人博客上发表的一些关于这个主题的文章:</p>
+
+<p> </p><div class="code-block code-block-28">
+<div class="blog-plug inline-plug js-libraries-plug"><h2>您是否添加了新的 JS 库来提高性能或构建新特性？如果他们反其道而行之呢？</h2><p>毫无疑问，前端变得越来越复杂。当您向应用程序添加新的 JavaScript 库和其他依赖项时，您将需要更多的可见性，以确保您的用户不会遇到未知的问题。</p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放 JavaScript 错误，就像它们发生在您自己的浏览器中一样，这样您就可以更有效地对错误做出反应。</p><a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a>
+<a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p><a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自 Redux、Vuex 和@ngrx/store 的额外上下文。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>自信地构建— <a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,178 @@
+<html>
+<head>
+<title>Containerizing Flutter web apps with Docker - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Docker - LogRocket 博客容器化 Flutter web 应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/#0001-01-01">https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>许多软件工程师面临的一个难题是部署。工程师可以构建和测试一个依赖于 Windows 操作系统的应用程序，而不会出错。然而，将同一个应用程序部署到不同的操作系统，比如 Linux 或 Mac，可能会导致错误和错误。</p>
+<p>在容器技术出现之前，虚拟机(VM)是处理这种情况的首选解决方案。事实证明，虚拟机速度慢，内存效率低，部分原因是它们必须为每个应用程序设置和启动。</p>
+<p>容器化应用的技术<a href="https://www.ibm.com/cloud/blog/containers-vs-vms" target="_blank" rel="noopener">弥补了虚拟机的低效</a>；容器是轻量级的包，使应用程序能够在任何操作系统或基础设施上一致地运行。</p>
+<p>本教程将深入探讨应用程序容器化的含义及其好处。我们将通过在我们的机器上设置 Docker 并封装一个 Flutter web 应用程序来研究这个问题。</p>
+<h2>先决条件</h2>
+<ul>
+<li>安装在您机器上的 Dart、Android 和 Flutter SDKs</li>
+<li><a href="https://www.docker.com/get-started" target="_blank" rel="noopener"> Docker 工具包</a></li>
+</ul>
+<p>在这个演示中，我将使用<a href="https://code.visualstudio.com/" target="_blank" rel="noopener"> Visual Studio 代码</a>。要在 Windows 上高效运行 Docker，请确保您的机器:</p>
+<ul>
+<li>在 Windows v10 上运行</li>
+<li>至少有 4GB 的内存</li>
+</ul>
+<h2>什么是容器？</h2>
+<p>容器技术使得在分布式环境中一致地运行应用程序成为可能。这些环境可以包括:</p>
+<ul>
+<li>通过开发人员的笔记本电脑过渡到测试、试运行和生产环境</li>
+<li>从物理机迁移到云中的虚拟机</li>
+</ul>
+<p>通常不能保证应用程序在这些环境中使用一致的运行时协议。例如，您可能使用 Flutter v2.2.3 构建和测试一个应用程序，但是在生产阶段，应用程序最终运行在 Flutter v2.5.1 上，结果，出现了一些问题。</p>
+<p>容器确保应用程序维护其配置的运行时协议，而不管主机服务器的操作配置如何。</p>
+<p>它通过将应用程序及其依赖项、设置、库和其他运行时协议打包在一个隔离状态中来实现这一点。这意味着应用程序独立于主机服务器配置运行，没有任何不兼容性。</p>
+<h2>Docker 是什么？</h2>
+<p>Docker 是一个用于构建、测试、部署和管理容器化应用程序的开源工具。在我看来，它是实现应用程序容器化的标准，因为它易于移植，并且是为现代微服务架构设计的。</p>
+<p>Docker 通过它的<code>docker</code>命令简化了编排容器的过程。</p>
+<h2>用 Docker 容器化你的应用的好处</h2>
+<h3>成本效率</h3>
+<p>在三台虚拟机中托管三个应用程序的服务器需要由虚拟机管理程序管理的三个虚拟操作系统副本才能在服务器上运行。这需要大量资源，因为运行这三个应用的虚拟机将非常繁重，并将消耗大量 CPU 资源。</p>
+<p>使用容器，容器引擎管理所有三个应用程序并共享同一个主机操作系统。单个基础设施可以支持不同数量的容器。</p>
+<h3>远程服务</h3>
+<p>开发人员可以将 Docker 图像推送到存储库或从存储库中取出。任何机器都可以托管这些映像来运行其容器。这意味着无论在哪里，您都可以在 Docker 映像中检索和运行容器。这个过程类似于您通常如何检索驻留在远程 Git 存储库中的应用程序。</p>
+<h3>自动设置</h3>
+<p>Docker 抽象了每次更改应用程序环境时手动设置应用程序依赖关系的过程。由于 Docker 容器的独立性和隔离性，您不需要设置您的应用程序运行时配置。容器已经包含了应用程序自给自足所需的依赖项。</p>
+<p>一旦构建了映像，Docker 就会使用所提供的配置来支持应用程序。</p>
+<h3>可量测性</h3>
+<p>与虚拟机相比，使用容器扩展应用程序更易于管理。Docker 容器可以扩展应用程序以承受更重的负载。当应用程序负载的重量下降时，它还可以减少处理工作。</p>
+<h3>安全性</h3>
+<p>容器的配置是不可变的。当对映像的配置进行更改时，整个容器被替换，映像被重建。</p>
+<h2>设置 Docker</h2>
+<p>让我们继续用 Docker 封装一个<a href="https://blog.logrocket.com/how-to-create-desktop-applications-with-flutter/" target="_blank" rel="noopener"> Flutter web 应用程序</a>。</p>
+<p>正如我在本文开头提到的，我将在 Windows 操作系统上演示这个过程。在系统上安装 Docker 后，以管理员身份打开命令 shell。</p>
+<p>运行以下命令检查安装的 Docker 版本:</p>
+<pre class="language-shell hljs">sh
+docker --version
+</pre>
+<p>您应该得到一个显示您安装的 Docker 版本的输出，格式如下:</p>
+<pre class="language-plaintext hljs">sh
+Docker version 20.10.8, build 3967b7d
+</pre>
+<p>接下来，让我们通过在终端上运行一个基本的 Docker 命令来测试安装。</p>
+<pre class="language-bash hljs">sh
+docker run hello-world
+</pre>
+<p>该命令的预期输出是:</p>
+<p><img data-attachment-id="72068" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/expected-hello-world-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png" data-orig-size="730,587" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="expected-hello-world-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output-300x241.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png" decoding="async" class="aligncenter size-full wp-image-72068 jetpack-lazy-image" src="../Images/8b9a2d6c280b657c911913db4c694e98.png" alt="The expected output of the Hello World test with Docker" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output-300x241.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="72068" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/expected-hello-world-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png" data-orig-size="730,587" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="expected-hello-world-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output-300x241.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-72068" src="../Images/8b9a2d6c280b657c911913db4c694e98.png" alt="The expected output of the Hello World test with Docker" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output-300x241.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-hello-world-output.png"/></noscript>
+<p>第一次运行时，上面的命令从 Docker hub 中提取映像，并作为容器运行它的一个实例。</p>
+<p>如果您使用的是 Linux 操作系统，您必须授予 Docker root 访问权限，以便在您的 IDE 中使用它。您可以通过运行以下命令来实现这一点:</p>
+<p>创建码头工人组:</p>
+<pre class="language-shell hljs">sh
+
+sudo groupadd docker
+</pre>
+<p>将您的用户添加到群组:</p>
+<pre class="language-shell hljs">sh
+
+sudo usermod -a -G $USER
+</pre>
+<p>激活对组所做的更改:</p>
+<pre class="language-shell hljs">sh
+
+newgrp docker
+</pre>
+<p>现在，验证您可以在不使用<code>sudo</code>命令的情况下从 shell 中运行 Docker 命令。</p>
+<pre class="language-shell hljs">sh
+docker run hello-world
+</pre>
+<h2>创建 Docker 容器</h2>
+<p>打开您想要用首选 IDE 进行容器化的 Flutter web 应用程序。在根应用程序文件夹中，创建一个名为<code>Dockerfile</code>的文件。确保文件名以大写字母“D”开头。</p>
+<p>现在，在<code>Dockerfile</code>中添加以下代码:</p>
+<pre class="language-go hljs">sh
+
+# Install Operating system and dependencies
+FROM ubuntu:20.04
+
+RUN apt-get update 
+RUN apt-get install -y curl git wget unzip libgconf-2-4 gdb libstdc++6 libglu1-mesa fonts-droid-fallback lib32stdc++6 python3
+RUN apt-get clean
+
+# download Flutter SDK from Flutter Github repo
+RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter
+
+# Set flutter environment path
+ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:${PATH}"
+
+# Run flutter doctor
+RUN flutter doctor
+
+# Enable flutter web
+RUN flutter channel master
+RUN flutter upgrade
+RUN flutter config --enable-web
+
+# Copy files to container and build
+RUN mkdir /app/
+COPY . /app/
+WORKDIR /app/
+RUN flutter build web
+
+# Record the exposed port
+EXPOSE 5000
+
+# make server startup script executable and start the web server
+RUN ["chmod", "+x", "/app/server/server.sh"]
+
+ENTRYPOINT [ "/app/server/server.sh"]
+</pre>
+<p>在上面的 Dockerfile 文件中，我们从安装操作系统(Ubuntu)和所需的依赖项开始。</p>
+<p>接下来，我们下载了 Flutter SDK，并在环境路径中设置 SDK 路径(如果您在本地机器上设置 Flutter，这也是您应该做的)。</p>
+<p>之后，我们将应用程序复制到容器中，并用<code>Dockerfile</code>构建它。</p>
+<p>最后，我们公开了一个<code>port=5000</code>，通过它我们将从容器中提供应用程序。然后我们使用<code>server.sh</code>脚本启动 HTTP 服务器。</p>
+<p>接下来，在根应用程序文件夹中创建一个子文件夹。将文件夹命名为<code>server</code>，然后在<code>server</code>文件夹中创建一个<code>server.sh</code>文件，并添加以下代码。</p>
+<pre class="language-go hljs">sh
+
+#!/bin/bash
+
+# Set the port
+PORT=5000
+
+# Stop any program currently running on the set port
+echo 'preparing port' $PORT '...'
+fuser -k 5000/tcp
+
+# switch directories
+cd build/web/
+
+# Start the server
+echo 'Server starting on port' $PORT '...'
+python3 -m http.server $PORT
+</pre>
+<p>在<code>server.sh</code>文件中，我们将端口设置为<code>5000</code>，与我们在<code>Dockerfile</code>中公开的一样。</p>
+<p>然后，我们使用<code>fuser</code>命令终止当前在端口 5000 上运行的任何其他进程，使其对我们的应用程序可用。最后，我们启动服务器。</p>
+<h2>建立 Docker 形象</h2>
+<p>从应用程序根文件夹打开终端，并运行以下命令:</p>
+<p><code>docker build . -t flutter_docker</code></p>
+<p>这将构建一个名为<code>flutter_docker</code>的 Docker 映像。您可以从已安装的 Docker 桌面应用程序中查看此图像。您也可以使用命令<code>docker images</code>查看图像。<br/>T3】</p><noscript><img data-lazy-fallback="1" data-attachment-id="72070" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/docker-image-flutter-docker/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker.png" data-orig-size="730,409" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="docker-image-flutter-docker" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker-300x168.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-72070" src="../Images/6b434a5983a008a42fd15658d349577a.png" alt="The Docker image file is visible on your disk view" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker-300x168.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/docker-image-flutter-docker.png"/></noscript>
+<h3>运行图像容器</h3>
+<p>运行以下命令:</p>
+<p><code>docker run -i -p 8080:5000 -td flutter_docker</code></p>
+<p>该命令将容器中配置的<code>port 5000</code>绑定到可从浏览器访问的<code>TCP port 8080</code>。</p>
+<p>当您完成配置时，您的项目结构应该是这种格式:<br/> <img data-attachment-id="72072" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/expected-project-structure/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png" data-orig-size="730,1162" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="expected-project-structure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-188x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-643x1024.png" decoding="async" class="aligncenter size-full wp-image-72072 jetpack-lazy-image" src="../Images/0673226cee87639d315f7360f4af1c02.png" alt="The expected project structure" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-188x300.png 188w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-643x1024.png 643w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="72072" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/expected-project-structure/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png" data-orig-size="730,1162" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="expected-project-structure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-188x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-643x1024.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-72072" src="../Images/0673226cee87639d315f7360f4af1c02.png" alt="The expected project structure" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-188x300.png 188w, https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure-643x1024.png 643w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/expected-project-structure.png"/></noscript>
+<p>继续在浏览器上查看<code>localhost:8080</code>上的应用程序。<br/> <img data-attachment-id="72075" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/view-application-local-host/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png" data-orig-size="730,411" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="view-application-local-host" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png" decoding="async" class="aligncenter size-full wp-image-72075 jetpack-lazy-image" src="../Images/c7d9b7f0bd79b08365516b0e604158e6.png" alt="You can now view the application via your local host environment" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host-300x169.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="72075" data-permalink="https://blog.logrocket.com/containerizing-flutter-web-apps-with-docker/view-application-local-host/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png" data-orig-size="730,411" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="view-application-local-host" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-72075" src="../Images/c7d9b7f0bd79b08365516b0e604158e6.png" alt="You can now view the application via your local host environment" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host-300x169.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/view-application-local-host.png"/></noscript>
+<h2>结论</h2>
+<p>在本教程中，我们了解了应用程序容器化的好处。我们演示了如何在我们的机器上设置 Docker，并继续从 Docker 容器运行我们现有的应用程序。</p>
+<p>使用 Docker，您不必担心您的应用程序由于其主机环境的不兼容性而崩溃。你可以从官方文档中了解更多关于 Docker 的信息。</p>
+<p>目的是确保您的应用程序足够灵活，能够在其主机上独立运行。正如我们用一个 Flutter 应用程序所展示的，你也可以<a href="https://blog.logrocket.com/tag/docker" target="_blank" rel="noopener">容器化用其他工具</a>构建的应用程序。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

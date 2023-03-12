@@ -1,0 +1,748 @@
+<html>
+<head>
+<title>Performance in Unity: async, await, and Tasks vs. coroutines, C# Job System, and burst compiler - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Unity 中的性能:async、await 和 Tasks 与协程、C#作业系统和突发编译器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/#0001-01-01">https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当你试图发布到网络、手机、游戏机，甚至一些低端电脑时，性能就是一切。运行速度低于 30 FPS 的游戏或应用程序会让用户感到沮丧。让我们来看看一些可以通过减少 CPU 负载来提高性能的东西。</p>
+<p>在本帖中，我们将介绍 C#中的<code>async</code>、<code>await</code>和<code>Task</code>是什么，以及如何在 Unity 中使用它们来提高项目的性能。接下来，我们将看看 Unity 的一些内置包:协程、C#作业系统和突发编译器。我们将看看它们是什么，如何使用它们，以及它们如何提高项目的性能。</p>
+
+<p>为了启动这个项目，我将使用 Unity 2021.3.4f1。我没有在 Unity 的任何其他版本上测试过这个代码；这里的所有概念应该可以在 Unity 2019.3 之后的任何 Unity 版本上工作。如果使用旧版本，您的性能结果可能会有所不同，因为 Unity 在 2021 年确实对 async/await 编程模型进行了一些重大改进。在 Unity 的博客<a href="https://blog.unity.com/technology/unity-and-net-whats-next" target="_blank" rel="noopener">中了解更多信息。NET，下一步是什么</a>，特别是标有“现代化 Unity 运行时”的部分</p>
+<p>我创建了一个新的 2D (URP)核心项目，但是你可以在你喜欢的任何类型的项目中使用它。</p>
+<p>我有一个从 Kenney Vleugels 的 Space Shooter (Redux，加上字体和声音)得到的精灵。</p>
+<p>我创建了一个包含精灵渲染和敌人组件的敌人预设。敌人组件是一个<code>MonoBehaviour</code>，它有一个<code>Transform</code>和一个<code>float</code>来跟踪位置和在 y 轴上移动的速度；</p>
+<pre class="language-csharp hljs">using UnityEngine;
+
+public class Enemy
+{
+   public Transform transform;
+   public float moveY;
+}</pre>
+<h2 id="what-async-await-and-task-are-in-c">C#中的<code>async</code>、<code>await</code>、<code>Task</code>是什么</h2>
+<h3 id="what-is-async">什么是<code>async</code>？</h3>
+<p>在 C#中，方法前面可以有一个<code>async</code>关键字，这意味着这些方法是异步方法。这只是告诉编译器，我们希望能够在中执行代码，并允许该方法的调用方在等待该方法完成时继续执行。</p>
+<p>这方面的一个例子就是做饭。你将开始煮肉，当肉在煮的时候，你正在等待它完成，你将开始做边。当食物正在烹调的时候，你将开始布置桌子。代码中的一个例子是<code>static async Task&lt;Steak&gt; MakeSteak(int number)</code>。</p>
+<p>Unity 也有各种内置的方法，你可以异步调用；方法列表见<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/30_search.html?q=async" target="_blank" rel="noopener">Unity 文档</a>。在 Unity 处理内存管理的方式上，它要么使用<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Coroutine.html" target="_blank" rel="noopener">协程</a>、<code><a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/AsyncOperation.html" target="_blank" rel="noopener">AsyncOperation</a></code>，要么使用<a href="https://docs.unity3d.com/2021.3/Documentation/Manual/JobSystemOverview.html" target="_blank" rel="noopener"> C#作业系统</a>。</p>
+<h3 id="what-is-await-and-how-do-you-use-it"><code>await</code>是什么，怎么用？</h3>
+<p>在 C#中，可以使用<code>await</code>关键字等待异步操作完成。这用在任何有<code>async</code>关键字的方法中，以等待操作继续:</p>
+<pre class="language-csharp hljs">Public async void Update()
+{
+     // do stuff
+     await // some asynchronous method or task to finish
+     // do more stuff or do stuff with the data returned from the asynchronous task.
+}</pre>
+<p>关于<code>await</code>的更多信息，请参见<a href="https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/operators/await" target="_blank" rel="noopener">微软文档</a>。</p>
+<h3 id="what-is-a-task-and-how-do-you-use-it">什么是<code>Task</code>以及如何使用它？</h3>
+<p><code>Task</code>是一个异步方法，执行单个操作，不返回值。对于返回值的<code>Task</code>，我们将使用<code>Task&lt;TResult&gt;</code>。</p>
+<p>为了使用任务，我们像在 C#中创建任何新对象一样创建它:<code>Task t1 = new Task(void Action)</code>。接下来，我们开始任务<code>t1.wait</code>。最后，我们用<code>t1.wait</code>等待任务完成。</p>
+<p>有几种方法可以创建、启动和运行任务。<code>Task t2 = Task.Run(void Action)</code>将创建并开始一项任务。<code>await Task.Run(void Action)</code>将创建、启动并等待任务完成。我们可以用最常见的替代方式对付<code>Task t3 = Task.Factory.Start(void Action)</code>。</p>
+<p>有几种方法可以让我们等待任务完成。<code>int index = Task.WaitAny(Task[])</code>将等待任何任务完成，并给我们数组中已完成任务的索引。<code>await Task.WaitAll(Task[])</code>将等待所有的任务完成。</p>
+<p>有关任务的更多信息，请参见微软文档。</p>
+<h4 id="a-simple-task-example">一个简单的<code>task</code>例子</h4>
+<pre class="language-csharp hljs">private void Start()
+{
+   Task t1 = new Task(() =&gt; Thread.Sleep(1000));
+   Task t2 = Task.Run(() =&gt; Thread.Sleep(2000000));
+   Task t3 = Task.Factory.StartNew(() =&gt; Thread.Sleep(1000));
+   t1.Start();
+   Task[] tasks = { t1, t2, t3 };
+   int index = Task.WaitAny(tasks);
+   Debug.Log($"Task {tasks[index].Id} at index {index} completed.");
+
+   Task t4 = new Task(() =&gt; Thread.Sleep(100));
+   Task t5 = Task.Run(() =&gt; Thread.Sleep(200));
+   Task t6 = Task.Factory.StartNew(() =&gt; Thread.Sleep(300));
+   t4.Start();
+   Task.WaitAll(t4, t5, t6);
+   Debug.Log($"All Task Completed!");
+   Debug.Log($"Task When any t1={t1.IsCompleted} t2={t2.IsCompleted} t3={t3.IsCompleted}");
+   Debug.Log($"All Task Completed! t4={t4.IsCompleted} t5={t5.IsCompleted} t6={t6.IsCompleted}");
+}
+
+public async void Update()
+{
+   float startTime = Time.realtimeSinceStartup;
+   Debug.Log($"Update Started: {startTime}");
+   Task t1 = new Task(() =&gt; Thread.Sleep(10000));
+   Task t2 = Task.Run(() =&gt; Thread.Sleep(20000));
+   Task t3 = Task.Factory.StartNew(() =&gt; Thread.Sleep(30000));
+
+   await Task.WhenAll(t1, t2, t3);
+   Debug.Log($"Update Finished: {(Time.realtimeSinceStartup - startTime) * 1000f} ms");
+}</pre>
+<h4 id="how-the-task-affects-performance">任务如何影响绩效</h4>
+<p>现在让我们比较任务的性能和方法的性能。</p>
+<p>我需要一个静态类，可以在我所有的性能检查中使用。它将有一个模拟性能密集型操作的方法和任务。方法和任务执行完全相同的操作:</p>
+<pre class="language-csharp hljs">using System.Threading.Tasks;
+using Unity.Mathematics;
+
+public static class Performance
+{
+   public static void PerformanceIntensiveMethod(int timesToRepeat)
+   {
+       // Represents a Performance Intensive Method like some pathfinding or really complex calculation.
+       float value = 0f;
+       for (int i = 0; i &lt; timesToRepeat; i++)
+       {
+           value = math.exp10(math.sqrt(value));
+       }
+   }
+
+   public static Task PerformanceIntensiveTask(int timesToRepeat)
+   {
+       return Task.Run(() =&gt;
+       {
+           // Represents a Performance Intensive Method like some pathfinding or really complex calculation.
+           float value = 0f;
+           for (int i = 0; i &lt; timesToRepeat; i++)
+           {
+               value = math.exp10(math.sqrt(value));
+           }
+       });
+   }
+}</pre>
+<p>现在我需要一个<code>MonoBehaviour</code>来测试任务和方法的性能影响。这样我就可以看到对性能的更好的影响，我将假装我想在十个不同的游戏对象上运行它。我还将记录运行<code>Update</code>方法所花费的时间。</p>
+<p>在<code>Update</code>中，我得到开始时间。如果我正在测试这个方法，我将遍历所有模拟的游戏对象，并调用性能密集型方法。如果我正在测试任务，我将创建一个新的<code>Task</code>数组循环，遍历所有模拟的游戏对象，并将性能密集型任务添加到任务数组中。然后我将所有的任务交给<code>await</code>去完成。在方法类型检查之外，我更新了方法时间，将其转换为<code>ms</code>。我也记录它。</p>
+<pre class="language-csharp hljs">public class PerformanceTaskCoroutineJob : MonoBehaviour
+{
+   private enum MethodType
+   {
+       Normal,
+       Task
+   }
+
+   [SerializeField] private int numberGameObjectsToImitate
+= 10;
+
+   [SerializeField] private MethodType method = MethodType.Normal;
+
+   [SerializeField] private float methodTime;
+
+   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           case MethodType.Normal:
+               for (int i = 0; i &lt; numberGameObjectsToImitate
+; i++)
+                   Performance.PerformanceIntensiveMethod(50000);
+               break;
+           case MethodType.Task:
+               Task[] tasks = new Task[numberGameObjectsToImitate
+];
+               for (int i = 0; i &lt; numberGameObjectsToImitate
+; i++)
+                   tasks[i] = Performance.PerformanceIntensiveTask(5000);
+               await Task.WhenAll(tasks);
+               break;
+       }
+
+       methodTime = (Time.realtimeSinceStartup - startTime) * 1000f;
+       Debug.Log($"{methodTime} ms");
+   }
+}</pre>
+<p>密集型方法需要大约 65 毫秒才能完成，游戏运行速度约为 12 FPS。</p>
+<p><img data-attachment-id="120627" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-method/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive method" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method-300x171.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif" decoding="async" class="aligncenter size-full wp-image-120627 jetpack-lazy-image" src="../Images/0c35cab1a2a22433a33d669f1c1d4a11.png" alt="Intensive Method" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120627" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-method/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive method" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method-300x171.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120627" src="../Images/0c35cab1a2a22433a33d669f1c1d4a11.png" alt="Intensive Method" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-method.gif"/></noscript>
+<p>游戏以大约 200 帧/秒的速度运行，完成这项高强度的任务需要大约 4 毫秒。</p>
+<p><img data-attachment-id="120629" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-task/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif" data-orig-size="730,460" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive task" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task-300x189.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif" decoding="async" class="aligncenter size-full wp-image-120629 jetpack-lazy-image" src="../Images/f03bdcb5877a560426d27d67611d2881.png" alt="Intensive Task" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120629" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-task/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif" data-orig-size="730,460" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive task" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task-300x189.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120629" src="../Images/f03bdcb5877a560426d27d67611d2881.png" alt="Intensive Task" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-task.gif"/></noscript>
+<p>让我们用一千个敌人来试试这个:</p>
+<pre class="language-csharp hljs">using System.Collections.Generic;
+using System.Threading.Tasks;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using UnityEngine;
+using Random = UnityEngine.Random;
+
+public class PerformanceTaskJob : MonoBehaviour
+{
+   private enum MethodType
+   {
+       NormalMoveEnemy,
+       TaskMoveEnemy
+   }
+
+   [SerializeField] private int numberEnemiesToCreate = 1000;
+   [SerializeField] private Transform pfEnemy;
+
+   [SerializeField] private MethodType method = MethodType.NormalMoveEnemy;
+   [SerializeField] private float methodTime;
+
+   private readonly List&lt;Enemy&gt; m_enemies = new List&lt;Enemy&gt;();
+
+   private void Start()
+   {
+       for (int i = 0; i &lt; numberEnemiesToCreate; i++)
+       {
+           Transform enemy = Instantiate(pfEnemy,
+                                         new Vector3(Random.Range(-8f, 8f), Random.Range(-8f, 8f)),
+                                         Quaternion.identity);
+           m_enemies.Add(new Enemy { transform = enemy, moveY = Random.Range(1f, 2f) });
+       }
+   }
+
+   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           case MethodType.NormalMoveEnemy:
+               MoveEnemy();
+               break;
+           case MethodType.TaskMoveEnemy:
+               Task&lt;Task[]&gt; moveEnemyTasks = MoveEnemyTask();
+               await Task.WhenAll(moveEnemyTasks);
+               break;
+           default:
+               MoveEnemy();
+               break;
+       }
+
+       methodTime = (Time.realtimeSinceStartup - startTime) * 1000f;
+       Debug.Log($"{methodTime} ms");
+   }
+
+   private void MoveEnemy()
+   {
+       foreach (Enemy enemy in m_enemies)
+       {
+           enemy.transform.position += new Vector3(0, enemy.moveY * Time.deltaTime);
+           if (enemy.transform.position.y &gt; 5f)
+               enemy.moveY = -math.abs(enemy.moveY);
+           if (enemy.transform.position.y &lt; -5f)
+               enemy.moveY = +math.abs(enemy.moveY);
+           Performance.PerformanceIntensiveMethod(1000);
+       }
+   }
+
+   private async Task&lt;Task[]&gt; MoveEnemyTask()
+   {
+       Task[] tasks = new Task[m_enemies.Count];
+       for (int i = 0; i &lt; m_enemies.Count; i++)
+       {
+           Enemy enemy = m_enemies[i];
+           enemy.transform.position += new Vector3(0, enemy.moveY * Time.deltaTime);
+           if (enemy.transform.position.y &gt; 5f)
+               enemy.moveY = -math.abs(enemy.moveY);
+           if (enemy.transform.position.y &lt; -5f)
+               enemy.moveY = +math.abs(enemy.moveY);
+           tasks[i] = Performance.PerformanceIntensiveTask(1000);
+       }
+
+       await Task.WhenAll(tasks);
+
+       return tasks;
+  }</pre>
+<p>用这种方法显示和移动一千个敌人需要大约 150 毫秒，帧速率大约为 7 FPS。</p>
+<p><img data-attachment-id="120631" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/thousand-enemies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif" data-orig-size="730,445" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Thousand enemies" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies-300x183.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif" decoding="async" class="aligncenter size-full wp-image-120631 jetpack-lazy-image" src="../Images/029c05ba2d0f78303a41c8356de324f1.png" alt="Thousand Enemies" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120631" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/thousand-enemies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif" data-orig-size="730,445" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Thousand enemies" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies-300x183.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120631" src="../Images/029c05ba2d0f78303a41c8356de324f1.png" alt="Thousand Enemies" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/thousand-enemies.gif"/></noscript>
+<p>在一个任务中显示和移动一千个敌人大约需要 50 毫秒，帧速率大约为 30 帧/秒。</p>
+<p><img data-attachment-id="120634" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/displaying-moving-enemies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif" data-orig-size="730,460" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Displaying moving enemies" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies-300x189.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif" decoding="async" class="aligncenter size-full wp-image-120634 jetpack-lazy-image" src="../Images/aa278902d0c01fd0f916b0f2bbdc7190.png" alt="Displaying Moving Enemies" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120634" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/displaying-moving-enemies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif" data-orig-size="730,460" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Displaying moving enemies" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies-300x189.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120634" src="../Images/aa278902d0c01fd0f916b0f2bbdc7190.png" alt="Displaying Moving Enemies" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/displaying-moving-enemies.gif"/></noscript>
+<h3 id="why-not-usetasks">为什么不是<code>useTasks</code>？</h3>
+<p>任务非常高效，可以降低系统性能的压力。您甚至可以使用任务并行库(TPL)在多线程中使用它们。</p>
+<p>然而，在 Unity 中使用它们也有一些缺点。在 Unity 中使用<code>Task</code>的主要缺点是它们都运行在<code>Main</code>线程上。是的，我们可以让它们在其他线程上运行，但 Unity 已经做了自己的线程和内存管理，你可以通过创建比 CPU 核心更多的线程来产生错误，这导致了资源的竞争。</p>
+<p>任务也很难正确执行和调试。当编写原始代码时，我结束了所有运行的任务，但是没有一个敌人在屏幕上移动。结果是我需要返回我在<code>Task</code>中创建的<code>Task[]</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>任务会产生大量影响性能的垃圾。它们也不会出现在分析器中，所以如果您有一个影响性能的问题，很难找到。此外，我注意到有时我的任务和更新功能继续从其他场景运行。</p>
+<h2 id="unity-coroutines">统一协程</h2>
+<p>根据<a href="https://docs.unity3d.com/ScriptReference/Coroutine.html" target="_blank" rel="noopener"> Unity </a>，“协程是一个可以暂停执行(让步)直到给定的<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/YieldInstruction.html" target="_blank" rel="noopener">让步指令</a>完成的函数。”</p>
+<p>这意味着我们可以运行代码，等待任务完成后再继续。这很像异步方法。它使用返回类型<code>IEnumerator</code>和 we <code>yield return</code>来代替<code>await</code>。</p>
+<p>Unity 有几种不同类型的<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/30_search.html?q=yield+instructions" target="_blank" rel="noopener">产量指令</a>可供我们使用，即<code>WaitForSeconds</code>、<code>WaitForEndOfFrame</code>、<code>WaitUntil</code>或<code>WaitWhile</code>。</p>
+<p>要启动协程，我们需要一个<code>MonoBehaviour</code>并使用<code><a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/MonoBehaviour.StartCoroutine.html" target="_blank" rel="noopener">MonoBehaviour.StartCoroutine</a></code>。</p>
+<p>为了在协程完成之前停止它，我们使用<code><a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/MonoBehaviour.StartCoroutine.html" target="_blank" rel="noopener">MonoBehaviour.StopCoroutine</a></code>。当停止协程时，确保使用与启动时相同的方法。</p>
+<p>Unity 中协同程序的常见用例是等待资产加载和创建冷却计时器。</p>
+<h3 id="example-a-scene-loader-using-a-coroutine">示例:使用协程的场景加载器</h3>
+<pre class="language-csharp hljs">using System.Collections;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class SceneLoader : MonoBehaviour
+{
+   public Coroutine loadSceneCoroutine;
+   public void Update()
+   {
+       if (Input.GetKeyDown(KeyCode.Space) &amp;&amp; loadSceneCoroutine == null)
+       {
+           loadSceneCoroutine = StartCoroutine(LoadSceneAsync());
+       }
+
+       if (Input.GetKeyDown(KeyCode.Escape) &amp;&amp; loadSceneCoroutine != null)
+       {
+           StopCoroutine(loadSceneCoroutine);
+           loadSceneCoroutine = null;
+       }
+   }
+
+   private IEnumerator LoadSceneAsync()
+   {
+       AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("Scene2");
+       yield return new WaitWhile(() =&gt; !asyncLoad.isDone);
+   }
+}</pre>
+<h3 id="checking-a-coroutines-impact-on-performance">检查协程对性能的影响</h3>
+<p>让我们看看使用协程如何影响我们项目的性能。我只打算用性能密集型的方法来做这件事。</p>
+<p>我将<code>Coroutine</code>添加到<code>MethodType</code>枚举和变量中，以跟踪它的状态:</p>
+<pre class="language-csharp hljs">public class PerformanceTaskCoroutineJob : MonoBehaviour
+{
+   private enum MethodType
+   {
+       Normal,
+       Task,
+       Coroutine
+   }
+
+   ...
+
+   private Coroutine m_performanceCoroutine;</pre>
+<p>我创造了协程。这类似于我们之前创建的性能密集型任务和方法，添加了代码来更新方法时间:</p>
+<pre class="language-csharp hljs">   private IEnumerator PerformanceCoroutine(int timesToRepeat, float startTime)
+   {
+       for (int count = 0; count &lt; numberGameObjectsToImitate; count++)
+       {
+           // Represents a Performance Intensive Method like some pathfinding or really complex calculation.
+           float value = 0f;
+           for (int i = 0; i &lt; timesToRepeat; i++)
+           {
+               value = math.exp10(math.sqrt(value));
+           }
+       }
+
+       methodTime = (Time.realtimeSinceStartup - startTime) * 1000f;
+       Debug.Log($"{methodTime} ms");
+       m_performanceCoroutine = null;
+       yield return null;
+   }</pre>
+<p>在<code>Update</code>方法中，我添加了对协程的检查。我还修改了方法时间，更新了代码，并添加了代码来停止正在运行的协程，如果我们更改了方法类型:</p>
+<pre class="language-csharp hljs">   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           ...
+           case MethodType.Coroutine:
+               m_performanceCoroutine ??= StartCoroutine(PerformanceCoroutine(5000, startTime));
+               break;
+           default:
+               Performance.PerformanceIntensiveMethod(50000);
+               break;
+       }
+
+       if (method != MethodType.Coroutine)
+       {
+           methodTime = (Time.realtimeSinceStartup - startTime) * 1000f;
+           Debug.Log($"{methodTime} ms");
+       }
+
+       if (method != MethodType.Coroutine || m_performanceCoroutine == null) return;
+       StopCoroutine(m_performanceCoroutine);
+       m_performanceCoroutine = null;
+   }</pre>
+<p>密集的协程需要大约 6 毫秒来完成，游戏以大约 90 帧/秒的速度运行。</p>
+<p><img data-attachment-id="120637" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-coroutine/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif" data-orig-size="730,465" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive coroutine" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine-300x191.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif" decoding="async" class="aligncenter size-full wp-image-120637 jetpack-lazy-image" src="../Images/85382d1b4bd8c9fcafe04c2c3f161623.png" alt="Intensive Coroutine" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120637" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-coroutine/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif" data-orig-size="730,465" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive coroutine" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine-300x191.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120637" src="../Images/85382d1b4bd8c9fcafe04c2c3f161623.png" alt="Intensive Coroutine" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-coroutine.gif"/></noscript>
+<h2 id="the-c-job-system-and-burst-compiler">C#作业系统和突发编译器</h2>
+<h3 id="what-is-the-c-job-system">什么是 C#作业系统？</h3>
+<p>C#作业系统是 Unity 对任务的实现，这些任务易于编写，不会产生任务产生的垃圾，并且利用 Unity 已经创建的<a href="https://docs.microsoft.com/en-us/cpp/parallel/multithreading-creating-worker-threads" target="_blank" rel="noopener">工作线程</a>。这解决了任务的所有缺点。</p>
+<p>Unity 将作业比作线程，但是他们确实说一个作业做一个特定的任务。作业也可以依赖其他作业在运行前完成；这解决了我的任务没有正确移动我的<code>Units</code>的问题，因为它依赖于另一个任务先完成。</p>
+<p>Unity 会自动为我们处理作业依赖关系。作业系统还有一个内置的安全系统，主要是为了防止竞争条件。关于作业的一个警告是，它们只能包含属于<a href="https://en.wikipedia.org/wiki/Blittable_types" target="_blank" rel="noopener">blittable type</a>或<a href="https://docs.unity3d.com/2021.3/Documentation/Manual/JobSystemNativeContainer.html" target="_blank" rel="noopener"> NativeContainer </a>类型的成员变量；这是安全系统的一个缺点。</p>
+<p>要使用作业系统，您需要创建作业、安排作业、等待作业完成，然后使用作业返回的数据。为了使用 Unity 的面向数据的技术堆栈(DOTS ),需要作业系统。</p>
+<p>有关作业系统的更多详细信息，请参见<a href="https://docs.unity3d.com/2021.3/Documentation/Manual/JobSystemJobSystems.html" target="_blank" rel="noopener"> Unity 文档</a>。</p>
+<h4 id="creating-a-job">创建工作</h4>
+<p>要创建一个作业，您需要创建一个<code>stuct</code>，它实现了一个<code>IJob</code>接口(<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Unity.Jobs.IJobFor.html" target="_blank" rel="noopener"> IJob </a>，<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Unity.Jobs.IJobFor.html" target="_blank" rel="noopener"> IJobFor </a>，<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Unity.Jobs.IJobParallelFor.html" target="_blank" rel="noopener">ijobparallelffor</a>，<a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Jobs.IJobParallelForTransform.html" target="_blank" rel="noopener"> Unity)。engine . jobs . ijobparallelfortransform</a>)。<code>IJob</code>是一项基础工作。<code>IJobFor</code>和<code>IJobForParallel</code>用于对原生容器的每个元素执行相同的操作，或者进行多次迭代。它们之间的区别在于，IJobFor 运行在单线程上，而<code>IJobForParallel</code>将在多个线程之间分开。</p>
+<p>我将使用<code>IJob</code>创建一个密集操作任务，<code>IJobFor</code>和<code>IJobForParallel</code>创建一个可以移动多个敌人的任务；这只是为了让我们可以看到对性能的不同影响。这些作业将与我们之前创建的任务和方法相同:</p>
+<pre class="language-csharp hljs">public struct PerformanceIntensiveJob : IJob { }
+public struct MoveEnemyJob: IJobFor { }
+public struct MoveEnemyParallelJob : IJobParallelFor { }</pre>
+<p>添加成员变量。在我的情况下，我的<code>IJob</code>不需要任何。由于作业没有帧的概念，<code>IJobFor</code>和<code>IJobParallelFor</code>需要当前增量时间的浮点数；他们在 Unity 的<code>MonoBehaviour</code>之外运作。他们还需要一个关于位置的<code>float3</code>数组和一个关于 y 轴上移动速度的数组:</p>
+<pre class="language-csharp hljs">public struct MoveEnemyJob : IJobFor
+{
+   public NativeArray&lt;float3&gt; positions;
+   public NativeArray&lt;float&gt; moveYs;
+   public float deltaTime; 
+}
+public struct MoveEnemyParallelJob : IJobParallelFor
+{
+   public NativeArray&lt;float3&gt; positions;
+   public NativeArray&lt;float&gt; moveYs;
+   public float deltaTime;
+}</pre>
+<p>最后一步是实现所需的<code>Execute</code>方法。<code>IJobFor</code>和<code>IJobForParallel</code>都需要一个<code>int</code>作为作业正在执行的当前迭代的索引。</p>
+<p>不同之处在于，我们没有访问敌人的<code>transform</code>并移动，而是使用工作中的阵列:</p>
+<pre class="language-csharp hljs">public struct PerformanceIntensiveJob : IJob
+{
+   #region Implementation of IJob
+
+   /// &lt;inheritdoc /&gt;
+   public void Execute()
+   {
+       // Represents a Performance Intensive Method like some pathfinding or really complex calculation.
+       float value = 0f;
+       for (int i = 0; i &lt; 50000; i++)
+       {
+           value = math.exp10(math.sqrt(value));
+       }
+   }
+
+   #endregion
+}
+
+// MoveEnemyJob and MoveEnemyParallelJob have the same exact Execute Method. 
+
+   /// &lt;inheritdoc /&gt;
+   public void Execute(int index)
+   {
+       positions[index] += new float3(0, moveYs[index] * deltaTime, 0);
+       if (positions[index].y &gt; 5f)
+           moveYs[index] = -math.abs(moveYs[index]);
+       if (positions[index].y &lt; -5f)
+           moveYs[index] = +math.abs(moveYs[index]);
+
+       // Represents a Performance Intensive Method like some pathfinding or really complex calculation.
+       float value = 0f;
+       for (int i = 0; i &lt; 1000; i++)
+       {
+           value = math.exp10(math.sqrt(value));
+       }
+   }</pre>
+<pre class="language-csharp hljs">   private JobHandle PerformanceIntensiveMethodJob()
+   {
+       PerformanceIntensiveJob job = new PerformanceIntensiveJob();
+       return job.Schedule();
+   }</pre>
+<h4 id="scheduling-a-job">计划作业</h4>
+<p>首先，我们需要设置作业并填充作业数据:</p>
+<pre class="language-csharp hljs">NativeArray&lt;float&gt; result = new NativeArray&lt;float&gt;(1, Allocator.TempJob);
+
+MyJob jobData = new MyJob();
+jobData.myFloat = result;</pre>
+<p>然后我们用<code>JobHandle jobHandle = jobData.Schedule();</code>来调度作业。<code>Schedule</code>方法返回一个可以在以后使用的<code><a href="https://docs.unity3d.com/2021.3/Documentation/ScriptReference/Unity.Jobs.JobHandle.html" target="_blank" rel="noopener">JobHandle</a></code>。</p>
+<p>我们不能从作业中安排作业。但是，我们可以创建新的作业，并在作业中填充它们的数据。一旦安排了作业，就不能中断。</p>
+<h5 id="the-performance-intensive-job-1">性能密集型工作</h5>
+<p>我创建了一个创建新作业并对其进行调度的方法。它返回我可以在我的<code>update</code>方法中使用的作业句柄:</p>
+<pre class="language-csharp hljs">public class PerformanceTaskCoroutineJob : MonoBehaviour
+{
+   ....
+
+   private JobHandle PerformanceIntensiveMethodJob()
+   {
+       PerformanceIntensiveJob job = new PerformanceIntensiveJob();
+       return job.Schedule();
+   }
+}</pre>
+<p>我将该工作添加到我的枚举中。然后，在<code>Update</code>方法中，我将<code>case</code>添加到<code>switch</code>部分。我创建了一个<code>JobHandles</code>数组。然后，我遍历所有模拟的游戏对象，将每个对象的计划作业添加到数组中:</p>
+<pre class="language-csharp hljs">public class PerformanceTaskCoroutineJob : MonoBehaviour
+{
+   private enum MethodType
+   {
+       Normal,
+       Task,
+       Coroutine,
+       Job
+   }
+
+   ...
+   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           ...
+           case MethodType.Job:
+               NativeArray&lt;JobHandle&gt; jobHandles =
+                   new NativeArray&lt;JobHandle&gt;(numberGameObjectsToImitate, Allocator.Temp);
+               for (int i = 0; i &lt; numberGameObjectsToImitate; i++)
+                   jobHandles[i] = PerformanceIntensiveMethodJob();
+               break;
+           default:
+               Performance.PerformanceIntensiveMethod(50000);
+               break;
+       }
+
+       ...
+   }
+}</pre>
+<h5 id="the-moveenemy-and-moveenemyparalleljob"><code>MoveEnemy</code>和<code>MoveEnemyParallelJob</code></h5>
+<p>接下来，我将作业添加到我的枚举中。然后在<code>Update</code>方法中，我调用一个新的<code>MoveEnemyJob</code>方法，传递 delta 时间。通常你会使用<code>JobFor</code>或者<code>JobParallelFor</code>:</p>
+<pre class="language-csharp hljs">public class PerformanceTaskJob : MonoBehaviour
+{
+   private enum MethodType
+   {
+       NormalMoveEnemy,
+       TaskMoveEnemy,
+       MoveEnemyJob,
+       MoveEnemyParallelJob
+   }
+
+   ...
+
+   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           ...
+           case MethodType.MoveEnemyJob:
+           case MethodType.MoveEnemyParallelJob:
+               MoveEnemyJob(Time.deltaTime);
+               break;
+           default:
+               MoveEnemy();
+               break;
+       }
+
+       ...
+   }
+
+   ...</pre>
+<p>我做的第一件事是为位置设置一个数组，为我将传递给作业的<code>moveY</code>设置一个数组。然后我用敌人的数据填充这些数组。接下来，我创建作业，并根据我想要使用的作业设置作业的数据。之后，我根据我要使用的作业和我要执行的调度类型来调度作业:</p>
+<pre class="language-csharp hljs">private void MoveEnemyJob(float deltaTime)
+   {
+       NativeArray&lt;float3&gt; positions = new NativeArray&lt;float3&gt;(m_enemies.Count, Allocator.TempJob);
+       NativeArray&lt;float&gt; moveYs = new NativeArray&lt;float&gt;(m_enemies.Count, Allocator.TempJob);
+
+       for (int i = 0; i &lt; m_enemies.Count; i++)
+       {
+           positions[i] = m_enemies[i].transform.position;
+           moveYs[i] = m_enemies[i].moveY;
+       }
+
+       // Use one or the other
+       if (method == MethodType.MoveEnemyJob)
+       {
+           MoveEnemyJob job = new MoveEnemyJob
+           {
+               deltaTime = deltaTime,
+               positions = positions,
+               moveYs = moveYs
+           };
+
+           // typically we would use one of these methods
+           switch (moveEnemyJobType)
+           {
+               case MoveEnemyJobType.ImmediateMainThread:
+                   // Schedule job to run immediately on main thread.
+                   // typically would not use.
+                   job.Run(m_enemies.Count);
+                   break;
+               case MoveEnemyJobType.ScheduleSingleWorkerThread:
+               case MoveEnemyJobType.ScheduleParallelWorkerThreads:
+               {
+                   // Schedule job to run at a later point on a single worker thread.
+                   // First parameter is how many for-each iterations to perform.
+                   // The second parameter is a JobHandle to use for this job's dependencies.
+                   //   Dependencies are used to ensure that a job executes on worker threads after the dependency has completed execution.
+                   //   In this case we don't need our job to depend on anything so we can use a default one.
+                   JobHandle scheduleJobDependency = new JobHandle();
+                   JobHandle scheduleJobHandle = job.Schedule(m_enemies.Count, scheduleJobDependency);
+
+                   switch (moveEnemyJobType)
+                   {
+                       case MoveEnemyJobType.ScheduleSingleWorkerThread:
+                           break;
+                       case MoveEnemyJobType.ScheduleParallelWorkerThreads:
+                       {
+                           // Schedule job to run on parallel worker threads.
+                           // First parameter is how many for-each iterations to perform.
+                           // The second parameter is the batch size,
+                           //   essentially the no-overhead inner-loop that just invokes Execute(i) in a loop.
+                           //   When there is a lot of work in each iteration then a value of 1 can be sensible.
+                           //   When there is very little work values of 32 or 64 can make sense.
+                           // The third parameter is a JobHandle to use for this job's dependencies.
+                           //   Dependencies are used to ensure that a job executes on worker threads after the dependency has completed execution.
+                           JobHandle scheduleParallelJobHandle =
+                               job.ScheduleParallel(m_enemies.Count, m_enemies.Count / 10, scheduleJobHandle);
+
+                           break;
+                       }
+                   }
+
+                   break;
+               }
+           }
+       }
+       else if (method == MethodType.MoveEnemyParallelJob)
+       {
+           MoveEnemyParallelJob job = new MoveEnemyParallelJob
+           {
+               deltaTime = deltaTime,
+               positions = positions,
+               moveYs = moveYs
+           };
+
+           // Schedule a parallel-for job. First parameter is how many for-each iterations to perform.
+           // The second parameter is the batch size,
+           // essentially the no-overhead inner-loop that just invokes Execute(i) in a loop.
+           // When there is a lot of work in each iteration then a value of 1 can be sensible.
+           // When there is very little work values of 32 or 64 can make sense.
+           JobHandle jobHandle = job.Schedule(m_enemies.Count, m_enemies.Count / 10);
+
+           }
+   }</pre>
+<h4 id="getting-the-data-back-from-a-job">从作业中获取数据</h4>
+<p>我们必须等待这项工作完成。我们可以从我们调度任务来完成它时使用的<code>JobHandle</code>中获得状态。这将等待作业完成后再继续执行:&gt; <code>handle.Complete();</code>或<code>JobHandle.CompleteAll(jobHandles)</code>。一旦作业完成，我们用来设置作业的<code><a href="https://docs.unity3d.com/2021.3/Documentation/Manual/JobSystemNativeContainer.html" target="_blank" rel="noopener">NativeContainer</a></code>将拥有我们需要使用的所有数据。一旦我们从它们那里获取了数据，我们就必须正确地处理它们。</p>
+<h5 id="the-performance-intensive-job-2">性能密集型工作</h5>
+<p>这非常简单，因为我没有向作业中读取或写入任何数据。我等待所有计划完成的作业，然后释放<code>Native</code>数组:</p>
+<pre class="language-csharp hljs">public class PerformanceTaskCoroutineJob : MonoBehaviour
+{
+   ...
+
+   private async void Update()
+   {
+       float startTime = Time.realtimeSinceStartup;
+
+       switch (method)
+       {
+           ...
+           case MethodType.Job:
+               ....
+               JobHandle.CompleteAll(jobHandles);
+               jobHandles.Dispose();
+               break;
+           default:
+               Performance.PerformanceIntensiveMethod(50000);
+               break;
+       }
+
+       ...
+   }
+}</pre>
+<p>游戏以大约 90 帧/秒的速度运行，完成这项高强度的工作需要大约 6 毫秒。</p>
+<p><img data-attachment-id="120640" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-job/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif" data-orig-size="730,465" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive job" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-300x191.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif" decoding="async" class="aligncenter size-full wp-image-120640 jetpack-lazy-image" src="../Images/1aacf75dda2e62dc3aa9687d677b48be.png" alt="Intensive Job" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120640" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-job/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif" data-orig-size="730,465" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive job" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-300x191.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120640" src="../Images/1aacf75dda2e62dc3aa9687d677b48be.png" alt="Intensive Job" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job.gif"/></noscript>
+<h5 id="the-moveenemy-job"><code>MoveEnemy</code>工作</h5>
+<p>我添加适当的完整检查:</p>
+<pre class="language-csharp hljs">   private void MoveEnemyJob(float deltaTime)
+   {
+      ....
+
+       if (method == MethodType.MoveEnemyJob)
+       {
+          ....
+
+           switch (moveEnemyJobType)
+           {
+               case MoveEnemyJobType.ScheduleSingleWorkerThread:
+               case MoveEnemyJobType.ScheduleParallelWorkerThreads:
+               {
+                   ....
+
+                   // typically one or the other
+                   switch (moveEnemyJobType)
+                   {
+                       case MoveEnemyJobType.ScheduleSingleWorkerThread:
+                           scheduleJobHandle.Complete();
+                           break;
+                       case MoveEnemyJobType.ScheduleParallelWorkerThreads:
+                       {
+                           scheduleParallelJobHandle.Complete();
+                           break;
+                       }
+                   }
+
+                   break;
+               }
+           }
+       }
+       else if (method == MethodType.MoveEnemyParallelJob)
+       {
+           ....
+
+          jobHandle.Complete();
+       }
+   }</pre>
+<p>在方法类型检查之后，我遍历所有的敌人，将他们的<code>transform</code>位置和<code>moveY</code>设置为作业中设置的数据。接下来，我正确地处理了原生数组:</p>
+<pre class="language-csharp hljs">private void MoveEnemyJob(float deltaTime)
+   {
+      ....
+
+       if (method == MethodType.MoveEnemyJob)
+       {
+          ....
+       }
+       else if (method == MethodType.MoveEnemyParallelJob)
+       {
+           ....
+       }
+
+       for (int i = 0; i &lt; m_enemies.Count; i++)
+       {
+           m_enemies[i].transform.position = positions[i];
+           m_enemies[i].moveY = moveYs[i];
+       }
+
+       // Native arrays must be disposed manually.
+       positions.Dispose();
+       moveYs.Dispose();
+   }</pre>
+<p>用 job 显示和移动一千个敌人需要大约 160 毫秒，帧速率大约为 7 FPS，性能没有任何提高。</p>
+<p><img data-attachment-id="120643" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/no-performance-gains/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif" data-orig-size="730,451" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No performance gains" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains-300x185.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif" decoding="async" class="aligncenter size-full wp-image-120643 jetpack-lazy-image" src="../Images/d2877ec5dff61c7e208a797dab15c4ac.png" alt="No Performance Gains" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120643" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/no-performance-gains/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif" data-orig-size="730,451" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No performance gains" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains-300x185.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120643" src="../Images/d2877ec5dff61c7e208a797dab15c4ac.png" alt="No Performance Gains" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/no-performance-gains.gif"/></noscript>
+<p>用 job parallel 显示和移动一千个敌人需要大约 30 毫秒，帧速率大约为 30 FPS。</p>
+<p><img data-attachment-id="120646" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/job-parallel/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif" data-orig-size="730,425" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Job parallel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel-300x175.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif" decoding="async" class="aligncenter size-full wp-image-120646 jetpack-lazy-image" src="../Images/53079fe323b82ebc0665006f969ca588.png" alt="Job Parallel" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120646" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/job-parallel/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif" data-orig-size="730,425" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Job parallel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel-300x175.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120646" src="../Images/53079fe323b82ebc0665006f969ca588.png" alt="Job Parallel" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/job-parallel.gif"/></noscript>
+<h3 id="what-is-the-burst-compiler-in-unity">Unity 中的 burst 编译器是什么？</h3>
+<p>突发编译器是一个从字节码翻译成本机代码的编译器。在 C# Job 系统中使用它可以提高生成代码的质量，显著提升性能，并减少移动设备的电池消耗。</p>
+<p>要使用它，您只需告诉 Unity 您想在带有<code>[BurstCompile]</code>属性的作业上使用突发编译:</p>
+<pre class="language-csharp hljs">using Unity.Burst;
+using Unity.Jobs;
+using Unity.Mathematics;
+
+[BurstCompile]
+public struct PerformanceIntensiveJob : IJob
+{
+   ...
+}
+
+
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+
+[BurstCompile]
+public struct MoveEnemyJob : IJobFor
+{
+   ...
+}
+[BurstCompile]
+public struct MoveEnemyParallelJob : IJobParallelFor
+{
+   ...
+}</pre>
+<p>然后在 Unity 中选择<strong>作业</strong> &gt; <strong>突发&gt; <strong>启用完成</strong>T5】</strong></p>
+<p><img data-attachment-id="120648" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/enable-completion/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif" data-orig-size="400,311" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Enable completion" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion-300x233.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif" decoding="async" class="aligncenter size-full wp-image-120648 jetpack-lazy-image" src="../Images/21e2d17a5194b1ab56599ada35627883.png" alt="Enable Completion" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120648" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/enable-completion/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif" data-orig-size="400,311" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Enable completion" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion-300x233.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120648" src="../Images/21e2d17a5194b1ab56599ada35627883.png" alt="Enable Completion" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/enable-completion.gif"/></noscript>
+<p><strong> Burst </strong>在编辑器中是实时的(JIT ),这意味着在播放模式下可以关闭。当您构建项目时，它是超前的(AOT)，这意味着需要在构建项目之前启用它。你可以通过编辑<strong>项目设置窗口</strong>中的<strong>连拍 AOT 设置</strong>部分来实现。</p>
+<p><img data-attachment-id="120650" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/burst-aot-settings/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png" data-orig-size="541,564" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Burst aot settings" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings-288x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png" decoding="async" class="aligncenter size-full wp-image-120650 jetpack-lazy-image" src="../Images/feb534faefee8a4e2e6165329d5d4a4d.png" alt="Burst AOT Settings" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png 541w, https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings-288x300.png 288w" data-lazy-sizes="(max-width: 541px) 100vw, 541px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120650" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/burst-aot-settings/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png" data-orig-size="541,564" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Burst aot settings" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings-288x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120650" src="../Images/feb534faefee8a4e2e6165329d5d4a4d.png" alt="Burst AOT Settings" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png 541w, https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings-288x300.png 288w" sizes="(max-width: 541px) 100vw, 541px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-aot-settings.png"/></noscript>
+<p>关于突发编译器的更多细节，参见<a href="https://docs.unity3d.com/Packages/com.unity.burst@1.7/manual/docs/StandalonePlayerSupport.html#burst-aot-requirements" target="_blank" rel="noopener"> Unity 文档</a>。</p>
+<h4 id="a-performance-intensive-job-with-the-burst-compiler">使用拆分编译器的性能密集型工作</h4>
+<p>在游戏以大约 150 FPS 的速度运行的情况下，使用 burst 的密集工作需要大约 3 毫秒来完成。</p>
+<p><img data-attachment-id="120653" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-job-with-burst/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif" data-orig-size="730,438" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive job with burst" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst-300x180.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif" decoding="async" class="aligncenter size-full wp-image-120653 jetpack-lazy-image" src="../Images/2f95e2c9d362bf5adf67bd166ba452dd.png" alt="Intensive Job With Burst" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120653" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/intensive-job-with-burst/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif" data-orig-size="730,438" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Intensive job with burst" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst-300x180.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120653" src="../Images/2f95e2c9d362bf5adf67bd166ba452dd.png" alt="Intensive Job With Burst" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/intensive-job-with-burst.gif"/></noscript>
+<p>显示和移动一千个敌人，使用 burst 的工作需要大约 30 毫秒，帧速率大约为 30 FPS。</p>
+<p><img data-attachment-id="120656" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/burst-30-ms/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif" data-orig-size="730,432" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Burst 30 ms" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms-300x178.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif" decoding="async" class="aligncenter size-full wp-image-120656 jetpack-lazy-image" src="../Images/0849e9c5031d3a3a281724c7435bf52a.png" alt="Burst 30 ms" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120656" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/burst-30-ms/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif" data-orig-size="730,432" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Burst 30 ms" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms-300x178.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120656" src="../Images/0849e9c5031d3a3a281724c7435bf52a.png" alt="Burst 30 ms" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/burst-30-ms.gif"/></noscript>
+<p>显示和移动一千个敌人，与突发并行的工作需要大约 6 毫秒，帧速率大约为 80 到 90 FPS。</p>
+<p><img data-attachment-id="120666" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/6-ms/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif" data-orig-size="730,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="6 ms" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms-300x190.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif" decoding="async" class="aligncenter size-full wp-image-120666 jetpack-lazy-image" src="../Images/c44dd52f92588693873cc8e298e4b67d.png" alt="6 ms" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120666" data-permalink="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/attachment/6-ms/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif" data-orig-size="730,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="6 ms" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms-300x190.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-120666" src="../Images/c44dd52f92588693873cc8e298e4b67d.png" alt="6 ms" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/6-ms.gif"/></noscript>
+<h2>结论</h2>
+<p>我们可以使用<code>Task</code>来提高我们的 Unity 应用程序的性能，但是使用它们有几个缺点。根据我们想要做的事情，最好使用 Unity 中打包的东西。如果我们想等待一些东西异步加载完成，就使用协程；我们可以启动协程，而不停止程序的运行。</p>
+<p>我们可以使用带有突发编译器的 C#作业系统来获得巨大的性能提升，同时在执行进程密集型任务时不必担心所有的线程管理问题。使用内置的系统，我们确信它是以安全的方式完成的，不会导致任何不必要的错误或缺陷。</p>
+<p>任务确实比不使用突发编译器的作业运行得好一点，但这是因为在后台为我们安全地设置一切有一点额外的开销。当使用突发编译器时，我们的作业执行我们的任务。当你需要所有你能得到的额外性能时，使用 C#作业系统和 burst。</p>
+<p>这个项目的文件可以在<a href="https://github.com/JamesLaFritz/TaskVSJobSystem" target="_blank" rel="noopener"> my GitHub </a>上找到。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

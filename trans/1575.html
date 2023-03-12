@@ -1,0 +1,222 @@
+<html>
+<head>
+<title>React.memo() vs. useMemo(): Major differences and use cases - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React.memo()与 useMemo():主要区别和用例</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-memo-vs-usememo/#0001-01-01">https://blog.logrocket.com/react-memo-vs-usememo/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在软件开发中，我们通常痴迷于性能提升，以及如何让我们的应用程序执行得更快，从而给用户带来更好的体验。</p>
+<p><a href="https://en.wikipedia.org/wiki/Memoization#:~:text=In%20computing%2C%20memoization%20or%20memoisation,the%20same%20inputs%20occur%20again." target="_blank" rel="noopener">记忆化</a>是优化性能的方法之一。在本文中，我们将探索它在 React 中是如何工作的。</p>
+<h2>什么是记忆化？</h2>
+<p>简而言之，记忆化是一个允许我们缓存递归/昂贵的函数调用的值的过程，以便下次用相同的参数调用函数时，返回缓存的值，而不必重新计算函数。</p>
+<p>这确保了我们的应用程序运行得更快，因为我们通过返回一个已经存储在内存中的值来避免重新执行函数所花费的时间。</p>
+<h2>为什么在 React 中使用记忆？</h2>
+<p>在 React 功能组件中，当组件中的道具改变时，默认情况下整个组件会重新渲染。换句话说，如果组件中的任何值更新，整个组件将重新呈现，包括其值/属性没有改变的函数/组件。</p>
+<p>让我们看一个发生这种情况的简单例子。我们将构建一个基本的应用程序，告诉用户什么酒最适合他们选择的奶酪。</p>
+<p>我们将从设置两个组件开始。第一个组件将允许用户选择奶酪。然后它会显示最适合这种奶酪的葡萄酒的名字。第二个组件将是第一个组件的子组件。在这个组件中，没有任何变化。我们将使用该组件来跟踪 React 重新渲染的次数。</p>
+<p>先说我们的父组件:<code>&lt;ParentComponent /&gt;</code>。</p>
+<blockquote><p><strong>注意:</strong>，本例中使用的<code>classNames</code>来自<a href="https://tailwindcss.com" target="_blank" rel="noopener">顺风社</a>。</p></blockquote>
+<pre>// components/parent-component.js
+import Counts from "./counts";
+import Button from "./button";
+import { useState, useEffect } from "react";
+import constants from "../utils";
+const { MOZARELLA, CHEDDAR, PARMESAN, CABERNET, CHARDONAY, MERLOT } = constants;
+
+export default function ParentComponent() {
+  const [cheeseType, setCheeseType] = useState("");
+  const [wine, setWine] = useState("");
+  const whichWineGoesBest = () =&gt; {
+    switch (cheeseType) {
+      case MOZARELLA:
+        return setWine(CABERNET);
+      case CHEDDAR:
+        return setWine(CHARDONAY);
+      case PARMESAN:
+        return setWine(MERLOT);
+      default:
+        CHARDONAY;
+    }
+  };
+  useEffect(() =&gt; {
+    let mounted = true;
+    if (mounted) {
+      whichWineGoesBest();
+    }
+    return () =&gt; (mounted = false);
+  }, [cheeseType]);
+
+  return (
+    &lt;div className="flex flex-col justify-center items-center"&gt;
+        &lt;h3 className="text-center dark:text-gray-400 mt-10"&gt;
+          Without React.memo() or useMemo()
+        &lt;/h3&gt;
+      &lt;h1 className="font-semibold text-2xl dark:text-white max-w-md text-center"&gt;
+        Select a cheese and we will tell you which wine goes best!
+      &lt;/h1&gt;
+      &lt;div className="flex flex-col gap-4 mt-10"&gt;
+        &lt;Button text={MOZARELLA} onClick={() =&gt; setCheeseType(MOZARELLA)} /&gt;
+        &lt;Button text={CHEDDAR} onClick={() =&gt; setCheeseType(CHEDDAR)} /&gt;
+        &lt;Button text={PARMESAN} onClick={() =&gt; setCheeseType(PARMESAN)} /&gt;
+      &lt;/div&gt;
+      {cheeseType &amp;&amp; (
+        &lt;p className="mt-5 dark:text-green-400 font-semibold"&gt;
+          For {cheeseType}, &lt;span className="dark:text-yellow-500"&gt;{wine}&lt;/span&gt;{" "}
+          goes best.
+        &lt;/p&gt;
+      )}
+      &lt;Counts /&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>第二个组件是一个<code>&lt;Counts /&gt;</code>组件，它记录整个<code>&lt;ParentComponent /&gt;</code>组件重新渲染的次数。</p>
+<pre>// components/counts.js
+import { useRef } from "react";
+export default function Counts() {
+  const renderCount = useRef(0);
+  return (
+    &lt;div className="mt-3"&gt;
+      &lt;p className="dark:text-white"&gt;
+        Nothing has changed here but I've now rendered:{" "}
+        &lt;span className="dark:text-green-300 text-grey-900"&gt;
+          {(renderCount.current ++)} time(s)
+        &lt;/span&gt;
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>下面是上面的例子，当我们点击一个奶酪的名字时:</p>
+<p><img data-attachment-id="34354" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/example-of-react-without-memoization/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif" data-orig-size="600,308" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example of React without memoization" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization-300x154.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif" decoding="async" class="aligncenter size-full wp-image-34354 jetpack-lazy-image" src="../Images/5dadb9fb77bc2ec6dfa5bef8f24286a2.png" alt="Example of React Without Memoization" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34354" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/example-of-react-without-memoization/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif" data-orig-size="600,308" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example of React without memoization" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization-300x154.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-34354" src="../Images/5dadb9fb77bc2ec6dfa5bef8f24286a2.png" alt="Example of React Without Memoization" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-of-react-without-memoization.gif"/></noscript>
+<p>我们的<code>&lt;ParentComponent /&gt;</code>中的<code>&lt;Counts /&gt;</code>组件计算了多少次对<code>&lt;ParentComponent /&gt;</code>的改变迫使<code>&lt;Counts /&gt;</code>组件重新渲染。</p>
+<p>目前，点击奶酪的名称将更新显示的奶酪名称。它还会更新要显示的葡萄酒的名称。不仅<code>&lt;ParentComponent /&gt;</code>会重新呈现，而且<code>&lt;Counts /&gt;</code>组件也会重新呈现，即使其中没有任何变化。</p>
+<p>想象一下，有一个组件显示成千上万的数据，每次用户单击一个按钮，该组件或树中的每一部分数据都会在不需要的时候重新呈现。这就是<code>React.memo()</code>或<code>useMemo()</code>为我们提供性能优化所必需的地方。</p>
+<p>现在，我们来探索一下<code>React.memo</code>，然后是<code>useMemo()</code>。之后，我们将比较它们之间的差异，并了解何时应该使用其中一个。</p>
+<h2>什么是<code>React.memo()</code>？</h2>
+<p><code>React.memo()</code>与<a href="https://reactjs.org/blog/2018/10/23/react-v-16-6.html" target="_blank" rel="noopener"> React v16.6 </a>一同发布。虽然类组件已经允许你使用<code><a href="https://reactjs.org/docs/react-api.html#reactpurecomponent" target="_blank" rel="noopener">PureComponent</a></code>或<code><a href="https://reactjs.org/docs/react-component.html#shouldcomponentupdate" target="_blank" rel="noopener">shouldComponentUpdate</a></code>来控制重渲染，React 16.6 引入了对功能组件做同样事情的能力。</p>
+<p><code>React.memo()</code>是一个<a href="https://reactjs.org/docs/higher-order-components.html" target="_blank" rel="noopener">高阶组件(HOC) </a>，这是一个组件的别称，它将一个组件作为道具，如果道具(或其中的值)没有改变，则返回一个阻止组件重新渲染的组件。</p>
+<p>我们将采用上面相同的例子，但是在我们的<code>&lt;Counts /&gt;</code>组件中使用<code>React.memo()</code>。我们需要做的就是用<code>React.memo()</code>包装我们的<code>&lt;Counts /&gt;</code>组件，如下所示:</p>
+<pre>import { useRef } from "react";
+function Counts() {
+  const renderCount = useRef(0);
+  return (
+    &lt;div className="mt-3"&gt;
+      &lt;p className="dark:text-white"&gt;
+        Nothing has changed here but I've now rendered:{" "}
+        &lt;span className="dark:text-green-300 text-grey-900"&gt;
+          {(renderCount.current ++)} time(s)
+      &lt;/span&gt;
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+export default React.memo(Counts);
+</pre>
+<p>现在，当我们通过点击选择奶酪类型时，我们的<code>&lt;Counts /&gt;</code>组件将不会重新呈现。</p>
+<p><img data-attachment-id="34355" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/example-using-reactmemo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif" data-orig-size="600,340" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example using React.memo()" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo-300x170.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif" decoding="async" class="aligncenter size-full wp-image-34355 jetpack-lazy-image" src="../Images/3f2b6245cb1bfbba558cf530d11ce4ff.png" alt="Example Using React.memo()" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34355" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/example-using-reactmemo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif" data-orig-size="600,340" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example using React.memo()" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo-300x170.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-34355" src="../Images/3f2b6245cb1bfbba558cf530d11ce4ff.png" alt="Example Using React.memo()" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/example-using-reactmemo.gif"/></noscript>
+<h2>什么是<code>useMemo()</code>？</h2>
+<p>而<code>React.memo()</code>是一个 HOC，<code><a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#usememo">useMemo()</a></code>是一个 React 钩子。使用<code>useMemo()</code>，如果函数的依赖关系没有改变，我们可以返回记忆值，避免重新渲染。</p>
+<p>为了在我们的代码中使用<code>useMemo()</code>，<a href="https://blog.logrocket.com/rethinking-hooks-memoization/"> React 开发者给我们一些建议</a>:</p>
+<ul>
+<li>您可以依赖<code>useMemo()</code>作为性能优化，而不是语义保证</li>
+<li>函数中引用的每个值也应该出现在依赖数组中</li>
+</ul>
+<p>对于我们的下一个例子，我们将对我们的<code>&lt;ParentComponent /&gt;</code>做一些修改。下面的代码只显示了我们之前创建的<code>&lt;ParentComponent /&gt;</code>的新变化。</p>
+<pre>// components/parent-component.js
+.
+.
+import { useState, useEffect, useRef, useMemo } from "react";
+import UseMemoCounts from "./use-memo-counts";
+
+export default function ParentComponent() {
+  .
+  .
+  const [times, setTimes] = useState(0);
+  const useMemoRef = useRef(0);
+
+  const incrementUseMemoRef = () =&gt; useMemoRef.current++;
+
+  // uncomment the next line to test that &lt;UseMemoCounts /&gt; will re-render every t ime the parent re-renders.
+  // const memoizedValue = useMemoRef.current++;
+
+// the next line ensures that &lt;UseMemoCounts /&gt; only renders when the times value changes
+const memoizedValue = useMemo(() =&gt; incrementUseMemoRef(), [times]);
+
+  .
+  .
+
+  return (
+    &lt;div className="flex flex-col justify-center items-center border-2 rounded-md mt-5 dark:border-yellow-200 max-w-lg m-auto pb-10 bg-gray-900"&gt;
+      .
+      .
+        &lt;div className="mt-4 text-center"&gt;
+          &lt;button
+            className="bg-indigo-200 py-2 px-10 rounded-md"
+            onClick={() =&gt; setTimes(times+1)}
+          &gt;
+            Force render
+          &lt;/button&gt;
+
+          &lt;UseMemoCounts memoizedValue={memoizedValue} /&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>首先，我们引入了最重要的<code>useMemo()</code>钩子。我们还引入了<code>useRef()</code>钩子来帮助我们跟踪组件中发生了多少次重渲染。接下来，我们声明一个<code>times</code>状态，稍后我们将更新它以触发/强制重新渲染。</p>
+<p>之后，我们声明一个<code>memoizedValue</code>变量，存储由<code>useMemo()</code>钩子返回的值。<code>useMemo()</code>钩子调用我们的<code>incrementUseMemoRef</code>函数，每当依赖关系发生变化，即<code>times</code>值发生变化，我们的<code>useMemoRef.current</code>的值就增加 1。</p>
+<p>然后我们创建一个按钮，当点击时更新<code>times</code>的值。点击这个按钮将导致我们的<code>useMemo()</code>钩子被触发，<code>memoizedValue</code>的值被更新，我们的<code>&lt;UseMemoCounts /&gt;</code>组件被重新渲染。</p>
+<p>对于这个例子，我们还将我们的<code>&lt;Counts /&gt;</code>组件重命名为<code>&lt;UseMemoCounts /&gt;</code>，现在它需要一个<code>memoizedValue</code>道具。</p>
+<p>它看起来是这样的:</p>
+<pre>// components/use-memo-counts.js
+
+function UseMemoCounts({memoizedValue}) {
+  return (
+    &lt;div className="mt-3"&gt;
+      &lt;p className="dark:text-white max-w-md"&gt;
+        I'll only re-render when you click &lt;span className="font-bold text-indigo-400"&gt;Force render.&lt;/span&gt; 
+        &lt;/p&gt;
+      &lt;p className="dark:text-white"&gt;I've now rendered: &lt;span className="text-green-400"&gt;{memoizedValue} time(s)&lt;/span&gt; &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+export default UseMemoCounts;
+</pre>
+<p>现在，当我们点击任何一个<strong>奶酪</strong>按钮时，我们的<code>memoizedValue</code>不会更新。但是当我们点击<strong>强制渲染</strong>按钮时，我们看到我们的<code>memoizedValue</code>更新并且<code>&lt;UseMemoCounts /&gt;</code>组件重新渲染。</p>
+<p><img data-attachment-id="34356" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/usememo-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif" data-orig-size="600,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Usememo() example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example-300x178.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif" decoding="async" class="aligncenter size-full wp-image-34356 jetpack-lazy-image" src="../Images/0f72ad54122a32560b68ddc00ac8611f.png" alt="Usememo() example" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34356" data-permalink="https://blog.logrocket.com/react-memo-vs-usememo/usememo-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif" data-orig-size="600,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Usememo() example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example-300x178.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-34356" src="../Images/0f72ad54122a32560b68ddc00ac8611f.png" alt="Usememo() example" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/usememo-example.gif"/></noscript>
+<p>如果您注释掉我们当前的<code>memoizedValue</code>行，并取消注释掉它上面的行:</p>
+<pre>  const memoizedValue = useMemoRef.current++;
+</pre>
+<p>…你会看到每次<code>&lt;ParentComponent /&gt;</code>渲染时,<code>&lt;UseMemoCounts /&gt;</code>组件都会重新渲染。</p>
+<h2>总结:<code>React.memo()</code>和<code>useMemo()</code>的主要区别</h2>
+<p>从上面的例子中，我们可以看到<code>React.memo()</code>和<code>useMemo()</code>的主要区别:</p>
+<ul>
+<li>是一个高阶组件，我们可以用它来包装那些我们不想重新渲染的组件，除非其中的道具发生了变化</li>
+<li>是一个 React 钩子，我们可以用它来包装组件中的函数。我们可以利用这一点来确保只有当其中一个依赖项发生变化时，才重新计算该函数中的值</li>
+</ul>
+<p>虽然内存化看起来似乎是一个随处都可以使用的小技巧，但是您应该只在绝对需要这些性能提升时才使用它。内存化会耗尽运行它的机器上的内存空间，因此可能会导致意想不到的后果。</p>
+<p>这就结束了这篇文章！</p>
+<p>你可以在<a href="https://github.com/onedebos/react-memo-example" target="_blank" rel="noopener"> GitHub </a>上获得这个例子的完整代码，在这里可以看到一个真实的例子<a href="https://react-memo-example.netlify.app/" target="_blank" rel="noopener">。</a></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

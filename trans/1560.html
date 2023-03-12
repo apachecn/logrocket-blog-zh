@@ -1,0 +1,296 @@
+<html>
+<head>
+<title>Managing network connection status in React Native - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 React Native - LogRocket 博客中管理网络连接状态</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/managing-network-connection-status-in-react-native/#0001-01-01">https://blog.logrocket.com/managing-network-connection-status-in-react-native/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本指南中，您将了解如何通过利用<code>NetInfo</code>获取网络连接信息，并利用<code>axios</code>向公共 API 发出网络请求，来优雅地处理 React 本机应用程序中的网络连接状态更改。</p>
+<p>对于我们这些参与移动应用程序开发的人来说，考虑那些可能无法访问互联网或网络连接不良，但仍然希望访问您的应用程序的用户，已经迅速成为一个优先事项。让你的应用在面对未知连接时具有弹性，可以极大地改善用户体验，从而提高用户保留率。</p>
+<h2>入门指南</h2>
+<p>在我们开始演示之前，我们必须首先通过运行以下命令创建一个 React 本地项目:</p>
+<pre>npx react-native init MyOfflineApp
+</pre>
+<p>在我的例子中，项目的名称是“MyOfflineApp”，但是您可以根据自己的喜好更改它。</p>
+<p>接下来，进入项目文件夹并安装所需的 npm 包:</p>
+<pre>cd MyOfflineApp
+npm i --save @react-native-community/netinfo axios react-native-modal
+</pre>
+<p>然后，在 iOS 上运行以下命令，使用<a href="https://cocoapods.org/"> CocoaPods </a>链接库:</p>
+<pre>npx pod-install
+</pre>
+<p>在以下几节中，我们将讨论如何让您的应用和用户为网络连接的变化做好准备。</p>
+<h2>向用户传达状态更改</h2>
+<p>大多数移动应用程序需要用户连接互联网才能从 API 获取数据。然而，作为一名开发人员，你不能指望用户一直有稳定的互联网连接。这意味着，如果你希望你的用户能够随时使用你的移动应用，不管连接情况如何，你需要一个计划来处理当应用从服务器检索数据时用户的互联网连接中断的情况。</p>
+<p>该计划的第一步应该是让用户知道他们的设备没有连接到互联网；在连接再次建立之前，设置一个后备 UI 也是明智的。</p>
+<h2><code>NetInfo</code>套餐</h2>
+<p><code>NetInfo</code>包提供了关于用户活动网络连接及其移动设备连接状态的信息。它还识别用户的当前网络类型(WiFi、蜂窝、以太网等)。如果连接是蜂窝的，那么<code>netinfo</code>还将返回代类型(2G、3G、4G)，以及连接在电池消耗和货币价值方面有多贵。</p>
+<h3>如何使用<code>NetInfo</code></h3>
+<p>您可以将<code>NetInfo</code>包导入到组件文件中，如下所示:</p>
+<pre>import NetInfo from "@react-native-community/netinfo";
+</pre>
+<p>您可以使用<code>addEventListener()</code>方法订阅网络状态更改:</p>
+<pre>NetInfo.addEventListener(networkState =&gt; {
+  console.log("Connection type - ", networkState.type);
+  console.log("Is connected? - ", networkState.isConnected);
+});
+</pre>
+<p><code>addEventListener()</code>方法将返回对 unsubscribe 方法的引用，当组件卸载时，您可以使用该方法删除侦听器。</p>
+<p>如果您只需要一次活动网络状态，您可以使用<code>fetch()</code>方法，而不是监听变化:</p>
+<pre>NetInfo.fetch().then(networkState =&gt; {
+  console.log("Connection type - ", networkState.type);
+  console.log("Is connected? - ", networkState.isConnected);
+});
+</pre>
+<p>网络状态对象具有以下形状:</p>
+<pre>{
+  type: "wifi",
+  isConnected: true,
+  isInternetReachable: true,
+  isWifiEnabled: true,
+  details: {...}
+}
+</pre>
+<p><code>type</code>键(网络类型)可以是下列值之一。</p>
+<ul>
+<li><code>none</code></li>
+<li><code>unknown</code></li>
+<li><code>cellular</code></li>
+<li><code>wifi</code></li>
+<li><code>bluetooth</code></li>
+<li><code>ethernet</code></li>
+<li><code>vpn</code></li>
+<li><code>wimax</code></li>
+<li><code>other</code></li>
+</ul>
+<p>注意，<code>details</code>属性对于<code>type</code>属性的每个值都是不同的。你可以在<a href="https://github.com/react-native-netinfo/react-native-netinfo#readme">文档</a>中找到更多关于 NetInfo API 的细节。</p>
+<h2>演示设置:使用<code>NetInfo</code>和<code>axios</code>管理连接</h2>
+<p>对于这个示例，我们将创建一个示例应用程序，其中包含一个用户列表，该列表将从随机用户 API 中获取。</p>
+<p>首先，在组件文件的顶部导入所需的包:</p>
+<pre>import React, {useEffect, useState} from 'react';
+import axios from 'axios';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Image,
+  Text,
+  Dimensions,
+  SafeAreaView,
+} from 'react-native';
+</pre>
+<p>接下来，创建一个<code>User</code>组件，它将为列表中的单个用户显示数据。这不应该非常复杂；添加一个显示用户头像的<code>Image</code>组件和几个显示用户名和电子邮件的<code>Text</code>组件:</p>
+<pre>const User = ({name, email, avatar}) =&gt; (
+  &lt;View style={styles.user}&gt;
+    &lt;Image source={{uri: avatar}} style={styles.avatar} /&gt;
+    &lt;View style={styles.info}&gt;
+      &lt;Text style={styles.name}&gt;{name}&lt;/Text&gt;
+      &lt;Text style={styles.email}&gt;{email}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);</pre>
+<p>在<code>Users</code>组件中，从 API 获取数据，并使用<code>FlatList</code>组件呈现用户列表。要发出网络请求，使用<code>axios.get()</code>方法并传递 API 端点。</p>
+<p>作为参考，<code>axios</code>用于向公共 API 发出网络请求。<code>react-native-modal</code>包将用于在屏幕底部显示连接错误通知。</p>
+<p>最后，获取<code>useEffect</code>钩子回调中的用户，并将结果存储在<code>users</code>状态变量中。您还将在一个<code>isLoading</code>变量中存储加载状态，以指示数据正在被获取。</p>
+<pre>const Users = () =&gt; {
+  const [isLoading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+
+  useEffect(() =&gt; {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = () =&gt; {
+    setLoading(true);
+
+    axios
+      .get('https://randomuser.me/api/?results=30')
+      .then(({data}) =&gt; {
+        const {results} = data;
+        setUsers(results);
+      })
+      .finally(() =&gt; {
+        setLoading(false);
+      });
+  };
+
+  return (
+    &lt;SafeAreaView style={styles.container}&gt;
+      &lt;FlatList
+        onRefresh={fetchUsers}
+        refreshing={isLoading}
+        data={users}
+        renderItem={({item: user}) =&gt; (
+          &lt;User
+            name={`${user.name.first} ${user.name.last}`}
+            email={user.email}
+            avatar={user.picture.thumbnail}
+          /&gt;
+        )}
+        keyExtractor={(user) =&gt; user.login.uuid}
+      /&gt;
+    &lt;/SafeAreaView&gt;
+  );
+};
+
+export default Users;</pre>
+<p>您可以找到下面组件的<code>styles</code>对象:</p>
+<pre>const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  user: {
+    width: Dimensions.get('screen').width - 32,
+    alignSelf: 'center',
+    marginVertical: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  info: {
+    marginLeft: 10,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 100,
+  },
+  name: {
+    color: '#424242',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  email: {
+    marginTop: 6,
+    color: '#888',
+  },
+});
+</pre>
+<p>此时，您应该能够从 API 获取用户数据并将其显示在屏幕上，如下图所示。</p>
+<p><img data-attachment-id="34112" data-permalink="https://blog.logrocket.com/managing-network-connection-status-in-react-native/user-data-api-fetching-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png" data-orig-size="730,1497" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="User Data API fetching display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--146x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--499x1024.png" decoding="async" class="aligncenter wp-image-34112  jetpack-lazy-image" src="../Images/7a784a605e5129ee6b4f88ddcd8f4962.png" alt="User Data API fetching display" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--146x300.png 146w, https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--499x1024.png 499w" data-lazy-sizes="(max-width: 697px) 100vw, 697px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34112" data-permalink="https://blog.logrocket.com/managing-network-connection-status-in-react-native/user-data-api-fetching-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png" data-orig-size="730,1497" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="User Data API fetching display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--146x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--499x1024.png" decoding="async" loading="lazy" class="aligncenter wp-image-34112 " src="../Images/7a784a605e5129ee6b4f88ddcd8f4962.png" alt="User Data API fetching display" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--146x300.png 146w, https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display--499x1024.png 499w" sizes="(max-width: 697px) 100vw, 697px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/User-Data-API-fetching-display-.png"/></noscript>
+<h2>用<code>NetInfo.addEventListener</code>提醒用户</h2>
+<p>接下来，我们将回顾当用户的互联网连接中断时如何处理 UI。</p>
+<p>首先，创建一个<code>isOffline</code>状态变量，它将保存一个布尔值来表示用户是否离线。在<code>useEffect</code>钩子中添加<code>NetInfo.addEventListener</code>，监听网络变化，更新<code>isOffline</code>状态的值。</p>
+<p>见下文:</p>
+<pre>const Users = () =&gt; {
+  // ...
+
+  const [isOffline, setOfflineStatus] = useState(false);
+  
+  useEffect(() =&gt; {
+    const removeNetInfoSubscription = NetInfo.addEventListener((state) =&gt; {
+      const offline = !(state.isConnected &amp;&amp; state.isInternetReachable);
+      setOfflineStatus(offline);
+    });
+  
+    fetchUsers();
+  
+    return () =&gt; removeNetInfoSubscription();
+  }, []);
+
+  // ...
+}
+</pre>
+<p>在这种设置下，只要<code>isOffline</code>状态为<code>false</code>，就会打开一个小模式，显示错误信息和重试按钮。</p>
+<p>当按下重试按钮时，调用<code>fetchUsers()</code>函数，如果请求成功，将<code>isOffline</code>状态设置为<code>false</code>。</p>
+<pre>const Button = ({children, ...props}) =&gt; (
+  &lt;TouchableOpacity style={styles.button} {...props}&gt;
+    &lt;Text style={styles.buttonText}&gt;{children}&lt;/Text&gt;
+  &lt;/TouchableOpacity&gt;
+);
+
+const NoInternetModal = ({show, onRetry, isRetrying}) =&gt; (
+  &lt;Modal isVisible={show} style={styles.modal} animationInTiming={600}&gt;
+    &lt;View style={styles.modalContainer}&gt;
+      &lt;Text style={styles.modalTitle}&gt;Connection Error&lt;/Text&gt;
+      &lt;Text style={styles.modalText}&gt;
+        Oops! Looks like your device is not connected to the Internet.
+      &lt;/Text&gt;
+      &lt;Button onPress={onRetry} disabled={isRetrying}&gt;
+        Try Again
+      &lt;/Button&gt;
+    &lt;/View&gt;
+  &lt;/Modal&gt;
+);
+
+const fetchUsers = useCallback(() =&gt; {
+  setLoading(true);
+
+  axios
+    .get('https://randomuser.me/api/?results=30')
+    .then(({data}) =&gt; {
+      const {results} = data;
+      setUsers(results);
+      isOffline &amp;&amp; setOfflineStatus(false);
+    })
+    .finally(() =&gt; {
+      setLoading(false);
+    });
+}, [isOffline]);
+
+// inside &lt;Users /&gt; component
+&lt;NoInternetModal
+  show={isOffline}
+  onRetry={fetchUsers}
+  isRetrying={isLoading}
+/&gt;
+</pre>
+<p>要测试它，禁用您的 WiFi 网络，并检查应用程序屏幕。(如果在模拟器上获得预期结果有困难，请尝试使用真实设备)。</p>
+<p><img data-attachment-id="34114" data-permalink="https://blog.logrocket.com/managing-network-connection-status-in-react-native/app-screen-with-disabled-wifi/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png" data-orig-size="730,1534" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="App Screen with disabled wifi" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-143x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-487x1024.png" decoding="async" class="aligncenter wp-image-34114  jetpack-lazy-image" src="../Images/9fbd9499bf0d6c257b9309e8abfa3bf5.png" alt="App Screen with disabled wifi" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-143x300.png 143w, https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-487x1024.png 487w" data-lazy-sizes="(max-width: 708px) 100vw, 708px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34114" data-permalink="https://blog.logrocket.com/managing-network-connection-status-in-react-native/app-screen-with-disabled-wifi/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png" data-orig-size="730,1534" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="App Screen with disabled wifi" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-143x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-487x1024.png" decoding="async" loading="lazy" class="aligncenter wp-image-34114 " src="../Images/9fbd9499bf0d6c257b9309e8abfa3bf5.png" alt="App Screen with disabled wifi" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-143x300.png 143w, https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi-487x1024.png 487w" sizes="(max-width: 708px) 100vw, 708px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App-Screen-with-disabled-wifi.png"/></noscript>
+<p>为了获得与上面相同的模态外观，您可以将下面的<code>style</code>对象与用户组件的样式包含在一起。</p>
+<pre>const styles = StyleSheet.create({
+  // ...
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+  },
+  modalText: {
+    fontSize: 18,
+    color: '#555',
+    marginTop: 14,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  button: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 20,
+  },
+});
+</pre>
+<h2>结论</h2>
+<p>在本指南中，我们回顾了<code>NetInfo</code>库和一个处理网络连接状态的简单用例。对于进一步的实践，您可以研究使用<a href="https://blog.logrocket.com/a-deep-dive-into-react-context-api/">上下文 API </a>或像 Redux 这样的第三方库使网络连接状态对所有组件(全局)可用的方法。</p>
+<p>在一个更高级的用例中，您可以通过缓存来自服务器的数据，让用户在没有互联网的情况下浏览应用程序。这是社交媒体应用程序常用的一种策略，用来增加参与度，阻止用户退出应用程序。</p>
+<p>我希望你能从这本指南中学到一些新东西。干杯！</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现 React 原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 React 原生监控解决方案，可帮助您即时重现问题、确定 bug 的优先级并了解 React 原生应用的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的 React 原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

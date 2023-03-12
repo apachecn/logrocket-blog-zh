@@ -1,0 +1,434 @@
+<html>
+<head>
+<title>JavaScript object immutability: Object.freeze vs. Object.seal - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>JavaScript 对象不变性:object . freeze vs . object . seal-log rocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/javascript-object-immutability-object-freeze-vs-object-seal/#0001-01-01">https://blog.logrocket.com/javascript-object-immutability-object-freeze-vs-object-seal/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在 JavaScript 中处理值和对象时，有时可能需要限制对它们的操作，以防止更改应用程序范围的配置对象、状态对象或全局常量。</p>
+<p>有权访问这些数据的函数可能会在不应该修改它们的时候直接修改它们(这也可能源于开发人员的无意错误)。此外，使用相同代码库(或使用您的代码)的其他开发人员可能会意外地做出这样的更改。</p>
+<p>令人欣慰的是，JavaScript 提供了一些结构来处理这种情况。</p>
+<p>在本教程中，我们将讨论不变性的概念以及 JavaScript 中的<code>freeze()</code>和<code>seal()</code>对象方法。我们将使用示例代码来看看它们是如何工作的，并讨论可能的性能限制。现在，让我们开始吧！</p>
+<h2>理解 JavaScript 中的不变性</h2>
+<p>简而言之，使一个对象成为不可变的意味着对它的进一步修改将不再适用。实际上，它的状态变成了只读。在某种程度上，这就是<code>const</code>关键字所要达到的目的:</p>
+<pre class="language-javascript">const jarOfWine = "full";
+
+// throws error "Uncaught TypeError: Assignment to constant variable."
+jarOfWine = "empty";
+</pre>
+<p>但是当然，由于<code>const</code>声明的工作方式，我们不能将<code>const</code>用于对象和数组等实体——它只是创建一个对值的引用。为了解释这一点，让我们回顾一下 JavaScript 数据类型。</p>
+<h3>原语与对象</h3>
+<p>第一组数据类型是只包含一项的值。这些包括不可变的原语，如字符串或数字:</p>
+<pre class="language-javascript">let nextGame = "Word Duel";
+
+// change to "Word Dual"? Doesn't stick.
+nextGame[7] = “a”;
+
+nextGame; // still "Word Duel"
+
+// Of course, if we'd declared nextGame with `const`, then we couldn't reassign it.
+nextGame = "Word Dual";
+
+nextGame; // now "Word Dual"
+</pre>
+<p>当我们复制这些基本类型时，我们在复制值:</p>
+<pre class="language-javascript">const jarOfWine = "full";
+
+const emptyJar = jarOfWine; // both jars are now 'full'
+</pre>
+<p>两个变量<code>jarOfWine</code>和<code>emptyJar</code>现在都包含两个独立的字符串，您可以独立地更改其中的任何一个。但是，对象的行为不同。</p>
+<p>当您声明一个对象时，如下面的代码所示，<code>user</code>变量不包含对象本身，而是包含对它的引用:</p>
+<pre class="language-javascript">const user = {
+  name: "Jane",
+  surname: "Traveller",
+  stayDuration: "3 weeks",
+  roomAssigned: 1022,
+}
+</pre>
+<p>这就像写下藏着你那堆金子的洞穴的地址。地址不是山洞。因此，当我们试图使用与复制字符串相同的赋值方法复制一个对象时，我们最终只复制了引用或地址，而没有两个独立的对象:</p>
+<pre class="language-javascript">const guest = user;
+</pre>
+<p>修改<code>user</code>也会改变<code>guest</code>:</p>
+<pre class="language-javascript">guest.name = "John";
+
+// now both user and guest look like this:
+{
+  name: "John",
+  surname: "Traveller",
+  stayDuration: "3 weeks",
+  roomAssigned: 1022,
+}
+</pre>
+<p>您通常可以用<code>Object.is()</code>方法或严格的等式操作符来测试这一点:</p>
+<pre class="language-javascript">Object.is(user, guest) // returns true
+
+user === guest // returns true
+</pre>
+<p>这是一个与关键字<code>const</code>类似的玩法。它创建了一个对值的引用，这意味着尽管绑定不能改变(也就是说，不能重新分配变量)，但引用的值可以改变。</p>
+<p>这发生在我们之前成功修改了<code>name</code>属性的时候，尽管<code>guest</code>是用<code>const</code> : <br/> &lt;声明的</p>
+<pre class="language-javascript">guest.name = "John";
+</pre>
+<p>换句话说，<code>const</code>给我们的是赋值不变性，而不是值不变性。</p>
+<h3>限制对对象属性和整个对象的更改</h3>
+<p>因为 JavaScript 中的对象是通过引用复制的，所以总是存在复制的引用改变原始对象的风险。根据您的使用情况，这种行为可能并不理想。在这种情况下，本质上“锁定”对象可能是有意义的。</p>
+<p>(理想情况下，您应该制作对象的副本并修改它们，而不是修改原始对象。虽然大多数复制或克隆机制都是浅层的，但是如果你正在处理深度嵌套的对象，那么你会想要<a href="https://blog.logrocket.com/methods-for-deep-cloning-objects-in-javascript/">深度克隆</a>。)</p>
+<p>JavaScript 提供了三种方法来对对象执行不同级别的访问限制。这些包括<code>Object.freeze()</code>、<code>Object.seal()</code>和<code>Object.preventExtensions()</code>。虽然我们会涉及到后者，但我们将主要关注前两者。</p>
+<h4><code>writable</code>和<code>configurable</code>属性标志</h4>
+<p>然而，在我们继续之前，让我们先了解一下限制访问属性的机制背后的一些基本概念。具体来说，我们对<a href="https://javascript.info/property-descriptors">属性标志</a>感兴趣，比如<code>writable</code>和<code>configurable</code>。</p>
+<p>使用<code>Object.getOwnPropertyDescriptor</code>或<code>Object.getOwnPropertyDescriptors</code>方法时，通常可以检查这些标志的值:</p>
+<pre class="language-javascript">const hunanProvince = {
+  typeOfWine: "Emperor's Smile",
+};
+
+Object.getOwnPropertyDescriptors(hunanProvince);
+
+// returns
+{
+  typeOfWine: {
+    value: "Emperor's Smile",
+    writable: true,
+    enumerable: true,
+    configurable: true
+  },
+}
+</pre>
+<p>虽然在处理 JavaScript 对象时，我们通常更关心属性的实际值，但是除了保存属性值的<code>value</code>属性之外，属性还有其他属性。</p>
+<p>这些属性包括已经提到的<code>value</code>、<code>writable</code>和<code>configurable</code>属性，以及<code>enumerable</code>，如上所述。</p>
+<p><code>writable</code>和<code>configurable</code>旗帜对我们来说是最重要的。当属性的<code>writable</code>设置为<code>true</code>时，其值可以改变。否则，它是只读的。</p>
+<p>然后是<code>configurable</code>，当在一个属性上设置为<code>true</code>时，允许您更改上述标志或删除一个属性。</p>
+<p>如果<code>configurable</code>被改为设置为<code>false</code>，除了一个例外，所有的东西都变成只读的:如果<code>writable</code>被设置为<code>true</code>，其中<code>configurable</code>是<code>false</code>，属性的值仍然可以改变:</p>
+<pre class="language-javascript">Object.defineProperty(hunanProvince, "capital", {
+  value: "Caiyi Town",
+  writable: true,
+});
+
+hunanProvince.capital = "Possibly Gusu";
+
+Object.getOwnPropertyDescriptors(hunanProvince);
+// now returns
+{
+  typeOfWine: {
+    value: "Emperor's Smile",
+    writable: true,
+    enumerable: true,
+    configurable: true
+  },
+  capital: {
+    value: "Possibly Gusu",
+    writable: true,
+    enumerable :false,
+    configurable: false
+  },
+}
+</pre>
+<p>注意，<code>enumerable</code>和<code>configurable</code>都是<code>capital</code>属性的<code>false</code>，因为它是用<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty">Object.defineProperty()</a></code>创建的。如前所述，以这种方式创建的属性将所有标志设置为<code>false</code>。然而<code>writable</code>是<code>true</code>，因为我们显式地设置了它。</p>
+<p>我们也被允许将<code>writable</code>从<code>true</code>改为<code>false</code>，但仅此而已。你不能把它从<code>false</code>改成<code>true</code>。事实上，一旦属性的<code>configurable</code>和<code>writable</code>都被设置为<code>false</code>，就不允许对其进行进一步的更改:</p>
+<pre class="language-javascript">Object.defineProperty(hunanProvince, "capital", {
+  writable: false,
+  // everything else also `false`
+});
+
+// no effect
+hunanProvince.capital = "Caiyi Town";
+</pre>
+<p>虽然这些标志是在属性级别使用的，但是像<code>Object.freeze()</code>和<code>Object.seal()</code>这样的方法是在对象级别工作的。现在让我们继续。</p>
+<p>本文假设您对为什么不变性的概念是有用的有一个大致的了解。</p>
+<p>然而，如果你想更深入地挖掘并阅读一些支持和反对它的论点，这里有一个非常方便的讨论这个主题的<a href="https://stackoverflow.com/questions/34385243/why-is-immutability-so-important-or-needed-in-javascript/43318963#43318963"> StackOverflow 线程</a>(带有附加资源的链接)。<a href="https://immutable-js.com/#the-case-for-immutability">的 Immutable.js 文档也证明了不变性</a>。</p>
+<h2>使用<code>Object.freeze</code>与<code>Object.seal</code>实现对象不变性</h2>
+<p>现在，让我们来看看<code>freeze</code>和<code>seal</code>方法。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<h3>使用<code>Object.freeze</code></h3>
+<p>当我们使用<code>Object.freeze</code>冻结一个对象时，它就不能再被修改了。本质上，不能再向其中添加新属性，也不能删除现有属性。正如您所猜测的，这是通过将所有属性的所有标志设置为<code>false</code>来实现的。</p>
+<p>让我们看一个例子。以下是我们将使用的两个对象:</p>
+<pre class="language-javascript">let obj1 = {
+  "one": 1,
+  "two": 2,
+};
+
+let obj2 = {
+  "three": 3,
+  "four": 4,
+};
+</pre>
+<p>现在，让我们改变第一个对象的属性，<code>obj1</code>:</p>
+<pre class="language-javascript">obj1.one = "one"; // returns "one"
+</pre>
+<p>原来的物体现在看起来像这样:</p>
+<pre class="language-javascript">obj1;
+
+{
+  one: "one",
+  two: 2,
+};
+</pre>
+<p>当然，这是意料之中的行为。默认情况下，对象是可变的。现在，让我们试着冷冻一个物体。我们将使用<code>obj2</code>,因为它尚未被篡改:</p>
+<pre class="language-javascript">// freeze() returns the same object passed to it
+Object.freeze(obj2); // returns {three: 3, four: 2}
+
+// test
+obj2 === Object.freeze(obj2); // returns true
+</pre>
+<p>为了测试对象是否被冻结，JavaScript 提供了<code>Object.isFrozen()</code>方法:</p>
+<pre class="language-javascript">Object.isFrozen(obj2); // returns true
+</pre>
+<p>现在，即使我们试图像下面这样修改它，也没有效果。</p>
+<pre class="language-javascript">obj2.three = "three"; // no effect
+</pre>
+<p>然而，我们很快就会看到，当我们开始使用嵌套对象时，我们会遇到麻烦。像对象克隆一样，冻结也可以是浅的或深的。</p>
+<p>让我们从<code>obj1</code>和<code>obj2</code>创建一个新对象，并在其中嵌套一个数组:</p>
+<pre class="language-javascript">// nesting
+let obj3 = Object.assign({}, obj1, obj2, {"otherNumbers": {
+  "even": [6, 8, 10],
+  "odd": [5, 7, 9],
+}});
+
+obj3;
+// {
+//    one: "one",
+//    two: 2,
+//    three: 3,
+//    four: 4,
+//    "otherNumbers": {
+//      "even": [6, 8, 10],
+//      "odd": [5, 7, 9],
+//    }
+//  }
+</pre>
+<p>您会注意到，即使我们冻结了它，我们仍然可以对嵌套对象中的数组进行更改:</p>
+<pre class="language-javascript">Object.freeze(obj3);
+
+obj3.otherNumbers.even[0] = 12;
+
+obj3;
+// {
+//    one: "one",
+//    two: 2,
+//    three: 3,
+//    four: 4,
+//    "otherNumbers": {
+//      "even": [12, 8, 10],
+//      "odd": [5, 7, 9],
+//    }
+//  }
+</pre>
+<p>偶数数组的第一个元素从<code>6</code>修改为<code>12</code>。因为数组也是对象，所以这种行为也出现在这里:</p>
+<pre class="language-javascript">let testArr = [0, 1, 2, 3, [4, 5, [6, 7]]];
+
+Object.freeze(testArr);
+
+testArr[0] = "zero"; // unable to modify top-level elements...
+
+// ...however, nested elements can be changed
+
+testArr[4][0] = "four"; // now looks like this: [0, 1, 2, 3, ["four", 5, [6, 7]]]
+</pre>
+<p>如果您一直在浏览器控制台中测试您的代码，它可能会无声无息地失败，并且不会抛出任何错误。如果你想让错误更明显，试着把你的代码包装在一个<a href="https://developer.mozilla.org/en-US/docs/Glossary/IIFE">立即调用的函数表达式(生命)</a>中，并打开<code>strict</code>模式:</p>
+<pre class="language-javascript">(function() {
+  "use strict";
+
+  let obj = {"one": 1, "two": 2};
+
+  Object.freeze(obj);
+
+  obj.one = "one";
+})();
+</pre>
+<p>上面的代码现在应该在控制台中抛出一个<code>TypeError</code>:</p>
+<pre class="language-javascript">Uncaught TypeError: Cannot assign to read only property 'one' of object '#&lt;Object&gt;'
+</pre>
+<p>现在，我们如何冻结整个对象，包括顶级(直接属性引用)和嵌套属性？</p>
+<p>正如我们注意到的，冻结只适用于对象中的顶级属性，所以我们需要一个递归冻结每个属性的<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze#what_is_shallow_freeze">deepFreeze()</a></code> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze#what_is_shallow_freeze">函数:</a></p>
+<pre class="language-javascript">const deepFreeze = (obj) =&gt; {
+  // fetch property keys
+  const propKeys = Object.getOwnPropertyNames(obj);
+
+  // recursively freeze all properties
+  propKeys.forEach((key) =&gt; {
+    const propValue = obj[key];
+
+    if (propValue &amp;&amp; typeof(propValue) === "object") deepFreeze(propValue);
+  });
+
+  return Object.freeze(obj);
+}
+</pre>
+<p>现在，改变嵌套属性的尝试失败了。</p>
+<p>请注意，虽然冻结本质上是防止对对象的更改，但它允许变量重新分配。</p>
+<h3>使用<code>Object.seal()</code></h3>
+<p>使用<code>Object.freeze()</code>，新的更改对冻结的对象没有影响。然而，<code>seal()</code>方法允许修改现有的属性。这意味着虽然您不能添加新属性或删除现有属性，但您可以进行更改。</p>
+<p><code>seal()</code>方法基本上将我们之前讨论的<code>configurable</code>标志设置为<code>false</code>，将<code>writable</code>设置为每个属性的<code>true</code>:</p>
+<pre class="language-javascript">const students = {
+  "001" : "Kylie Yaeger",
+  "002": "Ifeoma Kurosaki"
+};
+
+// seal object
+Object.seal(students);
+
+// test
+Object.isSealed(students); // returns true
+
+// cannot add or delete properties
+students["003"] = "Amara King"; // fails
+delete students["001"]; // fails
+</pre>
+<p>这是另一个数组的例子:</p>
+<pre class="language-javascript">const students = ["Kylie Yaeger", "Ifeoma Kurosaki"];
+
+// seal
+Object.seal(students);
+
+// test
+Object.isSealed(students); // returns true
+
+// throws a TypeError saying object is not extensible
+students.push("Amara King");
+</pre>
+<p>密封还可以防止使用<code>Object.defineProperty()</code>或<code>Object.defineProperties()</code>重新定义属性，无论是添加新属性还是修改现有属性。</p>
+<p>但是，请记住，如果<code>writable</code>是<code>true</code>，您仍然可以将其更改为<code>false</code>，但这是不可撤消的。</p>
+<pre class="language-javascript">// fails
+Object.defineProperty(hunanProvince, "capital", {
+  value: "Unknown",
+  writable: true,
+});
+</pre>
+<p>密封无法实现的另一个变化是将普通数据属性更改为访问器(即 getters 和 setters):</p>
+<pre class="language-javascript">// fails
+Object.defineProperty(hunanProvince, "capital", {
+  get: () =&gt; "Caiyi Town",
+  set: (val) =&gt; hunanProvince["capital"] = val;
+});
+</pre>
+<p>反之亦然:您不能将访问器更改为数据属性。就像冷冻一样，密封一个对象会阻止其原型发生变化:</p>
+<pre class="language-javascript">const languageSymbols = {
+  English: "ENG",
+  Japanese: "JP",
+  French: "FR",
+};
+
+const trollLanguageSymbols = {
+  trollEnglish: "T-ENG",
+  trollJapanese: "T-JP",
+  trollFrench: "T-FR",
+};
+
+Object.seal(trollLanguageSymbols);
+
+// fails
+Object.setPrototypeOf(trollLanguageSymbols, languageSymbols);
+</pre>
+<p>同样，就像冻结一样，这里的默认行为是浅密封。因此，您可以选择深度密封一个对象，就像深度冷冻一个对象一样:</p>
+<pre class="language-javascript">const deepSeal = (obj) =&gt; {
+  // fetch property keys
+  const propKeys = Object.getOwnPropertyNames(obj);
+
+  // recursively seal all properties
+  propKeys.forEach((key) =&gt; {
+    const propValue = obj[key];
+
+    if (propValue &amp;&amp; typeof(propValue) === "object") deepSeal(propValue);
+  });
+
+  return Object.seal(obj);
+}
+</pre>
+<p>我们在这里修改了 MDN 的<code>deepFreeze()</code>函数来执行密封:</p>
+<pre class="language-javascript">const students = {
+  "001" : "Kylie Yaeger",
+  "002": "Ifeoma Kurosaki",
+  "003": {
+    "004": "Yumi Ren",
+    "005": "Plisetsky Ran",
+  },
+};
+
+deepSeal(students);
+
+// fails
+delete students["003"]["004"];
+</pre>
+<p>现在，我们的嵌套对象也被密封了。</p>
+<h3>使用<code>Object.preventExtensions()</code></h3>
+<p>另一个专门防止添加新属性的 JavaScript 方法是<code>preventExtensions()</code>方法:</p>
+<pre class="language-javascript">(() =&gt; {
+  "use strict";
+
+  const trollToken = {
+    name: "Troll",
+    symbol: "TRL",
+    decimal: 6,
+    totalSupply: 100_000_000,
+  };
+
+  Object.preventExtensions(trollToken);
+
+  // fails
+  trollToken.transfer = (_to, amount) =&gt; {}
+})();
+</pre>
+<p>由于我们所做的一切都是为了防止添加新的属性，现有的属性显然可以被修改甚至删除:</p>
+<pre class="language-javascript">delete trollToken.decimal;
+
+trollToken;
+
+// {
+//    name: "Troll",
+//    symbol: "TRL",
+//    totalSupply: 100_000_000,
+//  }
+</pre>
+<p>需要注意的是,<code>[[prototype]]</code>属性变成了不可变的:</p>
+<pre class="language-javascript">const token = {
+  transfer: () =&gt; {},
+  transferFrom: () =&gt; {},
+  approve: () =&gt; {},
+};
+
+// fails with a TypeError
+Object.setPrototypeOf(trollToken, token);
+</pre>
+<p>要测试一个对象是否可扩展，只需使用<code>isExtensible()</code>方法:</p>
+<pre class="language-javascript">// I've omitted `console.log` here since I'm assuming you're typing in the browser console directly
+(`Is trollToken extensible? Ans: ${Object.isExtensible(trollToken)}`);
+</pre>
+<p>就像我们手动将属性的<code>configurable</code>和<code>writable</code>标志设置为<code>false</code>一样，让一个对象不可扩展是一条单行道。</p>
+<h3><code>Object.freeze</code>和<code>Object.seal</code>用例及性能问题</h3>
+<p>总而言之，<code>Object.freeze()</code>和<code>Object.seal()</code>是 JavaScript 语言提供的构造，用于帮助维护对象的不同级别的完整性。然而，理解什么时候需要使用这些方法是非常令人困惑的。</p>
+<p>前面提到的一个例子是使用全局对象进行应用程序状态管理。您可能希望保持原始对象不变，并对副本进行更改，特别是如果您希望跟踪状态更改并恢复它们。</p>
+<p>冻结可以防止代码试图改变不应该直接修改的对象。</p>
+<p>冻结或密封的对象还可以防止添加由于输入错误而引入的新属性，例如错误输入的属性名。</p>
+<p>这些方法在调试时也很有帮助，因为对对象的限制有助于缩小错误的可能来源。</p>
+<p>也就是说，对于任何使用您的代码的人来说，这可能是一个令人头痛的问题，因为冻结的对象和未冻结的对象之间本质上没有物理差异。</p>
+<p>确定一个对象被冻结或密封的唯一方法是使用<code>isFrozen()</code>或<code>isSealed()</code>方法。这使得推断预期的对象行为变得有些困难，因为<a href="https://es.discourse.group/t/immutable-objects/658/8">为什么设置这样的限制可能并不完全明显</a>。</p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals#tagged_templates">标记模板</a>是<a href="https://docs.google.com/document/d/1X6zO5F_Zojizn2dmo_ftaOWsY8NltPHUhudBbUzMxnc/preview#">隐式使用</a> <code><a href="https://docs.google.com/document/d/1X6zO5F_Zojizn2dmo_ftaOWsY8NltPHUhudBbUzMxnc/preview#">Object.freeze()</a></code> <a href="https://docs.google.com/document/d/1X6zO5F_Zojizn2dmo_ftaOWsY8NltPHUhudBbUzMxnc/preview#">的一个特征；样式组件库</a><a href="https://styled-components.com/">和其他一些依赖于它。前者使用带标签的模板文字创建其</a><a href="https://mxstbr.blog/2016/11/styled-components-magic-explained/">样式的组件</a>。</p>
+<p>如果您想知道在使用上述任何方法时存在什么性能成本(如果有的话)，那么在 V8 发动机中有<a href="https://bugs.chromium.org/p/v8/issues/detail?id=6831">一些历史性能问题。然而，这与其说是一个错误，不如说是一个 bug，自从</a>被修复后，这就是<a href="https://v8.dev/blog/v8-release-76#frozen%2Fsealed-array-improvements">。</a></p>
+<p>【2013 年至 2014 年，<code>Object.freeze()</code>和<code>Object.seal()</code>也都在 V8 上进行了一些性能改进。</p>
+<p>这里有一个<a href="https://stackoverflow.com/questions/8435080/any-performance-benefit-to-locking-down-javascript-objects/23198265#23198265"> StackOverflow 线程，跟踪了 2015 年至 2019 年间冻结对象与非冻结对象</a>的性能。它显示了这两种情况下 Chrome 的性能几乎相同。</p>
+<p>尽管如此，在某些浏览器如 Safari 中，密封或冻结<a href="https://stackoverflow.com/questions/21402108/difference-between-freeze-and-seal">可能会影响对象的枚举速度</a>。</p>
+<h2>用于处理不变性的第三方库</h2>
+<p>JavaScript 中有多种处理不变性的方法。虽然上面讨论的方法可以很方便地使用，但是对于任何实际的应用程序，您最有可能使用一个库。</p>
+<p>例子有<a href="https://blog.logrocket.com/immer-and-immutable-js-how-do-they-compare/"> Immer 和 Immutable.js </a>。使用 Immer，您可以使用您已经知道的相同 JavaScript 数据类型。然而，尽管 Immutable.js 引入了新的数据结构，但它可能是更快的选择。</p>
+<h2>结论</h2>
+<p>JavaScript 提供了像<code>Object.freeze()</code>和<code>Object.seal()</code>这样的方法来改变对象的访问限制级别。</p>
+<p>然而，就像克隆一样，因为对象是通过引用复制的，所以冻结通常是浅层的。因此，您可以实现自己的基本 deep freeze 或 deep seal 函数，或者根据您的用例，利用 Immer 或 Immutable.js 等库。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试 JavaScript 错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的 JavaScript 前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket 记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的 JavaScript 代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

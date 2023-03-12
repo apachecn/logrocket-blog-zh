@@ -1,0 +1,350 @@
+<html>
+<head>
+<title>Building a 2D game with Flutter - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Flutter - LogRocket 博客构建 2D 游戏</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-2d-game-flutter/#0001-01-01">https://blog.logrocket.com/building-2d-game-flutter/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Flutter 的出现和成长带动了跨平台游戏设计的发展；只需几行设计和逻辑代码，就可以创建 Flutter 游戏，同时保持良好的 UI/UX。</p>
+<p>Flutter 能够以高达 60FPS 的速度渲染。您可以利用这种能力来构建一个简单的 2D，甚至是 3D 游戏。请记住，在 Flutter 中开发更复杂的游戏并不是一个好主意，因为大多数开发人员会倾向于复杂应用程序的本地开发。</p>
+<p>在本教程中，我们将重现最早的电脑游戏之一:乒乓。Pong 是一个简单的游戏，所以它是一个很好的起点。本文分为两个主要部分:游戏逻辑和用户界面，通过分别关注重要部分来使构建更加清晰。</p>
+<p>在我们开始构建之前，让我们先回顾一下先决条件和设置。</p>
+<h2>先决条件</h2>
+<p>要理解本课并编写代码，您需要以下内容:</p>
+<ul>
+<li>安装在您机器上的<a href="https://blog.logrocket.com/whats-new-in-flutter-2-0/">颤振</a></li>
+<li>省道和扑动的工作知识</li>
+<li>文本编辑器</li>
+</ul>
+<h2>入门指南</h2>
+<p>在这篇文章中，我们将使用<code>Alignment(x,y)</code>作为屏幕 X 和 Y 轴位置的<code>Vector(x,y)</code>的表示，这将有助于开发游戏的物理特性。我们还将为我们的一些变量创建无状态小部件，并在<code>homepage.dart</code>文件中声明它们，以使代码不那么庞大并且易于理解。</p>
+<p>首先，创建一个颤振项目。清除<code>main.dart</code>文件中的默认代码，导入<code>material.dart</code>包，将<a href="https://blog.logrocket.com/new-material-buttons-in-flutter/">材质小部件</a>包含在应用中。</p>
+<p>接下来，创建一个名为<code>MyApp()</code>的类并返回<code>MaterialApp()</code>，然后创建一个<code>statefulWidget</code> <code>HomePage()</code>并将其传入<code>MaterialApp()</code>的<code>home</code>参数，如下所示:</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+import 'package:pong/homePage.dart';
+void main() {
+ runApp(MyApp());
+}
+class MyApp extends StatelessWidget {
+ @override
+ Widget build(BuildContext context) {
+  return MaterialApp(
+   debugShowCheckedModeBanner:false,
+   home: HomePage(),
+  );
+ }
+}
+</pre>
+<h2>游戏逻辑</h2>
+<p>在<code>HomePage()</code>内，我们需要编写一些函数和方法来处理数学和物理相关的操作。其中包括处理碰撞、加速或减速以及游戏中的导航。</p>
+<p>但是首先，我们需要声明一些参数，这些参数将代表球、球员的位置排列以及双方球员的初始得分。参数的代码应该放在<code>_HomePageState</code>下面，我们将在后面的文章中提到:</p>
+<pre class="language-dart hljs">//player variations
+double playerX = -0.2;
+double brickWidth = 0.4;
+int playerScore = 0;
+// enemy variable
+double enemyX = -0.2;
+int enemyScore = 0;
+//ball
+double ballx = 0;
+double bally = 0;
+var ballYDirection = direction.DOWN;
+var ballXDirection = direction.RIGHT;
+bool gameStarted = false;
+...
+</pre>
+<p>然后，我们为球和砖块的移动方向提供一个枚举:</p>
+<pre class="language-dart hljs">enum direction { UP, DOWN, LEFT, RIGHT }
+...
+</pre>
+<p>为了让这个游戏运行，我们需要创建人工重力，以便当球击中顶部的砖块(0.9)或底部的砖块(-0.9)时，它会向相反的方向运动。否则，如果它没有击中任何一块砖，而是去了游戏场地的顶部(1)或底部(-1)，它将记录为玩家的损失。</p>
+<p>当球击中左边(1)或右边(-1)的墙时，它会向相反的方向运动:</p>
+<pre class="language-dart hljs">void startGame() {
+ gameStarted = true;
+ Timer.periodic(Duration(milliseconds: 1), (timer) {
+  updatedDirection();
+  moveBall();
+  moveEnemy();
+  if (isPlayerDead()) {
+   enemyScore++;
+   timer.cancel();
+   _showDialog(false);
+   // resetGame();
+  }
+   if (isEnemyDead()) {
+   playerScore++;
+   timer.cancel();
+   _showDialog(true);
+   // resetGame();
+  }
+ });
+}
+...
+</pre>
+<p>在上面的代码中，我们从一个函数<code>startGame()</code>开始，它将布尔值<code>gameStarted</code>变为<code>true</code>，之后我们调用一个持续时间为一秒的<code>Timer()</code>。</p>
+<p>在计时器中，像<code>updatedDirection()</code>、<code>moveBall()</code>和<code>moveEnemy()</code>这样的函数与一个<code>if</code>语句一起传递，以检查任一玩家是否失败。如果是，分数累积，计时器取消，并显示一个对话框。</p>
+<p>以下功能确保球不会超出<code>0.9</code>对齐，并且球在接触砖块时只会向相反的方向移动:</p>
+<pre class="language-dart hljs">void updatedDirection() {
+ setState(() {
+  //update vertical dirction
+  if (bally &gt;= 0.9 &amp;&amp; playerX + brickWidth&gt;= ballx &amp;&amp; playerX &lt;= ballx) {
+   ballYDirection = direction.UP;
+  } else if (bally &lt;= -0.9) {
+   ballYDirection = direction.DOWN;
+  }
+  // update horizontal directions
+  if (ballx &gt;= 1) {
+   ballXDirection = direction.LEFT;
+  } else if (ballx &lt;= -1) {
+   ballXDirection = direction.RIGHT;
+  }
+ });
+}
+void moveBall() {
+ //vertical movement
+ setState(() {
+  if (ballYDirection == direction.DOWN) {
+   bally += 0.01;
+  } else if (ballYDirection == direction.UP) {
+   bally -= 0.01;
+  }
+ });
+ //horizontal movement
+ setState(() {
+  if (ballXDirection == direction.LEFT) {
+   ballx -= 0.01;
+  } else if (ballXDirection == direction.RIGHT) {
+   ballx += 0.01;
+  }
+ });
+}
+...
+</pre>
+<p>此外，如果球击中场地的左侧或右侧，它会向相反的方向运动:</p>
+<pre class="language-dart hljs">void moveLeft() {
+ setState(() {
+  if (!(playerX - 0.1 &lt;= -1)) {
+   playerX -= 0.1;
+  }
+ });
+}
+void moveRight() {
+ if (!(playerX + brickWidth &gt;= 1)) {
+  playerX += 0.1;
+ }
+}
+...
+</pre>
+<p><code>moveLeft()</code>和<code>moveRight()</code>功能有助于使用键盘箭头控制砖块从左向右移动。这些与<code>if</code>声明一起工作，以确保砖块不会超出场地两个轴的宽度。</p>
+<p>功能<code>resetGame()</code>将球员和球返回到他们的默认位置:</p>
+<pre class="language-dart hljs">void resetGame() {
+ Navigator.pop(context);
+ setState(() {
+  gameStarted = false;
+  ballx = 0;
+  bally = 0;
+  playerX = -0.2;
+  enemyX =- 0.2;
+ });
+}
+...
+</pre>
+<p>接下来，我们创建两个函数，<code>isEnemyDead()</code>和<code>isPlayerDead()</code>，它们返回一个布尔值。他们检查是否有一名球员输了(如果球击中了砖块后面的垂直部分):</p>
+<pre class="language-dart hljs">bool isEnemyDead(){
+ if (bally &lt;= -1) {
+  return true;
+ }
+ return false;
+}
+bool isPlayerDead() {
+ if (bally &gt;= 1) {
+  return true;
+ }
+ return false;
+}
+...
+</pre>
+<p>最后，函数<code>_showDialog</code>在任一玩家获胜时显示一个对话框。它传递一个布尔值<code>enemyDied</code>，以区分玩家何时输了。然后，它宣布未输的玩家赢得了这一轮，并使用获胜玩家的颜色显示文本“再玩一次:”</p>
+<pre class="language-dart hljs">void _showDialog(bool enemyDied) {
+ showDialog(
+   context: context,
+   barrierDismissible: false,
+   builder: (BuildContext context) {
+    // return object of type Dialog
+    return AlertDialog(
+     elevation: 0.0,
+     shape: RoundedRectangleBorder(
+       borderRadius: BorderRadius.circular(10.0)),
+     backgroundColor: Colors.purple,
+     title: Center(
+      child: Text(
+       enemyDied?"Pink Wins": "Purple Wins",
+       style: TextStyle(color: Colors.white),
+      ),
+     ),
+     actions: [
+      GestureDetector(
+       onTap: resetGame,
+       child: ClipRRect(
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          padding: EdgeInsets.all(7),
+          color: Colors.purple[100],
+          child: Text(
+           "Play Again",
+           style: TextStyle(color:enemyDied?Colors.pink[300]: Colors.purple[000]),
+          )),
+       ),
+      )
+     ],
+    );
+   });
+}
+</pre>
+<h2>用户界面</h2>
+<p>现在，我们将开始开发用户界面。</p>
+<p>在<code>homePage.dart</code>文件中的小部件<code>build</code>内，添加以下代码:</p>
+<pre class="language-dart hljs">return RawKeyboardListener(
+ focusNode: FocusNode(),
+ autofocus: false,
+ onKey: (event) {
+  if (event.isKeyPressed(LogicalKeyboardKey.arrowLeft)) {
+   moveLeft();
+  } else if (event.isKeyPressed(LogicalKeyboardKey.arrowRight)) {  
+moveRight();
+  }
+ },
+ child: GestureDetector(
+  onTap: startGame,
+  child: Scaffold(
+    backgroundColor: Colors.grey[900],
+    body: Center(
+      child: Stack(
+     children: [
+      Welcome(gameStarted),
+      //top brick
+      Brick(enemyX, -0.9, brickWidth, true),
+      //scoreboard
+      Score(gameStarted,enemyScore,playerScore),
+      // ball
+      Ball(ballx, bally),
+      // //bottom brick
+      Brick(enemyX, 0.9, brickWidth, false)
+     ],
+    ))),
+ ),
+);
+</pre>
+<p>在代码中，我们返回<code>RawKeyboardListener()</code>，当我们在 web 上构建时，它将提供从左到右的移动。这也可以被复制用于触摸屏设备。</p>
+<p>小部件<code>GestureDetector()</code>提供了<code>onTap</code>功能，用于调用上面在逻辑中编写的函数<code>startGame</code>。还编写了一个子元素<code>Scaffold()</code>，用于指定应用程序的背景颜色和主体。</p>
+<p>接下来，创建一个名为<code>Welcome</code>的类，并传入一个布尔值来检查游戏是否已经开始。如果游戏尚未开始，文本“点击播放”将变得可见:</p>
+<pre class="language-dart hljs">class Welcome extends StatelessWidget {
+
+ final bool gameStarted;
+ Welcome(this.gameStarted);
+ @override
+ Widget build(BuildContext context) {
+  return Container(
+    alignment: Alignment(0, -0.2),
+    child: Text(
+     gameStarted ? "": "T A P T O P L A Y",
+     style: TextStyle(color: Colors.white),
+    ));
+ }
+}
+</pre>
+<p>现在我们可以创建另一个类<code>Ball</code>，使用<code>Alignment(x,y)</code>来处理球的设计和它在场上每一点的位置。我们通过移动性的构造函数传递这些参数，就像这样:</p>
+<pre class="language-dart hljs">class Ball extends StatelessWidget {
+ final x;
+ final y;
+ Ball(this.x, this.y);
+ @override
+ Widget build(BuildContext context) {
+  return Container(
+   alignment: Alignment(x, y),
+   child: Container(
+    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+    width: 20,
+    height: 20,
+   ),
+  );
+ }
+}
+</pre>
+<p>现在让我们设计<code>Brick</code>类来处理砖块的设计、颜色、位置和玩家类型。</p>
+<p>这里，我们使用一个数学方程(<code>Alignment((2* x +brickWidth)/(2-brickWidth), y)</code>)来传递 x 和 y 轴的位置:</p>
+<pre class="language-dart hljs">class Brick extends StatelessWidget {
+ final x;
+ final y;
+ final brickWidth;
+ final isEnemy;
+ Brick( this.x, this.y, this.brickWidth, this.isEnemy);
+ @override
+ Widget build(BuildContext context) {
+  return Container(
+    alignment: Alignment((2* x +brickWidth)/(2-brickWidth), y),
+    child: ClipRRect(
+     borderRadius: BorderRadius.circular(10),
+     child: Container(
+       alignment: Alignment(0, 0),
+       color: isEnemy?Colors.purple[500]: Colors.pink[300],
+       height: 20,
+       width:MediaQuery.of(context).size.width * brickWidth/ 2,
+       ),
+    ));
+ }
+}
+</pre>
+<p>最后，<code>Score</code>类应该直接放在<code>homepage.dart</code>文件中的<code>build</code>小部件下面；它显示每个玩家的分数。</p>
+<p>为变量<code>enemyScore</code>和<code>playerScore</code>创建一个构造函数来处理每个玩家的分数，为<code>gameStarted</code>创建一个构造函数来检查游戏是否已经开始。这将显示<code>Stack()</code>的内容，或者一个空的<code>Container()</code>:</p>
+<pre class="language-dart hljs">class Score extends StatelessWidget {
+ final gameStarted;
+ final enemyScore;
+ final playerScore;
+ Score(this.gameStarted, this.enemyScore,this.playerScore, );
+ @override
+ Widget build(BuildContext context) {
+  return gameStarted? Stack(children: [
+   Container(
+     alignment: Alignment(0, 0),
+     child: Container(
+      height: 1,
+      width: MediaQuery.of(context).size.width / 3,
+      color: Colors.grey[800],
+     )),
+   Container(
+     alignment: Alignment(0, -0.3),
+     child: Text(
+      enemyScore.toString(),
+      style: TextStyle(color: Colors.grey[800], fontSize: 100),
+     )),
+   Container(
+     alignment: Alignment(0, 0.3),
+     child: Text(
+      playerScore.toString(),
+      style: TextStyle(color: Colors.grey[800], fontSize: 100),
+     )),
+  ]): Container();
+ }
+}
+</pre>
+<p>下面的 gif 展示了游戏的一个测试:</p>
+<p><img data-attachment-id="69184" data-permalink="https://blog.logrocket.com/building-2d-game-flutter/2d-flutter-game-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif" data-orig-size="678,324" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="2D-Flutter-Game-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo-300x143.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif" decoding="async" class="size-full wp-image-69184 aligncenter jetpack-lazy-image" src="../Images/6807152d61a6ea46f70686927e33ff61.png" alt="Gif of the Flutter game" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="69184" data-permalink="https://blog.logrocket.com/building-2d-game-flutter/2d-flutter-game-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif" data-orig-size="678,324" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="2D-Flutter-Game-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo-300x143.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif" decoding="async" loading="lazy" class="size-full wp-image-69184 aligncenter" src="../Images/6807152d61a6ea46f70686927e33ff61.png" alt="Gif of the Flutter game" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/2D-Flutter-Game-demo.gif"/></noscript>
+<h2>结论</h2>
+<p>在这篇文章中，我们讨论了<code>alignment</code>、<code>RawKeyboardListener</code>、窗口小部件、布尔值、容器的 ClipRect 以及我们代码中的数学函数，所有这些都是用来重新创建游戏 Pong 的。游戏也可以通过增加球的数量或减少砖块的长度来改进，使其更加复杂。</p>
+<p>我希望这篇文章是有益和有趣的，因为它是建立和记录的。随意使用文章中的原则来再造其他经典游戏，或者发明一个新的。您可以在 GitHub 上找到本文代码的链接。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

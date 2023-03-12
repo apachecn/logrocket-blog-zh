@@ -1,0 +1,449 @@
+<html>
+<head>
+<title>Using WebSockets with Fastify - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Fastify - LogRocket 博客中使用 WebSockets</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-websockets-with-fastify/#0001-01-01">https://blog.logrocket.com/using-websockets-with-fastify/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Web 开发人员经常选择 Node.js 来编写 web 后端，因为它具有简单的开发环境、丰富的库生态系统、异步单线程特性以及支持性的开发人员社区。</p>
+<p>我们还可以根据我们的开发需求，使用各种通信机制来实现 Node.js web 后端。大多数开发团队选择基于 HTTP 的 RESTful 模式，但是一些开发团队在同一个 Node.js 服务器上使用带有 RESTful 端点的 WebSockets 来实现实时的双向通信通道。Express.js、Fastify 和 NestJS 等流行的 Node.js web 框架通过官方或第三方插件提供了 WebSockets 集成，这很有帮助。</p>
+<p>在本教程中，我将解释如何使用<a href="https://github.com/fastify/fastify-websocket" target="_blank" rel="noopener"> <code>fastify-websocket</code>插件</a>在基于 Fastify 的 RESTful web APIs 中启用实时通信通道。我们将涵盖:</p>
+
+<h2 id="fastify-websocket-features">Fastify-WebSocket 特性</h2>
+<p>Fastify-WebSocket 插件允许开发人员使用 WebSocket 协议特性扩展 Fastify RESTful 后端。这个插件使用 Node.js <a href="https://github.com/websockets/ws" target="_blank" rel="noopener"> ws 库</a>作为底层 WebSocket 服务器实现，并附带了四个优秀的特性，我将在下面详细介绍。</p>
+<h3>在 RESTful 处理程序中处理 WebSocket 消息</h3>
+<p>Fastify-WebSocket 插件不会启动另一个 HTTP 服务器实例来启动 WebSocket 连接。相反，默认情况下，它使用相同的 Fastify 服务器实例。因此，您可以在任何 Fastify <code>GET</code>端点处理程序中处理 WebSocket 事件。</p>
+<h3>订阅端点内的 WebSocket 客户端事件处理程序</h3>
+<p>WebSocket 客户端事件——如连接初始化、接收消息和连接终止——在实时 web 应用程序开发中总是很有帮助。Fastify-WebSocket 插件允许开发人员通过公开底层 Node.js ws 库对象来订阅这些客户端事件。</p>
+<h3>通过钩子控制 WebSocket 连接</h3>
+<p>Fastify Hooks API 有助于监听 Fastify HTTP 路由生命周期中的特定事件。我们可以使用这个特性在<a href="https://en.wikipedia.org/wiki/WebSocket#Protocol_handshake" target="_blank" rel="noopener"> WebSocket 握手</a>发生之前验证 WebSocket 连接。</p>
+<h3>打字稿<strong>s</strong>support</h3>
+<p>Fastify-WebSocket 库带有内置的 TypeScript 定义文件，因此您不需要为基于 TypeScript 的 Fastify-WebSocket 项目提供第三方 TypeScript 定义。</p>
+<h2 id="fastify-websocket-tutorial-creating-basic-websocket-endpoint">Fastify-WebSocket 教程:创建基本的 WebSocket 端点</h2>
+<p>我们将使用 Fastify-WebSocket 插件构建几个示例项目。在本教程中，我们将探索构建基于 Fastify 的实时应用程序所需的所有特性。</p>
+<p>首先，让我们创建一个新的 Fastify 项目来开始。</p>
+<h3>创建新的 Fastify 项目</h3>
+<p>在安装 Fastify 框架之前，我们需要为示例项目创建一个新的 Node.js 模块。输入以下命令创建新的 Node.js 模块:</p>
+<pre class="language-bash hljs">mkdir fastify-ws
+cd fastify-ws
+
+npm init -y  
+# or 
+yarn init -y
+</pre>
+<p>上面的命令将为我们的新项目创建一个带有一些默认值的<code>package.json</code>文件。然而，你也可以使用<code>npm init fastify</code>来搭建一个基于<a href="https://github.com/fastify/fastify-cli/tree/master/templates/app" target="_blank" rel="noopener">预定义模板</a>和<a href="https://github.com/fastify/create-fastify" target="_blank" rel="noopener"> create-fastify </a>启动脚本的新项目；为了简单起见，我们将创建一个空白项目。</p>
+<p>接下来，使用以下命令安装 Fastify 框架:</p>
+<pre class="language-bash hljs">npm install fastify
+# or
+yarn add fastify
+</pre>
+<p>现在，让我们用 JSON 响应创建一个<code>GET</code>端点。创建一个名为<code>main.js</code>的新文件，并添加以下代码:</p>
+<pre class="language-javascript hljs">const fastify = require('fastify')();
+
+fastify.get('/hello', (request, reply) =&gt; {
+    reply.send({
+        message: 'Hello Fastify'
+    });
+});
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+    if(err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at: ${address}`);
+});
+</pre>
+<p>将以下脚本部分添加到<code>package.json</code>文件中，以定义 Node.js 模块的<code>start</code>脚本:</p>
+<pre class="language-json hljs">"scripts": {
+    "start": "node main.js"
+}
+</pre>
+<p>使用<code>npm start</code>运行上面的示例代码，并使用 Postman 调用<code>GET /hello</code>端点，如下所示:</p>
+<p><img data-attachment-id="106626" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-sample-restful-endpoint-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif" data-orig-size="730,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-sample-restful-endpoint-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman-300x148.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif" decoding="async" class="aligncenter size-full wp-image-106626 jetpack-lazy-image" src="../Images/9fcb7749f711ae89b02499ac37b32262.png" alt="Testing the sample RESTful endpoint with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="106626" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-sample-restful-endpoint-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif" data-orig-size="730,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-sample-restful-endpoint-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman-300x148.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-106626" src="../Images/9fcb7749f711ae89b02499ac37b32262.png" alt="Testing the sample RESTful endpoint with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-restful-endpoint-postman.gif"/></noscript>
+<h3><strong>向端点添加 WebSocket 支持</strong></h3>
+<p>让我们创建一个支持 WebSocket 的端点来接受 WebSocket 客户端连接。输入以下命令安装 Fastify-WebSocket 插件:</p>
+<pre class="language-bash hljs">npm install fastify-websocket
+# or 
+yarn add fastify-websocket
+</pre>
+<p>现在，我们需要在定义支持 WebSocket 的端点之前激活插件。在我们初始化<code>fastify</code>常量后，立即添加以下代码:</p>
+<pre class="language-javascript hljs">fastify.register(require('fastify-websocket'));
+</pre>
+<p>上面的代码为 Fastify RESTful 路由器添加了 WebSocket 支持。接下来，使用 WebSocket 支持创建一个名为<code>/hello-ws</code>的新的<code>GET</code>端点，如下所示。</p>
+<pre class="language-javascript hljs">fastify.get('/hello-ws', { websocket: true }, (connection, req) =&gt; {
+    connection.socket.on('message', message =&gt; {
+        connection.socket.send('Hello Fastify WebSockets');
+    });
+});
+</pre>
+<p>上面的端点定义看起来像一个典型的 Fastify 端点，但是它使用了一个额外的<code>{ websocket: true }</code>配置对象来允许 WebSocket 握手。</p>
+<p>下面是添加 WebSocket 端点后的完整源代码:</p>
+<pre class="language-javascript hljs">const fastify = require('fastify')();
+fastify.register(require('fastify-websocket'));
+
+fastify.get('/hello', (request, reply) =&gt; {
+    reply.send({
+        message: 'Hello Fastify'
+    });
+});
+
+fastify.get('/hello-ws', { websocket: true }, (connection, req) =&gt; {
+    connection.socket.on('message', message =&gt; {
+        connection.socket.send('Hello Fastify WebSockets');
+    });
+});
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+    if(err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at: ${address}`);
+});
+</pre>
+<p>上面的代码实现了两个端点:返回 JSON 有效负载的<code>GET /hello</code>和通过 HTTP 协议接受 WebSocket 握手的<code>GET /hello-ws</code>。此外，当服务器收到新的 WebSocket 消息时，它会向特定的 WebSocket 客户端返回一条问候消息。</p>
+<p>让我们测试一下上面的 WebSocket 端点。</p>
+<h3><strong>测试</strong> <strong>我们的</strong> <strong>基本 WebSocket 端点与邮递员</strong></h3>
+<p>通常，开发人员编写客户端应用程序来测试他们的 WebSocket 服务器实现，但是 Postman 让您无需编写代码就可以检查任何 WebSocket 连接。</p>
+<p>从<strong>新</strong>主菜单中选择<strong> WebSocket 请求</strong>菜单项，在 Postman 中打开一个新的 WebSocket 测试选项卡。连接到 WebSocket 端点并发送消息，如下所示。</p>
+<p><img data-attachment-id="106629" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-sample-websocket-endpoint-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif" data-orig-size="730,314" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-sample-websocket-endpoint-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman-300x129.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif" decoding="async" class="aligncenter size-full wp-image-106629 jetpack-lazy-image" src="../Images/73460c0149b094634bb02e01071ee1c1.png" alt="Testing the sample WebSocket endpoint with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="106629" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-sample-websocket-endpoint-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif" data-orig-size="730,314" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-sample-websocket-endpoint-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman-300x129.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-106629" src="../Images/73460c0149b094634bb02e01071ee1c1.png" alt="Testing the sample WebSocket endpoint with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-sample-websocket-endpoint-postman.gif"/></noscript>
+<p>如图所示，对于您发送的每条消息，您将从 WebSocket 服务器获得一条问候消息。这里，我们需要使用 WebSocket 协议 URL 连接到服务器；也就是说，我们可以使用以下 URL 格式通过<code>GET /hello-ws</code>端点建立 WebSocket 连接:</p>
+<pre class="language-plaincode hljs">ws://localhost:3000/hello-ws
+</pre>
+<p>如果您通过<a href="https://en.wikipedia.org/wiki/Transport_Layer_Security" target="_blank" rel="noopener"> TLS 连接</a>连接到您的生产服务器，您需要使用<code>wss</code>而不是<code>ws</code>，因为我们将使用<code>https</code>而不是<code>http</code>。</p>
+<h3>使用 WebSocket 客户端事件处理程序</h3>
+<p>WebSocket 概念是一种用于管理 web 服务器和客户端之间实时双向连接的解决方案。如果您使用 WebSockets 构建一个群聊应用程序，您通常需要知道新客户端何时连接和断开。Fastify-WebSocket 库允许您通过底层的<a href="https://github.com/websockets/ws" target="_blank" rel="noopener"> ws 库</a>实现订阅这些事件。</p>
+<p>使用以下代码片段更新当前的<code>GET /hello-ws</code>端点实现，以试验客户端事件处理程序:</p>
+<pre class="language-javascript hljs">fastify.get('/hello-ws', { websocket: true }, (connection, req) =&gt; {
+    // Client connect
+    console.log('Client connected');
+    // Client message
+    connection.socket.on('message', message =&gt; {
+        console.log(`Client message: ${message}`);
+    });
+    // Client disconnect
+    connection.socket.on('close', () =&gt; {
+        console.log('Client disconnected');
+    });
+});
+</pre>
+<p>当 WebSocket 握手成功时，插件调用 WebSocket 端点处理程序，我们可以用它来检测客户端连接事件。</p>
+<p>如上所示，我们可以使用<code>close</code>事件处理程序来识别 WebSocket 客户端的断开。对于每个传入的客户端消息，都会调用<code>message</code>事件处理程序。</p>
+<p>尝试打开几个 Postman WebSocket 测试选项卡，发送一些消息——你会在终端上看到客户端事件，如下图所示。</p>
+<p><img data-attachment-id="106631" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/websocket-client-events-terminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png" data-orig-size="730,307" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="websocket-client-events-terminal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal-300x126.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png" decoding="async" class="aligncenter size-full wp-image-106631 jetpack-lazy-image" src="../Images/270d595db0e22684dae722b1c044a15a.png" alt="WebSocket client events in the terminal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal-300x126.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="106631" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/websocket-client-events-terminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png" data-orig-size="730,307" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="websocket-client-events-terminal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal-300x126.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-106631" src="../Images/270d595db0e22684dae722b1c044a15a.png" alt="WebSocket client events in the terminal" srcset="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal-300x126.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/websocket-client-events-terminal.png"/></noscript>
+<p>我们还没有编写任何代码来存储客户端连接细节，但是我们将在本教程稍后构建实时聊天应用程序示例时讨论它。</p>
+<h2 id="fastify-websocket-tutorial-creating-multiple-websocket-endpoints-using-same-server">Fastify-WebSocket 教程:使用同一个服务器创建多个 WebSocket 端点</h2>
+<p>Fastify-WebSocket 插件非常灵活。它允许您通过路由定义创建多个 WebSocket 端点。</p>
+<p>通过将<code>{ websocket: true }</code>配置对象添加到路由定义中，可以创建任意数量的支持 WebSocket 的 RESTful 端点。请看下面的例子:</p>
+<pre class="language-javascript hljs">const fastify = require('fastify')();
+fastify.register(require('fastify-websocket'));
+
+fastify.get('/digits', { websocket: true }, (connection, req) =&gt; {
+    let timer = setInterval(() =&gt; {
+        connection.socket.send(randomDigit(1, 10).toString());
+    }, 1000);
+    connection.socket.on('close', () =&gt; {
+        clearInterval(timer);
+    });
+});
+
+fastify.get('/letters', { websocket: true }, (connection, req) =&gt; {
+    let timer = setInterval(() =&gt; {
+        connection.socket.send(randomLetter());
+    }, 1000);
+    connection.socket.on('close', () =&gt; {
+        clearInterval(timer);
+    });
+});
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+    if(err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at: ${address}`);
+});
+
+function randomDigit(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+}
+
+function randomLetter() {
+    return 'abcdefghijklmnopqrstuvwxyz'[randomDigit(1, 26)];
+}
+</pre>
+<p>上面的代码片段实现了两个 WebSocket 端点:</p>
+<ul>
+<li><code>GET /digits</code>:此 WebSocket 端点在连接后会发送随机数字</li>
+<li><code>GET /letters</code>:这个 WebSocket 端点一旦连接上就发送随机的英文字母</li>
+</ul>
+<p>您可以通过连接到 Postman 来同时测试上述 WebSocket 端点，如下所示。</p>
+<p><img data-attachment-id="106633" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-multiple-websocket-endpoints-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif" data-orig-size="730,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-multiple-websocket-endpoints-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman-300x142.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif" decoding="async" class="aligncenter size-full wp-image-106633 jetpack-lazy-image" src="../Images/073d5f0bbc0a25b0b52ef2eebc64a4f5.png" alt="Testing multiple WebSocket endpoints with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="106633" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/testing-multiple-websocket-endpoints-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif" data-orig-size="730,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-multiple-websocket-endpoints-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman-300x142.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-106633" src="../Images/073d5f0bbc0a25b0b52ef2eebc64a4f5.png" alt="Testing multiple WebSocket endpoints with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/testing-multiple-websocket-endpoints-postman.gif"/></noscript>
+<p>类似地，您可以在同一个 Fastify 服务器上实现更多的 WebSocket 端点，并且通过将一个支持 WebSocket 的<code>GET</code>端点注册到<code>/*</code>路由，您可以通过任何<code>GET</code>端点接受 WebSocket 连接。</p>
+<h3>配置 WebSocket 服务器</h3>
+<p>ws Node.js 库在这里再次发挥作用，处理 WebSocket 数据传输。它的 WebSocket 实现接受一个带有几个属性的配置对象，所以 fastify-websocket 插件也接受这些配置属性。</p>
+<p>例如，我们可以通过<code>maxPayload</code>属性改变允许的最大消息大小，如下所示。</p>
+<pre class="language-javascript hljs">fastify.register(require('fastify-websocket'), {
+    options: {
+        maxPayload: 10 // in bytes
+    }
+});
+</pre>
+<p>您可以从<a href="https://github.com/websockets/ws/blob/master/doc/ws.md#new-websocketserveroptions-callback" target="_blank" rel="noopener"> ws 模块文档</a>中浏览所有支持的数据传输配置选项。</p>
+<h3><strong>用</strong> <strong>钩子</strong>验证 WebSocket 连接初始化</h3>
+<p>在某些场景中，我们可能需要根据一组验证规则只接受特定的 WebSocket 连接请求。例如，我们可以通过检查 URL 查询参数或 HTTP 头来允许 WebSocket 连接。</p>
+<p>我们可以用<code>prevValidation</code>钩子有条件地接受或拒绝传入的 WebSocket 连接。以下服务器端代码允许 WebSocket 客户端使用 URL 中的<code>username</code>查询参数连接到服务器:</p>
+<pre class="language-javascript hljs">const fastify = require('fastify')();
+fastify.register(require('fastify-websocket'));
+
+fastify.addHook('preValidation', async (request, reply) =&gt; {
+    if(!request.query.username) {
+        reply.code(403).send('Connection rejected');
+    }
+});
+
+fastify.get('/*', { websocket: true }, (connection, req) =&gt; {
+    connection.socket.send(`Hello ${req.query.username}!`);
+});
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+    if(err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at: ${address}`);
+});
+</pre>
+<p>上面的代码片段使用通配符路由语法(<code>/*</code>)从任何<code>GET</code>端点寻找 WebSocket 连接，但是如果存在<code>username</code>查询参数，它将有条件地接受连接。例如，您不能使用以下 URL 建立 WebSocket 连接:</p>
+<pre class="language-plaincode hljs">ws://localhost:3000
+ws://localhost:3000/ws
+ws://localhost:3000/hello-ws
+</pre>
+<p>但是您可以建立一个 WebSocket 连接，并接收带有以下 URL 的问候消息:</p>
+<pre class="language-plaincode hljs">ws://localhost:3000?username=Fastify
+ws://localhost:3000/ws?username=Developer
+ws://localhost:3000/hello-ws?username=Nodejs
+ws://localhost:3000/hello-ws?username=Nodejs&amp;anotherparam=10
+</pre>
+<p>此外，您还可以通过检查 WebSocket 握手头来验证 WebSocket 连接初始化，方法是通过<code>request.headers</code>属性。</p>
+<h3>在同一路由中处理 HTTP 响应和 WebSockets <strong/></h3>
+<p>假设有人从 web 浏览器访问 WebSocket 端点，您需要用 HTTP 响应进行回复。然后，如果端点接收到正常的 HTTP 请求，我们需要返回特定的 HTTP 响应，但是我们仍然需要执行 WebSocket 握手来接受传入的 WebSocket 连接。</p>
+<p>我们可以通过使用 Fastify 的<a href="https://www.fastify.io/docs/latest/Reference/Routes/#full-declaration" target="_blank" rel="noopener">完整声明语法</a>在同一个端点中处理这两种协议，如下所示。</p>
+<pre class="language-javascript hljs">fastify.route({
+    method: 'GET',
+    url: '/hello',
+    handler: (req, reply) =&gt; {
+        // HTTP response
+        reply.send({ message: 'Hello Fastify' });
+    },
+    wsHandler: (conn, req) =&gt; {
+        // WebSocket message
+        conn.socket.send('Hello Fastify WebSockets');
+    }
+});
+</pre>
+<p>这里，我们通过<code>handler</code>回调进行 HTTP 响应，并通过<code>wsHandler</code>回调与 WebSocket 客户端通信。这两个操作都发生在<code>GET /hello</code>端点内。</p>
+<h2 id="fastify-websocket-tutorial-building-simple-chat-app-fastifywebsocket">Fastify-WebSocket 教程:用 fastify-websocket 构建一个简单的聊天应用</h2>
+<p>我们已经讨论了 fastify-websocket 插件提供的几乎所有功能，所以是时候使用这些功能构建一个简单的群聊应用程序了。</p>
+<p>这个聊天应用程序可以让任何人通过输入用户名进入群组对话。一旦用户输入用户名，聊天应用程序就会让特定用户为所有用户发布消息。</p>
+<p>让我们保持简单，用普通的 JavaScript 和普通的 HTML 构建这个应用程序。</p>
+<h3>设置 fastify-static 插件</h3>
+<p>首先，我们需要安装<a href="https://github.com/fastify/fastify-static" target="_blank" rel="noopener"> fastify-static </a>插件，使静态文件服务特性能够服务于聊天应用程序前端。使用以下命令安装插件:</p>
+<pre class="language-bash hljs">npm install fastify-static
+# or 
+yarn add fastify-static
+</pre>
+<p>接下来，将以下代码添加到您的<code>main.js</code>文件中:</p>
+<pre class="language-javascript hljs">const fastify = require('fastify')();
+const path = require('path');
+
+fastify.register(require('fastify-websocket'));
+fastify.register(require('fastify-static'), {
+    root: path.join(__dirname, 'www')
+});
+
+fastify.addHook('preValidation', async (request, reply) =&gt; {
+    if(request.routerPath == '/chat' &amp;&amp; !request.query.username) {
+        reply.code(403).send('Connection rejected');
+    }
+});
+
+fastify.get('/chat', { websocket: true }, (connection, req) =&gt; {
+    // New user
+    broadcast({
+        sender: '__server',
+        message: `${req.query.username} joined`
+    });
+    // Leaving user
+    connection.socket.on('close', () =&gt; {
+        broadcast({
+            sender: '__server',
+            message: `${req.query.username} left`
+        });
+    });
+   // Broadcast incoming message
+    connection.socket.on('message', (message) =&gt; {
+        message = JSON.parse(message.toString());
+        broadcast({
+            sender: req.query.username,
+            ...message
+        });
+    });
+});
+
+fastify.listen({ port: 3000 }, (err, address) =&gt; {
+    if(err) {
+        console.error(err);
+        process.exit(1);
+    }
+    console.log(`Server listening at: ${address}`);
+});
+
+function broadcast(message) {
+    for(let client of fastify.websocketServer.clients) {
+        client.send(JSON.stringify(message));
+    }
+}
+</pre>
+<p>上面的服务器端实现包含一个静态文件服务器来服务前端应用程序资源。它还处理聊天应用程序的 WebSocket 服务器端事件，即当一个新的聊天客户端试图建立连接时，它通过检查<code>username</code>查询参数的存在有条件地接受连接。此外，它还会在以下情况下通知所有聊天客户端:</p>
+<ul>
+<li>一个新用户加入了对话</li>
+<li>用户从应用前端发送消息</li>
+<li>现有用户离开对话</li>
+</ul>
+<p>所有唯一的 WebSocket 客户端连接引用都存储在<code>fastify.websocketServer.clients</code> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set" target="_blank" rel="noopener"> Set_ </a>中，因此我们可以循环访问它并向所有连接的聊天用户发送消息。这个动作在基于 WebSocket 的应用程序中被称为广播；我们已经在<code>broadcast</code>函数中实现了它。</p>
+<p>在开发前端之前，还可以用 Postman 测试 WebSocket 端点。尝试打开几个 WebSocket 测试选项卡，通过提供不同的用户名来连接 WebSocket 端点。</p>
+<h3 id="building-chat-app-frontend">构建聊天应用前端</h3>
+<p>让我们构建聊天应用程序前端。创建一个名为<code>www</code>的目录，并在项目目录中创建<code>index.html</code>，您将在其中添加以下代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;title&gt;Chat&lt;/title&gt;
+    &lt;meta charset="UTF-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width,initial-scale=1" /&gt;
+    &lt;meta name="description" content="" /&gt;
+    &lt;style&gt;
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: Arial;
+        }
+#chat {
+            width: 100vw;
+            height: 100vh;
+            padding: 12px;
+        }
+#chat div {
+            padding: 4px 0px;
+        }
+#chat div b {
+            color: #555;
+        }
+input[type=text] {
+            position: fixed;
+            bottom: 10px;
+            left: 12px;
+            outline: none;
+            width: 400px;
+            border: #555 solid 1px;
+            font-size: 14px;
+            padding: 4px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div id="chat"&gt;&lt;/div&gt;
+    &lt;input id="message" type="text" autofocus/&gt;
+&lt;script&gt;
+        let _ws = null;
+init();
+function init() {
+            let username = getUsername();
+if(!username) {
+                sessionStorage.setItem('username', prompt('Enter username'))
+                username = getUsername();
+            }
+if(!username) {
+                init();
+            }
+_ws = new WebSocket(`ws://${window.location.host}/chat?username=${username}`);
+_ws.onmessage = (message) =&gt; {
+                message = JSON.parse(message.data);
+                appendMessage(message);
+            };
+document.getElementById('message')
+                .onkeypress = (evt) =&gt; {
+                    if(evt.key == 'Enter') {
+                        _ws.send(JSON.stringify({
+                            message: evt.target.value
+                        }));
+                        evt.target.value = '';
+                    }
+                };
+        }
+function getUsername() {
+            return sessionStorage.username;
+        }
+function appendMessage(message) {
+            document.getElementById('chat').innerHTML +=
+            `
+            &lt;div&gt;
+                &lt;b&gt;${message.sender}:&amp;nbsp;&lt;/b&gt;
+                ${message.message}
+            &lt;/div&gt;
+`
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>上面的代码实现了我们刚刚用 Fastify-WebSocket 插件构建的聊天应用程序后端的最小前端。使用<code>npm start</code>(或<code>yarn start</code>)命令启动 Fastify 服务器，并转到以下 URL 访问聊天应用程序:</p>
+<pre class="language-plaintext hljs">http://localhost:3000
+</pre>
+<p>尝试打开多个浏览器窗口并测试应用程序，如下所示。</p>
+<p><img data-attachment-id="106638" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif" data-orig-size="730,328" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demonstrating-websocket-chat-applicaiton-using-two-chrome-windows" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows-300x135.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif" decoding="async" class="aligncenter size-full wp-image-106638 jetpack-lazy-image" src="../Images/0e5d2235e5035caa5fe76f23ea09e7e2.png" alt="Demonstrating a WebSocket chat application using two Chrome windows" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="106638" data-permalink="https://blog.logrocket.com/using-websockets-with-fastify/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif" data-orig-size="730,328" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demonstrating-websocket-chat-applicaiton-using-two-chrome-windows" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows-300x135.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-106638" src="../Images/0e5d2235e5035caa5fe76f23ea09e7e2.png" alt="Demonstrating a WebSocket chat application using two Chrome windows" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/demonstrating-websocket-chat-applicaiton-using-two-chrome-windows.gif"/></noscript>
+<p>你可以从<a href="https://github.com/codezri/fastify-websocket-chat" target="_blank" rel="noopener">我的 GitHub 库</a>下载完整的源代码。</p>
+<h2 id="fastify-websocket-vs-ws-vs-fastify-ws">Fastify-web socket vs . ws vs . Fastify-ws</h2>
+<p>Fastify-WebSocket 插件是向现有的基于 Fastify 的 RESTful web 服务添加 WebSocket 端点的一个很好的解决方案。此外，如果您计划构建一个像我们的演示聊天应用程序这样的实时 web 应用程序，使用 fastify、fastify-websocket 和 fastify-static Node.js 模块可以让您的项目快速启动。</p>
+<p>然而，如果您需要对 WebSocket 服务器的生命周期、事件和配置进行更多的控制，那么直接使用 ws 库是一个好主意。Fastify-WebSocket 插件包装了 ws 库的功能，为您提供一个抽象的 Fastify 插件。然而，该插件对于任何通用的实时应用程序来说都足够灵活，因为它提供了一种直接的方式来订阅每一个必要的 WebSocket 客户端事件。</p>
+<p>还有用于为基于 fastify 的 web 服务添加 WebSocket 插件的<a href="https://github.com/gj/fastify-ws" target="_blank" rel="noopener"> fastify-ws </a>第三方插件，但遗憾的是，它没有被积极开发，也不支持 fastify-websocket 插件提供的功能(尤其是为特定路线添加 websocket 支持)。</p>
+<h2 id="quick-guide-organizing-fastify-websocket-code">组织 Fastify-WebSocket 代码的快速指南</h2>
+<p>在这篇文章中，我们讨论了两种不同的协议:RESTful HTTP 和 WebSockets。RESTful 模式遵循无状态、单向和基于请求-响应的通信策略，而 WebSocket 概念是异步的，是典型的有状态通信机制。因此，我们需要仔细组织代码，以降低其复杂性并实现更好的可维护性。</p>
+<p>考虑使用以下要点来组织基于 Fastify-WebSocket 的代码库:</p>
+<ul>
+<li>使用类似 MVC 的项目结构，通过分离路由、处理程序、控制器和助手模块来增强可维护性</li>
+<li>如果您的 WebSocket 事件处理逻辑增长，编写单独的消息处理函数而不是匿名函数(如果需要，将它们移动到单独的模块中)</li>
+<li>尽量不要将典型的 RESTful 端点与支持 WebSocket 的端点混合使用——如果可能的话，将 WebSocket 端点隔离到一个模块中<ul>
+<li>例如，您可以创建一个名为<code>chat.js</code>的文件，并放置实时聊天模块的 WebSocket 端点和事件处理程序</li>
+</ul>
+</li>
+<li>尝试应用<a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself" target="_blank" rel="noopener"> DRY </a>编程原则，为事件处理程序中的重复代码创建共享函数<ul>
+<li>比如我们一起搭建的聊天 app 里的<code>broadcast</code>功能！</li>
+</ul>
+</li>
+</ul>
+<h2>结论</h2>
+<p>在本教程中，我们通过几个实例学习了如何使用 Fastify-WebSocket 插件。</p>
+<p>Fastify 开发团队开发了这个插件作为 ws 库的包装器，但是它最有用，因为它让我们可以进行经常需要的定制。该插件的目标是支持 Fastify 开发人员使用相同的 Fastify 路由语法将支持 WebSocket 的端点添加到 RESTful web 服务中。</p>
+<p>因此，开发人员可以使用实时 web 应用模块轻松扩展他们的 RESTful 应用后端，例如内置聊天系统、监控仪表板等等。它的最大优点是所有 WebSocket 和 HTTP 连接只使用一个网络端口——使您的身份验证策略变得简单。</p>
+<p>Fastify-WebSocket 插件项目正在积极开发中，提供了良好的开发人员支持，并提供了内置的 TypeScript 支持——因此我们可以毫无疑问地在我们的 Fastify 项目中使用它。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

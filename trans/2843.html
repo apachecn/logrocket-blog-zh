@@ -1,0 +1,571 @@
+<html>
+<head>
+<title>Create high-performance graphics with React Native Skia - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 React Native Skia - LogRocket 博客创建高性能图形</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/#0001-01-01">https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Skia 是一个流行的开源 2D 图形库，被 Google Chrome、Chrome OS、Android 和 Flutter 等主要平台用作默认的图形引擎。该图书馆由谷歌赞助和管理，而开发由 Skia 的工程团队监督。</p>
+<h2>什么是 React Native Skia？</h2>
+<p>感谢<a href="https://github.com/Shopify" target="_blank" rel="noopener"> Shopify </a>、<a href="https://github.com/wcandillon" target="_blank" rel="noopener">威廉·坎多林</a>、<a href="https://github.com/chrfalch" target="_blank" rel="noopener">克里斯蒂安·法尔奇</a>以及<a href="https://github.com/shopify/react-native-skia" target="_blank" rel="noopener"> react-native-skia </a>背后的整个开发团队，我们现在可以在 react 原生应用中使用<a href="https://skia.org/" target="_blank" rel="noopener"> Skia </a>来绘制令人惊叹的图形，并创建像<code>Neumorphism</code>和<code>Glassmorphism</code>这样的时尚 UI 概念。</p>
+<blockquote><p>注意:该库仍处于 alpha 阶段，还不能在 npm 上使用，因此，它还不完全稳定。</p></blockquote>
+<p>您可以在这个 GitHub <a href="https://github.com/hrupesh/react-native-skia-demo" target="_blank" rel="noopener">资源库</a>中找到本文的完整代码。</p>
+<h2>安装 React Native Skia</h2>
+<p>让我们从一个裸露的 React 原生项目中的库安装开始。因为这个库还没有在 npm 上发布，所以我们需要从他们的 GitHub 库中下载。</p>
+<p>让我们从初始化一个新的 react 本地项目开始。</p>
+<pre class="language-javascript hljs">react-native init &lt;project-name&gt;
+</pre>
+<p>在我们设置好项目之后，让我们添加 React Native Skia。</p>
+<p>在您的终端中运行以下命令:</p>
+<pre class="language-javascript hljs">yarn add https://github.com/Shopify/react-native-skia/releases/download/v0.1.106-alpha/shopify-react-native-skia-0.1.106.tgz
+</pre>
+<p>或者，如果您使用 npm:</p>
+<pre class="language-javascript hljs">npm install https://github.com/Shopify/react-native-skia/releases/download/v0.1.106-alpha/shopify-react-native-skia-0.1.106.tgz
+</pre>
+<p>在撰写本文时，最新的 alpha 发布版本是<code>0.1.106</code>，我们将在本教程中使用它。</p>
+<blockquote><p>注意:一旦新版本发布，可能会有一些变化和新功能。</p></blockquote>
+<p>一旦下载并安装了包，我们需要在我们的原生 iOS 和 Android 项目中设置项目。</p>
+<p>对于 iOS，这非常简单——我们只需要安装 cocoa pods 依赖项。使用此命令:</p>
+<pre class="language-javascript hljs">cd ios
+pod install
+</pre>
+<p>现在，我们需要重建我们的 iOS 项目，以便我们可以在 React 原生 iOS 项目中使用<code>Skia</code>。</p>
+<p>从终端或直接从 Xcode 构建项目:</p>
+<pre class="language-javascript hljs">yarn ios
+// OR
+npm run ios
+</pre>
+<p>如果您不熟悉环境，在 Android 中设置我们的项目可能会有点复杂。因为 React Native Skia 的大部分图形渲染逻辑都是用<code>C++</code>编写的，所以我们将需要一种叫做<code>NDK</code> (Android <a href="https://developer.android.com/ndk" target="_blank" rel="noopener">原生开发工具包</a>)的东西，用于 Java 代码和 C++代码之间的通信。</p>
+<blockquote><p>“原生开发套件(NDK)是一套工具，允许您在 Android 上使用 C 和 C++代码”–Android 文档</p></blockquote>
+<p>要安装安卓 NDK，你可以按照这些步骤从<a href="https://developer.android.com/studio/projects/install-ndk" target="_blank" rel="noopener">官方安卓文档</a>开始。既然我们已经在 iOS 和 Android 中建立了我们的库，我们现在可以开始创建一个漂亮的用户界面和图形。</p>
+<h2>在 React 本机应用程序中使用 React 本机 Skia</h2>
+<p>React Native Skia 提供了两种类型的 API 来绘制图形:</p>
+<ul>
+<li>声明式 API，使用默认的 React 本机渲染器</li>
+<li>一个命令式 API，与 JSI (JavaScript 接口)一起工作</li>
+</ul>
+<blockquote><p>React Native JSI 是 React Native 重新架构中的核心变化。这是一个在 JavaScript 和本地代码之间提供“同步”通信的层。它将取代默认的 react 本机桥。(<a href="https://github.com/react-native-community/discussions-and-proposals/issues/91" target="_blank" rel="noopener">来源</a>)</p></blockquote>
+<p>声明式 API 类似于我们目前使用 JSX 语法在 React Native 中创建 UI 的方式。如果我们想创建一个圆角矩形，那么它的语法如下:</p>
+<pre class="language-javascript hljs">import React from 'react';
+import { Canvas, Fill, RoundedRect, vec } from '@shopify/react-native-skia';
+import { StatusBar, useWindowDimensions } from 'react-native';
+
+export const DeclarativeAPI = () =&gt; {
+  const {width, height} = useWindowDimensions();
+  const center = vec(width / 2, height / 2);
+  return (
+    &lt;&gt;
+      &lt;StatusBar barStyle="light-content" /&gt;
+      &lt;Canvas style={{flex: 1}}&gt;
+        &lt;Fill color={'#222'} /&gt;
+        &lt;RoundedRect 
+          height={180}
+          width={300}
+          x={center.x - 150}
+          y={center.y - 90}
+          color={'#eee'}
+          rx={12}
+        /&gt;
+      &lt;/Canvas&gt;
+    &lt;/&gt;
+  );
+};
+</pre>
+<p>上述代码的输出将是:</p>
+<p><img data-attachment-id="102462" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/white-square/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png" data-orig-size="450,850" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="White square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png" decoding="async" class="aligncenter size-full wp-image-102462 jetpack-lazy-image" src="../Images/8e66049d8964b4a418889140877a6d83.png" alt="White Square" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png 450w, https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-159x300.png 159w" data-lazy-sizes="(max-width: 450px) 100vw, 450px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102462" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/white-square/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png" data-orig-size="450,850" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="White square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-159x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102462" src="../Images/8e66049d8964b4a418889140877a6d83.png" alt="White Square" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png 450w, https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-159x300.png 159w" sizes="(max-width: 450px) 100vw, 450px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square.png"/></noscript>
+<p>库所有者更喜欢用户使用声明式 API，因为它易于使用并且代码可读。</p>
+<p>下面是我们在上面的代码中所做的。首先，我们需要一块画布来绘制图形，所以我们用一个<code>Canvas</code>组件包装我们的组件，并赋予它一个样式<code>flex:1</code>，这样它就占据了整个屏幕空间。然后，我们使用<code>Fill</code>组件给我们的<code>Canvas</code>填充颜色<code>#222</code>。</p>
+<p>我们还声明了一个变量<code>center</code>，它是带有两个键 X 和 y 的<code>vector</code>，最后，为了绘制带有圆角的<code>Rectangle</code>形状，我们使用了<code>RoundedRect</code>组件，并在下面给出了道具:</p>
+<ul>
+<li>Height: <code>180</code>，给矩形 180 像素的高度</li>
+<li>Width: <code>300</code>，给矩形 300 像素的宽度</li>
+<li><code>X = center.x</code> : <code>150</code>，是矩形距离 X 轴的位置。在 React Native Skia 中，X 和 Y 位置从左上角开始</li>
+<li><code>Y = center.y</code> : <code>90</code>，这是矩形相对于 Y 轴的位置</li>
+<li>给我们的矩形一个白色</li>
+<li><code>rx = 12</code>:给我们的矩形一个圆角半径<code>12</code></li>
+</ul>
+<p>现在，让我们看看如何使用命令式 API 创建相同的 UI，如下所示:</p>
+<pre class="language-javascript hljs">import React from 'react';
+import {
+    rect, rrect, Skia,
+    SkiaView,
+    useDrawCallback, vec
+} from '@shopify/react-native-skia';
+import { StatusBar, useWindowDimensions } from 'react-native';
+
+const paint = Skia.Paint();
+paint.setAntiAlias(true);
+
+export const ImperativeAPI = () =&gt; {
+  const {width, height} = useWindowDimensions();
+  const center = vec(width / 2, height / 2);
+  const rRect = rrect(rect(center.x - 150, center.y - 90, 300, 180), 12, 12);
+  const onDraw = useDrawCallback(canvas =&gt; {
+    const white = paint.copy();
+    white.setColor(Skia.Color('#eee'));
+    canvas.drawRRect(rRect, white);
+  }, []);
+  return (
+    &lt;&gt;
+      &lt;StatusBar barStyle="light-content" /&gt;
+      &lt;SkiaView style={{flex: 1, backgroundColor: '#222'}} onDraw={onDraw} /&gt;
+    &lt;/&gt;
+  );
+};
+</pre>
+<p>上面的输出与声明性 API 创建的输出相同。</p>
+<p><img data-attachment-id="102464" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/white-square-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png" data-orig-size="476,864" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="White square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2-165x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png" decoding="async" class="aligncenter size-full wp-image-102464 jetpack-lazy-image" src="../Images/ebebfa9c864d304dcfd30d00a9c2a399.png" alt="White Square" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png 476w, https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2-165x300.png 165w" data-lazy-sizes="(max-width: 476px) 100vw, 476px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102464" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/white-square-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png" data-orig-size="476,864" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="White square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2-165x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102464" src="../Images/ebebfa9c864d304dcfd30d00a9c2a399.png" alt="White Square" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png 476w, https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2-165x300.png 165w" sizes="(max-width: 476px) 100vw, 476px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/white-square-2.png"/></noscript>
+<p>这里，我们创建了一个<code>SkiaView</code>，它本质上是我们的<code>Canvas</code>，我们使用它的<code>onDraw</code>回调来定义在视图上绘制什么。然后是<code>onDraw</code>方法，它使用<code>useDrawCallback</code>钩子并返回一个内存化的回调。在函数中，我们正在初始化<code>Paint</code>，然后使用该颜料作为我们在画布上绘制的圆角矩形的颜色。</p>
+<h2>在 React Native Skia 中为图像添加滤镜</h2>
+<p>现在，让我们看看如何使用 Skia 的<code>Image</code>组件显示图像，以及如何为图像实时添加酷炫的滤镜。</p>
+<p>让我们先编写代码来显示图像。</p>
+<pre class="language-javascript hljs">import {Canvas, Image, useImage} from '@shopify/react-native-skia';
+import React from 'react';
+import {Dimensions, SafeAreaView, StyleSheet, Text} from 'react-native';
+
+const {height, width} = Dimensions.get('window');
+
+export const ImageFilters = () =&gt; {
+  const image = useImage(require('../assets/image.jpg'));
+  if (image === null) return null;
+  return (
+    &lt;SafeAreaView&gt;
+      &lt;Text style={styles.title}&gt;Image Filters&lt;/Text&gt;
+      &lt;Canvas style={styles.canvas}&gt;
+        &lt;Image
+          x={0}
+          y={0}
+          width={width - 32}
+          height={height - 300}
+          image={image}
+          fit="cover"
+        /&gt;
+      &lt;/Canvas&gt;
+    &lt;/SafeAreaView&gt;
+  );
+};
+const styles = StyleSheet.create({
+  title: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontWeight: '700',
+    fontSize: 32,
+    letterSpacing: 1.4,
+  },
+  canvas: {
+    height: height - 300,
+    marginHorizontal: 16,
+    width: width - 32,
+  },
+});
+</pre>
+<p>在上面的代码中，我们使用来自<code>react-native-skia</code>的<code><a href="https://shopify.github.io/react-native-skia/docs/images" target="_blank" rel="noopener">useImage</a></code>钩子来初始化<code>image</code>变量。</p>
+<p>我们可以使用这个钩子在<code><a href="https://reactnative.dev/docs/images#static-image-resources" target="_blank" rel="noopener">require</a></code>帮助函数的帮助下初始化本地图像资产，或者我们也可以使用来自网络的远程图像，如下所示:</p>
+<pre class="language-javascript hljs">const image = useImage('https://picsum.photos/1920/1080');
+</pre>
+<p>然后，我们将来自<code>Skia</code>的<code>Image</code>组件包装在一个<code>Canvas</code>中，并向组件添加样式。上述代码的输出将是:</p>
+<p><img data-attachment-id="102466" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/image-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png" data-orig-size="462,827" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Image filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters-168x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png" decoding="async" class="aligncenter size-full wp-image-102466 jetpack-lazy-image" src="../Images/1a8de880eccf0a66f07c51a1f1b3889a.png" alt="Image Filters" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png 462w, https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters-168x300.png 168w" data-lazy-sizes="(max-width: 462px) 100vw, 462px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102466" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/image-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png" data-orig-size="462,827" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Image filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters-168x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102466" src="../Images/1a8de880eccf0a66f07c51a1f1b3889a.png" alt="Image Filters" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png 462w, https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters-168x300.png 168w" sizes="(max-width: 462px) 100vw, 462px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/image-filters.png"/></noscript>
+<p>现在我们的图像可见了，让我们使用<a href="https://shopify.github.io/react-native-skia/docs/color-filters/#color-matrix" target="_blank" rel="noopener">颜色矩阵</a>给它添加一些滤镜，这是一个带有 RGBA 颜色值的矩阵(2D 数组)。语法是这样的:</p>
+<pre class="language-javascript hljs">| R' |   | a00 a01 a02 a03 a04 |   | R |
+| G' |   | a10 a11 a22 a33 a44 |   | G |
+| B' | = | a20 a21 a22 a33 a44 | * | B |
+| A' |   | a30 a31 a22 a33 a44 |   | A |
+</pre>
+<p>我们将使用 React Native Skia 中的<code><a href="https://shopify.github.io/react-native-skia/docs/color-filters#color-matrix" target="_blank" rel="noopener">ColorMatrix</a></code>过滤器组件来实现这一点。</p>
+<p>首先，让我们为将要使用的所有过滤器创建矩阵:</p>
+<pre class="language-javascript hljs">const filters = {
+    Juno: [
+        1, 0, 0, 0, 0,
+        -0.4, 1.3, -0.4, 0.2, -0.1,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Sepia: [
+        0.393, 0.769, 0.189, 0, 0,
+        0.349, 0.686, 0.168, 0, 0,
+        0.272, 0.534, 0.131, 0, 0,
+        0,     0,     0,     1, 0,
+    ],
+    Greyscale: [
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0,      0,      0,      1, 0,
+    ],
+    Gingham: [
+        2, 0, 0, 0, 0,
+        1, 1, 0, 0, 0,
+        0.5, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Mayfair: [
+        1, 1, 0.5, 0, 0,
+        0, 0.5, 1, 0, 0,
+        0.5, 0.5, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Valencia: [
+        1, 0, 0, 0, 0,
+        -0.2, 1, 0, 0, 0,
+        -0.8, 1.6, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    'No Filter': [
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ]
+};
+</pre>
+<p>你也可以创建自己的自定义颜色矩阵，<a href="https://kazzkiq.github.io/svg-color-filter/" target="_blank" rel="noopener">T2 有很多可用的游乐场。注意，我们创建了一个有七个键的对象，每个键指向一个<code>ColorMatrix</code>值。</a></p>
+<p>在添加了一些代码来处理我们的 UI 之后，最终的代码将是:</p>
+<pre class="language-javascript hljs">import {
+  Canvas,
+  ColorMatrix,
+  Image,
+  Paint,
+  useImage,
+} from '@shopify/react-native-skia';
+import React, {useCallback, useState} from 'react';
+import {
+  Dimensions,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+} from 'react-native';
+
+const {height, width} = Dimensions.get('window');
+const filters = {
+    Juno : [
+        1, 0, 0, 0, 0,
+        -0.4, 1.3, -0.4, 0.2, -0.1,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Sepia: [
+        0.393, 0.769, 0.189, 0, 0,
+        0.349, 0.686, 0.168, 0, 0,
+        0.272, 0.534, 0.131, 0, 0,
+        0,     0,     0,     1, 0,
+    ],
+    Greyscale: [
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0,      0,      0,      1, 0,
+    ],
+    Gingham: [
+        2, 0, 0, 0, 0,
+        1, 1, 0, 0, 0,
+        0.5, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Mayfair: [
+        1, 1, 0.5, 0, 0,
+        0, 0.5, 1, 0, 0,
+        0.5, 0.5, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    Valencia: [
+        1, 0, 0, 0, 0,
+        -0.2, 1, 0, 0, 0,
+        -0.8, 1.6, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ],
+    ['No Filter']: [
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+    ]
+};
+
+export const ImageFilters = () =&gt; {
+  const [selectedFilter, setSelectedFilter] = useState('Juno');
+  const handlePress = useCallback(
+    item =&gt; () =&gt; {
+      setSelectedFilter(item);
+    },
+    [],
+  );
+  const image = useImage(require('../assets/image.jpg'));
+  if (image === null) return null;
+  return (
+    &lt;SafeAreaView&gt;
+      &lt;Text style={styles.title}&gt;Image Filters&lt;/Text&gt;
+      &lt;Canvas style={styles.canvas}&gt;
+        &lt;Paint&gt;
+            &lt;ColorMatrix 
+              matrix={filters[selectedFilter]}
+            /&gt;
+        &lt;/Paint&gt;
+        &lt;Image
+          x={0}
+          y={0}
+          width={width - 32}
+          height={height - 300}
+          image={image}
+          fit="cover"
+        /&gt;
+      &lt;/Canvas&gt;
+      &lt;FlatList
+        numColumns={3}
+        data={Object.keys(filters)}
+        keyExtractor={(_, index) =&gt; index}
+        renderItem={({item}) =&gt; (
+          &lt;Text
+            style={[
+              styles.item,
+              selectedFilter === item &amp;&amp; styles.selectedItem,
+            ]}
+            onPress={handlePress(item)}&gt;
+            {item}
+          &lt;/Text&gt;
+        )}
+        style={styles.list}
+      /&gt;
+    &lt;/SafeAreaView&gt;
+  );
+};
+
+const styles = StyleSheet.create({
+  title: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontWeight: '700',
+    fontSize: 32,
+    letterSpacing: 1.4,
+    color: '#000',
+  },
+  canvas: {
+    height: height - 300,
+    marginHorizontal: 16,
+    width: width - 32,
+    borderRadius: 12,
+  },
+  list: {
+    margin: 16,
+  },
+  item: {
+      width: '33%',
+      textAlign: 'center',
+      marginBottom: 12,
+      fontWeight: '600',
+      fontSize: 18,
+  },
+  selectedItem: {
+      color: '#ea4c89',
+      borderWidth: 1,
+      borderColor: '#ea4c89',
+      borderRadius: 12,
+ },
+});
+</pre>
+<p>上述代码在 iOS 和 Android 中的输出如下:</p>
+<p><img data-attachment-id="102468" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/choosing-different-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Choosing different filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif" decoding="async" class="aligncenter size-full wp-image-102468 jetpack-lazy-image" src="../Images/1b0c2baebbfb50fb411d027a65fe5402.png" alt="Choosing Different Filters" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102468" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/choosing-different-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Choosing different filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102468" src="../Images/1b0c2baebbfb50fb411d027a65fe5402.png" alt="Choosing Different Filters" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-different-filters.gif"/></noscript>
+<p><img data-attachment-id="102470" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/choosing-more-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Choosing more filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif" decoding="async" class="aligncenter size-full wp-image-102470 jetpack-lazy-image" src="../Images/7c1511aa7f13a3939b00f490d3fcd5d0.png" alt="Choosing More Filters" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102470" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/choosing-more-filters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Choosing more filters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102470" src="../Images/7c1511aa7f13a3939b00f490d3fcd5d0.png" alt="Choosing More Filters" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/choosing-more-filters.gif"/></noscript>
+<p>就是这样！我们现在已经在 React Native 中为我们的图像添加了滤镜。</p>
+<h2>用 React Native Skia 创建新用户界面</h2>
+<p>有了<code>Skia</code>，我们可以在 React Native 中创建 neumorphic UI。React Native Skia 提供了一个<code><a href="https://shopify.github.io/react-native-skia/docs/image-filters/shadows#drop-shadow" target="_blank" rel="noopener">DropShadow</a></code>组件来创建阴影，类似于我们在 web 应用程序中创建一个神经形态设计模式。</p>
+<p>下面是创建神经形态列表的代码:</p>
+<pre class="language-javascript hljs">import {
+  Canvas,
+  DropShadow,
+  Group,
+  Paint,
+  RoundedRect,
+  Text,
+  useFont,
+} from '@shopify/react-native-skia';
+import React from 'react';
+import {Dimensions, ScrollView} from 'react-native';
+
+const data = [
+  {
+    id: 1,
+    name: 'John Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+  {
+    id: 2,
+    name: 'Jane Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+  {
+    id: 3,
+    name: 'Erin Yeager',
+    body: 'Adipisicing sint ullamco irure nulla',
+  },
+  {
+    id: 4,
+    name: 'Mikasa Ackerman',
+    body: 'Adipisicing sint ullamco irure nulla',
+  },
+  {
+    id: 5,
+    name: 'John Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+  {
+    id: 6,
+    name: 'Jane Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+  {
+    id: 7,
+    name: 'John Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+  {
+    id: 8,
+    name: 'Jane Doe',
+    body: 'Sunt aliqua eu officia eiusmod non',
+  },
+];
+
+const {width} = Dimensions.get('window');
+
+const NeumorphicCard = ({data, index, font, bodyFont}) =&gt; {
+  return (
+    &lt;Canvas style={{height: 140, width}} key={index}&gt;
+      &lt;Group&gt;
+        &lt;Paint&gt;
+          &lt;DropShadow dx={6} dy={6} blur={4} color="rgba(0, 0, 0, 0.4)" /&gt;
+          &lt;DropShadow dx={-6} dy={-6} blur={4} color="rgba(255, 255, 255, 1)" /&gt;
+        &lt;/Paint&gt;
+        &lt;RoundedRect
+          x={16}
+          y={20}
+          width={width - 32}
+          height={100}
+          rx={12}
+          color="#EFEEEE"&gt;
+          &lt;Paint
+            color="rgba(255, 255, 255, 0.6)"
+            style="stroke"
+            strokeWidth={1}
+          /&gt;
+        &lt;/RoundedRect&gt;
+      &lt;/Group&gt;
+      &lt;Text x={32} y={56} text={data?.name} font={font} /&gt;
+      &lt;Text x={32} y={92} text={data?.body} font={bodyFont} /&gt;
+    &lt;/Canvas&gt;
+  );
+};
+
+export const Neumorphism = () =&gt; {
+  const font = useFont(require('../fonts/Poppins-Regular.ttf'), 20);
+  const bodyFont = useFont(require('../fonts/Poppins-Regular.ttf'), 14);
+  if (font === null || bodyFont === null) {
+    return null;
+  }
+  return (
+    &lt;ScrollView
+      showsVerticalScrollIndicator={false}
+      style={{flex: 1, backgroundColor: '#EFEEEE'}}
+      contentContainerStyle={{
+        paddingTop: Platform.OS === 'ios' ? 40 : 0,
+        paddingBottom: 40,
+      }}&gt;
+      {data.map(item =&gt; (
+        &lt;NeumorphicCard
+          key={item.id}
+          data={item}
+          font={font}
+          bodyFont={bodyFont}
+        /&gt;
+      ))}
+    &lt;/ScrollView&gt;
+  );
+};
+</pre>
+<p>上图中，我们映射了一组随机数据，对于每一项，我们都呈现了一个<code>NeumorphicCard</code>组件。我们还使用了<code>useFont</code>钩子来加载自定义字体。</p>
+<p>在卡片组件中，我们有一个带有<code>1</code>单元边框的<code>RoundedRect</code>，它是我们使用样式为<code>stroke</code>的<code>Paint</code>创建的。然后，我们添加了两个<code>DropShadow</code>组件，在矩形的左上角和右下角创建一个阴影。</p>
+<p>下面是上述代码在 iOS 和 Android 中的输出:</p>
+<p><img data-attachment-id="102472" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/drag-scroll/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Drag scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif" decoding="async" class="aligncenter size-full wp-image-102472 jetpack-lazy-image" src="../Images/ccd10e7b1ae2fd1f035d403980e49834.png" alt="Drag Scroll" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102472" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/drag-scroll/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Drag scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102472" src="../Images/ccd10e7b1ae2fd1f035d403980e49834.png" alt="Drag Scroll" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll.gif"/></noscript>
+<p><img data-attachment-id="102474" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/drag-scroll-android/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Drag scroll on Android" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif" decoding="async" class="aligncenter size-full wp-image-102474 jetpack-lazy-image" src="../Images/b613b4f73207caf416c6862612f10e0a.png" alt="Drag Scroll on Android" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102474" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/drag-scroll-android/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif" data-orig-size="474,846" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Drag scroll on Android" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android-168x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102474" src="../Images/b613b4f73207caf416c6862612f10e0a.png" alt="Drag Scroll on Android" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/drag-scroll-android.gif"/></noscript>
+<h2>将玻璃态与 React Native Skia 相结合。</h2>
+<p>最后，让我们在 React 本地应用中创建一个受<a href="https://hype4.academy/tools/glassmorphism-generator" target="_blank" rel="noopener">玻璃形态</a>启发的设计。为了创建这个玻璃形态的设计，我们将需要<code><a href="https://shopify.github.io/react-native-skia/docs/backdrops-filters#backdrop-blur" target="_blank" rel="noopener">BackDropBlur</a></code>组件。我们将创建一个<code>RoundedRect</code>，然后使用<code>BackDropBlur</code>组件给背景一个<code>blur</code>。我们还将看到如何制作动画图形。</p>
+<p>编写下面的代码来创建一个动画玻璃卡片:</p>
+<pre class="language-javascript hljs">import {
+  BackdropBlur, Canvas, Fill, Group, Image, mix,
+  Paint, rect, Rect, RoundedRect, rrect, Text,
+  useDerivedValue, useFont, useImage, useLoop, vec,
+} from '@shopify/react-native-skia';
+import React from 'react';
+import {useWindowDimensions} from 'react-native';
+
+export const Glassmorphism = () =&gt; {
+  const {width, height} = useWindowDimensions();
+  const center = vec(width / 2 - 50, height / 2 - 100);
+  const blurClipPath = rrect(rect(24, center.y, width - 48, 200), 12, 12);
+  const image = useImage('https://picsum.photos/1920/1080');
+  const blurProgress = useLoop({duration: 2000});
+  const blur = useDerivedValue(
+    progress =&gt; mix(progress, 0, 10),
+    [blurProgress],
+  );
+  const font = useFont(require('../fonts/Poppins-Regular.ttf'), 40);
+  if (font === null) {
+    return null;
+  }
+  return (
+    &lt;Canvas style={{flex: 1}}&gt;
+      &lt;Group&gt;
+        &lt;Rect x={0} y={0} width={width} height={height} /&gt;
+        &lt;Image
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          image={image}
+          fit={'cover'}
+        /&gt;
+      &lt;/Group&gt;
+      &lt;Group&gt;
+        &lt;RoundedRect
+          x={24}
+          y={center.y}
+          width={width - 48}
+          height={200}
+          color="#0000"
+          rx={12}&gt;
+          &lt;Paint
+            color="rgba(255, 255, 255, 0.8)"
+            style="stroke"
+            strokeWidth={1}
+          /&gt;
+        &lt;/RoundedRect&gt;
+        &lt;BackdropBlur blur={blur} clip={blurClipPath}&gt;
+          &lt;Fill color={'rgba(122, 122, 122, 0.2)'} /&gt;
+        &lt;/BackdropBlur&gt;
+        &lt;Text
+          x={center.x - 50}
+          y={center.y + 110}
+          text="Hello Skia"
+          font={font}
+          color="#fff"
+          style="stroke"
+        /&gt;
+      &lt;/Group&gt;
+    &lt;/Canvas&gt;
+  );
+};
+</pre>
+<p>输出将如下所示:</p>
+<p><img data-attachment-id="102476" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/hello-skia-square/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif" data-orig-size="542,904" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Hello skia in square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square-180x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif" decoding="async" class="aligncenter size-full wp-image-102476 jetpack-lazy-image" src="../Images/9f4e666465bfd78c0393d5c4d57ef2a9.png" alt="Hello Skia in Square" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102476" data-permalink="https://blog.logrocket.com/create-high-performance-graphics-react-native-skia/hello-skia-square/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif" data-orig-size="542,904" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Hello skia in square" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square-180x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-102476" src="../Images/9f4e666465bfd78c0393d5c4d57ef2a9.png" alt="Hello Skia in Square" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/hello-skia-square.gif"/></noscript>
+<h2>结论</h2>
+<p>现在你已经看到了 React Native Skia 有多强大，我认为它将改变我们在 React Native 中创建 UI 的方式。因为该库使用了新的 React 本机架构(JSI)和新的渲染器的全部潜力，它肯定会提高我们的 React 本机应用程序的性能。感谢阅读！</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现 React 原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 React 原生监控解决方案，可帮助您即时重现问题、确定 bug 的优先级并了解 React 原生应用的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的 React 原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

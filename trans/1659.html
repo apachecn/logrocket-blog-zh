@@ -1,0 +1,210 @@
+<html>
+<head>
+<title>Hosting all your PHP packages together in a monorepo - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 monorepo - LogRocket 博客中托管所有 PHP 包</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/#0001-01-01">https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当一个 PHP 项目变得庞大而复杂时，它就变得难以管理。</p>
+<p>在这种情况下，我们将项目分割成独立的包，并使用 Composer 将所有包导入到项目中。然后，不同的功能可以由不同的团队实现和维护，也可以由其他项目重用。</p>
+<p>Composer 使用<a href="https://packagist.org/"> Packagist </a>注册表来分发 PHP 包。Packagist 要求我们在发布新软件包时提供一个存储库 URL。</p>
+<p>因此，将一个项目分割成包也会影响它们的托管方式:从托管整个代码的单个存储库到托管每个包的代码的多个存储库。</p>
+<p>因此，我们已经解决了管理项目代码的问题，但代价是产生了一个新问题:现在我们必须管理代码的托管。</p>
+<h2>分散包托管的问题是</h2>
+<p>我们的包将被版本化，包的每个版本将依赖于另一个包的某个特定版本，而另一个包本身又依赖于另一个包的某个版本，等等。</p>
+<p>这在为您的项目提交拉请求时会成为一个问题；很可能，您还需要修改某个包中的代码，因此您需要为该包创建一个新的分支，并在您的<code>composer.json</code>中指向它。</p>
+<p>然后，如果这个包依赖于其他也必须修改的包，您需要为它创建一个新的分支，并更新第一个包的<code>composer.json</code>来指向它。</p>
+<p>如果这个包依赖于其他包，你就明白了。</p>
+<p>然后，一旦您批准了 pull 请求，您需要撤销所有<code>composer.json</code>文件中的所有修改，以指向包的新发布版本。</p>
+<p>这一切变得如此难以实现，以至于你很可能会完全停止使用特性分支并直接发布到<code>master</code>，这样你将无法跟踪跨包的变化。那么，如果将来您需要恢复更改，祝您好运，找到所有包中被修改的所有代码片段。</p>
+<p>我们能做些什么呢？</p>
+<h2>monorepo 简介</h2>
+<p>这就是 monorepo 拯救世界的地方。我们可以将所有的包托管在一个存储库中，而不是将我们的代码分布在多个存储库中。</p>
+<p>monorepo 允许我们一起对所有的包进行版本控制，因此创建一个新的分支和提交一个 pull 请求将在一个地方完成，包括所有可能受它影响的包的代码。</p>
+<p>然而，我们仍然受到 Packagist 的约束:出于分发的目的，每个包都需要存在于它自己的存储库之下。</p>
+<p>我们现在要干嘛？</p>
+<h3>解决包装限制</h3>
+<p>解决方案是分离代码的开发和分发:</p>
+<ul>
+<li>使用 monorepo 开发代码</li>
+<li>使用多个存储库(每个包一个回购)来分发它(著名的“[只读]”回购)</li>
+</ul>
+<p>然后，我们必须保持所有的源库和分布库同步。</p>
+<p>当在 monorepo 中开发代码时，在一个新的 pull 请求被合并之后，每个包的新代码必须被复制到它自己的存储库中，从那里它可以被分发。</p>
+<p>这被称为分割单一回购协议。</p>
+<h2>如何拆分单一回购协议</h2>
+<p>一个简单的解决方案是<a href="https://stackoverflow.com/questions/359424/detach-move-subdirectory-into-separate-git-repository/17864475#17864475">使用<code>git subtree split</code>创建一个脚本</a>，然后将包代码同步到它自己的 repo 中。</p>
+<p>一个更好的解决方案是使用一个工具来完成这项工作，这样我们就可以避免手动操作。有几种工具可供选择:</p>
+
+<p>由此，我选择使用 Monorepo builder，因为它是用 PHP 编写的，所以我可以用自定义功能来扩展它。(相比之下，<code>splitsh/lite</code>是用 Go 写的，<code>dflydev/git-subsplit</code>是 Bash 脚本。)</p>
+<blockquote><p><strong>注意</strong>，Monorepo builder 仅适用于 PHP 包。如果您需要管理 JavaScript 包或其他任何东西，您必须使用另一个工具。</p></blockquote>
+<h2>组织单一回购结构</h2>
+<p>您必须创建一个结构来组织 monorepo 中的代码。在最简单的情况下，您可以有一个根<code>packages/</code>文件夹，并将每个包添加到它自己的子文件夹中。</p>
+<p>如果您的代码更复杂，不仅包含包，还包含束、合同或其他内容，那么您可以创建一个多级结构。</p>
+<p>例如，Symfony 在其 monorepo <code><a href="https://github.com/symfony/symfony">symfony/symfony</a></code>中使用了以下结构:</p>
+<figure id="attachment_39543" aria-describedby="caption-attachment-39543" class="wp-caption aligncenter"><img data-attachment-id="39543" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/symfony-monorepo-multilevel-structure/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png" data-orig-size="250,644" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="symfony-monorepo-multilevel-structure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure-116x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png" decoding="async" class="wp-image-39543 size-full jetpack-lazy-image" src="../Images/001eac55fbec2b731638c691297588c0.png" alt="Symfony Monorepo Multilevel Structure" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png 250w, https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure-116x300.png 116w" data-lazy-sizes="(max-width: 250px) 100vw, 250px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="39543" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/symfony-monorepo-multilevel-structure/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png" data-orig-size="250,644" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="symfony-monorepo-multilevel-structure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure-116x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png" decoding="async" loading="lazy" class="wp-image-39543 size-full" src="../Images/001eac55fbec2b731638c691297588c0.png" alt="Symfony Monorepo Multilevel Structure" srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png 250w, https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure-116x300.png 116w" sizes="(max-width: 250px) 100vw, 250px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/symfony-monorepo-multilevel-structure.png"/></noscript><figcaption id="caption-attachment-39543" class="wp-caption-text">Symfony monorepo structure</figcaption></figure>
+<p>就我自己而言，我最近才建立了一个 monorepo 来托管我所有的项目。(原因是我有一个潜在的贡献者，他不能设法建立开发环境，所以他离开了😢。)</p>
+<p>我的整个项目包含多个层次:WordPress 的 GraphQL API 插件位于服务器<a href="https://graphql-by-pop.com">之上，GraphQL by PoP </a>位于框架<a href="https://github.com/leoloso/PoP">之上。</a></p>
+<p>虽然这些是相关的，但它们也是独立的:我们可以使用 PoP 来驱动其他应用程序，而不仅仅是 GraphQL by PoPPoP 的 GraphQL 可以支持任何 CMS，而不仅仅是 WordPress。</p>
+<p>因此，我决定将这些视为“层”，其中每一层<a href="https://github.com/leoloso/PoP#dependency-graph">可能会看到并使用另一层，但其他层</a>不会。</p>
+<p>在创建 monorepo 结构时，我复制了这个想法，将代码分两个层次:首先是<code>layers/</code>，然后是<code>packages/</code>(对于一个特定的情况，还有<code>plugins/</code>):</p>
+<figure id="attachment_39544" aria-describedby="caption-attachment-39544" class="wp-caption aligncenter"><img data-attachment-id="39544" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-structure-code-distribute-2-levels-layers-packages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png" data-orig-size="256,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-structure-code-distribute-two-levels-layers-packages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages-162x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png" decoding="async" class="wp-image-39544 size-full jetpack-lazy-image" src="../Images/4b5b9c4a558d1ffcc4d540429c658227.png" alt="Monorepo Structure Code Distribute Levels Layers Packages" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png 256w, https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages-162x300.png 162w" data-lazy-sizes="(max-width: 256px) 100vw, 256px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="39544" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-structure-code-distribute-2-levels-layers-packages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png" data-orig-size="256,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-structure-code-distribute-two-levels-layers-packages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages-162x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png" decoding="async" loading="lazy" class="wp-image-39544 size-full" src="../Images/4b5b9c4a558d1ffcc4d540429c658227.png" alt="Monorepo Structure Code Distribute Levels Layers Packages" srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png 256w, https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages-162x300.png 162w" sizes="(max-width: 256px) 100vw, 256px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-structure-code-distribute-2-levels-layers-packages.png"/></noscript><figcaption id="caption-attachment-39544" class="wp-caption-text">PoP monorepo structure</figcaption></figure>
+<p>我没有创建一个新的库，而是决定重用来自 PoP 的库，在<a href="https://github.com/leoloso/PoP"> <code>leoloso/PoP</code> </a>下，因为它是整个代码的基础(也因为我不想失去它被赋予的星星😁).</p>
+<p>一旦定义了 monorepo 结构，就可以从每个包的存储库中迁移代码。</p>
+<h2>导入代码，包括 Git 历史</h2>
+<p>如果您从头开始 monorepo，您可以运行<a href="https://github.com/symplify/monorepo-builder#0-are-you-new-to-monorepo"> <code>monorepo-builder init</code> </a>来设置它，并为您的每个新包创建一个新的存储库。否则，如果您已经在它们自己的存储库中开发了您的包，您将需要把它们移植到 monorepo。</p>
+<p>最有可能的情况是，在迁移包时，您还会希望移植它们的 Git 历史和提交散列，以便将它们作为文档来浏览，并跟踪谁做了什么，什么时候做的，以及为什么做。</p>
+<p>Monorepo builder 不会帮助您完成这项任务。因此，您需要使用另一个工具:</p>
+
+<p>在您迁移了代码之后，您可以开始使用 Monorepo builder 来管理它，正如其自述文件中所解释的那样。</p>
+<h2>单一的<code>composer.json</code>来统治他们所有人</h2>
+<p>每个 PHP 包都有自己的<code>composer.json</code>文件，定义了它的依赖关系。</p>
+<p>monorepo 也有自己的<code>composer.json</code>文件，包含所有 PHP 包的所有依赖项。这样，我们可以通过从 monorepo 根执行一个命令，对所有包中的所有代码运行 PHPUnit 测试、PHPStan 静态分析或任何其他东西。</p>
+<p>为此，PHP 包必须包含相同依赖项的相同版本！那么如果 A 包要求 PHPUnit 7.5，B 包要求 PHPUnit 9.3，就不行了。</p>
+<p>Monorepo builder 提供了以下命令:</p>
+<ul>
+<li><code>monorepo-builder validate</code>检查所有<code>composer.json</code>中的依赖关系是否不冲突</li>
+<li><code>monorepo-builder merge</code>从所有<code>composer.json</code>中提取所有依赖项(和其他信息),并将它们合并到 monorepo 自己的<code>composer.json</code>中</li>
+</ul>
+<p>我花了一点时间才意识到，你不能手动编辑根目录<code>composer.json</code>！由于该文件是自动生成的，如果没有通过工具的配置文件添加，您可能会丢失自定义更改。</p>
+<p>有趣的是，处理 Monorepo 构建器本身就是这种情况。要在您的项目中安装这个库，您可以像往常一样在 monorepo 根目录中运行<code>composer require symplify/monorepo-builder --dev</code>。但是紧接着，您应该<a href="https://github.com/leoloso/PoP/blob/18712eb48d8002baf1fbf457cd61caa6f13115a0/composer.json#L35">在配置文件<a href="https://github.com/leoloso/PoP/blob/ba20f72ef087f743962bb315003022924bf60a8c/monorepo-builder.php#L69:L72"> <code>monorepo-builder.php</code> </a>中重新创建依赖关系</a>:</p>
+<pre>return static function (ContainerConfigurator $containerConfigurator): void {
+  $parameters = $containerConfigurator-&gt;parameters();
+  $parameters-&gt;set(Option::DATA_TO_APPEND, [
+    'require-dev' =&gt; [
+      'symplify/monorepo-builder' =&gt; '^9.0',
+    ]
+  ]);
+}
+</pre>
+<h2>分割单一报告</h2>
+<p>因此，您已经合并了一个拉取请求。现在是时候将新代码同步到包存储库中了。这就叫分裂。</p>
+<p>如果您在 GitHub 上托管您的 monorepo，您可以创建一个在<code>master</code>(或<code>main</code>)分支的<code>push</code>事件上触发的动作来执行 Monorepo Split 的<a href="https://github.com/symplify/monorepo-split-github-action"> GitHub 动作，指示哪个是源包目录，以及要将内容复制到哪个存储库:</a></p>
+<pre>name: 'Monorepo Split'
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  monorepo_split_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cfaca7aaaca4a0babb8fb9fd">[email protected]</a>
+        with:
+          fetch-depth: 0
+
+      - uses: "symplify/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e78a88898895829788ca94978b8e93ca808e938f9285ca8684938e8889a78a8694938295">[email protected]</a>"
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          # ↓ split "packages/your-package-name" directory
+          package-directory: 'packages/your-package-name'
+
+          # ↓ into https://github.com/your-organization/your-package-name repository
+          split-repository-organization: 'your-organization'
+          split-repository-name: 'your-package-name'
+
+          # ↓ the user signed under the split commit
+          user-name: "your-github-username"
+          user-email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a3daccd6d1e3c6cec2cacf8dc0ccce">[email protected]</a>"
+</pre>
+<p>为了让这个工作，你还需要创建一个新的访问令牌，作用域为“回购”和“工作流”，如这里的所解释的<a href="https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token">，并在秘密<code>ACCESS_TOKEN</code>下设置这个令牌，如这里的</a>所解释的<a href="https://docs.github.com/en/actions/reference/encrypted-secrets">。</a></p>
+<p>上面的例子适用于分割单个包。我们如何设法分割多个包？我们必须为它们中的每一个声明一个工作流吗？</p>
+<p>当然不是。GitHub 动作支持<a href="https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategymatrix">定义不同作业配置的矩阵</a>。因此，我们可以定义一个矩阵来并行启动许多 runner 实例，每个包一个 runner 来拆分:</p>
+<pre>jobs:
+  provide_packages_json:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e5868d80868e8a9091a593d7">[email protected]</a>
+
+      - uses: shivammathur/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0f7c6a7b7a7f227f677f4f793d">[email protected]</a>
+        with:
+          php-version: 7.4
+          coverage: none
+
+      - uses: "ramsey/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f89b979588978b9d8ad591968b8c999494b88ec9">[email protected]</a>"
+
+      # get package json list
+      - id: output_data
+        run: echo "::set-output name=matrix::$(vendor/bin/monorepo-builder packages-json)"
+
+    outputs:
+      matrix: ${{ steps.output_data.outputs.matrix }}
+
+  split_monorepo:
+    needs: provide_packages_json
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{fromJson(needs.provide_packages_json.outputs.matrix)}}
+
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c9aaa1acaaa2a6bcbd89bffb">[email protected]</a>
+
+      - name: Monorepo Split of ${{ matrix.package }}
+        uses: symplify/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3a5d534e524f58175b594e5355541757555455485f4a5517494a56534e7a575b494e5f48">[email protected]</a>
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          package-directory: 'packages/${{ matrix.package }}'
+          split-repository-organization: 'your-organization'
+          split-repository-name: '${{ matrix.package }}'
+          user-name: "your-github-username"
+          user-email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89f0e6fcfbc9ece4e8e0e5a7eae6e4">[email protected]</a>"
+</pre>
+<p>现在，包名不再是硬编码，而是来自母体(“现实是，勺子不存在”)。</p>
+<p>此外，由于包列表是通过<code>monorepo-builder.php</code>配置文件提供的，我们可以从那里提取它。这是通过执行命令<code>vendor/bin/monorepo-builder packages-json</code>完成的，它产生一个包含所有包的字符串化的 JSON 输出:</p>
+<figure id="attachment_39547" aria-describedby="caption-attachment-39547" class="wp-caption aligncenter"><img data-attachment-id="39547" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-builder-configuration-file-stringified-json-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png" data-orig-size="730,390" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-builder-configuration-file-stringified-JSON-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output-300x160.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png" decoding="async" class="wp-image-39547 size-full jetpack-lazy-image" src="../Images/e1a5c025e6143bb078e46c4824989bf9.png" alt="Monorepo Builder Configuration File Stringified JSON Output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output-300x160.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="39547" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-builder-configuration-file-stringified-json-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png" data-orig-size="730,390" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-builder-configuration-file-stringified-JSON-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output-300x160.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png" decoding="async" loading="lazy" class="wp-image-39547 size-full" src="../Images/e1a5c025e6143bb078e46c4824989bf9.png" alt="Monorepo Builder Configuration File Stringified JSON Output" srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output-300x160.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-configuration-file-stringified-JSON-output.png"/></noscript><figcaption id="caption-attachment-39547" class="wp-caption-text">Retrieving the list of packages.</figcaption></figure>
+<h2>发布新版本(针对所有软件包)</h2>
+<p>monorepo 通过对所有包一起进行版本控制来保持简单，对所有包使用相同的版本。因此，版本为 0.7 的包 A 将依赖于版本为 0.7 的包 B，依此类推。</p>
+<p>这意味着我们将标记包，即使包中的代码没有改变。例如，如果包 A 已被修改，它将被标记为 0.7，但包 B 也是如此，即使它不包含任何修改。</p>
+<p>Monorepo builder 使标记所有包变得非常容易。我们首先需要有一个<a href="https://github.com/leoloso/PoP/blob/c090d436b9558b877d3dea8fa3398a1a782757a7/.github/workflows/split_monorepo_tagged.yaml">工作流来在标记了</a>的时候分割 monorepo(基本上与上面的工作流相同，加上<a href="https://github.com/leoloso/PoP/blob/c090d436b9558b877d3dea8fa3398a1a782757a7/.github/workflows/split_monorepo_tagged.yaml#L73">将标记传递给</a> <code>symplify/github-action-monorepo-split</code>)。</p>
+<p>然后，我们通过<a href="https://github.com/symplify/monorepo-builder#6-release-flow">运行命令</a>将 monorepo 标记为版本<code>0.7</code>:</p>
+<pre><code>vendor/bin/monorepo-builder release "0.7"
+</code></pre>
+<p>执行这个命令真的很神奇。它首先发布用于生产的代码:</p>
+<ul>
+<li>将包之间的相互依赖提升到<code>0.7</code></li>
+<li>用<code>0.7</code>标记 monorepo</li>
+<li>用标签<code>0.7</code>做一个<code>git push</code></li>
+</ul>
+<p>然后，它将代码还原用于开发:</p>
+<ul>
+<li>将所有包中<code>dev-master</code>的分支别名更新为<code>0.8-dev</code></li>
+<li>将相互依赖提升到<code>0.8-dev</code></li>
+<li>做一个<code>git push</code></li>
+</ul>
+<p>观看它的实际操作一直让我着迷。检查在执行一个命令时，整个环境看起来是如何自生自灭的:</p>
+<p><img data-attachment-id="39572" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-builder-command-run-tag-packages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-builder-command-run-tag-packages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages-300x213.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif" decoding="async" class="aligncenter wp-image-39572 size-full jetpack-lazy-image" src="../Images/c319794c991477c1a6d16724f537a624.png" alt="Monorepo Builder Command Run Tag Packages" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="39572" data-permalink="https://blog.logrocket.com/hosting-all-your-php-packages-together-in-a-monorepo/monorepo-builder-command-run-tag-packages/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="monorepo-builder-command-run-tag-packages" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages-300x213.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif" decoding="async" loading="lazy" class="aligncenter wp-image-39572 size-full" src="../Images/c319794c991477c1a6d16724f537a624.png" alt="Monorepo Builder Command Run Tag Packages" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/monorepo-builder-command-run-tag-packages.gif"/></noscript>
+<h2>从包中删除工作流</h2>
+<p>即使我们在 monorepo 中为所有包运行 PHPUnit，我们可能仍然希望在每个包被分割后，在它自己的存储库中对每个包运行 PHPUnit，即使只是为了显示一个成功徽章。</p>
+<p>然而，我们不能再这样下去了。或者至少不那么容易。</p>
+<p>事实上，所有的包都被一起版本化并同时发布，并且每个包的新版本需要一点时间才能在 Packagist 上可用——比如说五分钟——这意味着在运行<code>composer install</code>时依赖项可能不可用，导致 PHPUnit 工作流失败。</p>
+<p>例如，如果包 A 依赖于包 B，用版本 0.3 标记它们意味着包 A 的版本 0.3 将依赖于包 B 的版本 0.3。但是，由于两者同时被拆分和标记，当包 A 运行一个由推送到<code>master</code>触发的动作时，包 B 的 0.3 版本还不可用，工作流会失败。</p>
+<p>总之:您将需要从每个包的存储库中删除运行这些工作流，并且只依赖 monorepo 中的工作流。</p>
+<p>或者，如果你真的想要那个成功徽章，为它找一些窍门(比如延迟 10 分钟工作流的执行)。</p>
+<h2>结论</h2>
+<p>monorepo 有助于管理大型代码库的复杂性。它使得维护整个项目的一致快照或状态变得容易，允许提交一个包含来自多个包的代码的 pull 请求，并且欢迎第一次的贡献者来设置项目而不打嗝。</p>
+<p>所有这些特征也可以通过使用大量的存储库来获得，但是在实践中，它们很难执行。</p>
+<p>单一回购协议本身必须得到管理。关于 PHP 包，我们可以通过 Monorepo builder 库来实现。在本文中，我们学习了如何设置这个工具，配置它，并使用它发布我们的包。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

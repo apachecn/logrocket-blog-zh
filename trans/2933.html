@@ -1,0 +1,337 @@
+<html>
+<head>
+<title>Using WillPopScope in Flutter for Android navigation - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Android 导航的 Flutter 中使用 WillPopScope</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/#0001-01-01">https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>你在你最喜欢的应用程序上，滚动浏览内容，你已经花了几分钟享受内容，我可以补充说，这是迷人的。突然，在阅读某一特定内容时，页面会弹回。令人惊讶的是，你发现你的手指碰到了后退按钮。</p>
+<p>如果你可以前进到页面并从停止的地方继续，这可能不是什么大问题，但如果应用程序已经刷新了屏幕或设置为在你进入页面时随时显示更新的内容，那么，你已经失去了在屏幕上的位置或滚动特定内容时的位置。</p>
+<p>这些和许多更重要的事情(嗯…那条特别的推特<em>wa</em>T2 对我来说很重要)对整体用户体验有影响。在构建应用程序时，采取措施来防止这些情况的发生绝对应该是您要做的事情之一。</p>
+<p>在本文中，我们将研究本文中的一种度量:WillPopScope 小部件。具体来说，我们将涵盖:</p>
+
+<p>我们走吧。</p>
+
+<pre class="language-dart hljs">  WillPopScope WillPopScope({
+    required Widget child,
+    required Future&lt;bool&gt; Function()? onWillPop,
+  })
+</pre>
+<p>小部件附带了 Flutter 框架。它让我们可以控制后退按钮的动作，如果当前页面满足某些要求，就可以返回到上一个页面。这是使用回调实现的，小部件将回调作为其参数之一。</p>
+<p>如<a href="https://api.flutter.dev/flutter/widgets/WillPopScope-class.html" target="_blank" rel="noopener"> Flutter 官方文档</a>中所述，该小部件:</p>
+<blockquote><p>注册一个回调来阻止用户试图关闭包围的<a href="https://api.flutter.dev/flutter/widgets/ModalRoute-class.html" target="_blank" rel="noopener"> <code>ModalRoute</code> </a></p></blockquote>
+<p>有了<code>WillPopScope</code>小部件，你可以有效地防止类似介绍中描述的情况:通过提供额外的验证手段，用户可以选择取消/防止他们当前的页面弹出，即返回。</p>
+<p><code>WillPopScope</code>小部件需要两个参数:</p>
+<ul>
+<li><code>onWillPop</code>回调:处理动作并使用布尔值确定页面是否应该弹出；如果为真，页面会弹回，如果为假，页面会保持不变</li>
+<li><code>child</code>小部件:视图的小部件</li>
+</ul>
+<p>在下一节中，我们将在实际应用程序中使用它们。我们开始吧。</p>
+<h2 id="how-to-use-willpopscope-flutter-app">如何在 Flutter app 中使用<code>WillPopScope</code></h2>
+<p>我们将构建一个示例应用程序来演示运行中的<code>WillPopScope</code>小部件。示例应用程序包含两个页面，分别是<code>homeView</code>和<code>contentView</code>。</p>
+<p><code>homeView</code>有一些文本和一个按钮。我们将使用按钮导航到下一页，这是<code>contentView</code>并包含<code>WillPopScope</code>小部件。</p>
+<p><code>WillPopScope</code>将捕捉后退按钮，并在此视图中单击后退按钮时执行操作。我们将展示两种不同的处理后退按钮的方法，你可能在你用过的其他应用程序中见过。它们是:</p>
+<ul>
+<li><code>AlertDialog</code>方法:AlertDialog 方法向用户显示一个弹出窗口，要求他们确认是否要转到上一个屏幕。然后用户可以选择<strong>是</strong>或<strong>否</strong>(可以使用任何其他表示真或假的词)。</li>
+<li><code>SnackBar</code>方法:snackbar 方法要求用户“再次按 back 按钮返回”</li>
+</ul>
+<p>如前所述，<code>WillPopScope</code>小部件有一个回调函数，在这个回调函数中，我们将显示一个警告对话框，其中有一个问题(“您想返回吗？”)和两个动作选项(一个<strong>是</strong>按钮和一个<strong>否</strong>按钮)或一个 snackbar，要求用户再次按下后退按钮返回。</p>
+<p>弄清楚这一点后，让我们开始编码。</p>
+<h3 id="creating-setting-up-flutter-app">创建和设置 Flutter 应用</h3>
+<p>首先创建一个新项目，并使用下面的命令生成必要的文件和文件夹:</p>
+<pre class="language-bash hljs">flutter create willpopscope_tutorial
+</pre>
+<p>一旦完成，进入<code>lib</code>文件夹中的<code>main.dart</code>文件。这是应用程序的入口点。删除<code>home</code>小工具，返回<code>HomeView</code>。</p>
+<p>我们将在下一步创建<code>HomeView</code>小部件。您也可以调整<code>MaterialApp</code>的标题来显示您想要的内容。</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+
+void main() =&gt; runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+     title: "WillPopScope Article",
+     home: HomeView(),
+   );
+  }
+}
+</pre>
+<h3 id="creating-homeview">创建<code>HomeView</code></h3>
+<p>接下来，创建一个名为<code>HomeView</code>的<code>Stateless</code>小部件。这是我们示例应用程序的初始视图。它应该包含一个<code>Text</code>和一个<code>TextButton</code>。<code>TextButton</code>将用于导航到下一个视图，即<code>ContentView</code>。</p>
+<pre class="language-dart hljs">class HomeView extends StatelessWidget {
+  const HomeView({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('HomeView'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'HomeView',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(
+              height: 24,
+            ),
+            TextButton(
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all&lt;Color&gt;(Colors.blue),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) {
+                      return const ContentView();
+                    },
+                  ),
+                );
+              },
+              child: const Text(
+                'Go To ContentView',
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+</pre>
+<h3 id="creating-contentview-widget">创建<code>ContentView</code>小部件</h3>
+<p>接下来，创建另一个<code>Stateless</code>小部件，并将其命名为<code>ContentView</code>。这是我们将使用<code>WillPopScope</code>的小部件。</p>
+<pre class="language-dart hljs">class ContentView extends StatelessWidget {
+  const ContentView({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [],
+      ),
+    );
+  }
+}
+</pre>
+
+<p>这里我们将展示如何利用一个警告对话框来决定一个用户是否应该被返回。</p>
+<p>用<code>WillPopScope</code>小部件包装<code>Scaffold</code>小部件。它接收<code>onWillPop</code>回调，捕获后退按钮动作，并在用户单击后退按钮时执行一个动作。</p>
+<pre class="language-dart hljs">return WillPopScope(
+  onWillPop: (){},
+  child: Scaffold(
+    body: Column(
+      children: [],
+    ),
+  ),
+);
+</pre>
+<p>在<code>onWillPop</code>回调中，我们将做两件事:</p>
+<ol>
+<li>向用户显示一个带有问题的警告对话框，要求他们点击一个动作按钮(或者<strong>是</strong>或者<strong>否</strong></li>
+<li>使用对话框的响应弹出<code>ContentView</code></li>
+</ol>
+<p>为了获得用户的选择，我们将对话框的结果赋给一个布尔变量。在<code>ActionButtons</code>中，我们将数据(true 表示是，false 表示否)传入<code>Navigator.pop(context, true/false)</code>。该值随后被传递给<code>shouldPop</code>变量。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>接下来，我们返回<code>shouldPop</code>变量，该变量应该为真或假，并将用于确定<code>ContentView</code>是否应该弹出(当<code>shouldPop</code>为<code>true</code>时)或不弹出(当<code>shouldPop</code>为<code>false</code>时)。</p>
+<pre class="language-dart hljs">  onWillPop: () async {
+        final shouldPop = await showDialog&lt;bool&gt;(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Do you want to go back?'),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('Yes'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text('No'),
+                ),
+              ],
+            );
+          },
+        );
+        return shouldPop!;
+      },
+</pre>
+<p>这样，我们就完成了<code>ContentView</code>小部件。完整小部件的代码应该如下所示:</p>
+<pre class="language-dart hljs">class ContentView extends StatelessWidget {
+  const ContentView({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        final shouldPop = await showDialog&lt;bool&gt;(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Do you want to go back?'),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('Yes'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text('No'),
+                ),
+              ],
+            );
+          },
+        );
+        return shouldPop!;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text('Content View'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: const [
+              Text(
+                'This is the Content View',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+</pre>
+<p>完成这些后，我们已经完全设置好了<code>WillPopScope</code>小部件，并且可以使用一个警告对话框来防止无意中弹出一个特定的视图！</p>
+<h4 id="testing-out-alertdialog">测试它</h4>
+<p>让我们测试一下我们的示例应用程序。运行下面的命令来运行应用程序。</p>
+<pre class="language-bash hljs">flutter run
+</pre>
+<p><img data-attachment-id="107420" data-permalink="https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/attachment/content-view/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif" data-orig-size="220,480" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Sample app content view" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif" decoding="async" class="aligncenter size-full wp-image-107420 jetpack-lazy-image" src="../Images/f23fb840d0e7d21be36aae5b46bf1199.png" alt="Sample App Content View" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="107420" data-permalink="https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/attachment/content-view/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif" data-orig-size="220,480" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Sample app content view" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-107420" src="../Images/f23fb840d0e7d21be36aae5b46bf1199.png" alt="Sample App Content View" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/content-view.gif"/></noscript>
+
+<p>这里我们将展示如何使用一个<code>SnackBar</code>来显示页面是否应该返回。我们将使用与前面的警报对话框方法相同的示例应用程序。我们将只对<code>onWillPop</code>回调中的逻辑进行调整，以显示一个<code>SnackBar</code>，并确定用户是否会被路由。</p>
+<p>在<code>onWillPop</code>回调中，当用户点击后退按钮时，我们将做两件事:</p>
+<ol>
+<li>如果上一次点击后退按钮和这次点击之间的时间差等于或大于两秒，我们将向用户显示一个<code>SnackBar</code>，要求他们“再次按下后退按钮返回”</li>
+<li>如果时间差小于 2 秒(这是我们的用户再次按下后退按钮所需的理想时间；你可以调整这个来适应你的需要)，我们弹出<code>ContentView</code>。</li>
+</ol>
+<p>让我们开始吧:</p>
+<pre class="language-dart hljs">  DateTime lastTimeBackbuttonWasClicked = DateTime.now();
+  onWillPop: () async {
+        if (DateTime.now().difference(lastTimeBackbuttonWasClicked) &gt;= Duration(seconds: 2)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Press the back button again to go back"),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          lastTimeBackbuttonWasClicked = DateTime.now();
+          return false;
+        } else {
+          return true; 
+        }
+      },
+</pre>
+<p>这样，我们就完成了<code>ContentView</code>小部件。使用<code>SnackBar</code>方法的完整小部件的代码应该如下所示:</p>
+<pre class="language-dart hljs">class ContentView extends StatelessWidget {
+  const ContentView({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    DateTime lastTimeBackbuttonWasClicked = DateTime.now();
+    return WillPopScope(
+      onWillPop: () async {
+        if (DateTime.now().difference(lastTimeBackbuttonWasClicked) &gt;= Duration(seconds: 2)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Press the back button again to go back"),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          lastTimeBackbuttonWasClicked = DateTime.now();
+          return false;
+        } else {
+          return true; 
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text('Content View'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: const [
+              Text(
+                'This is the Content View',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+</pre>
+<p>通过使用 snackbar，我们确保了更高的准确性，并防止我们的视图在无意中返回。</p>
+<h4 id="testing-out-snackbar">测试它</h4>
+<p>让我们测试一下我们的示例应用程序。运行以下命令来运行应用程序:</p>
+<pre class="language-bash hljs">flutter run
+</pre>
+<p><img data-attachment-id="124893" data-permalink="https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/attachment/flutter-willpopscope-snackbar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276.gif" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Flutter WillPopScope SnackBar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276-485x1024.gif" decoding="async" class="wp-image-124893 size-full aligncenter jetpack-lazy-image" src="../Images/bde3b5ece48d372eb452f3047835ccbe.png" alt="Flutter WillPopScope SnackBar" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124893" data-permalink="https://blog.logrocket.com/using-willpopscope-flutter-android-navigation/attachment/flutter-willpopscope-snackbar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276.gif" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Flutter WillPopScope SnackBar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276-485x1024.gif" decoding="async" loading="lazy" class="wp-image-124893 size-full aligncenter" src="../Images/bde3b5ece48d372eb452f3047835ccbe.png" alt="Flutter WillPopScope SnackBar" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/05/flutter-willpopscope-snackbar-scaled-e1658260716276.gif"/></noscript>
+<h2>结论</h2>
+<p>耶！您现在已经看到了我们如何使用<code>WillPopScope</code>小部件实际解决导航问题并微调用户的浏览体验。从显示对话框确认到执行自定义操作到处理流等等，您可以使用这个小部件做很多事情，比如显示 snackbar 或 toast 消息。尽可能多地探索你的选择，并在构建你的下一个 Flutter 应用时使用它们。</p>
+<p>查看示例应用程序的<a href="https://github.com/Blazebrain/willpopscope_article.git" target="_blank" rel="noopener">完整源代码</a>。如果您有任何问题或咨询，请随时在 Twitter: <a href="https://twitter.com/Blazebrain01" target="_blank" rel="noopener"> @Blazebrain01 </a>或 LinkedIn: <a href="https://www.linkedin.com/in/david-adegoke" target="_blank" rel="noopener"> Blazebrain </a>联系我。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

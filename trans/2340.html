@@ -1,0 +1,242 @@
+<html>
+<head>
+<title>Customize Angular lazy loading modules for multiple frontends - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>为多个前端定制角度惰性加载模块</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/#0001-01-01">https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在搭建企业 Angular app 的时候，我们往往需要开发几个不同的前端来服务不同的用户类型或者渠道。虽然它们可能需要不同的用户界面风格或具有独特的功能，但它们仍然有许多共同的功能。</p>
+<p>一种解决方案是为每个前端创建单独的应用程序，作为不同的离散项目。也许很明显，这种方法会膨胀代码库，很可能导致重复，并留给您难以维护的代码。</p>
+<p>因此，您可能会想，您需要寻找一个单一角度的项目解决方案，它能够在最大化代码共享的同时，干净地分离不同的 UI 组件和服务。那是相当大的挑战！</p>
+<p>但是，就像我们每天做出的其他软件设计决策一样，关键是在这两个关注点之间找到平衡:清晰分离的代码和可共享的服务和实用功能。</p>
+<p>在本文中，我们将探讨如何利用延迟加载功能模块和动态配置来构建一个具有多个前端的 Angular 应用程序。</p>
+<h2>概观</h2>
+<p>作为一个虚构的例子，我们将构建一个具有两个前端的电子医疗应用程序:</p>
+<ul>
+<li>患者门户:患者可以使用该应用程序预约、管理他们的药物等。</li>
+<li>医生门户:医生将能够执行管理任务，管理药物等。</li>
+</ul>
+<p>如下图所示，这两个门户公开了不同的特性，但是构建在相同的框架上，并且共享一些共同的功能。</p>
+<p><img data-attachment-id="75829" data-permalink="https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/multiple-frontend-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png" data-orig-size="730,557" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="multiple-frontend-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram-300x229.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png" decoding="async" class="aligncenter size-full wp-image-75829 jetpack-lazy-image" src="../Images/a43cf53341e591fc9d3a7c4b7a37e38e.png" alt="A diagram displaying how multiple frontends share code and backends" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram-300x229.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75829" data-permalink="https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/multiple-frontend-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png" data-orig-size="730,557" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="multiple-frontend-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram-300x229.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-75829" src="../Images/a43cf53341e591fc9d3a7c4b7a37e38e.png" alt="A diagram displaying how multiple frontends share code and backends" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram-300x229.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/multiple-frontend-diagram.png"/></noscript>
+<p>我们希望实现的目标是:</p>
+<ul>
+<li>两个门户之间的明确分离:它们可以有自己的样式或导航，而不会影响另一个门户</li>
+<li>共享一组公共代码和功能模块的能力</li>
+<li>每个前端应用程序都可以独立构建和部署</li>
+<li>构建的包不会包含没有被使用的模块</li>
+</ul>
+<h2>设置角度项目</h2>
+<p>在我们开始之前，请确保您的本地环境安装了以下工具:</p>
+<ul>
+<li>Node.js ≥ v10.x.x</li>
+<li>角度 CLI ≥ v9.x.x</li>
+</ul>
+<p>使用以下 Angular CLI 命令，我们可以创建一个新的应用程序框架。</p>
+<pre class="language-javascript hljs">ng new multipleFront</pre>
+<p>新创建的应用程序包含一个默认应用程序模块和一个默认入口组件。我们可以使用以下 CLI 命令添加一个新模块。</p>
+<pre class="language-bash hljs">ng g module patient --route patient --module app.module</pre>
+<p>这些命令将生成一个包含<code>module</code>、<code>routing</code>和<code>component</code>文件的患者文件夹。</p>
+<p>要创建新组件，我们可以使用以下 CLI 命令:</p>
+<pre class="language-bash hljs">ng g component home</pre>
+<p>使用上面的 CLI 命令，我们可以如下设置我们的项目结构。</p>
+<pre class="language-plaintext hljs"> -- app
+    -- patient module
+          |-- [+] home components
+          |-- patient-routing.module.ts
+          |-- patient.module.ts
+    -- doctor module
+          |-- [+] home components
+          |-- doctor-routing.module.ts
+          |-- doctor.module.ts
+    -- features
+          |-- [+] admin module
+          |-- [+] booking module
+          |-- [+] meds module
+    - app-routing.module.ts
+    - app.module.ts
+    - routes.ts
+    - app-component.html</pre>
+<h2>在 Angular 中创建延迟加载功能模块</h2>
+<p>在 Angular 中，一切都被组织成模块。在上一步中，我们生成了默认的 app 模块，这是 app 的入口点。我们可以通过引导应用程序模块来启动应用程序。</p>
+<p>然后，我们创建了<a href="https://angular.io/guide/feature-modules" target="_blank" rel="noopener">特性模块</a>。它们通常按领域进行组织，可用于将相关的组件、服务和其他功能组合在一起。</p>
+<p>功能模块有一个根组件，作为模块的主视图。它托管模块<em>中的所有子组件。</em>下面的例子显示了管理功能模块及其根组件:<code>AdminViewComponent</code>。</p>
+<pre class="language-plaintext hljs">    -- features
+          |--  admin module
+             |-- [+] Admin-View component
+             |-- admin-routing.module.ts
+             |-- admin.module.ts</pre>
+<p>特性模块的一些好处包括能够<a href="https://blog.logrocket.com/understanding-lazy-loading-in-javascript/" target="_blank" rel="noopener">使用延迟加载</a>按需加载它们，以及减少主应用程序的包大小。</p>
+<pre class="language-javascript hljs">      {
+        path: 'booking',
+        data: { title: 'Book appointment' },
+        loadChildren: () =&gt;
+          import('../features/booking/booking.module').then(
+            (m) =&gt; m.BookingModule
+          ),
+      }</pre>
+<p>在上述示例路线中，<code>booking</code>特征模块仅在路线激活时加载。在构建时，为延迟加载的特性模块创建一个单独的包文件，使主包文件变得更小。</p>
+<h2>通过环境文件定位前端</h2>
+<p>为了定位每个前端门户，我们将为它们创建不同的环境文件。两个环境文件都将驻留在<code>environment</code>文件夹下，我们将使用<code>moduleId</code>来区分患者和医生门户。</p>
+<pre class="language-javascript hljs">// environment.ts
+// default environment targeting the patient portal
+export const environment = {
+  production: false,
+  moduleId: 'default'
+}
+
+// environment.doctor.ts
+export const environment = {
+    production: false,
+    moduleId: 'doctor'
+  }</pre>
+<h2>设置特定于前端的动态路由</h2>
+<p>路线是 Angular 的主干。不同的前端需要不同的路由。为了只为每个门户提供它需要的路由，我们必须在运行时动态地生成路由。</p>
+<p>首先，我们在一个文件<code>routes.ts</code>中定义所有的路径，以便于维护。</p>
+<pre class="language-javascript hljs">export const routes: Routes = [
+    {
+      path: '',
+      data: { name: 'default', modules: ['all'] },
+      redirectTo: 'home',
+      pathMatch: 'full',
+    },
+    {
+      path: 'home',
+      data: { name: 'home', title: 'Home', modules: ['default'] },
+      loadChildren: () =&gt;
+        import('./patient/patient.module').then((m) =&gt; m.PatientModule),
+    },
+    {
+      path: 'home',
+      data: { name: 'home', title: 'home', modules: ['doctor'] },
+      loadChildren: () =&gt;
+        import('./doctor/doctor.module').then((m) =&gt; m.DoctorModule),
+    },
+  ];
+</pre>
+<p>为什么文件里有两条<code>Home</code>路线？这是因为项目中有两个门户应用程序，它们都需要一个<code>Home </code>路径。</p>
+<p>在定义了路由之后，我们设置了<code>APP_INITIALIZER</code> <a href="https://angular.io/guide/glossary#di-token" target="_blank" rel="noopener"> DI 令牌</a>来挂钩到应用程序引导过程。</p>
+<pre class="language-javascript hljs">  providers: [
+    {
+      provide: APP_INITIALIZER,
+      useFactory: loadRoutes,
+      deps: [Injector],
+      multi: true,
+    },
+  ]</pre>
+<p><code>APP_INITIALIZER</code>令牌代表一个工厂函数<code>loadRoutes</code>。该函数在应用程序引导过程中执行。该功能将过滤路由并将路由设置到当前路由器中，并且该功能将在 app 完全启动之前完成。</p>
+<pre class="language-javascript hljs">export function loadRoutes(injector: Injector) {
+  return () =&gt; {
+      const moduleId = environment.moduleId;
+      const filteredRoutes = routes.filter((r) =&gt; {
+        return (
+          r.data?.modules.find((r: string) =&gt; r === 'all') ||
+          r.data?.modules.find((r: string) =&gt; r === moduleId)
+        );
+      });
+      const router: Router = injector.get(Router);
+      router.resetConfig(filteredRoutes);
+    };
+}</pre>
+<p>在上面的<code>loadRoutes</code>功能中，路线由<code>moduleId</code>配置过滤。因此，只有相关的路线将被加载到应用程序中。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<h2>基于路线创建动态菜单</h2>
+<p>另外，我们可以使用动态路线作为数据源来生成菜单。当路线改变时，菜单将自动更新。</p>
+<p>首先，我们创建一个菜单服务。它包含了一个<code>menuItems$</code>可观测值。</p>
+<pre class="language-javascript hljs">menuItems$: BehaviorSubject&lt;MenuItem[]&gt;;</pre>
+<p>一旦服务被初始化，我们就填充菜单项。以下代码的要点是:</p>
+<ul>
+<li>遍历路由器配置中的路由</li>
+<li>对于每条路线，我们调用<code>configLoader</code>来加载子路线，并将路线数据转换成菜单项</li>
+<li>将转换后的菜单数据推入可观察的数据流</li>
+</ul>
+<pre class="language-javascript hljs">this.router.config.forEach((route) =&gt; {
+      const children: any[] = [];
+      if (route.loadChildren) {
+        (this.router as any).configLoader.load(this.injector, route).subscribe({
+          next: (moduleConf: { routes: any[] }) =&gt; {
+            children.push(
+              ...moduleConf.routes.map((childRoute) =&gt;
+                childRoute.children.map(
+                  (x: { path: string; data: { title: string } }) =&gt; ({
+                    path: x.path,
+                    title: x.data?.title,
+                  })
+                )
+              )
+            );
+            this.menuItems$.next(
+              this.menuItems$.value.concat
+                .apply([], [...children])
+                .filter((x) =&gt; x.title)
+            );
+          },
+        });
+      }
+    });</pre>
+<p>菜单服务被注入到<code>menu</code>组件中。我们可以在两个门户应用中使用相同的<code>menu</code>组件。同一个菜单组件将动态加载和过滤菜单项。</p>
+<h2>对每个用户界面应用不同的样式</h2>
+<p>为了对每个应用程序应用不同的样式，我们创建了以下 scss 文件:</p>
+<ul>
+<li><code>styles.scss</code>–通用样式文件</li>
+<li><code>styles-patient.scss</code>–患者门户的样式文件</li>
+<li><code>styles-doctor.scss</code>–医生门户的样式文件</li>
+</ul>
+<p>在<code>Angular.json</code>文件中，样式被映射到不同的构建。</p>
+<pre class="language-json hljs">          "doctor": {
+             "styles": ["src/styles-doctor.scss"],</pre>
+<h2>构建并运行多个前端包</h2>
+<p>为了分别构建和运行这两个门户，我们依赖于环境配置。</p>
+<p>由于应用程序包含两个环境，<code>default</code>和<code>doctor</code>，我们需要将下面的配置添加到<code>Angular.json</code>文件中。</p>
+<p>下面的<code>fileReplacements</code>设置指定默认的<code>environment.ts</code>文件将在运行时被<code>environment.doctor.ts</code>文件替换。</p>
+<pre class="language-javascript hljs">            "doctor": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.doctor.ts"
+                }
+              ],
+</pre>
+<p>可以使用以下命令为其环境构建每个门户应用程序。</p>
+<pre class="language-json hljs">// package.json
+// build patient portal with default configuration
+"build": "ng build",
+// build doctor portal
+"build:doctor": "ng build -c doctor"</pre>
+<p>为了在生产模式下构建应用程序，我们运行以下命令。请注意，<code>doctorproduction</code>是我们的<code>Angular.json</code>文件中的另一个环境配置。</p>
+<pre class="language-json hljs">// package.json
+// build the patient portal in production mode
+"build:patient:prod": "ng build --prod"
+
+// build the doctor portal in production mode
+"build:doctor:prod": "ng build -configuration doctorproduction"</pre>
+<p>构建输出将被复制到<code>dist</code>文件夹中，准备发布到 webhost。</p>
+<p>我们可以使用下面的命令之一来启动应用程序。</p>
+<pre class="language-javascript hljs">// package.json
+// start the app as default patient portal
+"start": "ng serve"
+
+// start the app as doctor portal
+"start:doctor": "ng serve -c doctor"</pre>
+<p>现在，我们已经成功启动了 app！患者和医生门户的主页屏幕如下所示。<br/> <img data-attachment-id="75832" data-permalink="https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/separate-doctor-patient-portal-ui/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png" data-orig-size="730,217" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="separate-doctor-patient-portal-UI" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png" decoding="async" class="aligncenter size-full wp-image-75832 jetpack-lazy-image" src="../Images/6c6116c9c9e492dda9f5fe94eb409aec.png" alt="Separate doctor and patient portal UIs" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI-300x89.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75832" data-permalink="https://blog.logrocket.com/customize-angular-lazy-loading-modules-multiple-frontends/separate-doctor-patient-portal-ui/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png" data-orig-size="730,217" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="separate-doctor-patient-portal-UI" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-75832" src="../Images/6c6116c9c9e492dda9f5fe94eb409aec.png" alt="Separate doctor and patient portal UIs" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI-300x89.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/separate-doctor-patient-portal-UI.png"/></noscript>
+<h2>代码分离和共享</h2>
+<p>患者门户和医生门户有不同的入口组件，它们充当子组件的容器。每个门户都可以有自己的页眉/页脚组件和独立的 CSS 样式。当我们改变一个应用程序时，另一个不会受到影响。</p>
+<p>如上面的示例应用程序所示，每个门户挑选自己的功能模块并延迟加载它们。延迟加载功能模块内置在小的捆绑文件中，只有在导航到路由器时，这些文件才会下载到客户端浏览器。例如，当部署并运行医生门户时，将只加载医生模块。不会加载患者门户模块，因为它们不在路线中。</p>
+<p>这种设计<a href="https://blog.logrocket.com/speed-up-react-app-dynamic-imports-route-centric-code-splitting/" target="_blank" rel="noopener">带来了更好的性能</a>，因为每个应用程序都不会加载不需要的模块。它还具有很好的安全性——因为患者门户部署包仅由相关模块构建，所以不可能从患者门户访问仅医生门户模块！</p>
+<p>虽然这两个门户作为不同的应用程序工作，但它们实际上位于同一个项目中。这个<a href="https://blog.logrocket.com/make-sharing-typescript-code-types-quick-easy/" target="_blank" rel="noopener">使得代码共享变得容易</a>，并且允许公共框架被提取到一个共享模块中。</p>
+<h2>摘要</h2>
+<p>在本文中，我们将通过一个有两个前端的<a href="https://blog.logrocket.com/tag/angular" target="_blank" rel="noopener"> Angular app </a>进行演示。它们由角度定制环境配置、动态路线和延迟加载功能模块构建而成。我们实现了清晰分离、简单代码共享和独立构建输出的目标。</p>
+<p>希望这篇文章对你有用。示例项目的<a href="https://github.com/sunnyy02/MultipleFront" target="_blank" rel="noopener">源代码，包括我们之前提到的 CSS 样式文件，可以在我的 GitHub 上找到。</a></p><div class="code-block code-block-19">
+<div class="blog-plug inline-plug angular-plug"><h2>像用户一样体验 Angular 应用程序</h2><p>调试 Angular 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，</p><a href="https://lp.logrocket.com/blg/angular-signup">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你网站上发生的一切，包括网络请求、JavaScript 错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket NgRx 插件将角度状态和动作记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化调试 Angular 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

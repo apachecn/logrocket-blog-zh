@@ -1,0 +1,382 @@
+<html>
+<head>
+<title>Generating and integrating OpenAPI services in a React app - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 React app - LogRocket 博客中生成和集成 OpenAPI 服务</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/generating-integrating-openapi-services-react/#0001-01-01">https://blog.logrocket.com/generating-integrating-openapi-services-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>从不同来源生产和消费 API 是每个现代 web 应用程序的基础。在客户端，它是我们与服务器通信并不断更新应用程序状态的方式。</p>
+<p>HTTP 服务的 REST APIs 可以说是目前最常见的交换形式。它们以 JSON 格式提供了一种简单的交换形式。我们可以通过一个简单的<code>curl</code>或<code>fetch</code>很容易地与服务器通信。</p>
+<p>我认为与服务器的集成和通信应该尽可能直观，然而，在使用 GraphQL 和 Apollo 之后，这一点变得尤为明显。准确地知道调用什么服务，如何调用，以及期望什么结果，极大地提高了我们前端工程师的效率和生产力。</p>
+<p>在本教程中，我们将了解如何从服务器集成 OpenAPI 生成的服务，然后在 React 应用程序中使用该生成的服务。使用像 Django、Rails、Spring 或 NestJS 这样的 web 框架，我们可以通过我们的应用程序代码轻松地生成 OpenAPI 定义。</p>
+<p>然而，<a href="https://swagger.io/specification/"> OpenAPI 规范</a>(以前的 Swagger 规范)是框架不可知的，可以用来生成关于路由、数据类型等的信息。OpenAPI 作为一种可靠的交换格式，帮助 API 元数据在不同语言之间进行转换。</p>
+<h3>本教程的目标</h3>
+<p>你应该从这篇文章中学到什么？给定一个 OpenAPI (JSON 或 YAML)端点，我们希望生成:</p>
+<ul>
+<li>用于数据传输对象(DTO)的接口，即用于调用特定端点的接口</li>
+<li>我们可以用来与 API 交互的服务</li>
+</ul>
+<p>生成的服务应该包括所有公开的路由；通信所需的所有数据类型；所有必需/可选参数的详尽列表；重要的是，调用返回的数据类型。</p>
+<p>我们将通过让服务器生成与端点通信的所有服务来做到这一点。这为前端工程师提供了三个关键优势:</p>
+<ul>
+<li>消除了编写调用 API 所需的所有样板代码的需要</li>
+<li>让客户端清楚地了解服务器可以处理的所有交互</li>
+<li>透明性——当服务器发生变化时，客户端总是会知道</li>
+</ul>
+<p>我们将通过建立一个简单的待办事项列表来亲眼目睹这一切。事不宜迟，让我们进入教程中更技术性的部分。以下是我们将涵盖的内容的概要:</p>
+
+<h2 id="what-is-the-openapi-spec">什么是 OpenAPI 规范？</h2>
+<p>根据文件:</p>
+<blockquote><p>OpenAPI 规范(OAS)为 RESTful APIs 定义了一个标准的、与语言无关的接口。正确定义后，消费者可以用最少的实现逻辑理解远程服务并与之交互。</p></blockquote>
+<p>OAS 使得可视化服务的能力变得容易。使用像 Swagger 这样的文档生成器，您可以生成一个 UI 来测试 API 调用。下面是我们将与之交互的<code>todo</code>服务器的一个例子。</p>
+<figure id="attachment_39396" aria-describedby="caption-attachment-39396" class="wp-caption aligncenter"><img data-attachment-id="39396" data-permalink="https://blog.logrocket.com/generating-integrating-openapi-services-react/swagger-codegen-generated-code/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png" data-orig-size="462,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Generated code from Swagger Codegen." data-image-description="" data-image-caption="&lt;p&gt;Generated code from the codegen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png" decoding="async" class="size-full wp-image-39396 jetpack-lazy-image" src="../Images/53952af23da4fee0cbd8bb044575cfab.png" alt="Generated Application Code from Swagger Codegen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png 462w, https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code-300x181.png 300w" data-lazy-sizes="(max-width: 462px) 100vw, 462px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="39396" data-permalink="https://blog.logrocket.com/generating-integrating-openapi-services-react/swagger-codegen-generated-code/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png" data-orig-size="462,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Generated code from Swagger Codegen." data-image-description="" data-image-caption="&lt;p&gt;Generated code from the codegen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png" decoding="async" loading="lazy" class="size-full wp-image-39396" src="../Images/53952af23da4fee0cbd8bb044575cfab.png" alt="Generated Application Code from Swagger Codegen" srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png 462w, https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code-300x181.png 300w" sizes="(max-width: 462px) 100vw, 462px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/swagger-codegen-generated-code.png"/></noscript><figcaption id="caption-attachment-39396" class="wp-caption-text">Generated code from the codegen.</figcaption></figure>
+<h2 id="generating-swagger-docs">用 Swagger Codegen 为我们的 REST API 生成 Swagger 文档</h2>
+<p>在这个示例服务器中，我将 NestJS 与 Swagger 一起使用。服务器实现语言和细节无关紧要——只要我们实现了 OpenAPI 规范和 Swagger UI，我们最终会得到相同的结果。</p>
+<p>让我们快速浏览一下服务器代码。我们把它保持在最低限度，因为这不是这里的要点。尽管如此，我们还是从服务器端来看服务，这样我们就可以很容易地获得接口、API 函数等。转移到客户端。完整代码可以在<a href="https://github.com/LogRocket-Tutorials/OpenAPI/tree/main/nestjs-noted"> this GitHub repo </a>中找到。</p>
+<p>一些代码是特定于 NestJS 的，但是完全理解它们并不重要；对正在发生的事情有一个大概的了解就足够了。我将展示代码并遍历它—准备好了吗？提醒一下，这是创建、读取、更新和删除(CRUD)函数的待办事项:</p>
+<pre>import { TodoService } from './../services/todo/todo.service';
+import { TodoDto, AddTodoDto, EditTodoDto } from './../dto';
+
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Body,
+  Delete,
+} from '@nestjs/common';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
+
+@ApiTags('todos')
+@Controller('todos')
+export class TodoController {
+  public constructor(private readonly todoService: TodoService) {}
+
+  @Get()
+  @ApiResponse({
+    status: 200,
+    description: 'Found todo',
+    type: [TodoDto],
+  })
+  public findAll(): Promise&lt;TodoDto[]&gt; {
+    return this.todoService.findAll();
+  }
+
+  @Get(':id')
+  public findOne(@Param('id') id: number): Promise&lt;TodoDto&gt; {
+    return this.todoService.findOne(id);
+  }
+
+  @Put(':id')
+  public edit(
+    @Param('id') id: number,
+    @Body() todo: EditTodoDto,
+  ): Promise&lt;TodoDto&gt; {
+    return this.todoService.edit(id, todo);
+  }
+
+  @Post()
+  public add(@Body() todo: AddTodoDto): Promise&lt;TodoDto&gt; {
+    return this.todoService.add(todo);
+  }
+
+  @Delete(':id')
+  public remove(@Param('id') id: number): Promise&lt;TodoDto&gt; {
+    return this.todoService.remove(id);
+  }
+}</pre>
+<p>在上面的代码中，你会很快注意到一个模式——我们有一堆<code>public</code>方法。他们的名字都很清楚他们是做什么的。注意到其他特征了吗？</p>
+<p>再来看<code>findAll</code>。显然，这找到了所有可用的<code>todos</code>；它不需要任何参数，只是调用<code>todoService.findAll()</code>。<code>todoService</code>的完整代码可以在<a href="https://github.com/LogRocket-Tutorials/OpenAPI/tree/main/nestjs-noted/src/todo/services">这里</a>找到，但是我们再一次不关心实现细节，只关心它期望什么参数和它返回什么。</p>
+<p>当我们查看<code>edit</code>时，我们可以看到它期望一个<code>id</code>和一个类型为<code>EditTodoDto</code>的<code>post body DTO</code>。有了这些，我们可以将端点映射到上面的 Swagger UI。</p>
+<p>既然我们已经看到了服务器的样子，那么我们如何在前端生成模拟服务器中所有公共方法的服务呢？为了演示这一点，我们将用 TypeScript 为客户端创建一个简单的待办事项。</p>
+<h2 id="generating-api-docs-data-types-crud-react">在我们的 React 前端生成 API 文档、数据类型和 CRUD 服务</h2>
+<h3>创建 React 类型脚本应用程序</h3>
+<p>让我们创建我们的笔记应用程序——我们称之为笔记😉。这将生成所有带有用于状态管理的 Redux 工具包的样板文件。</p>
+<pre>npx create-react-app noted --template redux-typescript
+//or
+yarn create-react-app noted --template redux-typescript</pre>
+<p>在我们做任何事情之前，让我们从服务器端点生成服务。为此，我们将使用<code>openapi-typescript</code>和<code>openapi-typescript-codegen</code>。让我们先安装它们。</p>
+<pre>yarn add openapi-typescript openapi-typescript-codegen. --dev
+// or
+npm i  openapi-typescript openapi-typescript-codegen -D</pre>
+<p>但是我们如何让他们做任何工作呢？我们如何连接到服务器？为此我们需要一个正在运行的服务器，所以为了方便起见，运行我们之前用<code>yarn start</code>创建的 NestJS 服务器。</p>
+<p>现在我们有了一个正在运行的服务器，我们将创建一个脚本来为服务器端点提取服务。我们也可以使用下载的 JSON 或 YAML。</p>
+<p>您的服务器应该运行在端口<code>-3000</code>上。现在运行:</p>
+<pre>openapi -i http://localhost:3000/api-json -o src/services/openapi</pre>
+<p>我们将把它作为一个脚本添加到我们的<code>package.json</code>中，以便于参考，或者作为一个预提交钩子:</p>
+<pre>"types:openapi": "openapi -i http://localhost:3000/api-json -o src/services/openapi"</pre>
+<p>这些命令告诉生成器在<code>src/services/openapi</code>中生成<code>openApi</code>服务。所有其他标签和命令都可以在<a href="https://www.npmjs.com/package/openapi-typescript-codegen">文档</a>中找到。</p>
+<p>如果我们查看<code>src/services/openapi</code>内部，我们可以看到所有生成的代码:</p>
+<figure id="attachment_39394" aria-describedby="caption-attachment-39394" class="wp-caption aligncenter"><img data-attachment-id="39394" data-permalink="https://blog.logrocket.com/generating-integrating-openapi-services-react/todo-nestjs-swagger-docs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png" data-orig-size="730,556" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Swagger documentation for NestJS server" data-image-description="" data-image-caption="&lt;p&gt;todo-nestjs Swagger documentation.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs-300x228.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png" decoding="async" class="size-full wp-image-39394 jetpack-lazy-image" src="../Images/1bb558bda5266dd76f43f2f313ee6111.png" alt="Swagger Documentation for Our NestJS Server" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs-300x228.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="39394" data-permalink="https://blog.logrocket.com/generating-integrating-openapi-services-react/todo-nestjs-swagger-docs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png" data-orig-size="730,556" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Swagger documentation for NestJS server" data-image-description="" data-image-caption="&lt;p&gt;todo-nestjs Swagger documentation.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs-300x228.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png" decoding="async" loading="lazy" class="size-full wp-image-39394" src="../Images/1bb558bda5266dd76f43f2f313ee6111.png" alt="Swagger Documentation for Our NestJS Server" srcset="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs-300x228.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/03/todo-nestjs-swagger-docs.png"/></noscript><figcaption id="caption-attachment-39394" class="wp-caption-text">todo-nestjs Swagger documentation.</figcaption></figure>
+<p>特别感兴趣的是<code>models</code>，它提供与 API 接口所需的所有类型，以及<code>TodoService.ts</code>，它提供所有服务，就像我们在服务器中看到的那些。让我们看一眼。</p>
+<pre>import type { AddTodoDto } from "../models/AddTodoDto";
+import type { EditTodoDto } from "../models/EditTodoDto";
+import type { TodoDto } from "../models/TodoDto";
+import { request as __request } from "../core/request";
+
+export class TodosService {
+
+  public static async findAll(): Promise&lt;Array&lt;TodoDto&gt;&gt; {
+    const result = await __request({
+      method: "GET",
+      path: `/todos`,
+    });
+    return result.body;
+  }
+
+  public static async add(requestBody: AddTodoDto): Promise&lt;any&gt; {
+    const result = await __request({
+      method: "POST",
+      path: `/todos`,
+      body: requestBody,
+    });
+    return result.body;
+  }
+
+  public static async findOne(id: number): Promise&lt;any&gt; {
+    const result = await __request({
+      method: "GET",
+      path: `/todos/${id}`,
+    });
+    return result.body;
+  }
+
+  public static async edit(id: number, requestBody: EditTodoDto): Promise&lt;any&gt; {
+    const result = await __request({
+      method: "PUT",
+      path: `/todos/${id}`,
+      body: requestBody,
+    });
+    return result.body;
+  }
+
+  public static async remove(id: number): Promise&lt;any&gt; {
+    const result = await __request({
+      method: "DELETE",
+      path: `/todos/${id}`,
+    });
+    return result.body;
+  }
+}</pre>
+<p>正如我们所看到的，这些都与服务器中的服务相同，都不需要键入任何代码。是不是很牛逼？请注意，所有正确的参数类型以及返回类型都已被正确映射。我们可以查看<code>src/services/openapi/core.request.ts</code>来更好地理解 API 调用是如何形成的。</p>
+<p>就这样——我们已经生成了进行 API 调用所需的代码。接下来，我们将介绍如何使用这些生成的代码服务。</p>
+<h3 id="integrating-generated-services-types">在我们的应用程序中集成生成的服务和类型</h3>
+<blockquote><p>为了简洁起见，我们将查看执行特定 API 调用的代码片段，而不是整个应用程序。待办事项的完整代码可以在<a href="https://github.com/LogRocket-Tutorials/OpenAPI">这里</a>找到。</p></blockquote>
+<p>现在是有趣的部分。我们如何使用这些生成的服务？</p>
+<p>我们有很多方法可以做到这一点:我们可以创建一个钩子来包装应用程序中的请求和调用；对于 Redux Toolkit，我们可以在 thunk 内部调用它们。让我们来探究这两个例子。</p>
+<p>首先，我们将创建一个可重用的包装器；我们可以随便叫它什么。事情是这样的:</p>
+<pre>import {
+  AddTodoDto,
+  EditTodoDto,
+  OpenAPI,
+  TodoDto,
+  TodosService,
+} from '../openapi';
+
+const { add, edit, findAll, findOne, remove } = TodosService;
+
+OpenAPI.BASE = 'http://localhost:3000';
+
+export const getTodos = async () =&gt; {
+  try {
+    const todos: TodoDto[] = await findAll();
+    return todos;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const getTodoById = async (id: number): Promise&lt;TodoDto&gt; =&gt; {
+  try {
+    return await findOne(id);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const addTodo = async (newTodo: AddTodoDto): Promise&lt;TodoDto&gt; =&gt; {
+  try {
+    return await add(newTodo);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const updateTodo = async (
+  id: number,
+  todo: EditTodoDto
+): Promise&lt;TodoDto&gt; =&gt; {
+  try {
+    return await edit(id, todo);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+export const deleteTodo = async (id: number) =&gt; {
+  try {
+    await remove(id);
+  } catch (error) {
+    throw new Error(error);
+  }
+};</pre>
+<p>在应用程序内部，我们可以调用<code>findAll()</code> —例如，在一个<code>useEffect</code>内部。稍后我们将看一个更具体的例子。但是首先，请注意我们这样做的那一行:</p>
+<pre>OpenAPI.BASE = 'http://localhost:3000';</pre>
+<p>我们在这里所做的是将生成的客户端的基本 URL 设置为<code><a href="http://localhost:3000" rel="nofollow">http://localhost:3000</a></code>。这是微不足道的，但是让我们假设我们想要在我们的应用程序中设置一些默认值，比如授权头等。</p>
+<h3 id="configuring-setting-defaults">为生成的 API 服务配置和设置默认值</h3>
+<p>我们可以为 OpenAPI 设置一些默认值。预期配置的完整界面如下所示:</p>
+<pre>type Resolver&lt;T&gt; = () =&gt; Promise&lt;T&gt;;
+type Headers = Record&lt;string, string&gt;;
+
+type Config = {
+  BASE: string;
+  VERSION: string;
+  WITH_CREDENTIALS: boolean;
+  TOKEN?: string | Resolver&lt;string&gt;;
+  USERNAME?: string | Resolver&lt;string&gt;;
+  PASSWORD?: string | Resolver&lt;string&gt;;
+  HEADERS?: Headers | Resolver&lt;Headers&gt;;
+};
+
+export const OpenAPI: Config = {
+  BASE: "",
+  VERSION: "1.0",
+  WITH_CREDENTIALS: false,
+  TOKEN: undefined,
+  USERNAME: undefined,
+  PASSWORD: undefined,
+  HEADERS: undefined,
+};</pre>
+<p>假设我们的 API 是受密码保护的。我们可以告诉 codegen 在每次请求之前使用该密码:</p>
+<pre>OpenAPI.PASSWORD = 'my-super-secret-password'</pre>
+<p>或者假设您想要获取一个<code>token</code>并将其添加到请求头中。我们会有:</p>
+<pre>const getToken = async () =&gt; {
+    // Some code that requests a token...
+    return 'SOME_TOKEN';
+}
+
+OpenAPI.TOKEN = getToken;
+// or
+const myHeaderObject = {
+   ...rest,
+   Authorization: `Bearer ${getToken()}`
+} 
+
+OpenAPI.HEADERS = {myHeaderObject}</pre>
+<h3 id="consuming-generated-services">在我们的 React 应用中使用生成的服务</h3>
+<p>要使用任何服务，我们只需在应用程序内部调用它们(当然，考虑到我们如何管理状态)。我们待办事项中的一个例子看起来像这样:</p>
+<pre>import React, { useCallback, useEffect, useState } from 'react';
+import {AddTodo , TodoItem }from './features/todo';
+import { getTodos, addTodo, updateTodo, deleteTodo } from './services/api/todo';
+import { AddTodoDto, ApiError, EditTodoDto, TodoDto } from './services/openapi';
+
+import './App.css'
+
+const App = () =&gt; {
+  const [todos, setTodos] = useState&lt;TodoDto[]&gt;([]);
+  const [error, setError] = useState&lt;ApiError|null&gt;();
+
+const  handleSaveTodo=useCallback((e: React.FormEvent, formData: AddTodoDto) =&gt;{
+    e.preventDefault();
+    addTodo(formData)
+      .then((todo) =&gt; todo)
+      .catch((err) =&gt; setError(err));
+  },[])
+
+  const handleUpdateTodo = useCallback((id: number, todo: EditTodoDto) =&gt; {
+    updateTodo(id, todo)
+      .then((updatedTodo) =&gt; updatedTodo)
+      .catch((err) =&gt; setError(err));
+  },[]);
+
+  const handleDeleteTodo = useCallback((id: number) =&gt; {
+    deleteTodo(id).catch((err) =&gt; setError(err));
+  },[]);
+
+  useEffect(() =&gt; {
+    getTodos()
+      .then((allTodos) =&gt; setTodos(allTodos))
+      .catch((error) =&gt; setError(error));
+  }, []);
+
+  return (
+    &lt;main className='App'&gt;
+      &lt;h1&gt;My Todos&lt;/h1&gt;
+      &lt;AddTodo saveTodo={handleSaveTodo} /&gt;
+      {todos.map((todo: TodoDto) =&gt; (
+        &lt;TodoItem
+          key={todo.id}
+          updateTodo={handleUpdateTodo}
+          deleteTodo={handleDeleteTodo}
+          todo={todo}
+          error={error}
+        /&gt;
+      ))}
+    &lt;/main&gt;
+  );
+};
+
+export default App;</pre>
+<p>您可以看到我们只是简单地调用了应用程序内部的服务。我们甚至可以通过创建一个只调用一次的钩子来使我们的应用程序更加简洁，并且我们可以去掉所有在<code>App.tsx</code>中的 API 调用。由于这不是本文的重点，我就不详细介绍了，但这肯定有助于我们想象这是多么强大而具有可塑性:</p>
+<pre>import { useCallback, useState } from 'react'
+import { ApiError, OpenAPI } from '../services/openapi'
+
+export function useApi() {
+  const [error, setError] = useState&lt;ApiError | undefined&gt;(undefined)
+  const [isLoading, setIsloading] = useState&lt;boolean&gt;(true)
+
+  OpenAPI.BASE = process.env.REACT_APP_API_ENDPOINT as string
+  const handleRequest = useCallback(async function &lt;T&gt;(request: Promise&lt;T&gt;) {
+    setIsloading(true)
+    try {
+      const response = await request
+      setError(undefined)
+      return response
+    } catch (error) {
+      setError(error)
+    } finally {
+      setIsloading(true)
+    }
+  }, [])
+
+  function dismissError() {
+    setError(undefined)
+  }
+
+  return { dismissError, error, isLoading, handleRequest }
+}
+
+export default useApi</pre>
+<p>同样，完整的代码实现可以在<a href="https://github.com/LogRocket-Tutorials/OpenAPI">这里</a>找到。</p>
+<h2>结论</h2>
+<p>这就是我们要做的——从后端生成 OpenAPI 服务的详细演练。我们在这种情况下使用了 NestJS，但是这个过程是与框架无关的。</p>
+<p>我们以 React 应用程序为例，探讨了如何在客户端生成相应的服务功能。我们看到了从服务器获得底层服务、类型和接口如何使前端工程师的工作变得更加容易。尤其是使用 TypeScript，我们能够获得提供可预测性和透明性的类型安全系统的好处。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</h2><p>调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket 不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自 Redux、Vuex 和@ngrx/store 的额外上下文。</p>
+<p>除了记录 Redux 操作和状态，LogRocket 还记录控制台日志、JavaScript 错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用 DOM 来记录页面上的 HTML 和 CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

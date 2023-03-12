@@ -1,0 +1,494 @@
+<html>
+<head>
+<title>Magic login links with Laravel - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>与 Laravel - LogRocket 博客的神奇登录链接</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/magic-login-links-with-laravel/#0001-01-01">https://blog.logrocket.com/magic-login-links-with-laravel/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果你曾经使用过像 Vercel 或 Medium 这样的网站，你可能曾经经历过无密码登录。</p>
+<p>流程通常是这样的:输入你的电子邮件-&gt;提交表格-&gt;电子邮件发送给你-&gt;你点击里面的链接-&gt;你登录。</p>
+<p>这对每个人来说都很方便。用户不必记住网站任意规则集的密码，网站管理员(人们还在使用这个术语吗？)不用担心密码泄露或者他们的加密是否足够好。</p>
+<p>在本文中，我们将探索如何使用标准的 Laravel 安装来实现这个流程。</p>
+<p>我们将假设您对 Laravel 的 MVC 结构有一个工作理解，并且您的环境已经设置了<code>composer</code>和<code>php</code>。</p>
+<blockquote><p>请注意，为了简洁起见，本文中的代码块可能不包括整个文件。</p></blockquote>
+<h2>环境设置</h2>
+<p>让我们从创建一个新的 Laravel 8 应用程序开始:</p>
+<pre>$ composer create-project laravel/laravel magic-links
+</pre>
+<p>然后，我们需要<code>cd</code>进入我们的项目，并确保我们输入了我们的数据库凭证。确保事先也创建了数据库。</p>
+<p>在我的例子中，我使用 PostgreSQL，我通过<a href="https://tableplus.com/" target="_blank" rel="noopener"> TablePlus </a>完成所有的配置。打开<code>.env</code>文件:</p>
+<pre># .env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=magic_link
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+</pre>
+<p>现在我们的数据库已经配置好了，但是还不要运行迁移！让我们看看 Laravel 在<code>database/migrations/2014_10_12_000000_create_users_table.php</code>中为我们创建的默认用户迁移。</p>
+<p>您将看到默认用户表包含一个密码列。既然我们在做无密码认证，我们可以摆脱它:</p>
+<pre>public function up()
+{
+  Schema::create('users', function (Blueprint $table) {
+    $table-&gt;id();
+    $table-&gt;string('name');
+    $table-&gt;string('email')-&gt;unique();
+    $table-&gt;timestamp('email_verified_at')-&gt;nullable();
+    $table-&gt;rememberToken();
+    $table-&gt;timestamps();
+  });
+}
+</pre>
+<p>删除那一行后，继续保存文件。在我们进行清理的同时，让我们继续删除密码重置表的迁移，因为它对我们没有任何用处:</p>
+<pre>$ rm database/migrations/2014_10_12_100000_create_password_resets_table.php
+</pre>
+<p>我们的初始数据库模式已经准备好了，现在让我们开始迁移:</p>
+<pre>$ php artisan migrate
+</pre>
+<p>让我们也从<code>app/Models/User.php</code>中的用户模型的<code>$fillable</code>数组中删除<code>password</code>属性，因为它不再存在:</p>
+<pre>protected $fillable = [
+  'name',
+  'email',
+];
+</pre>
+<p>我们还想配置我们的邮件驱动程序，以便我们可以预览我们的登录电子邮件。我喜欢使用免费的 SMTP 捕捉器(你可以发送电子邮件到任何地址，它们只会出现在 Mailtrap 中，而不会被发送到实际的用户)，但是你可以使用任何你喜欢的。</p>
+<p>如果你不想设置任何东西，你可以使用<code>log</code>邮件程序，邮件会以原始文本的形式出现在<code>storage/logs/laravel.log</code>中。</p>
+<p>回到之前同一个<code>.env</code>文件:</p>
+<pre># .env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=redacted
+MAIL_PASSWORD=redacted
+MAIL_ENCRYPTION=tls
+<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="db969a9297849d899496849a9f9f899e8888e6b3beb7b7b49bbea3bab6abb7bef5b8b4b6">[email protected]</a>
+</pre>
+<p>我们现在准备开始建造了！</p>
+<h2>我们的方法</h2>
+<p>我们在本文的开头讨论了从用户的角度来看流程是什么样子，但是从技术的角度来看这是如何工作的呢？</p>
+<p>嗯，给定一个用户，我们需要能够发送给他们一个独特的链接，当他们点击它，登录到自己的帐户。</p>
+<p>这告诉我们，我们可能需要生成某种唯一的令牌，将它与试图登录的用户相关联，构建一个路由来查看该令牌并确定它是否有效，然后让用户登录。我们还希望只允许这些令牌使用一次，并且只在生成后的一定时间内有效。</p>
+<p>因为我们需要跟踪令牌是否已经被使用，所以我们将它们存储在数据库中。跟踪哪个令牌属于哪个用户，以及该令牌是否被使用过，以及它是否已经过期，也将非常方便。</p>
+<h2>创建测试用户</h2>
+<p>在本文中，我们将只关注登录流程。这将由您来创建一个注册页面，虽然它将遵循所有相同的步骤。</p>
+<p>因此，我们需要数据库中的一个用户来测试登录。让我们使用 tinker 创建一个:</p>
+<pre>$ php artisan tinker
+&gt; User::create(['name' =&gt; 'Jane Doe', 'email' =&gt; '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="631706101723061b020e130f064d000c0e">[email protected]</a>'])
+</pre>
+<h2>登录路径</h2>
+<p>我们将首先创建一个控制器<code>AuthController</code>，我们将使用它来处理登录、验证和注销功能:</p>
+<pre>$ php artisan make:controller AuthController
+</pre>
+<p>现在让我们在应用程序的<code>routes/web.php</code>文件中注册登录路径。在欢迎路由下面，让我们定义一个路由组，它将使用<code>guest</code>中间件保护我们的认证路由，阻止已经登录的人查看它们。</p>
+<p>在该组中，我们将创建两条路线。一个用于显示登录页面，另一个用于处理表单的提交。我们还将为它们命名，以便以后可以方便地引用它们:</p>
+<pre>Route::group(['middleware' =&gt; ['guest']], function() {
+  Route::get('login', [AuthController::class, 'showLogin'])-&gt;name('login.show');
+  Route::post('login', [AuthController::class, 'login'])-&gt;name('login');
+});
+</pre>
+<p>现在路由已经注册了，但是我们需要创建响应这些路由的操作。让我们在我们创建的控制器<code>app/Http/Controllers/AuthController.php</code>中创建那些方法。</p>
+<p>现在，我们将让登录页面返回位于<code>auth.login</code>的视图(接下来我们将创建它)，并创建一个占位符<code>login</code>方法，我们将在构建表单后返回:</p>
+<pre>&lt;?php
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class AuthController extends Controller
+{
+  public function showLogin()
+  {
+    return view('auth.login');
+  }
+
+  public function login(Request $request)
+  {
+    // TODO
+  }
+}
+</pre>
+<p>我们将使用 Laravel 的模板系统 Blade 和<a href="https://tailwindcss.com/" target="_blank" rel="noopener"> TailwindCSS </a>作为我们的视图。</p>
+<p>因为本文的主要焦点是后端逻辑，所以我们不打算详细讨论样式。我不想花时间设置一个合适的 CSS 配置，所以我们将使用这个<a href="https://beyondco.de/blog/tailwind-jit-compiler-via-cdn" target="_blank" rel="noopener"> TailwindCSS JIT CDN </a>，我们可以将它放入我们的布局中，以处理正确的样式。</p>
+<p>第一次加载页面时，您可能会注意到一系列样式。这是因为样式直到页面加载后才存在。在生产环境中，您可能不希望这样，但是对于本教程来说，这样做很好。</p>
+<p>让我们首先创建一个可以用于所有页面的总体布局。该文件将保存在<code>resources/views/layouts/app.blade.php</code>:</p>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+  &lt;title&gt;{{ $title }}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  @yield('content')
+  &lt;script src="https://unpkg.com/tailwindcss-jit-cdn"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>这里我要指出几件事</p>
+<ul>
+<li>页面标题将由一个<code>$title</code>变量设置，当我们从它扩展时，我们将把它传递到布局中</li>
+<li>刀片指令——当我们从这个布局扩展时，我们将使用一个名为“内容”的命名部分来放置特定于页面的内容</li>
+<li>我们用来处理样式的 TailwindCSS JIT CDN 脚本</li>
+</ul>
+<p>现在我们有了布局，我们可以在<code>resources/views/auth/login.blade.php</code>中创建注册页面:</p>
+<pre>@extends('layouts.app', ['title' =&gt; 'Login'])
+@section('content')
+  &lt;div class="h-screen bg-gray-50 flex items-center justify-center"&gt;
+    &lt;div class="w-full max-w-lg bg-white shadow-lg rounded-md p-8 space-y-4"&gt;
+      &lt;h1 class="text-xl font-semibold"&gt;Login&lt;/h1&gt;
+      &lt;form action="{{ route('login') }}" method="post" class="space-y-4"&gt;
+        @csrf
+        &lt;div class="space-y-1"&gt;
+          &lt;label for="email" class="block"&gt;Email&lt;/label&gt;
+          &lt;input type="email" name="email" id="email" class="block w-full border-gray-400 rounded-md px-4 py-2" /&gt;
+          @error('email')
+            &lt;p class="text-sm text-red-600"&gt;{{ $message }}&lt;/p&gt;
+          @enderror
+        &lt;/div&gt;
+        &lt;button class="rounded-md px-4 py-2 bg-indigo-600 text-white"&gt;Login&lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+@endsection
+</pre>
+<p>这里发生了一些事情，让我们指出一些事情:</p>
+<ul>
+<li>我们首先扩展前面创建的布局，并给它传递一个标题“Login ”,这将是我们的文档选项卡标题</li>
+<li>我们声明一个名为<code>content</code>的部分(还记得前面的<code>@yield</code>吗？)并将我们的页面内容放入其中，这些内容将被呈现到布局中</li>
+<li>一些基本的容器和样式被应用于在屏幕中间居中显示表单</li>
+<li>表单的动作指向一个已命名的路由<code>route('login')</code>，如果我们还记得<code>routes/web.php</code>文件，这就是我们在控制器中给登录<code>POST</code>请求的名称</li>
+<li>我们使用<code>@csrf</code>指令包含了隐藏的 CSRF 字段(<a href="https://laravel.com/docs/8.x/csrf" target="_blank" rel="noopener">点击这里了解更多信息</a></li>
+<li>我们使用<code>@error</code>指令有条件地显示 Laravel 提供的任何验证错误</li>
+</ul>
+<p>如果您加载页面，它应该看起来像这样:</p>
+<p><img data-attachment-id="57334" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-basic-login/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-basic-login" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png" decoding="async" class="size-full wp-image-57334 aligncenter jetpack-lazy-image" src="../Images/275723fa289b2e1880425e28f96848c1.png" alt="Screenshot of Laravel web page with simple login box" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="57334" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-basic-login/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-basic-login" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png" decoding="async" loading="lazy" class="size-full wp-image-57334 aligncenter" src="../Images/275723fa289b2e1880425e28f96848c1.png" alt="Screenshot of Laravel web page with simple login box" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-basic-login.png"/></noscript>
+<p>非常简单，我们只需要用户的电子邮件。如果我们现在提交表单，你只会看到一个空白的白屏，因为我们之前定义的<code>login</code>方法是空的。让我们在我们的<code>AuthController</code>中实现<code>login</code>方法，给他们发送一个完成登录的链接。</p>
+<p>该流程将类似于这样:验证表单数据-&gt;发送登录链接-&gt;在页面上向用户显示一条消息，告诉他们检查电子邮件。</p>
+<pre>// app/Http/Controllers/AuthController.php
+// near other use statements
+use App\Models\User;
+
+// inside class
+public function login(Request $request)
+{
+  $data = $request-&gt;validate([
+    'email' =&gt; ['required', 'email', 'exists:users,email'],
+  ]);
+  User::whereEmail($data['email'])-&gt;first()-&gt;sendLoginLink();
+  session()-&gt;flash('success', true);
+  return redirect()-&gt;back();
+}
+</pre>
+<p>我们正在做几件事:</p>
+<ul>
+<li>验证表单数据–说明该电子邮件是必需的，应该是有效的电子邮件，并且存在于我们的数据库中</li>
+<li>我们通过提供的电子邮件找到用户，并调用我们需要实现的函数<code>sendLoginLink</code></li>
+<li>我们向会话闪存一个值，指示请求成功，然后将用户返回到登录页面</li>
+</ul>
+<p>上述步骤中有几个未完成的任务，因此我们现在需要实现它们。</p>
+<p>我们将首先更新我们的登录视图来检查成功布尔值，隐藏我们的表单，并向用户显示一条消息(如果存在的话)。回到<code>resources/views/auth/login.blade.php</code>:</p>
+<pre>@extends('layouts.app', ['title' =&gt; 'Login'])
+@section('content')
+  &lt;div class="h-screen bg-gray-50 flex items-center justify-center"&gt;
+    &lt;div class="w-full max-w-lg bg-white shadow-lg rounded-md p-8 space-y-4"&gt;
+      @if(!session()-&gt;has('success'))
+        &lt;h1 class="text-xl font-semibold"&gt;Login&lt;/h1&gt;
+        &lt;form action="{{ route('login') }}" method="post" class="space-y-4"&gt;
+          @csrf
+          &lt;div class="space-y-1"&gt;
+            &lt;label for="email" class="block"&gt;Email&lt;/label&gt;
+            &lt;input type="email" name="email" id="email" class="block w-full border-gray-400 rounded-md px-4 py-2" /&gt;
+            @error('email')
+              &lt;p class="text-sm text-red-600"&gt;{{ $message }}&lt;/p&gt;
+            @enderror
+          &lt;/div&gt;
+          &lt;button class="rounded-md px-4 py-2 bg-indigo-600 text-white"&gt;Login&lt;/button&gt;
+        &lt;/form&gt;
+      @else
+        &lt;p&gt;Please click the link sent to your email to finish logging in.&lt;/p&gt;
+      @endif
+    &lt;/div&gt;
+  &lt;/div&gt;
+@endsection
+</pre>
+<p>这里我们简单地将表单包装在一个条件中。</p>
+<p>它在说:</p>
+<ul>
+<li>我们刚刚成功提交了一个表单吗？<ul>
+<li>否-显示注册表格</li>
+<li>是–让用户知道他们的帐户已创建，并检查他们的电子邮件中的链接</li>
+</ul>
+</li>
+</ul>
+<p>现在，如果您再次提交该表单，您将看到一个错误，指出我们需要在<code>User</code>模型上实现<code>sendLoginLink</code>函数。我喜欢将这样的逻辑存储在模型本身上，以便我们以后可以在应用程序中重用它。</p>
+<p>打开<code>app/Models/User.php</code>并创建一个空方法来填充它的位置:</p>
+<pre>public function sendLoginLink()
+{
+  // TODO
+}
+</pre>
+<p>现在再次提交表单，并确保您看到如下所示的成功消息:</p>
+<p><img data-attachment-id="57335" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-web-app-please-click/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-web-app-please-click" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png" decoding="async" class="aligncenter wp-image-57335 size-full jetpack-lazy-image" src="../Images/12e9bb02981eaa502632990ccccf2781.png" alt="Screenshot of Laravel web page that reads &quot;please click the link sent to your email to finish logging in&quot;" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="57335" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-web-app-please-click/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-web-app-please-click" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png" decoding="async" loading="lazy" class="aligncenter wp-image-57335 size-full" src="../Images/12e9bb02981eaa502632990ccccf2781.png" alt="Screenshot of Laravel web page that reads &quot;please click the link sent to your email to finish logging in&quot;" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-web-app-please-click.png"/></noscript>
+<p>当然，您还没有收到电子邮件，但是现在我们可以继续这一步了。</p>
+<h2>实现<code>sendLoginLink</code>功能</h2>
+<p>思考一下我们上面讨论的令牌方法，我们现在需要做的是:</p>
+<ol>
+<li>生成唯一的令牌并将其附加到用户</li>
+<li>向用户发送一封电子邮件，其中包含验证该令牌的页面链接</li>
+</ol>
+<p>我们将把这些保存在一个名为<code>login_tokens</code>的表中。让我们创建模型和迁移(<code>-m</code>):</p>
+<pre>$ php artisan make:model -m LoginToken
+</pre>
+<p>对于迁移，我们需要:</p>
+<ul>
+<li>我们正在生成的 url 的唯一令牌</li>
+<li>将它与请求用户联系起来的关联</li>
+<li>表示令牌何时过期的日期</li>
+<li>一个标志，告诉我们令牌是否已经被使用。我们将为此使用一个时间戳字段，因为该列中缺少值会告诉我们它是否被使用过，并且时间戳还会让我们知道它是何时被使用的——这是双赢！</li>
+</ul>
+<p>打开生成的迁移并添加必要的列:</p>
+<pre>Schema::create('login_tokens', function (Blueprint $table) {
+  $table-&gt;id();
+  $table-&gt;unsignedBigInteger('user_id');
+  $table-&gt;foreign('user_id')-&gt;references('id')-&gt;on('users')-&gt;cascadeOnDelete();
+  $table-&gt;string('token')-&gt;unique();
+  $table-&gt;timestamp('consumed_at')-&gt;nullable();
+  $table-&gt;timestamp('expires_at');
+  $table-&gt;timestamps();
+});
+</pre>
+<p>确保之后运行迁移:</p>
+<pre>$ php artisan migrate
+</pre>
+<p>接下来更新我们的新<code>app/Models/LoginToken</code>模型，以说明一些事情:</p>
+<ul>
+<li>将我们的<code>$guarded</code>属性设置为空数组，这意味着我们不限制可以填充哪些列</li>
+<li>创建一个<code>$dates</code>属性，当我们稍后在 php 代码中引用它们时，该属性将把我们的<code>expires_at</code>和<code>consumed_at</code>字段转换为<code>Carbon\Carbon</code>实例</li>
+<li>我们的<code>user()</code>方法让我们引用与令牌相关联的用户</li>
+</ul>
+<pre>class LoginToken extends Model
+{
+  use HasFactory;
+
+  protected $guarded = [];
+  protected $dates = [
+    'expires_at', 'consumed_at',
+  ];
+
+  public function user()
+  {
+    return $this-&gt;belongsTo(User::class);
+  }
+}
+</pre>
+<p>将反向关联放在<code>User</code>模型上也是一个好主意:</p>
+<pre>// inside app/Models/User.php
+public function loginTokens()
+{
+  return $this-&gt;hasMany(LoginToken::class);
+}
+</pre>
+<p>既然我们已经建立了模型，我们可以执行我们的<code>sendLoginLink()</code>函数的第一步，即创建令牌。</p>
+<p>回到<code>app/Models/User.php</code>中，我们将使用我们刚刚创建的新的<code>loginTokens()</code>关联为用户创建令牌，并使用来自 Laravel 的<code>Str</code>助手给它一个随机字符串，从现在起 15 分钟后到期。</p>
+<p>因为我们在<code>LoginToken</code>模型上将<code>expires_at</code>和<code>consumed_at</code>设置为日期，所以我们可以简单地传递一个流畅的日期，它将被适当地转换。我们还将在将令牌插入数据库之前对其进行哈希运算，这样，如果该表遭到破坏，没有人能够看到原始令牌值。</p>
+<p>我们使用了一个可重复的散列，以便以后需要时可以再次查找:</p>
+<pre>use Illuminate\Support\Str;
+
+public function sendLoginLink()
+{
+    $plaintext = Str::random(32);
+    $token = $this-&gt;loginTokens()-&gt;create([
+      'token' =&gt; hash('sha256', $plaintext),
+      'expires_at' =&gt; now()-&gt;addMinutes(15),
+    ]);
+    // todo send email
+}
+</pre>
+<p>现在我们有了一个令牌，我们可以向用户发送一封电子邮件，在 url 中包含一个带有(明文)令牌的链接，它将验证他们的会话。令牌需要在 URL 中，这样我们就可以查找它是给哪个用户的。</p>
+<p>我们不只是想使用<code>LoginToken</code>的 ID，因为这样用户可能会一个接一个地寻找有效的 URL。稍后我们将讨论另一种防止这种情况的方法。</p>
+<p>首先创建代表电子邮件的 mailer 类:</p>
+<pre>$ php artisan make:mail MagicLoginLink
+</pre>
+<p>打开在<code>app/Mail/MagicLoginLink.php</code>生成的邮件，输入以下内容:</p>
+<pre>&lt;?php
+namespace App\Mail;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\URL;
+
+class MagicLoginLink extends Mailable
+{
+  use Queueable, SerializesModels;
+
+  public $plaintextToken;
+  public $expiresAt;
+
+  public function __construct($plaintextToken, $expiresAt)
+  {
+    $this-&gt;plaintextToken = $plaintextToken;
+    $this-&gt;expiresAt = $expiresAt;
+  }
+
+  public function build()
+  {
+    return $this-&gt;subject(
+      config('app.name') . ' Login Verification'
+    )-&gt;markdown('emails.magic-login-link', [
+      'url' =&gt; URL::temporarySignedRoute('verify-login', $this-&gt;expiresAt, [
+        'token' =&gt; $this-&gt;plaintextToken,
+      ]),
+    ]);
+  }
+}
+</pre>
+<p>事情是这样的——邮件程序将接收明文令牌和到期日期，并将其存储在公共属性中。这将允许我们稍后在组合时在<code>build()</code>方法中使用它。</p>
+<p>在<code>build()</code>方法中，我们设置了电子邮件的主题，并告诉它在<code>resources/views/emails/magic-login-link.blade.php</code>中寻找一个 markdown 格式的视图。Laravel 为降价邮件提供了一些默认样式，我们稍后会加以利用。</p>
+<p>我们还向视图传递一个<code>url</code>变量，该变量将成为用户点击的链接。</p>
+<p>那个<code>url</code>属性是一个<a href="https://laravel.com/docs/8.x/urls#signed-urls" target="_blank" rel="noopener">临时签名的 url </a>。它接受一个命名的路由、一个截止日期(我们希望它是我们的令牌截止日期)和任何参数(在本例中<code>token</code>是我们生成的未散列的随机字符串)。已签名的 URL 通过使用只有 Laravel 知道的秘密散列 URL 来确保 URL 根本没有被修改。</p>
+<p>尽管我们将在我们的<code>verify-login</code>路由中添加检查以确保我们的令牌仍然有效(基于<code>expires_at</code>和<code>consumed_at</code>属性)，但是对 URL 进行签名在框架级别上给了我们额外的安全性，因为没有人能够用随机令牌暴力破解<code>verify-login</code>路由，以查看他们是否能找到一个让他们登录的令牌。</p>
+<p>现在我们需要在<code>resources/views/emails/magic-login-link.blade.php</code>实现 markdown 视图。你可能想知道为什么扩展名是<code>.blade.php</code>。这是因为即使我们在这个文件中写 markdown，我们也可以在里面使用 Blade 指令来构建可以在电子邮件中使用的可重用组件。</p>
+<p>Laravel 为我们提供了现成的预样式组件，让我们可以立即开始使用。我们使用<code>mail::message</code>，它通过<code>mail::button</code>为我们提供布局和行动号召:</p>
+<pre>@component('mail::message')
+  Hello, to finish logging in please click the link below
+  @component('mail::button', ['url' =&gt; $url])
+    Click to login
+  @endcomponent
+@endcomponent
+</pre>
+<p>现在我们已经构建了电子邮件内容，我们可以通过实际发送电子邮件来完成<code>sendLoginLink()</code>方法。我们将使用 Laravel 提供的<code>Mail</code>外观来指定我们要发送给用户的电子邮件，并且电子邮件的内容应该由我们刚刚完成设置的<code>MagicLoginLink</code>类构建。</p>
+<p>我们还使用了<code>queue()</code>而不是<code>send()</code>，这样电子邮件就可以在后台发送，而不是在当前请求期间发送。如果你想让它立即发生，确保你已经正确地设置了你的队列驱动或者你正在使用<code>sync</code>驱动(这是默认的)。</p>
+<p>回到<code>app/Models/User.php</code>:</p>
+<pre>use Illuminate\Support\Facades\Mail;
+use App\Mail\MagicLoginLink;
+
+public function sendLoginLink()
+{
+  $plaintext = Str::random(32);
+  $token = $this-&gt;loginTokens()-&gt;create([
+    'token' =&gt; hash('sha256', $plaintext),
+    'expires_at' =&gt; now()-&gt;addMinutes(15),
+  ]);
+  Mail::to($this-&gt;email)-&gt;queue(new MagicLoginLink($plaintext, $token-&gt;expires_at));
+}
+</pre>
+<p>如果您要提交我们的登录表单，您将会看到一封类似如下的电子邮件:</p>
+<p><img data-attachment-id="57339" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-finish-signing-in-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png" data-orig-size="1302,730" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-finish-signing-in-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-300x168.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-1024x574.png" decoding="async" class="size-full wp-image-57339 aligncenter jetpack-lazy-image" src="../Images/f95dc85d909776b64f817ded101e23e0.png" alt="Screenshot of a Laravel app that reads &quot;Hello to finish signing in click the link below&quot;" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png 1302w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-300x168.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-1024x574.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-768x431.png 768w" data-lazy-sizes="(max-width: 1302px) 100vw, 1302px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="57339" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-finish-signing-in-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png" data-orig-size="1302,730" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-finish-signing-in-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-300x168.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-1024x574.png" decoding="async" loading="lazy" class="size-full wp-image-57339 aligncenter" src="../Images/f95dc85d909776b64f817ded101e23e0.png" alt="Screenshot of a Laravel app that reads &quot;Hello to finish signing in click the link below&quot;" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png 1302w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-300x168.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-1024x574.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen-768x431.png 768w" sizes="(max-width: 1302px) 100vw, 1302px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-finish-signing-in-screen.png"/></noscript>
+<h2>验证路线</h2>
+<p>如果您尝试单击该链接，您可能会收到 404 错误。这是因为在我们的电子邮件中，我们给用户发送了一个指向<code>verify-login</code>命名路线的链接，但是我们还没有创建它！</p>
+<p>在<code>routes/web.php</code>内的路线组中登记路线:</p>
+<pre>Route::group(['middleware' =&gt; ['guest']], function() {
+  Route::get('login', [AuthController::class, 'showLogin'])-&gt;name('login.show');
+  Route::post('login', [AuthController::class, 'login'])-&gt;name('login');
+  Route::get('verify-login/{token}', [AuthController::class, 'verifyLogin'])-&gt;name('verify-login');
+});
+</pre>
+<p>然后我们将通过一个<code>verifyLogin</code>方法在我们的<code>AuthController</code>类中创建实现:</p>
+<pre>public function verifyLogin(Request $request, $token)
+{
+  $token = \App\Models\LoginToken::whereToken(hash('sha256', $token))-&gt;firstOrFail();
+  abort_unless($request-&gt;hasValidSignature() &amp;&amp; $token-&gt;isValid(), 401);
+  $token-&gt;consume();
+  Auth::login($token-&gt;user);
+  return redirect('/');
+}
+</pre>
+<p>我们正在做以下工作:</p>
+<ul>
+<li>   <ul>
+<li>   <ul>
+<li>通过散列明文值并将其与数据库中的散列版本进行比较来找到令牌(如果没有找到，将抛出 404——通过<code>firstOrFail()</code>)</li>
+<li>如果令牌无效，或者签名的 URL 无效，则使用 401 状态代码中止请求(如果您想显示一个视图或让用户了解更多信息的内容，您可以在这里进行想象，但是出于本教程的考虑，我们将取消请求)</li>
+<li>将令牌标记为已使用，以便它不能再次使用</li>
+<li>登录与令牌关联的用户</li>
+<li>将它们重定向到主页</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>我们在令牌上调用了一些实际上还不存在的方法，所以让我们来创建它们:</p>
+<ul>
+<li>   <ul>
+<li>   <ul>
+<li>如果令牌还没有被消费(<code>consumed_at === null</code>)并且还没有过期(<code>expires_at &lt;= now</code>)，则<code>isValid()</code>将为真</li>
+<li>我们将提取过期的和消费的，检查它们自己的函数，使其更具可读性</li>
+<li><code>consume()</code>将把<code>consumed_at</code>属性设置为当前时间戳</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>我喜欢将这种逻辑直接封装在模型中，以便于阅读和重用。打开<code>app/Models/LoginToken.php</code>:</p>
+<pre>public function isValid()
+{
+  return !$this-&gt;isExpired() &amp;&amp; !$this-&gt;isConsumed();
+}
+
+public function isExpired()
+{
+  return $this-&gt;expires_at-&gt;isBefore(now());
+}
+
+public function isConsumed()
+{
+  return $this-&gt;consumed_at !== null;
+}
+
+public function consume()
+{
+  $this-&gt;consumed_at = now();
+  $this-&gt;save();
+}
+</pre>
+<p>如果您现在点击电子邮件中的登录链接，您应该会被重定向到<code>/</code>路线！</p>
+<p>您还会注意到，如果您再次单击该链接，将会显示错误屏幕，因为它现在无效了。</p>
+<h2>最后润色</h2>
+<p>现在，我们的身份验证流程正在工作，让我们保护我们的根路由，只有那些登录的人才能看到，并添加一个注销的方法，以便我们可以再次执行该流程。</p>
+<p>首先，编辑<code>app/web.php</code>中的默认根路由，以添加<code>auth</code>中间件:</p>
+<pre>Route::get('/', function () {
+    return view('welcome');
+})-&gt;middleware('auth');
+</pre>
+<p>我们还可以调整默认欢迎视图，显示一些关于登录用户的信息，并提供一个注销链接。用以下内容替换<code>resources/views/welcome.blade.php</code>的内容:</p>
+<pre>@extends('layouts.app', ['title' =&gt; 'Home'])
+@section('content')
+  &lt;div class="h-screen bg-gray-50 flex items-center justify-center"&gt;
+    &lt;div class="w-full max-w-lg bg-white shadow-lg rounded-md p-8 space-y-4"&gt;
+      &lt;h1&gt;Logged in as {{ Auth::user()-&gt;name }}&lt;/h1&gt;
+      &lt;a href="{{ route('logout') }}" class="text-indigo-600 inline-block underline mt-4"&gt;Logout&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+@endsection
+</pre>
+<p>最后是注销路径，它会忘记我们的会话并返回到登录屏幕。再次打开<code>routes/web.php</code>,将该路线添加到文件底部:</p>
+<pre>Route::get('logout', [AuthController::class, 'logout'])-&gt;name('logout');
+</pre>
+<p>最后，我们需要在我们的<code>AuthController</code>中实现注销操作:</p>
+<pre>public function logout()
+{
+  Auth::logout();
+  return redirect(route('login'));
+}
+</pre>
+<p>现在，您的主页应该看起来像这样，并且只有那些登录的人才能看到:</p>
+<p><img data-attachment-id="57341" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-successful-magic-login-link-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-successful-magic-login-link-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png" decoding="async" class="aligncenter wp-image-57341 size-full jetpack-lazy-image" src="../Images/95360290045c8200ea0dfa2b3dd54a84.png" alt="Screenshot of a Laravel web app that reads &quot;logged in as Ozzie - logout&quot;" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="57341" data-permalink="https://blog.logrocket.com/magic-login-links-with-laravel/laravel-successful-magic-login-link-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Laravel-successful-magic-login-link-screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png" decoding="async" loading="lazy" class="aligncenter wp-image-57341 size-full" src="../Images/95360290045c8200ea0dfa2b3dd54a84.png" alt="Screenshot of a Laravel web app that reads &quot;logged in as Ozzie - logout&quot;" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/Laravel-successful-magic-login-link-screen.png"/></noscript>
+<h2>结论</h2>
+<p>这是一个总结！我们覆盖了很多领域，但是您会注意到，对于这样的功能，我们编写的整体代码非常少。我希望你在这个过程中学到了一两个技巧。</p>
+<p><a href="https://github.com/ozziexsh/logrocket-laravel-passwordless-auth" target="_blank" rel="noopener">完整源代码可以在这里查看</a>。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

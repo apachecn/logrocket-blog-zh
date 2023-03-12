@@ -1,0 +1,212 @@
+<html>
+<head>
+<title>Inject dynamic content in Angular components with portals - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用门户在 Angular 组件中注入动态内容</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/inject-dynamic-content-angular-components-with-portals/#0001-01-01">https://blog.logrocket.com/inject-dynamic-content-angular-components-with-portals/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>作为一名 Angular 开发人员，我们日常工作的很大一部分是将组件放在一起构建我们的应用程序。有时，我们需要将一个组件或 UI 模板动态地注入到另一个组件中。</p>
+<p>在 Angular 中，有几种方法可以在 CDK 门户发布之前将动态组件呈现到主机组件中。这些是:</p>
+
+<p>这两种方法都有一个缺点:宿主组件需要直接引用注入的组件。主机和注入组件之间的耦合使得测试和维护变得困难。</p>
+<p>Portal 提供了一种灵活、简洁的替代方法来将内容注入到角度组件中。</p>
+<p>让我们一步一步地看一个使用门户的例子。</p>
+<h2>定义问题</h2>
+<p>假设我们正在增强一个角度应用程序中的仪表板屏幕。该屏幕包含</p>
+<ul>
+<li>父组件(<code>dashboard</code>):这是仪表板屏幕的容器</li>
+<li>下拉选择器:选择的改变将改变仪表板的上下文</li>
+<li>路由器出口:用于从子路由器装载组件</li>
+<li>两个子组件(<code>stats</code>和<code>action</code>组件):显示与仪表板当前上下文相关的信息</li>
+</ul>
+<p>当用户从选择器中选择一个选项时，应用程序将导航到不同的子路由。因此，相应的组件将被加载到路由器出口。然后，这两个子组件将用不同的内容进行更新。</p>
+<p>在选择改变时，所选择的服务类型数据被推送到<code>DashboardService</code>中可观察的<code>serviceType$</code>中。在<code>action</code>分量中，我们订阅了<code>serviceType$</code>可观测值。</p>
+<pre class="language-typescript hljs">// TypeScript
+// dashboard.component.ts
+// when user change a selection, new serviceType are broadcasted
+this.service.searchType$.next(serviceType);
+
+// dashboard.service.ts
+export class DashboardService {
+  searchType$ = new BehaviorSubject('');
+  constructor() { }
+}
+// action.component.ts
+export class ActionComponent {
+  serviceType$ = this.service.searchType$;
+  constructor(private service: DashboardService) {}
+}
+</pre>
+<p>我们用<code>ngSwitch</code>对可观察到的<code>serviceType$</code>做出反应。在下面的例子中，当可观察值改变时，<code>action</code>组件内容被更新。</p>
+<pre class="language-typescript hljs"> // actions.Component
+          &lt;div class="panel-body" *ngIf="serviceType$ | async as serviceType"&gt;
+          &lt;div [ngSwitch]="serviceType"&gt;
+            &lt;div *ngSwitchCase="'client'"&gt;
+              &lt;button (click)="registerNewClient()" class="btn btn-primary"&gt;
+                Register New Client
+              &lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div *ngSwitchCase="'order'"&gt;
+              &lt;button (click)="registerNewOrder()" class="btn btn-danger"&gt;
+                Search order
+              &lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div *ngSwitchDefault&gt;default action&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+</pre>
+<p>仪表板可以工作，但是代码有几个问题:</p>
+<h3>这两个子组件是智能组件</h3>
+<p>这些子组件被设计用来呈现数据，所以它们应该是哑的，或者是表示性的组件。相反，当前的设计让他们知道外部数据实体</p>
+<h3>子组件也包含副作用</h3>
+<p>这意味着它们注册事件处理，这使得它们很难被重用。要添加一个新的服务类型，我们需要将<code>ngSwitchCase</code>添加到我们所有的子组件中，随着更多服务类型或子组件的添加，仪表板将变得更加复杂和难以维护。我们想要的是将 UI 内容注入到子组件中，而子组件不知道这些内容来自哪里。</p>
+<h2>门户如何提供帮助？</h2>
+<p>门户作为<a href="https://material.angular.io/cdk/categories" target="_blank" rel="noopener"> Angular Material CDK </a>的一部分，由 Angular Material 团队内部开发。它的名字最近被缩短为<a href="https://github.com/angular/components/tree/master/src/cdk" target="_blank" rel="noopener">角 CDK </a>。<a href="https://github.com/angular/components/blob/master/src/cdk/portal/portal.md" target="_blank" rel="noopener">官方文档</a>中对门户的定义是:门户是一个 UI，可以动态呈现到页面上的一个空位上。有两个关键部分:</p>
+<ul>
+<li><code>Portal</code>:要渲染的 UI 元素(组件或模板)。它可以是一个组件，一个<code>templateRef</code>或者一个 DOM 元素。</li>
+<li><code>PortalOutlet</code>:内容将被呈现的槽。在之前的版本中，它被称为<code>PortalHost</code>。</li>
+</ul>
+<p>让我们利用门户来解决上述问题。</p>
+<h2>安装</h2>
+<p>要开始使用 Angular CDK 门户，需要安装以下软件包。</p>
+<pre class="language-typescript hljs">npm install @angular/cdk
+</pre>
+<p>然后在<code>app.module.ts</code>文件中，我们需要导入 CDK 模块。</p>
+<pre class="language-typescript hljs">// TypeScript
+import {PortalModule} from '@angular/cdk/portal';
+</pre>
+<h2>门户的类型</h2>
+<p>我们有几个选择来创建门户。</p>
+<ul>
+<li><code>ComponentPortal</code>:从组件类型创建门户。<pre class="language-typescript hljs">// TypeScript this.portal = new ComponentPortal(StatsComponent);</pre></li>
+<li><code>TemplatePortal</code>:从<code>&amp;lt;ng-template&gt;</code> <pre class="language-typescript hljs">// Html &lt;ng-template #templatePortal&gt;   &lt;ng-content&gt;&lt;/ng-content&gt; &lt;/ng-template&gt; </pre>创建门户</li>
+<li><code>DomPortal</code>:从本地 DOM 元素创建门户。这允许我们获取任何 DOM 元素并将其注入主机<pre class="language-html hljs">// Html &lt;div #domPortal&gt;Total clients&lt;/div&gt;</pre></li>
+</ul>
+<p>使用<code>DomPortal</code>，内容中的角度绑定将无效，因为它被视为原生 DOM 元素。</p>
+<p>棱角分明的 CDK 还提供了一个<a href="https://material.angular.io/cdk/portal/api#CdkPortal" target="_blank" rel="noopener"> <code>cdkPortal directive</code> </a>，是<code>TemplatePortal</code>的一个版本。与<code>TemplatePortal</code>相比，<code>cdkPortal</code>指令节省了一些样板代码，因为我们不需要手动实例化门户。</p>
+<h2>创建门户</h2>
+<p>在这个例子中，我们使用了<code>cdkPortal</code>指令，因为它更简单，更具声明性。</p>
+<p>如下面的代码所示，我们将<code>ng-content</code>包装在<code>ActionButtonComponent</code>模板的<code>ng-template</code>中。然后，我们将<code>portal</code>指令添加到<code>ng-template</code>中。</p>
+<p>对于<code>cdkPortal</code>指令，有两个等价的选择器:<code>portal</code>或<code>cdk-portal</code>。使用<code>ng-content</code>以便我们可以从其他组件中投射内容。</p>
+<pre class="language-html hljs">// Html   
+// ActionButtonComponent
+ &lt;ng-template cdk-portal&gt;
+    &lt;ng-content&gt;&lt;/ng-content&gt;
+ &lt;/ng-template&gt;
+</pre>
+<p>请注意，带有<code>cdkPortal</code>指令的元素在附加到<code>CdkPortalOutlet</code>之前不会显示。这适用于所有元素，包括<code>div</code>。</p>
+<p>在<code>ActionButtonComponent</code>类中，我们可以使用<code>@ViewChild</code>和<code>CdkPortal</code>指令来引用模板。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<pre class="language-typescript hljs">// TypeScript
+// ActionButtonComponent
+  @ViewChild(CdkPortal)
+  private portal: CdkPortal;</pre>
+<h2>创建<code>PortalOutlet</code></h2>
+<p>在<code>ActionComponent</code>中，我们创建了一个 ID 设置为<code>action</code>的占位符。</p>
+<pre class="language-html">// Html
+// ActionComponent
+ &lt;div id="action"&gt;&lt;/div&gt;</pre>
+<p>现在我们可以创建<code>DomPortalOutlet</code>。我们使用<code>document.querySelector</code>来获取上面定义的 DOM 元素占位符。其余的参数通过组件构造函数注入。</p>
+<p>请注意，<code>DomPortalOutlet</code>以前叫做<code>DomPortalHost</code>。从 Angular 9 开始，它被重新命名为<code>DomPortalOutlet</code>。</p>
+<pre class="language-html hljs">// Html
+// ActionButtonComponent
+
+  private host: DomPortalOutlet;
+
+  constructor(
+    private cfr: ComponentFactoryResolver,
+    private appRef: ApplicationRef,
+    private injector: Injector
+  ) {}
+  
+  ngAfterViewInit(): void {
+    this.host = new DomPortalOutlet(
+      document.querySelector('#action),
+      this.cfr,
+      this.appRef,
+      this.injector
+    );</pre>
+<p><code>DomPortalOutlet</code>的创建发生在<code>ngAfterViewInit</code> <a href="https://blog.logrocket.com/angular-lifecycle-hooks/" target="_blank" rel="noopener">生命周期事件</a>内。这是必要的，因为<code>ngAfterViewInit</code>发生在视图渲染之后。</p>
+<h2>把它们放在一起</h2>
+<p>在定义了<code>portal</code>和<code>DomPortalOutlet</code>之后，我们可以将门户附加到<code>portalOutlet</code>上。这将把门户注入到由<code>portalOutlet</code>引用的占位符中。</p>
+<pre class="language-typescript hljs">// TypeScript
+// ActionButtonComponent
+export class ActionButtonComponent implements AfterViewInit, OnDestroy{
+
+  @ViewChild(CdkPortal)
+  private portal: CdkPortal;
+  private host: DomPortalOutlet;
+
+  constructor(
+    private cfr: ComponentFactoryResolver,
+    private appRef: ApplicationRef,
+    private injector: Injector
+  ) {}
+  
+  ngAfterViewInit(): void {
+    this.host = new DomPortalOutlet(
+      document.querySelector('#action),
+      this.cfr,
+      this.appRef,
+      this.injector
+    );
+    this.host.attach(this.portal);
+  }
+}</pre>
+<p>在这种情况下，客户端和订单组件都可以将内容投射到<code>ActionButtonComponent</code>中。这些内容显示在<code>ActionComponent</code>的<code>portalOutlet</code>中。</p>
+<pre class="language-html hljs">// Html
+// client.component.html
+&lt;app-action-button&gt;
+  &lt;button (click)="registerClient()" class="btn btn-primary"&gt;Register New Client&lt;/button&gt;
+&lt;/app-action-button&gt;</pre>
+<p>下面是门户和<code>portalOutlet</code>如何协同工作的概述。</p>
+<p><img data-attachment-id="67210" data-permalink="https://blog.logrocket.com/inject-dynamic-content-angular-components-with-portals/how-portal-portaloutlet-work-together/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png" data-orig-size="730,730" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="how-portal-portaloutlet-work-together" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-300x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png" decoding="async" class="aligncenter size-full wp-image-67210 jetpack-lazy-image" src="../Images/4a74ef83d1e6a65c5b440b9281da6562.png" alt="How the portal and portalOutlet work together" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-300x300.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-150x150.png?crop=1 150w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="67210" data-permalink="https://blog.logrocket.com/inject-dynamic-content-angular-components-with-portals/how-portal-portaloutlet-work-together/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png" data-orig-size="730,730" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="how-portal-portaloutlet-work-together" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-300x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-67210" src="../Images/4a74ef83d1e6a65c5b440b9281da6562.png" alt="How the portal and portalOutlet work together" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-300x300.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together-150x150.png?crop=1 150w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/how-portal-portaloutlet-work-together.png"/></noscript>
+<h2><code>detach</code>方法与<code>dispose</code>方法</h2>
+<p>我们使用<code>detach</code>方法从<code>portalOutlet</code>中移除先前附加的门户。这是为了在移除父组件时进行清理。</p>
+<p>另一种方法是使用<code>dispose</code>方法。当调用 dispose 时，我们从 DOM 中永久删除了<code>portalOutlet</code>。</p>
+<pre class="language-typescript hljs">// TypeScript
+// ActionButtonComponent
+ngOnDestroy(): void {
+this.host.detach();
+}
+</pre>
+<p>在我们的例子中，我们使用了<code>detach</code>方法，因为我们的目的是分离门户，而不是从 DOM 中移除<code>portalOutlet</code>。</p>
+<h2>传递上下文而不是内容</h2>
+<p>在前面的例子中，我们不需要传递数据，因为<code>ng-content</code>用于投影内容。但是对于其他用例，您可能需要将上下文数据传递到门户中。</p>
+<p>为了在<code>templatePortal</code>中传递上下文数据，我们可以使用<code>context</code>属性。</p>
+<pre class="language-typescript hljs">// TypeScript
+this.portal.context = {}; // Your context data</pre>
+<p>对于<code>ComponentPortal</code>，我们可以使用下面代码所示的令牌注入。</p>
+<pre class="language-typescript hljs">// TypeScript
+// create a custom token
+export const CONTEXT_TOKEN = new InjectionToken({...});
+
+// when creating the componentPortal, provide the token injector
+const injector = Injector.create({
+providers: [{ provide: CONTEXT_TOKEN, useValue: {...}, // context data variable
+});
+const portal = new ComponentPortal(ComponentClass, null, injector);
+
+//Inject the token into the constructor of the component, so it can be accessed
+constructor(@Inject(CONTEXT_TOKEN) private data: T)
+</pre>
+<h2>决赛成绩</h2>
+<p>下面是最终结果的样子。当下拉选择器改变时，我们的仪表板显示动态内容。最好的是，子组件(<code>stats</code>和<code>action</code>组件)是松散耦合的。它们不包含关于客户或订单的逻辑；相反，他们只需要专注于正确地呈现内容。<br/>T3】</p><noscript><img data-lazy-fallback="1" data-attachment-id="67214" data-permalink="https://blog.logrocket.com/inject-dynamic-content-angular-components-with-portals/final-results-dashboard/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-results-dashboard.gif" data-orig-size="730,313" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-results-dashboard" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-results-dashboard-300x129.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-results-dashboard.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-67214" src="../Images/9b8e3605c2e4171b30afa21b1146e156.png" alt="The dashboard displaying our final results" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/final-results-dashboard.gif"/></noscript>
+<h2>摘要</h2>
+<p>在本文中，我们讨论了如何使用有角度的 CDK 门户向仪表板中的一些组件注入动态内容。你可以在我的 GitHub 上找到完整的示例代码。</p>
+<p>CDK 门户是一个强大的功能。它的主要优点包括灵活性和干净的分离。它让我们能够将内容“传送”到屏幕中的任何组件，即使它在当前组件树之外。</p>
+<p>我希望这篇文章能帮助你在自己的应用程序中应用这种技术！</p><div class="code-block code-block-19">
+<div class="blog-plug inline-plug angular-plug"><h2>像用户一样体验 Angular 应用程序</h2><p>调试 Angular 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，</p><a href="https://lp.logrocket.com/blg/angular-signup">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你网站上发生的一切，包括网络请求、JavaScript 错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket NgRx 插件将角度状态和动作记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化调试 Angular 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

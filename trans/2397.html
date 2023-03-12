@@ -1,0 +1,397 @@
+<html>
+<head>
+<title>Getting started with esbuild - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>esbuild 入门- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/getting-started-esbuild/#0001-01-01">https://blog.logrocket.com/getting-started-esbuild/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>捆绑 JavaScript 应用程序需要时间，而且可能很复杂。一个单独的捆绑过程不会花费很多时间，但是在您的开发过程中，捆绑过程累积起来会大大延迟您的开发过程。</p>
+<p>除此之外，捆绑 JavaScript 应用程序通常需要您编写一个配置文件。如果你用<code>webpack</code>捆绑一个 JavaScript 应用，你需要写<code>webpack.config.js</code>。这是很大的认知开销。</p>
+<p>这就是<a href="https://blog.logrocket.com/fast-javascript-bundling-with-esbuild/" target="_blank" rel="noopener"> esbuild </a>的用武之地。Esbuild 是一个用 Go 编写的快速简单的 JavaScript bundler。</p>
+<p>在本文中，您将了解如何使用 esbuild 捆绑 JavaScript 应用程序。您将探索常见的用例，从捆绑<a href="https://blog.logrocket.com/whats-new-in-typescript-4-2/" target="_blank" rel="noopener"> TypeScript </a>、React、图像文件和 CSS 文件到作为服务器服务于捆绑过程。</p>
+<h2>安装 esbuild</h2>
+<p>首先，使用 npm 安装捆扎机:</p>
+<pre class="language-shell hljs">$ npm install -g esbuild
+</pre>
+<p>然后，您可以通过调用 esbuild 来验证安装:</p>
+<pre class="language-javascript hljs">$ esbuild --version
+0.13.12
+</pre>
+<p>如果您不想全局安装 esbuild，也可以这样做:</p>
+<pre class="language-shell hljs">$ npm install esbuild
+</pre>
+<p>但是您必须使用完整的路径来调用 esbuild:</p>
+<pre class="language-javascript hljs">$ ./node_modules/.bin/esbuild --version
+0.13.12
+</pre>
+<h2>将 TypeScript 与 esbuild 捆绑在一起</h2>
+<p>使用 esbuild 要完成的第一项任务是绑定一个 TypeScript 文件。创建一个名为<code>input_typescript.ts</code>的文件，并向其中添加以下代码:</p>
+<pre class="language-typescript hljs">    let message: string = "Hello, esbuild!";
+console.log(message);
+</pre>
+<p>您可以通过 CLI 捆绑类型脚本代码:</p>
+<pre class="language-typescript hljs">$ esbuild input_typescript.ts --outfile=output.js --bundle --loader:.ts=ts
+
+  output.js  99b 
+
+⚡ Done in 7ms
+</pre>
+<p>然后，检查捆绑文件的内容，如下所示:</p>
+<pre class="language-typescript hljs">(() =&gt; {
+  // input_typescript.ts
+  var message = "Hello, esbuild!";
+  console.log(message);
+})();
+</pre>
+<p>esbuild 命令接受<code>input_typescript.ts</code>作为参数。我们将这个参数称为入口点，因为它是应用程序开始的地方。</p>
+<p>然后，提供<code>outfile</code>选项来定义输出文件。如果不提供此选项，esbuild 会将结果发送到 stdout。<code>loader</code>选项是用于加载 TypeScript 文件扩展名的选项。但是，您可以省略此选项，因为 esbuild 可以根据文件扩展名决定使用哪个加载程序。</p>
+<p>使用 bundle 选项，<code>esbuild</code>会将所有依赖项内联到输出文件中。让我们来看一个演示，看看有什么不同。</p>
+<p>假设您有一个名为<code>main.ts</code>的文件，其内容如下:</p>
+<pre class="language-typescript hljs">import { SayHello } from "./library";
+
+SayHello();
+</pre>
+<p><code>main.ts</code>文件从<code>library.ts</code>导入<code>SayHello</code>，其内容如下:</p>
+<pre class="language-typescript hljs">export function SayHello() {
+  console.log("Hello, esbuild!");
+}
+</pre>
+<p>如果不使用<code>bundle</code>选项，esbuild 将只在结果中导入依赖项:</p>
+<pre class="language-javascript hljs">$ esbuild main.ts 
+import { SayHello } from "./library";
+SayHello();
+</pre>
+<p>但是如果您使用了<code>bundle</code>选项，esbuild 会在结果中内联库的内容:</p>
+<pre class="language-javascript hljs">$ esbuild main.ts --bundle
+(() =&gt; {
+  // library.ts
+  function SayHello() {
+    console.log("Hello, esbuild!");
+  }
+
+  // main.ts
+  SayHello();
+})();
+</pre>
+<p>使用<code>bundle</code>选项，您可以将所有代码打包到一个文件中。换句话说，两个文件变成一个文件。</p>
+<h2>捆绑与 esbuild 反应</h2>
+<p>将 React 库集成到您的项目中是一项复杂的任务。它甚至保证创建一个<a href="https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/" target="_blank" rel="noopener"> Create React App 项目</a>。如果你想用 webpack 把 React 加入你的项目，你就得忍受<a href="https://blog.logrocket.com/versatile-webpack-configurations-react-application/" target="_blank" rel="noopener">一个复杂的 webpack.config.js </a>的编写过程。</p>
+<p>但是使用 esbuild，这是一个简单的过程。</p>
+<p>首先，使用 npm 安装 React 库:</p>
+<pre class="language-shell hljs">$ npm install react react-dom
+</pre>
+<p>然后创建一个名为<code>App.js</code>的 JavaScript 文件。将以下代码添加到文件中:</p>
+<pre class="language-javascript hljs">import React from "react";
+import ReactDOM from "react-dom";
+
+function App() {
+  return (
+    &lt;div&gt;Hello, esbuild!&lt;/div&gt;
+  );
+}
+
+ReactDOM.render(&lt;App /&gt;, document.getElementById("root"));
+</pre>
+<p>创建一个名为<code>index.html</code>的 HTML 文件，这样 React 可以将您的应用程序呈现到带有 ID root 的 div 中。将以下代码添加到文件中:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+  &lt;meta charset="UTF-8" /&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"&gt;
+  &lt;title&gt;Hello, esbuild!&lt;/title&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+  &lt;div id="root"&gt;&lt;/div&gt;
+  &lt;script src="AppBundle.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+
+&lt;/html
+</pre>
+<p>在 HTML 文件中，我们使用的是<code>AppBundle.js</code>。这是捆绑的 JavaScript 文件的名称。</p>
+<p>现在，将<code>App.js</code>捆绑到<code>AppBundle.js</code>:</p>
+<pre class="language-javascript hljs">$ esbuild App.js --bundle --outfile=AppBundle.js --loader:.js=jsx
+
+  AppBundle.js  890.8kb
+
+⚡ Done in 46ms
+</pre>
+<p>您已经学习了上一节中的所有选项。您使用<code>bundle</code>选项，因为您想要捆绑 JavaScript 文件。然后，使用<code>outfile</code>选项给输出文件命名。</p>
+<p>最后一个选项<code>loader</code>，实际上并不是可选的。告诉 esbuild 使用 JSX 加载器来加载带有。js 扩展名，因为 JSX 语法在<code>App.js</code>里面。如果不使用 JSX 加载器，esbuild 将抛出一个错误。如果输入文件的扩展名为，则可以省略 loader 选项。因此，如果您将 JavaScript 文件命名为<code>App.jsx</code>，那么您可以省略<code>loader</code>选项。</p>
+<p>既然有了<code>AppBundle.js</code>，那我们就打开<code>index.html</code>来检查一下你的捆绑过程是否有效。您必须使用 http 协议打开<code>index.html</code>，而不是文件协议。</p>
+<p>然后，您可以使用<code>http-server</code>提供 HTML 文件:</p>
+<pre class="language-shell hljs">$ npx http-server
+</pre>
+<p>最后打开<a href="http://localhost:8080/index.html" rel="nofollow">http://localhost:8080/index . html</a>。您应该会看到下面的屏幕:</p>
+<p><img data-attachment-id="78405" data-permalink="https://blog.logrocket.com/getting-started-esbuild/react-bundled-esbuild/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png" data-orig-size="598,341" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React-bundled-esbuild" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png" decoding="async" class="size-full wp-image-78405 aligncenter jetpack-lazy-image" src="../Images/1e3446a827b629b5315688ceb551f756.png" alt="The React app bundled with esbuild" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png 598w, https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild-300x171.png 300w" data-lazy-sizes="(max-width: 598px) 100vw, 598px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="78405" data-permalink="https://blog.logrocket.com/getting-started-esbuild/react-bundled-esbuild/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png" data-orig-size="598,341" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React-bundled-esbuild" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png" decoding="async" loading="lazy" class="size-full wp-image-78405 aligncenter" src="../Images/1e3446a827b629b5315688ceb551f756.png" alt="The React app bundled with esbuild" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png 598w, https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild-300x171.png 300w" sizes="(max-width: 598px) 100vw, 598px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/React-bundled-esbuild.png"/></noscript>
+<h2>使用构建 API</h2>
+<p>虽然您可以用 CLI 捆绑您的 JavaScript 文件，但是您也可以选择使用<a href="https://esbuild.github.io/api/#build-api">构建 API </a>。</p>
+<p>假设你想把<code>input_typescript.ts</code>捆绑成<code>output.js</code>。这是您将使用的命令:</p>
+<pre class="language-javascript hljs">$ esbuild input_typescript.ts --outfile=output.js --bundle --loader:.ts=ts
+</pre>
+<p>让我们试试构建 API。编写一个名为<code>build.js</code>的 JavaScript 文件，并添加以下代码:</p>
+<pre class="language-javascript hljs">require("esbuild").build({
+  entryPoints: ["input_typescript.ts"],
+  outfile: "output.js",
+  bundle: true,
+  loader: {".ts": "ts"}
+})
+.then(() =&gt; console.log("⚡ Done"))
+.catch(() =&gt; process.exit(1));
+</pre>
+<p>导入 esbuild 库并使用其中的<code>build</code>方法。该参数是一个对象，其键和值类似于 esbuild 命令中的选项。</p>
+<p>然后，您可以使用 Node.js 执行绑定过程:</p>
+<pre class="language-javascript hljs">$ node build.js
+⚡ Done
+</pre>
+<p>您可以将<code>build</code>文件视为配置文件。就像<code>webpack.config.js</code>一样，只是针对 esbuild。</p>
+<h2>将 CSS 与 esbuild 捆绑在一起</h2>
+<p>让我们尝试捆绑其他东西，比如 CSS 文件。创建一个名为<code>color.css</code>的 CSS 文件，并向其中添加以下代码:</p>
+<pre class="language-css hljs">.beautiful {
+  color: rgb(0,0,255);
+}
+</pre>
+<p>然后，创建另一个 CSS 文件来导入上面的 CSS 文件。将其命名为<code>style.css</code>，并向其中添加以下代码:</p>
+<pre class="language-css hljs">@import 'color.css';
+
+p {
+  font-weight: bold;
+}
+</pre>
+<p>要捆绑这两个 CSS 文件，可以使用 esbuild，如下所示:</p>
+<pre class="language-javascript hljs">$ esbuild style.css --outfile=out.css --bundle
+
+  out.css  100b 
+
+⚡ Done in 7ms
+</pre>
+<p><code>out.css</code>的内容将是两个 CSS 文件的组合:</p>
+<pre class="language-css hljs">/* color.css */
+.beautiful {
+  color: rgb(0, 0, 255);
+}
+
+/* style.css */
+p {
+  font-weight: bold;
+}
+</pre>
+<p>现在，您可以在 HTML 文件中只包含这一个文件。</p>
+<p>您也可以使用<code>minify</code>选项缩小 CSS 文件:</p>
+<pre class="language-javascript hljs">$ esbuild style.css --outfile=out.css --bundle --minify
+
+  out.css  42b 
+
+⚡ Done in 3ms
+</pre>
+<p>CSS 文件的内容将会很紧凑，如下所示:</p>
+<pre class="language-css hljs">.beautiful{color:#00f}p{font-weight:bold}
+</pre>
+<p>如你所见，捆绑器甚至改变了你指定颜色的方式。输入文件使用 rgb 语法，但是输出文件使用十六进制代码，这样更紧凑。</p>
+<h2>捆绑图像</h2>
+<p>您还可以将映像与 esbuild 捆绑在一起。捆绑图像有两种选择:第一种是将图像作为外部文件加载到 JavaScript 文件中，第二种是将图像作为 Base64 编码的数据 URL 嵌入到 JavaScript 文件中。</p>
+<p>我们来看看区别。首先，将一个 JPG 文件和一个 PNG 文件放入项目目录。您需要两个具有不同扩展名的图像，因为您希望以不同的方式加载这两个图像。命名 PNG 图像<code>image.png</code>和 JPG 图像<code>image.jpg</code>。</p>
+<p>创建一个名为<code>images.html</code>的 HTML 文件，并添加以下内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+  &lt;meta charset="UTF-8" /&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"&gt;
+  &lt;title&gt;Hello, esbuild!&lt;/title&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+  &lt;div id="root"&gt;
+    &lt;div&gt;
+      &lt;img id="image_png" /&gt;
+    &lt;/div&gt;
+    &lt;div&gt;
+      &lt;img id="image_jpg" /&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;script src="out_image.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</pre>
+<p>然后，您需要创建一个 JavaScript 文件。将其命名为<code>input_image.js</code>，并添加以下代码:</p>
+<pre class="language-javascript hljs">import png_url from './image.png'
+const png_image = document.getElementById("image_png");
+png_image.src = png_url;
+
+import jpg_url from './image.jpg'
+const jpg_image = document.getElementById("image_jpg");
+jpg_image.src = jpg_url
+</pre>
+<p>接下来，使用 JavaScript 文件中的 import 语句加载图像。与绑定 CSS 文件不同，您不直接绑定图像，而是通过绑定引用图像的 JavaScript 文件来绑定图像。</p>
+<p>现在，捆绑 JavaScript 文件:</p>
+<pre class="language-javascript hljs">$ esbuild input_image.js --bundle --loader:.png=dataurl --loader:.jpg=file --outfile=out_image.js
+
+  out_image.js        20.1kb
+  image-UKQOKISI.jpg  10.1kb
+
+⚡ Done in 11ms
+</pre>
+<p>请注意，您使用了两台装载机。的。png 扩展使用<code>dataurl</code>加载器和。jpg 扩展使用了<code>file</code>加载器。你将得到一个不同的名字，而不是<code>image-UKQOKISI.jpg</code>。</p>
+<p>如果你偷看<code>out_image.js</code>里面，你会看到以下内容:</p>
+<pre class="language-javascript hljs">(() =&gt; {
+  // image.png
+  var image_default = "data:image/png;base64,iVBORw0KGgoAAAANSU..."
+
+  // image.jpg
+  var image_default2 = "./image-UKQOKISI.jpg";
+
+  // input_image.js
+  var png_image = document.getElementById("image_png");
+  png_image.src = image_default;
+  var jpg_image = document.getElementById("image_jpg");
+  jpg_image.src = image_default2;
+})();
+</pre>
+<p>如您所见，第一幅图像使用了 Based64 编码的数据 URL 格式。第二个图像使用文件路径格式。对于第二个图像，您还有一个名为<code>image-UKQOKISI.jpg</code>的外部文件。</p>
+<p>您可以通过打开<code>images.html</code>来检查图像:</p>
+<pre class="language-shell hljs">$ npx http-server
+</pre>
+<p>打开<a href="http://localhost:8080/images.html" rel="nofollow">http://localhost:8080/images . html</a>，你会看到下面的屏幕:</p>
+<p><img data-attachment-id="78407" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-bundled-images-html/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png" data-orig-size="548,361" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-bundled-images-html" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png" decoding="async" class="size-full wp-image-78407 aligncenter jetpack-lazy-image" src="../Images/538bea1e42bf507bd349e48137e0530f.png" alt="The HTML file loads images" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png 548w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html-300x198.png 300w" data-lazy-sizes="(max-width: 548px) 100vw, 548px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="78407" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-bundled-images-html/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png" data-orig-size="548,361" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-bundled-images-html" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png" decoding="async" loading="lazy" class="size-full wp-image-78407 aligncenter" src="../Images/538bea1e42bf507bd349e48137e0530f.png" alt="The HTML file loads images" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png 548w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html-300x198.png 300w" sizes="(max-width: 548px) 100vw, 548px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-bundled-images-html.png"/></noscript>
+<h2>使用插件</h2>
+<p>Esbuild 不是完整的捆绑解决方案。它默认支持 React、CSS 和 images，但不支持 SASS。如果你想捆绑 SASS 文件，你需要安装一个 esbuild 插件。esbuild 插件的列表可以在<a href="https://github.com/esbuild/community-plugins">这里</a>找到。</p>
+<p>有几个插件捆绑了 SASS 文件。在本教程中，您将使用<code>esbuild-plugin-sass</code>。使用 npm 安装插件，如下所示:</p>
+<pre class="language-shell hljs">$ npm install esbuild-plugin-sass
+</pre>
+<p>让我们创建一个名为<code>style.scss</code>的 SCSS 文件。添加以下内容:</p>
+<pre class="language-scss hljs">$font: Roboto;
+$color: rgb(0, 0, 255);
+
+#root {
+  font: 1.2em $font;
+  color: $color;
+}
+</pre>
+<p>要使用<code>esbuild-plugin-sass</code>插件，您需要使用构建 API。创建一个名为<code>sass_build.js</code>的文件，并添加以下内容:</p>
+<pre class="language-javascript hljs">const sassPlugin = require("esbuild-plugin-sass");
+
+require("esbuild").build({
+  entryPoints: ["style.scss"],
+  outfile: "bundle.css",
+  bundle: true,
+  plugins: [sassPlugin()]
+})
+.then(() =&gt; console.log("⚡ Done"))
+.catch(() =&gt; process.exit(1));
+</pre>
+<p>注意，您使用插件时使用了<code>plugins</code>键。该条目是 SCSS 文件，但是您也可以用 JavaScript 文件填充该条目，JavaScript 文件导入 SCSS 文件。输出是 CSS 文件。</p>
+<p>执行此构建文件:</p>
+<pre class="language-javascript hljs">$ node sass_build.js
+⚡ Done
+</pre>
+<p>您可以通过打开<code>bundle.css</code>文件来检查结果:</p>
+<pre class="language-css hljs">/* ../../../../../../tmp/tmp-234680-cl7EYSZ4C0qM/esbuild_demo/style.css */
+#root {
+  font: 1.2em Roboto;
+  color: blue;
+}
+</pre>
+<h2>观看模式</h2>
+<p>每次修改输入文件时都执行捆绑过程并不好玩。应该有一种自动捆绑输入文件的方法。对于这种情况，esbuild 有<code>watch</code>模式。</p>
+<p>创建一个名为<code>watch_build.js</code>的文件，并添加以下内容:</p>
+<pre class="language-javascript hljs">require("esbuild").build({
+  entryPoints: ["input_typescript.ts"],
+  outfile: "output.js",
+  bundle: true,
+  loader: {".ts": "ts"},
+  watch: true
+})
+.then(() =&gt; console.log("⚡ Done"))
+.catch(() =&gt; process.exit(1));
+</pre>
+<p><code>input_typescript.ts</code>文件与前面的例子相同。这是文件的内容:</p>
+<pre class="language-typescript hljs">let message: string = "Hello, esbuild!";
+console.log(message);
+</pre>
+<p>像这样执行构建文件:</p>
+<pre class="language-javascript hljs">$ node watch_build.js
+⚡ Done
+</pre>
+<p>进程挂起。检查<code>output.js</code>的内容:</p>
+<pre class="language-javascript hljs">(() =&gt; {
+  // input_typescript.ts
+  var message = "Hello, esbuild!";
+  console.log(message);
+})();
+</pre>
+<p>当构建过程仍然有效时，将<code>input_typescript.ts</code>的内容更改为如下所示的内容:</p>
+<pre class="language-typescript hljs">let message: string = "Hello, esbuild!";
+let x: number = 3;
+console.log(message);
+console.log(x);
+</pre>
+<p>最后，再次检查<code>output.js</code>的内容:</p>
+<pre class="language-javascript hljs">(() =&gt; {
+  // input_typescript.ts
+  var message = "Hello, esbuild!";
+  var x = 3;
+  console.log(message);
+  console.log(x);
+})();
+</pre>
+<p>输出文件会自动更新。<code>watch</code>监视文件系统，以便 esbuild 可以在检测到文件更改时捆绑输入文件。</p>
+<h2>服务模式</h2>
+<p>还有一种自动捆绑文件的方式叫做<code>serve</code>模式。这意味着您启动一个服务器来提供输出文件。如果有人从浏览器请求输出文件，如果文件被更改，服务器将自动捆绑输入文件。</p>
+<p>让我们创建一个名为<code>index_ts.html</code>的 HTML 文件，并向其中添加以下代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+  &lt;meta charset="UTF-8" /&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"&gt;
+  &lt;title&gt;Hello, esbuild!&lt;/title&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+  &lt;script src="output.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</pre>
+<p>输出文件是<code>output.js</code>，用户通过访问<code>index_ts.html</code>间接请求。输入的文件和以前一样，<code>input_typescript.ts</code>。该文件的内容如下:</p>
+<pre class="language-typescript hljs">let message: string = "Hello, esbuild!";
+console.log(message);
+</pre>
+<p>这就是使用<code>serve</code>模式捆绑文件的方法:</p>
+<pre class="language-javascript hljs">$ esbuild input_typescript.ts --outfile=output.js --bundle --loader:.ts=ts --serve=localhost:8000 --servedir=.
+
+ &gt; Local: http://127.0.0.1:8000/
+</pre>
+<p><code>serve</code>选项用于定义服务器和端口。<code>servedir</code>选项定义了服务器服务的目录。</p>
+<p>现在，打开<a href="http://127.0.0.1/8000/index_ts.html" rel="nofollow">http://127 . 0 . 0 . 1/8000/index _ ts . html</a>查看控制台:</p>
+<p><img data-attachment-id="78409" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-serve-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png" data-orig-size="517,332" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-serve-mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-300x193.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png" decoding="async" class="size-full wp-image-78409 aligncenter jetpack-lazy-image" src="../Images/1abfcd3b89a548ded85d34e3119ff898.png" alt="The bundler in serve mode" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png 517w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-300x193.png 300w" data-lazy-sizes="(max-width: 517px) 100vw, 517px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="78409" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-serve-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png" data-orig-size="517,332" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-serve-mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-300x193.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png" decoding="async" loading="lazy" class="size-full wp-image-78409 aligncenter" src="../Images/1abfcd3b89a548ded85d34e3119ff898.png" alt="The bundler in serve mode" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png 517w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-300x193.png 300w" sizes="(max-width: 517px) 100vw, 517px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode.png"/></noscript>
+<p>将<code>input_typescript.ts</code>修改成以下代码:</p>
+<pre class="language-typescript hljs">let message: string = "Hello, esbuild!";
+let x: number = 5;
+console.log(message);
+console.log(x);
+</pre>
+<p>现在刷新浏览器或者再次打开<a href="http://127.0.0.1/8000/index_ts.html" rel="nofollow">http://127 . 0 . 0 . 1/8000/index _ ts . html</a>。您将看到以下屏幕:</p>
+<p><img data-attachment-id="78411" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-serve-mode-automatic/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png" data-orig-size="515,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-serve-mode-automatic" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png" decoding="async" class="size-full wp-image-78411 aligncenter jetpack-lazy-image" src="../Images/32cfa947a09f3ef93a60faa638d87f39.png" alt="The bundler in the serve mode" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png 515w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic-300x190.png 300w" data-lazy-sizes="(max-width: 515px) 100vw, 515px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="78411" data-permalink="https://blog.logrocket.com/getting-started-esbuild/esbuild-serve-mode-automatic/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png" data-orig-size="515,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="esbuild-serve-mode-automatic" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png" decoding="async" loading="lazy" class="size-full wp-image-78411 aligncenter" src="../Images/32cfa947a09f3ef93a60faa638d87f39.png" alt="The bundler in the serve mode" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png 515w, https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic-300x190.png 300w" sizes="(max-width: 515px) 100vw, 515px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/esbuild-serve-mode-automatic.png"/></noscript>
+<p>如您所见，捆绑过程是自动发生的。</p>
+<h2>结论</h2>
+<p>在本文中，您了解了如何使用 esbuild 捆绑 TypeScript、React、CSS、图像文件和 SCSS 文件。您通过 CLI 和构建 API 使用了 esbuild 工具。您根据自己的需要用不同的选项执行了 esbuild。</p>
+<p>本文只是触及了 esbuild 的皮毛。esbuild 还有许多方面我们没有涉及，比如使用 sourcemap、注入函数和命名资产。请查看文档以了解更多信息。这篇文章的代码可以在<a href="https://github.com/arjunaskykok/esbuild-demo" target="_blank" rel="noopener">的 GitHub 库</a>上找到。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

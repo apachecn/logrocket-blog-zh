@@ -1,0 +1,191 @@
+<html>
+<head>
+<title>Building a reusable auth flow in React Native - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 React Native - LogRocket 博客中构建可重用的认证流</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-reusable-auth-flow-react-native/#0001-01-01">https://blog.logrocket.com/building-reusable-auth-flow-react-native/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在开始一个新的应用程序开发项目时获得正确的身份验证流程可以节省大量的时间。为此，今天我们将学习如何在 React Native 中创建一个可重用的 auth 流。</p>
+<p>本教程的目标是演示如何从头到尾建立一个基本但真实的授权流。结果将是一个通用的解决方案，可以处理大多数身份验证用例，我们可以很容易地将其复制粘贴到我们的下一个项目中。</p>
+<h3 id="h3requirements">要求</h3>
+<p>要遵循本教程，请确保您的开发设置包括以下配置:</p>
+<ul>
+<li>安装的节点版本≥10.x.x</li>
+<li>一个包管理器，如 npm 或 Yarn</li>
+<li><code>react-native-cli</code>安装在您的本地机器上</li>
+</ul>
+<p>请注意，我们在本教程中使用的是<a href="https://blog.logrocket.com/whats-new-in-react-native-0-64/"> React 原生版本 0.64.0 </a>，所以让你使用的是版本≥0.60.x。</p>
+<p>对于在本地机器上为 React Native 设置开发环境的完整演练，您可以在这里浏览官方文档。</p>
+<h2 id="h2reactnativeprojectsetup">反应本地项目设置</h2>
+<p>我们现在将创建一个新的 React 本地项目。首先，我们将创建一个目录来包含我们所有的代码，然后<code>cd</code>进入那个目录。我们选择了<code>RNauthflow</code>作为应用程序名称，并将在整个教程中使用这个名称，但是您可以使用您喜欢的任何名称。</p>
+<p>运行此命令创建基本项目文件和配置:</p>
+<pre>npx react-native init RNauthflow
+# navigate to project directory
+cd RNauthflow
+</pre>
+<p>完成基本项目设置后，我们可以安装运行和构建演示应用程序所需的所有依赖项:</p>
+<pre># for navigation
+
+yarn add @react-navigation/native @react-navigation/stack react-native-reanimated react-native-gesture-handler react-native-screens react-native-safe-area-context @react-native-community/masked-view
+</pre>
+<p>如果你不熟悉的话，在 React 本地项目中使用 React 导航是值得一读的。为了在 iOS 上完成安装，你必须安装 pods(注意，确保你已经安装了<a href="https://cocoapods.org/">cocoa pods</a>)。</p>
+<pre>cd ios/ &amp;&amp; pod install
+# once pod dependency installed
+cd ..
+# to run on ios 
+react-native run-ios
+# to run in android
+react-native run-andriod
+</pre>
+<h2 id="h2creatingautilityfunctiontostoretokens">创建一个实用函数来存储令牌</h2>
+<p>为了在这里存储令牌，我们使用了<code>react-native-async-storage/async-storage</code> npm 包。<br/>不过，目前已经有针对 Android 和 iOS 平台的解决方案。</p>
+<p>要开始使用，首先安装<code>react-native-async-storage/async-storage</code>:</p>
+<pre>yarn add @react-native-async-storage/async-storage  
+</pre>
+<p>然后，我们可以像这样轻松地实现我们的助手函数:</p>
+<pre>// async-storage.js file
+import AsyncStorage from '@react-native-async-storage/async-storage';
+export async function getItem() {
+  const value = await AsyncStorage.getItem('token');
+  return value ? JSON.parse(value) : null;
+}
+export async function setItem(value) {
+  return AsyncStorage.setItem('token', JSON.stringify(value));
+}
+export async function removeItem() {
+  return AsyncStorage.removeItem('token');
+}
+</pre>
+<h2 id="h2creatingtheauthcontext">创建身份验证上下文</h2>
+<p>注意，我们没有使用任何库来管理我们的项目状态。我们可以使用任何我们想要的状态管理库，但是这里我们将使用 React Context API，它提供了一种在组件之间共享值的方法，而不必通过树的每一层显式地传递一个属性。</p>
+<p>首先，我们创建一个简单的 auth 上下文并实现提供者组件。我们<br/>在我们的 auth 上下文中有<code>status</code>、<code>authToken</code>、<code>signIn</code>和<code>signOut</code>。我们正在使用<code>useReducer</code>方法来更新状态，这将有助于使我们的代码干净并且易于遵循。</p>
+<p>我们用<code>useMemo</code>钩子创建了我们的 auth 动作来记忆它们。这种优化有助于避免在每次渲染时生成新的实例。最后，我们使用<code>AuthProvider</code>来包装我们的应用程序:</p>
+<pre>/**
+* AuthProvider.js file
+*
+**/
+import * as React from 'react';
+import {
+  getItem as getToken,
+  setItem as setToken,
+  removeItem as removeToken,
+} from './async-storage';
+const AuthContext = React.createContext({
+  status: 'idle',
+  authToken: null,
+  signIn: () =&gt; {},
+  signOut: () =&gt; {},
+});
+export const useAuthorization = () =&gt; {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('Error');
+  }
+  return context;
+};
+export const AuthProvider = props =&gt; {
+  const [state, dispatch] = React.useReducer(reducer, {
+    status: 'idle',
+    authToken: null,
+  });
+  React.useEffect(() =&gt; {
+    const initState = async () =&gt; {
+      try {
+        const authToken = await getToken();
+        if (authToken !== null) {
+          dispatch({type: 'SIGN_IN', token: authToken});
+        } else {
+          dispatch({type: 'SIGN_OUT'});
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    };
+    initState();
+  }, [state, dispatch]);
+  const actions = React.useMemo(
+    () =&gt; ({
+      signIn: async token =&gt; {
+        dispatch({type: 'SIGN_IN', token});
+        await setToken(token);
+      },
+      signOut: async () =&gt; {
+        dispatch({type: 'SIGN_OUT'});
+        await removeToken();
+      },
+    }),
+    [state, dispatch],
+  );
+  return (
+    &lt;AuthContext.Provider value={{...state, ...actions}}&gt;
+      {props.children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+const reducer = (state, action) =&gt; {
+  switch (action.type) {
+    case 'SIGN_OUT':
+      return {
+        ...state,
+        status: 'signOut',
+        authToken: null,
+      };
+    case 'SIGN_IN':
+      return {
+        ...state,
+        status: 'signIn',
+        authToken: action.token,
+      };
+  }
+};
+</pre>
+<h2 id="h2addingscreensandnavigation">添加屏幕和导航</h2>
+<p>让我们在<code>src/screens/</code>目录中创建两个新的屏幕，<code>HomeScreen</code>和<code>LoginScreen</code>。如果用户没有通过身份验证，这个屏幕组件将负责显示一个登录屏幕。一旦用户获得授权，他们将能够访问主屏幕。</p>
+<p>这里我们使用的是 React Navigation v5。它遵循一种更加基于组件的方法，使用一个<code>NavigatorContainer</code>和一个<code>createStackNavigator</code>实例:</p>
+<pre>/**
+* Home.js file
+*
+*/
+import * as React from 'react';
+import {NavigationContainer} from '@react-navigation/native';
+import {createStackNavigator} from '@react-navigation/stack';
+import {HomeScreen, LoginScreen} from '../screens';
+const Stack = createStackNavigator();
+export function Home() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator initialRouteName="Root" headerMode="none"&gt;
+        &lt;Stack.Screen name="Home" component={HomeScreen} /&gt;
+        &lt;Stack.Screen name="Auth" component={LoginScreen} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+</pre>
+<p>如果我们在模拟器或设备上检查应用程序，我们应该会看到类似下面的输出:</p>
+<figure id="attachment_46116" aria-describedby="caption-attachment-46116" class="wp-caption aligncenter"><img data-attachment-id="46116" data-permalink="https://blog.logrocket.com/building-reusable-auth-flow-react-native/react-native-auth-flow-sign-in/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png" data-orig-size="444,903" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-native-auth-flow-sign-in-screen" data-image-description="" data-image-caption="&lt;p&gt;The login screen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in-148x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png" decoding="async" class="wp-image-46116 size-full jetpack-lazy-image" src="../Images/1f6569c32c4f00c0d760a9a24b93025a.png" alt="React Native Auth Flow Sign In Screen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png 444w, https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in-148x300.png 148w" data-lazy-sizes="(max-width: 444px) 100vw, 444px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46116" data-permalink="https://blog.logrocket.com/building-reusable-auth-flow-react-native/react-native-auth-flow-sign-in/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png" data-orig-size="444,903" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-native-auth-flow-sign-in-screen" data-image-description="" data-image-caption="&lt;p&gt;The login screen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in-148x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png" decoding="async" loading="lazy" class="wp-image-46116 size-full" src="../Images/1f6569c32c4f00c0d760a9a24b93025a.png" alt="React Native Auth Flow Sign In Screen" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png 444w, https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in-148x300.png 148w" sizes="(max-width: 444px) 100vw, 444px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-sign-in.png"/></noscript><figcaption id="caption-attachment-46116" class="wp-caption-text">The login screen.</figcaption></figure>
+<figure id="attachment_46119" aria-describedby="caption-attachment-46119" class="wp-caption aligncenter"><img data-attachment-id="46119" data-permalink="https://blog.logrocket.com/building-reusable-auth-flow-react-native/react-native-auth-flow-homepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png" data-orig-size="445,890" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-native-auth-flow-homepage" data-image-description="" data-image-caption="&lt;p&gt;The home screen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage-150x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png" decoding="async" class="wp-image-46119 size-full jetpack-lazy-image" src="../Images/721396806b8f79a98800d27a86febb55.png" alt="React Native Auth Flow Homepage" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png 445w, https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage-150x300.png 150w" data-lazy-sizes="(max-width: 445px) 100vw, 445px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46119" data-permalink="https://blog.logrocket.com/building-reusable-auth-flow-react-native/react-native-auth-flow-homepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png" data-orig-size="445,890" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-native-auth-flow-homepage" data-image-description="" data-image-caption="&lt;p&gt;The home screen.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage-150x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png" decoding="async" loading="lazy" class="wp-image-46119 size-full" src="../Images/721396806b8f79a98800d27a86febb55.png" alt="React Native Auth Flow Homepage" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png 445w, https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage-150x300.png 150w" sizes="(max-width: 445px) 100vw, 445px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/react-native-auth-flow-homepage.png"/></noscript><figcaption id="caption-attachment-46119" class="wp-caption-text">The home screen.</figcaption></figure>
+<p>要使用这个解决方案，我们需要用<code>AuthProvider</code>包装我们的<code>Root(App)</code>组件，并且我们可以开始使用我们的可重用授权流。</p>
+<pre>export default function App() {
+  return (
+    &lt;AuthProvider&gt;
+      &lt;Home /&gt;
+    &lt;/AuthProvider&gt;
+  );
+}
+</pre>
+<h2 id="h2conclusion">结论</h2>
+<p>现在，我们已经成功地创建了一个通用的、可重用的授权流。我们还学习了如何配置 React 导航和使用其基于组件的方法。我们可以继续使用 Firebase、Okta、Auth0 和其他工具部署这个可重用的授权流。</p>
+<p>最后但同样重要的是，你可以在<a href="https://github.com/mukeshmandiwal/RNauthflow"> GitHub repo 这里</a>找到这个演示中使用的完整代码。</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现 React 原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 React 原生监控解决方案，可帮助您即时重现问题、确定 bug 的优先级并了解 React 原生应用的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p>
+<p>开始主动监控您的 React 原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

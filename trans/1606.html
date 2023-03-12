@@ -1,0 +1,370 @@
+<html>
+<head>
+<title>Deep dive into Laravel Livewire - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>深入了解 Laravel Livewire - LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deep-dive-into-laravel-livewire/#0001-01-01">https://blog.logrocket.com/deep-dive-into-laravel-livewire/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Laravel Livewire 是一个用于构建动态界面的全栈 Laravel 框架。在不久前，要用 Laravel 构建一个应用程序，你要么必须:</p>
+<ol>
+<li>编写刀片模板并在服务器端呈现您的应用</li>
+<li>将后端编写为接受和响应 JSON 的 API，然后使用 Vue、React 或 Angular 等前端框架来使用 API 和实现 UI</li>
+</ol>
+<p>但是现在，我们有了第三个选择:Livewire。我很想深入探讨上面选项 1 和 2 的利弊，但这已经在<a href="https://blog.logrocket.com/livewire-vs-vue/">这篇写得很好的文章</a>中得到了公正的评价。</p>
+<p>在本文中，我们将深入探讨 Livewire，看看它如何应用于现实应用中。</p>
+<h3>我们将建造什么</h3>
+<p>我们将建立一个简单的博客应用程序，具有以下功能:</p>
+<ol>
+<li>任何人都可以创建帐户并登录</li>
+<li>登录的用户可以创建和更新他们自己的帖子</li>
+<li>任何人都可以阅读帖子</li>
+</ol>
+<h2>先决条件和设置</h2>
+<p>本教程假设您对 Laravel 相当有经验(注意，本教程使用的是 Laravel 7.x)。不需要事先有使用 Livewire 的经验——我想这就是我们在这里的原因。</p>
+<p>当然，首先，我们必须建立我们的开发环境。首先，创建一个新的 Laravel 应用程序:</p>
+<pre>composer create-project --prefer-dist laravel/laravel:^7.0 blog-wire
+</pre>
+<p>然后用 composer 安装 Livewire 软件包:</p>
+<pre>composer require livewire/livewire
+</pre>
+<p>创建一个新数据库，并将您的数据库凭证添加到<code>.env</code>文件中。这就是我们开始“直播连线”所需要的一切！</p>
+<h2>Livewire 是如何工作的？</h2>
+<p>在我们开始之前，最好先了解一下 Livewire 是如何工作的。概括地说:</p>
+<ul>
+<li>Livewire 将初始组件输出呈现到页面上——是的，就像典型的服务器呈现的刀片模板一样</li>
+<li>当交互发生时，Livewire 用更新的数据向服务器发出 AJAX 请求</li>
+<li>服务器重新呈现组件，并用更新的 HTML 进行响应</li>
+<li>然后，Livewire 根据变化的内容智能地改变 DOM</li>
+</ul>
+<p>如你所见，这就像把你的前端和后端放在一个地方，不需要重复逻辑。</p>
+<h2>Livewire 中的关键概念</h2>
+<h3>在页面上激活 Livewire</h3>
+<p>要让 Livewire 在页面上工作，您需要在每个需要的页面上包含 Livewire 样式和脚本。通常，这些会进入你的基本模板。你可以使用<code>@livewireStyles</code>和<code>@livewireScripts</code>来实现:</p>
+<pre>//app.blade.php
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;meta http-equiv="X-UA-Compatible" content="ie=edge"&gt;
+    &lt;title&gt;@yield('title')&lt;/title&gt;
+    @livewireStyles
+&lt;/head&gt;
+&lt;body&gt;
+    @yield('content')
+    @livewireScripts
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<h3>Livewire 组件</h3>
+<p>Livewire 围绕其组件竭尽全力。Livewire 组件与典型的基于 Laravel 刀片类的组件非常相似。让我们快速看一下这两个。</p>
+<h4>创建 Laravel 刀片组件</h4>
+<p>您可以通过运行以下命令来创建一个 Laravel 刀片组件:</p>
+<pre>php artisan make:component Alert
+</pre>
+<p>这将创建一个新的<code>Alert.php</code>类文件，并将其放在<code>App\Views\Components</code>文件夹中。然后，相应的视图模板被创建并放置在<code>resources/views/components</code>中。为了显示组件，您可以使用这个 Blade 语法:<code>&lt;x-alert/&gt;</code>。</p>
+<p>您可以在<a href="https://laravel.com/docs/7.x/blade#components">文档</a>中进一步了解 Laravel 刀片组件。</p>
+<h4>创建 Livewire 组件</h4>
+<p>要创建 Livewire 组件，请运行以下命令:</p>
+<pre>php artisan make:livewire Alert
+</pre>
+<p>该命令还将创建两个新文件:<code>app\Http\Livewire\Alert.php</code>和一个视图模板<code>resources/views/livewire/alert.php</code>。</p>
+<p>您可以使用<code>&lt;livewire:alert /&gt;</code>或<code>@livewire('alert')</code>渲染 Livewire 组件。</p>
+<p>如您所见，这些命令看起来非常相似。唯一的主要区别是，对于 Livewire 组件，在组件类和它的视图模板之间有一个实时同步(不需要刷新页面)。我们将很快看到这是如何工作的。</p>
+<h3>Livewire 属性</h3>
+<p>组件模板视图可以使用组件类的公共属性。不止于此——属性的值与视图实时同步，因此当您在视图中更新属性的值时，它会在组件类中自动更新。</p>
+<pre>//App\Http\Livewire\Alert.php
+&lt;?php
+class Alert extends Component{
+  public $message = "Our alert message";
+}
+
+// livewire/alert.blade.php
+&lt;div&gt;
+  &lt;input wire:model="message"&gt;
+  &lt;br/&gt;
+  {{ $message }}
+&lt;/div&gt;
+</pre>
+<p>要将组件属性绑定到 html input 元素，可以使用下面的 sytax:</p>
+<pre>wire:model="property name"
+</pre>
+<p>在输入框中输入，就会看到<code>$message</code>的值实时更新。这与 Vue.js、React、Angular 等框架中的数据绑定概念非常相似。点击了解更多关于 Livewire 属性<a href="https://laravel-livewire.com/docs/2.x/properties">的信息。</a></p>
+<h3>Livewire 动作</h3>
+<p>正如您可以将视图模板中的数据绑定到组件的公共属性一样，您也可以将客户端事件映射到组件中的方法。例如，您可以响应 click 事件、keyup 和 keydown 事件等。使用组件类中定义的方法。</p>
+<p>让我们看一个例子:</p>
+<pre>&lt;?php
+
+use Livewire\Component;
+class PostAlert extends Component{
+  public $liked = true;
+  public function render(){
+    return view('livewire.post-alert');
+  }
+
+  public function toggleLike(){
+    $this-&gt;liked = !$this-&gt;liked;
+  }
+}
+
+
+// livewire/post-alert.blade.php
+&lt;div&gt;
+    &lt;h4&gt;Seeing livewire action in action 😜&lt;/h4&gt;
+    &lt;button class="btn btn-primary" wire:click="toggleLike()"&gt;
+        Like
+    &lt;/button&gt;
+    @if ($liked)
+        &lt;i class="fa fa-heart text-danger h4"&gt;&lt;/i&gt;
+    @else
+        &lt;i class="fa fa-heart text-secondary h4"&gt;&lt;/i&gt;
+    @endif
+&lt;/div&gt;
+</pre>
+<p>在上面的组件类中，我们创建了一个方法<code>toggleLike()</code>,该方法将<code>liked</code>属性的值切换到其相反的布尔值。在模板视图中，我们有一个按钮和一个心形图标，根据<code>liked</code>属性的值，该图标被染成红色或灰色。</p>
+<p>我们使用了<code>wire:click=[action name]</code>语法将<code>toggleLike</code>方法绑定到点击事件。</p>
+<figure id="attachment_34979" aria-describedby="caption-attachment-34979" class="wp-caption aligncenter"><img data-attachment-id="34979" data-permalink="https://blog.logrocket.com/deep-dive-into-laravel-livewire/livewire-action-togglelike-event/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif" data-orig-size="500,181" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Livewire-Action-ToggleLike-Event" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event-300x109.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif" decoding="async" class="wp-image-34979 size-full jetpack-lazy-image" src="../Images/ff02f6bee7bda7235052eec0e9da8e24.png" alt="Livewire Action ToggleLike Event" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="34979" data-permalink="https://blog.logrocket.com/deep-dive-into-laravel-livewire/livewire-action-togglelike-event/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif" data-orig-size="500,181" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Livewire-Action-ToggleLike-Event" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event-300x109.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif" decoding="async" loading="lazy" class="wp-image-34979 size-full" src="../Images/ff02f6bee7bda7235052eec0e9da8e24.png" alt="Livewire Action ToggleLike Event" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Livewire-Action-ToggleLike-Event.gif"/></noscript><figcaption id="caption-attachment-34979" class="wp-caption-text">Livewire action toggling a button.</figcaption></figure>
+<p>许多 Livewire 的用例都围绕着属性和动作，因此，理解它们非常重要。这些概念可以适用于<code>create form</code>、<code>edit form</code>、<code>delete form</code>等事物。点击阅读更多关于 Livewire 行动<a href="https://laravel-livewire.com/docs/2.x/actions">的信息。</a></p>
+<h3>数据有效性</h3>
+<p>Livewire 使数据验证无缝化。要验证来自表单模板视图的数据，您需要编写一个包含验证规则的<code>$rules</code>属性，就像在 Laravel 中一样。此后，您调用方法中的<code>$this→validate()</code>进行验证。</p>
+<p>让我们来看一个创建博客帖子的表单:</p>
+<pre>...
+class CreatePost extends Component
+{
+    public $title, $body;
+    public $success;
+    protected $rules = [
+        'title' =&gt; 'required|string|max:220',
+        'body' =&gt; 'required'
+    ];
+
+    public function render()
+    {
+        return view('livewire.create-post')
+            -&gt;extends('layouts.app')
+            -&gt;section('content');
+    }
+    public function create(){
+        $this-&gt;validate();
+        Post::create([
+            'title' =&gt; $this-&gt;title,
+            'slug' =&gt; Str::slug($this-&gt;title),
+            'body' =&gt; $this-&gt;body,
+            'author_id' =&gt; auth()-&gt;id()
+        ]);
+
+        $this-&gt;success = true;
+    }
+}
+
+
+// livewire/create-post
+&lt;div class="container"&gt;
+    @if ($success)
+        &lt;div class="alert alert-success"&gt;
+            Post has been created successfully
+        &lt;/div&gt;
+    @endif
+    &lt;form wire:submit.prevent="create"&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="Post title"&gt;Post title&lt;/label&gt;
+            &lt;input wire:model="title" type="text" name="title" id="title" class="form-control" placeholder="Title of the post"&gt;
+            @error('title') &lt;span class="error"&gt;{{ $message }}&lt;/span&gt; @enderror
+        &lt;/div&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="Post body"&gt;Post Body&lt;/label&gt;
+            &lt;textarea name="body" id="body" placeholder="Body of post here..." wire:model="body" class="form-control"&gt;&lt;/textarea&gt;
+            @error('body') &lt;span class="error"&gt;{{ $message }}&lt;/span&gt; @enderror
+        &lt;/div&gt;
+        &lt;div&gt;
+            &lt;button class="btn btn-primary" type="submit"&gt;Publish&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/form&gt;
+&lt;/div&gt;
+</pre>
+<p>在上面的表单代码中，当用户提交帖子时，如果帖子没有通过验证，就会显示验证错误，并且不会刷新页面。</p>
+<h2>Laravel Livewire 入门</h2>
+<p>说得够多了，让我们开始行动吧。当我们构建我们的演示应用程序时，您可以在<a href="https://github.com/sdkcodes/laravel-livewire-tutorial"> GitHub repo </a>中跟随我们。</p>
+<p>由于我们希望登录的用户能够管理他们自己的帖子，他们必须首先创建一个帐户。为此，我们将使用 Laravel 的内置<a href="https://laravel.com/docs/7.x/authentication">认证系统</a>。</p>
+<p>首先，安装 laravel/ui composer 包:</p>
+<pre>composer require laravel/ui
+</pre>
+<p>然后运行<code>php artisan ui vue --auth</code>来搭建整个认证系统，接着运行<code>php artisan migrate</code>来进行数据库迁移。</p>
+<blockquote><p><strong>注意事项</strong>。，我们过去用控制器做的大多数事情现在将使用 Livewire 组件来完成。</p></blockquote>
+<p>让我们继续创建我们的博客帖子应用程序所需的模型，<code>App\Post</code>:</p>
+<pre>&lt;?php
+namespace App;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+class Post extends Model
+{
+    use SoftDeletes;
+
+    protected $guarded = [];
+    public function author(){
+        return $this-&gt;belongsTo(User::class, 'author_id', 'id');
+    }
+}
+</pre>
+<p>现在我们将创建我们的迁移文件，<br/> <code>php artisan make:migration create_posts_table--table=posts:</code></p>
+<pre>Schema::create('posts', function (Blueprint $table) {
+            $table-&gt;id();
+            $table-&gt;string('title');
+            $table-&gt;string('slug')-&gt;unique();
+            $table-&gt;longText('body');
+            $table-&gt;integer('author_id');
+            $table-&gt;timestamps();
+            $table-&gt;softDeletes();
+});
+</pre>
+<h3>创建组件</h3>
+<p>我们将为我们想要的每个博客操作创建一个组件，即创建帖子、编辑帖子、列出帖子和查看帖子。让我们继续创建组件:</p>
+<ul>
+<li><code>php artisan make:livewire CreatePost</code></li>
+<li><code>php artisan make:livewire EditPost</code></li>
+<li><code>php artisan make:livewire ListPost</code></li>
+<li><code>php artisan make:livewire HomePost</code></li>
+<li><code>php artisan make:livewire ReadPost</code></li>
+</ul>
+<p>我们可以像这样直接从路线中呈现 Livewire 组件:</p>
+<pre>Route::get('/posts/create', [\App\Http\Livewire\CreatePost::class, '__invoke'])-&gt;middleware('auth');
+</pre>
+<p>如上所示，我们将路由到 Livewire 组件，而不是调用控制器动作。现在让我们在<code>web.php</code>中添加我们需要的所有路线:</p>
+<pre>Route::get('/', function () {
+    return view('index');
+});
+Auth::routes();
+Route::get('/post/{slug}', [\App\Http\Livewire\ReadPost::class, '__invoke']);
+Route::get('/home', '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2f6740424a6c40415b5d4043434a5d6f46414b4a57">[email protected]</a>')-&gt;name('home');
+Route::get('/posts/create', [\App\Http\Livewire\CreatePost::class, '__invoke'])-&gt;middleware('auth');
+Route::get('/posts/{id}/edit', [\App\Http\Livewire\EditPost::class, '__invoke'])-&gt;middleware('auth');
+</pre>
+<p>呈现文章列表的组件将如下所示:</p>
+<pre>//ListPost.php
+&lt;?php
+namespace App\Http\Livewire;
+use Livewire\Component;
+class ListPost extends Component
+{
+    public function render()
+    {
+        $posts = \App\Post::latest()-&gt;paginate(20);
+        return view('livewire.list-post', ['posts' =&gt; $posts])
+            -&gt;extends('layouts.app')
+            -&gt;section('content');
+    }
+}
+
+
+
+//livewire/list-post.blade.php
+&lt;div&gt;
+    &lt;h4&gt;My Posts &lt;a href="{{ url('posts/create') }}" class="btn btn-primary"&gt;&lt;i class="fa fa-plus"&gt;&lt;/i&gt; Add new&lt;/a&gt;&lt;/h4&gt;
+    &lt;ul class="list-group list-group-flush"&gt;
+        @forelse ($posts as $post)
+            &lt;li class="list-group-item"&gt;
+
+                &lt;div class="float-right"&gt;
+                    &lt;a href='{{ url("posts/{$post-&gt;id}/edit") }}' class="btn btn-primary"&gt;&lt;i class="fa fa-edit"&gt;&lt;/i&gt; Edit&lt;/a&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;h5&gt;{{ $post-&gt;title }}&lt;/h5&gt;
+                    &lt;p&gt;{!! substr(strip_tags($post-&gt;body), 0, 200) !!}&lt;/p&gt;
+                    &lt;small class="text-muted"&gt;Published {{ $post-&gt;created_at }}&lt;/small&gt;
+                &lt;/div&gt;
+
+            &lt;/li&gt;    
+        @empty
+            &lt;li&gt;You have not written any posts yet, write one now&lt;/li&gt;
+        @endforelse
+
+    &lt;/ul&gt;
+&lt;/div&gt;
+</pre>
+<p>然后，为了创建帖子，我们将使用以下代码:</p>
+<pre>//CreatePost.php
+&lt;?php
+namespace App\Http\Livewire;
+use App\Post;
+use Livewire\Component;
+use Illuminate\Support\Str;
+class CreatePost extends Component
+{
+    public $title, $body;
+    public $success;
+    protected $rules = [
+        'title' =&gt; 'required|string|max:220',
+        'body' =&gt; 'required'
+    ];
+
+    public function render()
+    {
+        return view('livewire.create-post')
+            -&gt;extends('layouts.app')
+            -&gt;section('content');
+    }
+    public function create(){
+        $this-&gt;validate();
+        Post::create([
+            'title' =&gt; $this-&gt;title,
+            'slug' =&gt; Str::slug($this-&gt;title),
+            'body' =&gt; $this-&gt;body,
+            'author_id' =&gt; auth()-&gt;id()
+        ]);
+
+        $this-&gt;success = true;
+    }
+}
+</pre>
+<p>在上面的组件中，我们创建了公共变量来保存博客文章的标题和正文内容，还创建了一个<code>success</code>变量来指示文章创建是否成功。</p>
+<p>在<code>render()</code>方法中，Livewire 允许我们分别通过<code>extends()</code>和<code>section()</code>方法指定用于呈现组件的布局文件和我们希望它显示的部分。</p>
+<p>现在模板视图如下所示:</p>
+<pre>&lt;div class="container"&gt;
+    @if ($success)
+        &lt;div&gt;
+            &lt;div class="alert alert-success"&gt;
+                Post has been created successfully. &lt;a href="{{ url('/home') }}"&gt;View all posts&lt;/a&gt;
+            &lt;/div&gt;
+
+        &lt;/div&gt;
+    @endif
+
+    &lt;form wire:submit.prevent="create"&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="Post title"&amp;gt;Post title&lt;/label&gt;
+            &lt;input wire:model="title" type="text" name="title" id="title" class="form-control" placeholder="Title of the post"&gt;
+            @error('title') &lt;span class="error"&gt;{{ $message }}&lt;/span&gt; @enderror
+        &lt;/div&gt;
+        &lt;div class="form-group"&gt;
+            &lt;label for="Post body"&gt;Post Body&lt;/label&gt;
+            &lt;textarea name="body" id="body" placeholder="Body of post here..." wire:model="body" class="form-control"&gt;&lt;/textarea&gt;
+            @error('body') &lt;span class="error"&gt;{{ $message }}&lt;/span&gt; @enderror
+        &lt;/div&gt;
+        &lt;div&gt;
+            &lt;button class="btn btn-primary" type="submit"&gt;Publish&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/form&gt;
+&lt;/div&gt;
+</pre>
+<p>如果您将浏览器导航到<code>/posts/create</code>，您应该会看到显示的创建表单:</p>
+<p><img data-attachment-id="34980" data-permalink="https://blog.logrocket.com/deep-dive-into-laravel-livewire/creation-form-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png" data-orig-size="730,323" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creation-Form-Display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png" decoding="async" class="aligncenter wp-image-34980 size-full jetpack-lazy-image" src="../Images/521cf39439a34b5fe1396bccbe1b3735.png" alt="Creation Form Display" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display-300x133.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="34980" data-permalink="https://blog.logrocket.com/deep-dive-into-laravel-livewire/creation-form-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png" data-orig-size="730,323" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creation-Form-Display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png" decoding="async" loading="lazy" class="aligncenter wp-image-34980 size-full" src="../Images/521cf39439a34b5fe1396bccbe1b3735.png" alt="Creation Form Display" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display-300x133.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Creation-Form-Display.png"/></noscript>
+<p>这是 Livewire 在现实世界中应用的一个相当基本的例子。</p>
+<h2>结论</h2>
+<p>Livewire 在后端和前端之间架起了一座桥梁。您可以获得实时交互性的好处，而不必自己编写大量的 JavaScript。如果你以前用过 Vue.js，你会很容易看到 Livewire 的好处。</p>
+<p>Livewire 对于对客户端要求很高的应用来说并不是一个很好的选择。但是，如果你想要一个服务器渲染的应用程序，带有一点反应，Livewire 将会很好地为你服务。</p>
+<p>还是那句话，我们在本教程中搭建的 app 可以在<a href="https://github.com/sdkcodes/laravel-livewire-tutorial">G</a><a href="https://github.com/sdkcodes/laravel-livewire-tutorial">it</a><a href="https://github.com/sdkcodes/laravel-livewire-tutorial">H</a><a href="https://github.com/sdkcodes/laravel-livewire-tutorial">ub</a>上找到。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

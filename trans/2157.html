@@ -1,0 +1,169 @@
+<html>
+<head>
+<title>Improve mobile UI with React Native safe-area-context - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 React 本地安全区域上下文日志博客改进移动用户界面</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/improve-mobile-ui-react-native-safe-area-context/#0001-01-01">https://blog.logrocket.com/improve-mobile-ui-react-native-safe-area-context/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在构建移动应用程序时，开发人员必须反复确保内容能够在不同类型的屏幕上正确呈现。耗时且容易出错，我们可以使用像<a href="https://github.com/th3rdwave/react-native-safe-area-context"> React Native 的<code>safe-area-context</code> API </a>这样的工具来简化这个过程。</p>
+<p>在本教程中，我们将使用<code>safe-area-context</code>来定位移动应用程序中不规则图形周围的网页内容，例如，状态栏、主页指示器和凹口。要继续学习本教程，您应该熟悉 React Native 和 React Hooks。我们开始吧！</p>
+<blockquote><p>注意:要跟进，您可以查看本文中使用的待办事项列表应用程序的完整代码库</p></blockquote>
+<h2>移动用户界面限制</h2>
+<p>让我们假设您已经构建了以下 React 本地应用程序，该应用程序从待办事项列表中添加和删除项目:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/lgDiP8m30Co?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p>我们的待办事项应用很实用，也很容易使用。在 web 视图中，我们的应用程序看起来不会不正常。然而，您会很快注意到移动 UI 的几个问题。例如，如果用户试图以横向模式查看应用程序，他们会遇到以下错误:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/LdBdBcc7--k?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p> </p>
+<p>当用户转动手机并试图使用横向模式时，由于手机屏幕尺寸的原因，我们的应用程序的标题会被部分遮挡。</p>
+<p>当 web 应用程序适应移动屏幕尺寸时，某些元素被移动界面元素阻塞或扭曲是很常见的。让我们使用<code>safe-area-context</code> API 来改进 header 元素的可视化呈现。</p>
+<h2>开始使用<code>safe-area-context</code></h2>
+<p>首先，我们将在项目中安装<code>safe-area-context</code>。导航到您的文件夹的根项目，并运行以下命令:</p>
+<pre class="language-bash hljs">npm install react-native-safe-area-context
+</pre>
+<p>如果你正在使用 React Native ≥v0.6.0，<code>safe-area-context</code>将自动链接到你的项目。但是，如果您使用的是 React Native 的早期版本，请在项目的根文件夹中运行以下命令来链接库:</p>
+<pre class="language-bash hljs">react-native link react-native-safe-area-context
+</pre>
+<p><code>safe-area-context</code>使用两个组件与 React 本地组件交互，提供者和消费者，它们之间有父子关系。消费者允许我们使用最近的提供商提供的值。</p>
+<p>在<code>safe-area-context</code>库中，只有一个组件<code>SafeAreaProvider</code>充当提供者。让我们用<code>SafeAreaProvider</code>组件包装我们的应用程序的根组件，它将向后代消费者提供它重叠的任何系统元素的值或样式。</p>
+<p>将以下代码添加到<code>App.js</code>:</p>
+<pre>import React from "react";
+import { Text, View, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView } from "react-native";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import Task from "./components/Tasks";
+
+export default function App() {
+  const [task, setTask] = useState();
+  const [taskItems, setTaskItems] = useState([]);
+  const handleAddTask = () =&gt; {
+    Keyboard.dismiss();
+    setTaskItems([...taskItems, task]);
+    setTask(null);
+  };
+  const completeTask = (index) =&gt; {
+    let itemsCopy = [...taskItems];
+    itemsCopy.splice(index, 1);
+    setTaskItems(itemsCopy);
+  };
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;ScrollView&gt;
+        &lt;View style={styles.container}&gt;
+          &lt;View style={styles.taskWrapper}&gt;
+            &lt;Text style={styles.sectionTitle}&gt;Today's Tasks&lt;/Text&gt;
+
+            &lt;View style={styles.items}&gt;
+              {/* This is where the tasks will go   */}
+              {taskItems.map((item, index) =&gt; {
+                return (
+                  &lt;TouchableOpacity onPress={() =&gt; completeTask(index)}&gt;
+                    &lt;Task key={index} text={item} /&gt;
+                  &lt;/TouchableOpacity&gt;
+                );
+              })}
+            &lt;/View&gt;
+          &lt;/View&gt;
+          {/* Write a task*/}
+
+          &lt;KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.writeTaskWrapper}
+          &gt;
+            &lt;TextInput
+              style={styles.input}
+              placeholder={"Write a task"}
+              value={task}
+              onChangeText={(text) =&gt; setTask(text)}
+            /&gt;
+            &lt;TouchableOpacity onPress={() =&gt; handleAddTask()}&gt;
+              &lt;View style={styles.addWrapper}&gt;
+                &lt;Text style={styles.addText}&gt;+&lt;/Text&gt;
+              &lt;/View&gt;
+            &lt;/TouchableOpacity&gt;
+          &lt;/KeyboardAvoidingView&gt;
+        &lt;/View&gt;
+      &lt;/ScrollView&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</pre>
+<p>接下来，我们将使用消费者组件包装任何我们预计可能受到移动设备屏幕修改影响的元素。在我们的例子中，我们将包含待办事项列表应用程序标题的<code>Text</code>子组件与<code>SafeAreaView</code>包装在一起，后者是<code>safe-area-context</code>中的主要消费者组件:</p>
+<pre>// ./App.js
+
+import React from "react";
+import { Text, View, StyleSheet, ScrollView } from "react-native";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;ScrollView&gt;
+        &lt;View style={styles.container}&gt;
+
+          ...
+
+          &lt;View style={styles.taskWrapper}&gt;
+            &lt;SafeAreaView&gt;
+              &lt;Text style={styles.sectionTitle}&gt;Today's Tasks&lt;/Text&gt;
+            &lt;/SafeAreaView&gt;
+          &lt;/View&gt;
+
+          ...
+
+        &lt;/View&gt;
+      &lt;/ScrollView&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</pre>
+<p><code>SafeAreaView</code>的行为就像一个常规的 React Native <code>View</code>组件，但是，它包括额外的填充和边距，将被包含的组件放置在远离任何移动屏幕修改的位置。</p>
+<p><code>SafeAreaView</code>包括一个用于<code>edges</code>的道具，允许你定制组件边缘的安全区域。<code>edges</code>取<code>top</code>、<code>right</code>、<code>bottom</code>、<code>left</code>的值，默认为<code>all</code>。</p>
+<p>让我们看看添加了<code>SafeAreaView</code>组件后，我们的应用程序标题的定位有何不同:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/769bnGDLjLE?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p> </p>
+<p>在上面的视频中，我们的应用程序的标题更加集中。无论设备类型或屏幕尺寸如何，由<code>SafeAreaView</code>提供的额外样式可防止移动屏幕修改阻塞标题。</p>
+<p><code>safe-area-context</code>包含 Jest 的内置测试。你可以在<a href="https://github.com/th3rdwave/react-native-safe-area-context">文档</a>中阅读更多关于测试的内容。</p>
+<h2>使用<code>SafeAreaView</code>优化渲染</h2>
+<p>当用户旋转设备时,<code>SafeAreaView</code>组件可以防止渲染延迟。此外，React Native 使用一个名为<code>initialWindowMetrics</code>的提供者属性，您可以使用它来加速应用程序的初始呈现。让我们在<code>App.js</code>中加上<code>initialWindowMetrics</code>:</p>
+<pre>// ./App.js
+
+import React from "react";
+import { Text, View, StyleSheet, ScrollView } from "react-native";
+import { SafeAreaView, SafeAreaProvider, InitialWindowMetrics } from "react-native-safe-area-context";
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider initialMetrics={initialWindowMetrics}&gt;
+      &lt;ScrollView&gt;
+        &lt;View style={styles.container}&gt;
+
+          ...
+
+          &lt;View style={styles.taskWrapper}&gt;
+            &lt;SafeAreaView&gt;
+              &lt;Text style={styles.sectionTitle}&gt;Today's Tasks&lt;/Text&gt;
+            &lt;/SafeAreaView&gt;
+          &lt;/View&gt;
+
+          {/* Include TextInput and button for adding items here */}
+
+        &lt;/View&gt;
+      &lt;/ScrollView&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</pre>
+<p><code>initialWindowsMetrics</code>属性被指定为<code>initialMetric</code>属性。只有当你的应用程序的提供者没有重新挂载，或者你的应用程序没有使用<a href="https://blog.logrocket.com/react-navigation-vs-react-native-navigation/"> React 导航库</a>时，才应该使用这个属性。</p>
+<h2>摘要</h2>
+<p>与 web 应用程序相比，在移动应用程序中处理和管理数据可能是一个挑战。然而，像<code>safe-area-context</code>这样的工具提供了一种途径来构建容易适应不同移动屏幕的界面，为不同设备提供统一的 UX。</p>
+<p><code>safe-area-context</code>易于使用，只需用<code>SafeAreaView</code>组件包装元素即可。虽然默认值本身是有效的，但是您可以根据您的应用添加自定义值到<code>padding</code>、<code>margin</code>和<code>edges</code>。我希望你喜欢这个教程！</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现 React 原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 React 原生监控解决方案，可帮助您即时重现问题、确定 bug 的优先级并了解 React 原生应用的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的 React 原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

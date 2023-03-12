@@ -1,0 +1,511 @@
+<html>
+<head>
+<title>Optimizing React Native performance - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>优化 React 本机性能- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/optimize-react-native-performance/#0001-01-01">https://blog.logrocket.com/optimize-react-native-performance/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按:</em> </strong> <em>这篇 React Native 的文章最后一次更新是在 2022 年 10 月 25 日，内容包括 react-native-fast-image 库的信息以及 react-navigation 和 react-native-navigation 库的代码示例。</em></p>
+<p>出色的用户体验应该是任何应用程序开发的核心目标。虽然<a href="https://reactnative.dev/"> React Native </a>试图提供开发高性能应用程序所需的一切，但有时您必须手动优化您的应用程序。要做到这一点，开发人员需要从项目一开始就有一个性能优化的心态。</p>
+<p>大多数现代移动设备在一秒钟内显示 60 帧——这意味着你有 16.67 毫秒来显示一帧,以便应用程序保持高性能。如果做不到这一点，将会导致性能下降，UI 甚至可能看起来没有响应。</p>
+<p>在本文中，我们将回顾如何使用以下步骤来优化 React 本机应用程序的性能:</p>
+
+<h2 id="how-does-react-native-work">如何反应本土作品？</h2>
+<p>React 本地应用程序由两部分组成:JavaScript 代码和本地代码。这两者是完全不同的，通常不能单独相互通信。</p>
+<p>它们只能通过 React 本机桥(有时称为影子树)来实现。桥梁位于 JavaScript 代码和本机代码之间，将序列化的 JSON 对象从 JavaScript 线程发送到本机线程，反之亦然。</p>
+<p>虽然<a href="https://engineering.fb.com/2019/07/12/android/hermes/">脸书正在致力于改进 React 原生架构</a>(也是<a href="https://blog.logrocket.com/why-keep-faith-react-native/">你不应该放弃 React 原生的一个原因</a>)这将使 JavaScript 代码能够通过 JavaScript 接口(JSI)直接与原生代码对话。在处理复杂流程时，当前架构中很容易出现性能问题。这就是为什么在将 React 原生应用程序投入生产之前对其进行优化非常重要。</p>
+<p>让我们通过几个代码示例来看看提高 React 本机应用程序性能的一些最佳实践。</p>
+<h2 id="flatlist-sectionlist-render-large-lists-react-native">使用<code>FlatList</code>或<code>SectionList</code>在 React Native 中呈现大型列表</h2>
+<p>如果你有一个很大的列表，一次渲染所有的条目会导致性能问题，但是用<code>FlatList</code>延迟加载可以提高性能。</p>
+<p><code>FlatList</code>组件仅呈现将在屏幕上显示的项目，并在它们不再显示时移除它们。这节省了大量内存，使应用程序速度更快:</p>
+<pre class="language-javascript hljs">import React from 'react'
+import {FlatList} from 'react-native'
+
+const data = [
+  {
+    id: 1,
+    text: 'First'
+  },
+  {
+    id: 2,
+    text: 'Second'
+  },
+  ...
+]
+
+const App = () =&gt;{
+    const renderItem = ({item}) =&gt;(
+        &lt;View&gt;
+          &lt;Text&gt;{item.text}&lt;/Text&gt;
+        &lt;/View&gt;
+    )
+    return (
+        &lt;FlatList
+          data={data}
+          renderItem={renderItem}
+          keyExtractor={item =&gt; item.id}
+        /&gt;
+    )
+}
+</pre>
+<p><code>FlatList</code>和<code>SectionList</code>的作用相似。两者都可以提高你的应用程序的性能。但是，<code>SectionList</code>更适合渲染截面。如果您需要更大的灵活性，也可以使用<code>VirtualizedList</code>。</p>
+<p>也可以用<code>ListView</code>来呈现列表，虽然这可以用于小列表，但不推荐用于大列表。虽然可以用<code>map</code>来呈现列表，但是不建议在 React Native 中这样做。</p>
+<h2 id="remove-console-statements">删除所有控制台语句</h2>
+<p>控制台语句对于调试 JavaScript 代码是必要的，但它们仅用于开发目的。如果在绑定之前没有删除这些语句，可能会导致 React 本机应用程序出现严重的性能问题。</p>
+<p>虽然你可以安装插件如<code>babel-plugin-transform-remove-console</code>来从产品中删除这些语句，但如果你不想给你的应用程序增加额外的依赖，最好手动删除它们。</p>
+<h2 id="memoize-expensive-computations">昂贵的计算</h2>
+<p>React 在 React v16.6 中引入了<code>memo</code> HOC(高阶组件)以防止不必要的重新渲染，并在 React v16.8 中引入了<code>useMemo</code> hook 以优化昂贵的计算。</p>
+<p>然而，也可以使用<code>useCallback</code>钩子来实现。<code>useMemo</code>和<code>useCallback</code>的主要区别在于<code>useMemo</code>返回一个记忆化的值，而<code>useCallback</code>返回一个记忆化的回调。</p>
+<p>让我们来看看每一个。</p>
+<h3 id="react-memo-higher-order-component"><code>React.memo</code>高阶组件(HOC)</h3>
+<p><code>React.memo</code>被引入到功能组件中，以达到与<code>React PureComponents</code>在类组件中服务相同的目的。<code>memo</code>防止组件不必要的重新渲染，有助于优化应用程序。</p>
+<p>然而，像其他优化技术一样，<code>memo</code>应该只在必要时使用。在某些情况下，不必要的重新渲染不会对性能产生太大影响。</p>
+<p>这里有一个例子来说明<code>memo</code>:</p>
+<pre class="language-javascript hljs">import React from 'react'
+import {View, Text, TouchableOpacity} from 'react-native'
+
+const Element = ({children, value, setValue}) =&gt;{
+  const handleOperation = () =&gt; setValue(value * 2)
+  return (
+        &lt;View&gt;
+            &lt;Text&gt;{value}&lt;/Text&gt;
+            &lt;TouchableOpacity onPress={handleOperation}&gt;
+               {children}
+            &lt;/TouchableOpacity&gt;
+        &lt;/View&gt;
+    )
+  }
+
+export default Element
+import React, {useState} from 'react'
+import {View} from 'react-native'
+import Element from './Element'
+
+const App = () =&gt;{
+  const [firstNum, setFirstNum] = useState(5)
+  const [secondNum, setSecondNum] = useState(5)
+  return(
+    &lt;View&gt;
+      &lt;Element setValue={setFirstNum} value={firstNum} &gt; Add First &lt;/Element&gt;
+      &lt;Element setValue={setSecondNum} value={secondNum} &gt; Add Second &lt;/Element&gt;
+    &lt;/View&gt;
+  ) 
+}
+</pre>
+<p>上面代码的问题是，当任何一个按钮被按下时，两个按钮都会重新呈现，即使只有被按下按钮的状态会改变。</p>
+<p>这可以通过用<code>React.memo</code> HOC 包裹<code>Element</code>组件来解决。下面是如何做到这一点:</p>
+<pre class="language-javascript hljs">import React, {memo} from 'react'
+import {View, Text, TouchableOpacity} from 'react-native'
+
+const Element = ({children, value, setValue}) =&gt;{
+  const handleOperation = () =&gt; setValue(value * 2)
+  return (
+        &lt;View&gt;
+            &lt;Text&gt;{value}&lt;/Text&gt;
+            &lt;TouchableOpacity onPress={handleOperation}&gt;
+               {children}
+            &lt;/TouchableOpacity&gt;
+        &lt;/View&gt;
+    )
+  }
+
+export default memo(Element)
+</pre>
+<p>这将修复重新渲染问题。但是，只有当重新渲染导致性能问题时，才应该使用它。</p>
+<h3 id="usememo-hook"><code>useMemo</code>钩子</h3>
+<p><code>useMemo</code>返回函数的记忆值。然而，它应该只在执行昂贵的计算时使用。</p>
+<p>例如，假设我们想通过评级过滤来自 API 的一些数据。我们可以将计算记忆为仅在值改变时重新计算结果:</p>
+<pre class="language-javascript hljs">const data = [
+  {id: 1, state: 'Texas', rating: 4.5},
+  {id: 2, state: 'Hawaii', rating: 3},
+  {id: 3, state: 'Illinois', rating: 4},
+  {id: 4, state: 'Texas', rating: 5},
+  {id: 5, state: 'Ohio', rating: 4.5},
+  {id: 6, state: 'Louisiana', rating: 3},
+  {id: 7, state: 'Texas', rating: 2},
+  ...
+  {id: 1000, state: 'Illinois', rating: 4.5},
+]
+</pre>
+<p>如果我们希望根据评级过滤数据(没有记忆)，我们可能会用尽大量内存。</p>
+<p>因此，我们不希望在其他组件重新渲染时不必要地重新计算这些值。我们希望仅在从属评级发生变化时重新呈现或重新计算。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们看看如何通过<code>useMemo</code>实现这一点:</p>
+<pre class="language-javascript hljs">import React, {useMemo} from 'react'
+import {FlatList} from 'react-native'
+import data from './data'
+
+const App = () =&gt;{
+    const rateCompare = 3;
+
+    const computedValue = useMemo(() =&gt; {
+        //supposed computationally intensive calculation
+        const result = data.filter((d) =&gt; d.rating &gt; rateCompare);
+        return result;
+    }, [rateCompare]);
+
+      const renderItem = ({ item }) =&gt; (
+          &lt;View&gt;
+            &lt;Text&gt;{item.state}&lt;/Text&gt;
+          &lt;/View&gt;
+      );
+    return (
+        &lt;FlatList
+          data={computedValue}
+          renderItem={renderItem}
+          keyExtractor={item =&gt; item.id}
+        /&gt;
+    )
+}
+</pre>
+<p>我们假设我们有来自 API 的大量数据，并且需要执行计算密集型的计算。虽然我们使用了简单的过滤操作，但我们可以在这里进行一系列计算。这是<code>useMemo</code>钩子的一个很好的用例。</p>
+<p>通过使用<code>useMemo</code>，我们可以缓存(memoize)依赖数组中指定值的结果。例如，如果第一次运行时<code>rateCompare</code>常量为<code>3</code>，那么无论何时<code>rateCompare</code>的值为<code>3</code>，该函数都不会重新计算，即使整个组件重新渲染。它只会在值改变时重新计算。</p>
+<h3 id="usecallback-hook"><code>useCallback</code>钩子</h3>
+<p><code>useCallback</code>钩子类似于<code>useMemo</code>，但是它返回一个记忆化的回调:</p>
+<pre class="language-javascript hljs">import React, {useState, useEffect, useCallback} from 'react'
+import {FlatList} from 'react-native'
+import data from './data'
+
+const App = () =&gt;{
+    const [values, setValues] = useState([]);
+    const rateCompare = 3;
+
+    const valuesCallback = useCallback(() =&gt; {
+        //supposed computationally intensive calculation
+        const result = data.filter((d) =&gt; d.rating &gt; rateCompare);
+        setValues(result);
+    }, [rateCompare, setValues]);
+
+    useEffect(() =&gt; {
+        valuesCallback();
+    }, [valuesCallback]);
+
+    const renderItem = ({ item }) =&gt; (
+        &lt;View&gt;
+          &lt;Text&gt;{item.state}&lt;/Text&gt;
+        &lt;/View&gt;
+    );
+    return (
+        &lt;FlatList
+          data={values}
+          renderItem={renderItem}
+          keyExtractor={item =&gt; item.id}
+        /&gt;
+    )
+}
+</pre>
+<p>这与<code>useMemo</code>示例做了同样的事情。但是，因为<code>useCallback</code>返回一个函数，我们需要调用那个函数来获取值。这里，我们在一个<code>useEffect</code>钩子中调用了函数，然后在一个<code>FlatList</code>组件中呈现了值。</p>
+<p>我们同样可以在<code>Button</code>或<code>TouchableOpacity</code>组件中调用该函数。这样，只要按下按钮，计算就会运行:</p>
+<pre class="language-javascript hljs">Button onPress={valuesCallback} title="Example button" /&gt;
+</pre>
+<p>虽然<code>React.memo</code>可以优化整个组件，但是<code>useMemo</code>和<code>useCallback</code>可以优化计算或过程。然而，只有在必要的时候才应该使用其中的每一个，否则，它们甚至会加剧性能问题。</p>
+<p>建议首先编写没有记忆的计算或组件，只有在导致性能问题时才进行优化(记忆)。</p>
+<h2 id="adjust-image-sizes">调整图像尺寸</h2>
+<p>在 React 本机应用程序中，映像可能是导致性能问题的重要原因。它们也会给网络应用带来问题，但是浏览器有下载甚至缩放图像的能力。在某些情况下，它甚至可以缓存它们。</p>
+<p>但这与移动应用程序不同。React Native 附带了一个<code>Image</code>组件，可以很好地处理单个图像，但它在处理许多大尺寸图像时性能很差。</p>
+<p>解决这个问题的最好方法是加载你所需要的图片大小。换句话说，在将图片加载到你的应用程序之前，你应该调整图片的大小和比例。</p>
+<h2 id="cache-images-locally">本地缓存图像</h2>
+<p>缓存是 React 原生应用中映像问题的另一种解决方案。它在第一次加载图像时将图像保存在本地，并在后续请求中使用本地缓存。这可以显著提高应用程序的性能。但是只有 iOS 支持使用图像组件<a href="https://reactnative.dev/docs/image#imagesource">进行缓存，而 Android </a>不支持。</p>
+<p>以下是缓存图像的方法:</p>
+<pre class="language-javascript hljs">&lt;Image
+  source={{
+    uri: 'https://unsplash.it/200/200?image=8'
+    cache: 'only-if-cached'
+  }}
+  style={{ ... }}
+/&gt;
+</pre>
+<p>然而，这种缓存方法并不是最佳的，因为它几乎不能解决问题。当以这种方式缓存图像时，可能会出现一些问题，如闪烁、缓存未命中、应用程序性能差以及从缓存加载的性能差。使用<code>react-native-fast-image</code>可以解决这个问题。</p>
+<p>除了缓存图像，<code><a href="https://github.com/DylanVann/react-native-fast-image">FastImage</a></code>还增加了授权头和其他几个特性:</p>
+<pre class="language-javascript hljs">import FastImage from 'react-native-fast-image'
+
+const App = () =&gt; (
+  &lt;FastImage
+        style={{ ... }}
+        source={{
+            uri: 'https://unsplash.it/200/200?image=8',
+            priority: FastImage.priority.normal,
+            cache: FastImage.cacheControl.cacheOnly
+        }}
+    /&gt;
+)
+</pre>
+<p>让我们仔细看看<code>FastImage</code>组件的属性。顾名思义，<code>priority</code>属性定义了图像加载的优先级。对于需要首先加载的图像，您可以将优先级设置为<code>FastImage.priority.high</code>。</p>
+<p>然而，在优化 React 原生应用的背景下，我们最感兴趣的是<code>cache</code>属性。<code>cache</code>属性允许我们以三种不同的方式缓存图像:</p>
+<ol>
+<li><code>FastImage.cacheControl.immutable</code>:这是默认值。只有当 URI 发生变化时，图像才会更新</li>
+<li><code>FastImage.cacheControl.web</code>:来自<code>source.headers</code> prop 的配置可以像普通的 web 浏览器一样用于正常的缓存过程</li>
+<li>这是限制性最强的选项。只会显示缓存中的图像，不会发出网络请求</li>
+</ol>
+<h2 id="fast-loading-image-formats-react-native">在 React Native 中使用快速加载图像格式</h2>
+<p>除了图像大小，图像格式也可能影响应用程序的性能。来自网络背景的开发者更喜欢<code>JPEG</code>和<code>JPG</code>格式，因为它们允许压缩。然而，对于移动平台来说，情况并非如此。</p>
+<p>另一方面，你可以减少组成<code>PNG</code>图像的每行像素中独特颜色的数量。这可能会显著减小图像大小。对于移动平台来说，<code>PNG</code>格式比<code>JPG</code>格式更好，这就足够了。</p>
+<p>谷歌在 2010 年推出的<code>WebP</code>格式是三种格式中性能最好的。<a href="https://developer.android.com/topic/performance/network-xfer">它支持无损和有损压缩模式</a>，可以将图像尺寸缩小高达 25-34%。请记住，并非所有移动设备都支持这种格式。受 Android 4.2.1 及更高版本设备和 iOS 14 支持。</p>
+<h2 id="schedule-animations-interaction-manager-layout-animation">用<code>InteractionManager</code>和<code>LayoutAnimation</code>安排动画</h2>
+<p>如果处理不当，动画会影响 React 本机应用程序的性能。<code>InteractionManager</code>的<code>runAfterInteractions</code>方法可用于在动画或交互完成后安排长时间运行的同步操作。这可以通过确保动画平稳运行来提高 React 本机应用程序的性能:</p>
+<pre class="language-javascript hljs">InteractionManager.runAfterInteractions(() =&gt; {
+   ...
+});
+</pre>
+<p>如果你关心用户体验，使用<code>LayoutAnimation</code>可能更好。这将在下一个布局中运行动画:</p>
+<pre class="language-javascript hljs">import React, { useState } from "react";
+import { LayoutAnimation } from "react-native";
+
+if (Platform.OS === 'android' &amp;&amp; UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const App = () =&gt;{
+  const [animate, setAnimate] = useState(false)
+
+  const handleClick = () =&gt;{
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring)
+    setAnimate(!animate)
+  }
+  return (
+    Button onPress={handleClick} title="Animate" /&gt;
+  )
+}
+</pre>
+<p>必须设置标志<code>UIManager.setLayoutAnimationEnabledExperimental(true);</code>以确保它在 Android 上工作。</p>
+<h2 id="native-driver-animated-api">将本地驱动程序与动画 API 一起使用</h2>
+<p>在 JavaScript 线程上运行动画不是一个好主意。JS 线程很容易被阻塞，这可能会使动画运行缓慢或根本不运行。</p>
+<p>因为<a href="https://reactnative.dev/blog/2017/02/14/using-native-driver-for-animated">动画 API 是可序列化的</a>，所以有可能在动画开始之前将动画的细节推送到 native。因此，本机代码将在 UI 线程上执行动画。这将确保动画流畅运行，即使 JavaScript 线程被阻塞。</p>
+<p>下面是如何用动画 API 设置<code>useNativeDriver</code>:</p>
+<pre class="language-javascript hljs">import React, {useRef} from 'react'
+import {Animated} from 'react-native'
+
+const App = () =&gt;{
+
+  const opacity = useRef(new Animated.value(0)).current
+
+  const showVal = () =&gt;{
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  } 
+  ...
+
+  return (
+    &lt;View&gt;
+        &lt;Animated.View&gt;
+          &lt;Animated.Text&gt;Text to show&lt;/Animated.Text&gt;
+        &lt;/Animated.View&gt;
+        &lt;Button title="Show" onPress={showVal} /&gt;
+    &lt;/View&gt;
+  )
+}
+</pre>
+<p>这里，我们声明了一个变量<code>opacity</code>来保存不透明度值。我们将初始值设为<code>0</code>，然后使用<code>Animated.timing</code>来触发按钮点击时的动画。在<code>Animated.timing</code>中<code>useNativeDriver</code>被设置为<code>true</code>，以将动画的细节发送到本地。</p>
+<h2 id="remove-unnecessary-libraries-features">删除不必要的库和功能</h2>
+<p>React 或 React 本机应用程序中的每个库都会在应用程序上留下一些足迹。这就是为什么你应该只在你的应用中添加你需要的库和特性，并删除不相关的依赖和库。</p>
+<p>动画、导航、标签和其他功能都会增加屏幕加载时间，因此它们在屏幕上出现得越多，性能就越差。</p>
+<h2 id="use-hermes">使用爱马仕</h2>
+<p><a href="https://reactnative.dev/docs/hermes"> Hermes </a>是脸书在 2019 年开发的 JavaScript 引擎。它是提高应用程序性能、减少内存使用、减小应用程序大小和缩短应用程序启动时间的必备功能之一。</p>
+<p>Hermes 目前在 React Native 中默认是不启用的，但是你可以在你的 app 中轻松启用。</p>
+<p>在 React Native v0.64 发布之前，Hermes 只适用于 Android 平台，但现在它也适用于 iOS。</p>
+<p>如果您使用的是 React Native 的早期版本，您需要在启用 Hermes 之前首先将其升级到可接受的版本。</p>
+<p>要在 Android 上启用 Hermes，请编辑您的<code>android/app/build.gradle</code>文件并添加以下规则:</p>
+<pre class="language-javascript hljs">  project.ext.react = [
+      entryFile: "index.js",
+      enableHermes: true
+  ]
+</pre>
+<p>你也可以这样做:</p>
+<pre class="language-javascript hljs">def enableHermes = project.ext.react.get("enableHermes", true);
+</pre>
+<p>如果您正在使用 ProGuard，打开您的<code>proguard-rules.pro</code>并添加以下规则:</p>
+<pre class="language-javascript hljs">-keep class com.facebook.hermes.unicode.** { *; }
+-keep class com.facebook.jni.** { *; }
+</pre>
+<p>然后清理并重新构建你的应用程序(如果你已经构建了的话)。为此，首先运行<code>cd android</code>，然后运行<code>./gradlew clean</code>。</p>
+<p>如果你正在升级你的 React 原生版本，确保用最新的<a href="https://gradle.org/releases/"> Gradle 版本</a>相应地编辑<code>build.gradle</code>文件。</p>
+<p>有趣的是，Hermes for iOS 最近在 2021 年 3 月 12 日发布了新的 React 原生版本 0.64。要在 iOS 上启用 Hermes，将<code>hermes_enabled</code>设置为<code>true</code>，并在<code>Podfile</code>中运行<code>pod install</code>:</p>
+<pre class="language-javascript hljs">use_react_native!(
+   :path =&gt; config[:reactNativePath],
+   :hermes_enabled =&gt; true
+)
+</pre>
+<h2 id="use-reselect-redux">将<code>Reselect</code>与 Redux 一起使用</h2>
+<p>像<code>useMemo</code>钩子一样，<code>Reselect</code>可以用来创建记忆选择器来优化昂贵的计算。然而，与<code>useMemo</code>不同的是，这必须与<code>Redux</code>一起使用。</p>
+<p>假设我们有一个来自 Redux store 的<code>getPosts</code>状态，我们可以使用<code>Reselect</code>从帖子中选择具有最高赞和用户的帖子。</p>
+<p><code>Reselect</code>带有<code>createSelector</code>函数，可用于创建记忆选择器，如下所示:</p>
+<pre class="language-javascript hljs">import {createSelector} from "reselect"
+import _ from "lodash"
+
+//non-memoized selector
+export const getAllPosts = (state) =&gt; state.allPosts
+
+//memoized selector to get posts with top likes
+export const getMostLiked = (likes) =&gt; createSelector(
+   getAllPost,
+    item =&gt; item &amp;&amp; _.filter(item, (post) =&gt; post.likes &gt;= likes)
+)
+
+//memoized selector to get users with the top likes
+export const getTopUsersByLikedPosts = (likes) =&gt; createSelector(
+   getMostLiked(likes),
+    item =&gt; item &amp;&amp; _(item).map((post)=&gt; post.user).uniqBy(post =&gt; post.id).value()       
+)
+</pre>
+<p>首先，我们从 redux 状态<code>allPosts</code>创建了一个非优化选择器<code>getAllPosts</code>。然后我们在<code>getAllPosts</code>上创建了一个优化的选择器<code>getMostLiked</code>，然后根据他们的喜好过滤这些项目。这样就记住了<code>getMostLiked</code>,只有当帖子数据改变时，才会重新计算值。</p>
+<p>此外，我们从<code>getMostLiked</code>创建了一个记忆选择器<code>getTopUsersByLikedPosts</code>，并从帖子中选择用户。这确保了<code>getTopUsersByLikedPosts</code>仅在帖子数据的最喜欢者改变时才改变。</p>
+<p>这只是一个例子。我们可以在这里执行任何昂贵的计算，并用<code>Reselect</code>来记忆它。</p>
+<p><code>Reselect</code>只应在必要时使用；过度使用它甚至会加剧 React 本机应用程序的性能问题。</p>
+<h2 id="monitor-memory-usage-react-native">在 React Native 中监控内存使用情况</h2>
+<p>一些进程和功能可能会超出您的预期，耗尽不寻常的内存量。除非您想要这些进程，否则关闭或优化它们可能是提高 React 本机性能的关键。</p>
+<p>你可以监控 Android studio 和<a href="https://developer.apple.com/documentation/xcode/improving_your_app_s_performance"> Xcode </a>上的内存使用情况，以找到可能影响你的应用程序性能的漏洞。</p>
+<p>这可以通过 Android Studio 上的内存分析器来完成。您可以从<strong>视图&gt;工具窗口&gt;评测器</strong>中打开内存评测器，或者从工具栏中找到<strong>评测器</strong>图标。</p>
+<p>您还可以从应用程序的开发者菜单中监控应用程序的性能。要打开开发者菜单，使用快捷键<strong> Command + M </strong> (Mac)或<strong> Control + M </strong> (Windows 和 Linux)。在开发者菜单中，切换<code>Show Perf Monitor</code>来监控应用程序中每个组件的性能。</p>
+<p>Xcode 还允许开发人员在他们的应用程序中发现内存搅动或泄漏。你可以从<strong>产品&gt;简介</strong>中找到这一点。或者，您可以使用快捷方式<strong>命令+ i </strong>来打开泄漏分析器。在模拟器中重启应用程序，开始识别内存泄漏。</p>
+<p>如上所述，内存泄漏可能由多种因素引起。有时，缓存的图像会堵塞内存并导致问题。在某些情况下，您可能只需要将<code>ListView</code>改为<code>FlatList</code>就可以解决问题。在任何情况下，分析器都会向您显示问题的实际原因。</p>
+<h2 id="navigation-react-native">React Native 中的导航</h2>
+<p>React Native 中处理导航最流行的库是<code><a href="https://github.com/react-navigation/react-navigation.github.io">react-navigation</a></code>包。它是一个普通的 JavaScript 库，也是 React Native 在其文档中推广的。关于如何安装软件包的提示可以在<a href="https://reactnative.dev/docs/navigation">这里</a>和<a href="https://reactnavigation.org/docs/getting-started">这里</a>找到。</p>
+<p>让我们来看看<code>react-navigation</code>的一个简单实现:</p>
+<pre class="language-javascript hljs">import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Home from "./screens/Home";
+import Profile from "./screens/Profile";
+const Stack = createNativeStackNavigator();
+export default function App() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator initialRouteName="Home"&gt;
+        &lt;Stack.Screen name="Home" component={Home} /&gt;
+        &lt;Stack.Screen name="Profile" component={Profile} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}
+</pre>
+<p>在<code>App.js</code>中，我们将组件包装在<code>NavigationContainer</code>中。其次，我们创建了一个堆栈导航器，这是移动应用中最常见的导航方式。默认路径在第 9 行中定义，在我们的例子中，它是主屏幕:</p>
+<pre class="language-javascript hljs">import { View, Text, StyleSheet, Button } from "react-native";
+import React from "react";
+export default function Home({ navigation }) {
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text&gt;Home Screen&lt;/Text&gt;
+      &lt;Button
+        title="Go to Profiule Page"
+        onPress={() =&gt;
+          navigation.navigate("Profile", {
+            name: "John Doe",
+            age: 25,
+            email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2d474245434942486d4a404c4441034e4240">[email protected]</a>",
+            phone: "123-456-7890",
+          })
+        }
+        style={styles.button}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+</pre>
+<p>在<code>Home.js</code>文件中，我们添加了一个按钮，这将允许我们导航到 profile 屏幕。请注意，在第 10 行，我们可以轻松地在屏幕之间传递数据:</p>
+<pre class="language-javascript hljs">import { View, Text, StyleSheet, Button } from "react-native";
+import React from "react";
+export default function Profile({ route, navigation }) {
+  const { name, age, email, phone } = route.params;
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Text&gt;Profile Screen&lt;/Text&gt;
+      &lt;Button
+        title="Go Back"
+        onPress={() =&gt; navigation.goBack()}
+        style={styles.button}
+      /&gt;
+      &lt;View&gt;
+        &lt;Text&gt;Name: {name}&lt;/Text&gt;
+        &lt;Text&gt;Age: {age}&lt;/Text&gt;
+        &lt;Text&gt;Email: {email}&lt;/Text&gt;
+        &lt;Text&gt;Phone: {phone}&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
+}
+</pre>
+<p>在<code>Profile.js</code>中，我们呈现传递给它的信息。在第 10 行，我们看到了在屏幕间导航的另一种可能性。在<code>Home.js</code>中，我们明确地将个人资料屏幕设置为目的地，但这里我们只说<code>navigation.goBack()</code>。</p>
+<p>虽然开始使用这个库非常简单，但是注意不同的导航库来提高应用程序的性能是明智的。尤其是在 Android 设备上，当你的应用变得更复杂时，性能会下降。此外，这个导航选项的开销相当高。<code>@react-navigation/native</code>、<code>@react-navigation/native-stack</code>、<code>react-native-safe-area-context</code>、<code>react-native-screens</code>将在您项目的<code>package.json</code>中结束。</p>
+<p>对于一个更高性能和轻量级的选择，您可以尝试一下<a href="https://wix.github.io/react-native-navigation/docs/before-you-start/"> <code>react-native-navigation</code> </a>库，它与本地组件相关联。尽管与第一个导航库相比，安装和文档通常不那么直观，但它仍然是值得的。查看<a href="https://wix.github.io/react-native-navigation/docs/installing">本页</a>了解安装部分。下面是如何在两个屏幕间导航的简单演示代码:</p>
+<pre class="language-javascript hljs">import React from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import { Navigation } from 'react-native-navigation';
+
+const HomeScreen = (props) =&gt; {
+  return (
+    &lt;View style={styles.root}&gt;
+      &lt;Text&gt;Home&lt;/Text&gt;
+      &lt;Button
+        title='Go to profile'
+        onPress={() =&gt; Navigation.push(props.componentId, {
+          component: {
+            name: 'Profile',
+            options: {
+              topBar: {
+                title: {
+                  text: 'Profile'
+                }
+              }
+            }
+          }
+        })}/&gt;
+    &lt;/View&gt;
+  );
+};
+
+const ProfileScreen = () =&gt; {
+  return (
+    &lt;View style={styles.root}&gt;
+      &lt;Text&gt;Profile Screen&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+
+Navigation.registerComponent('Home', () =&gt; HomeScreen);
+Navigation.registerComponent('Profile', () =&gt; ProfileScreen);
+
+Navigation.events().registerAppLaunchedListener(async () =&gt; {
+  Navigation.setRoot({
+    root: {
+      stack: {
+        children: [
+          {
+            component: {
+              name: 'Home'
+            }
+          }
+        ]
+      }
+    }
+  });
+});
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+});
+</pre>
+<p>在 React Native 中，还有其他几个库用于处理导航，但这两个是最受欢迎的选项。</p>
+<h2 id="conclusion">结论</h2>
+<p>性能是每个 React 本机应用程序的关键因素，但也是一个复杂的话题。</p>
+<p>有几个因素会影响性能，从控制台语句和动画到大尺寸图像和繁重的计算。确定这些内存泄漏和低性能的来源并修复它们是非常重要的。</p>
+<p>有趣的是，Android Studio 和 Xcode 都为我们提供了一种监控内存使用的方法。如前所述，我们还有大量的工具和方法来优化 React 本机应用程序的性能。在您的下一个 React 原生项目中尝试这些优化技术。</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现 React 原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 React 原生监控解决方案，可帮助您即时重现问题、确定 bug 的优先级并了解 React 原生应用的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的 React 原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

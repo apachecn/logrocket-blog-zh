@@ -1,0 +1,166 @@
+<html>
+<head>
+<title>How to use Nginx as a reverse proxy for a Node.js server - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何使用 Nginx 作为 Node.js 服务器的反向代理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/#0001-01-01">https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Node.js 是几乎所有基于微服务的开发和交付的重要工具。它也是用 JavaScript 创建服务器应用程序并提供 web 服务器和应用服务器功能的领先工具。</p>
+<p>但是 Node.js 有一些缺点和漏洞，会导致基于节点的应用程序性能不理想，甚至崩溃。例如，基于 Node.js 的 web 应用程序容易由于 IO 绑定操作或快速流量增长而导致代码执行缓慢甚至崩溃。他们有时还会在提供静态内容(如图像和 JavaScript 文件)和跨多个服务器的负载平衡方面遇到困难。</p>
+<p>幸运的是，您可以在多个应用服务器之间<a href="https://blog.logrocket.com/caching-headers-a-practical-guide-for-frontend-developers/" target="_blank" rel="noopener">缓存静态内容</a>，反向代理和<a href="https://blog.logrocket.com/7-ways-to-improve-node-js-performance-at-scale/" target="_blank" rel="noopener">负载平衡</a>，并使用 Nginx 管理客户端之间的端口争用。这使得 Nginx 成为提高 Node.js 性能的优秀工具。</p>
+<p>在本教程中，我们将展示如何用 Nginx 反向代理 Node.js 应用程序。我们将构建一个简单的 Node.js 应用程序，它将运行在端口 3000 上，并使用 Nginx 作为 Node.js 应用程序的反向代理服务器。该应用程序将使用域名进行寻址。</p>
+<figure id="attachment_89126" aria-describedby="caption-attachment-89126" class="wp-caption aligncenter"><img data-attachment-id="89126" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/using-nginx-as-reverse-proxy/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png" data-orig-size="720,279" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Using Nginx as reverse proxy" data-image-description="" data-image-caption="&lt;p&gt;Source: https://kinsta.com/blog/reverse-proxy/&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png" decoding="async" class="size-full wp-image-89126 jetpack-lazy-image" src="../Images/2410ff5f54abf9c6bcc89002c3694004.png" alt="Using Nginx As Reverse-Proxy" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy-300x116.png 300w" data-lazy-sizes="(max-width: 720px) 100vw, 720px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="89126" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/using-nginx-as-reverse-proxy/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png" data-orig-size="720,279" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Using Nginx as reverse proxy" data-image-description="" data-image-caption="&lt;p&gt;Source: https://kinsta.com/blog/reverse-proxy/&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png" decoding="async" loading="lazy" class="size-full wp-image-89126" src="../Images/2410ff5f54abf9c6bcc89002c3694004.png" alt="Using Nginx As Reverse-Proxy" srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy-300x116.png 300w" sizes="(max-width: 720px) 100vw, 720px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/using-nginx-as-reverse-proxy.png"/></noscript><figcaption id="caption-attachment-89126" class="wp-caption-text">Source: <a href="https://kinsta.com/blog/reverse-proxy/" target="_blank" rel="noopener">Kinsta</a></figcaption></figure>
+<p>要跟进，您应该:</p>
+<ul>
+<li>了解 web、web 服务器和 web 浏览器如何通信</li>
+<li>JavaScript、Node.js、<a href="https://blog.logrocket.com/parallelism-concurrency-and-async-programming-in-node-js/" target="_blank" rel="noopener">异步编程</a>、计算机网络和 DNS 的基础知识</li>
+<li>来自<a href="https://www.amazonaws.cn/en/getting-started/tutorials/launch-a-virtual-machine/" target="_blank" rel="noopener">公共云提供商</a>的 Ubuntu 虚拟机，对端口<a href="https://phoenixnap.com/kb/ssh-to-connect-to-remote-server-linux-or-windows" target="_blank" rel="noopener"> 22 </a>，80 和 3000 开放</li>
+<li>安装在本地机器上的 Node.js </li>
+<li>来自 DNS 注册商的域名</li>
+<li>安装在本地设备上的 Vim 文本编辑器</li>
+</ul>
+<h2 id="whatareserversandwebservers">什么是服务器和 web 服务器？</h2>
+<p>服务器是一台与其他计算机通信的计算机，为它们提供这些计算机请求的信息。这些计算机也称为客户端，通过局域网(LAN)或广域网(WAN)连接到服务器。服务器通过网络在多个位置发送和收集信息。</p>
+<p>web 上的服务器(称为 web 服务器)通过超文本传输协议(HTTP)接收来自客户机的请求，并返回 HTTP 响应，该响应可以是 HTML 网页，也可以是 API 调用的 JSON 格式。</p>
+<p>Web 服务器是使用 HTTP 作为与其他计算机通信的客户机-服务器协议的任何数据交换的基础。作为计算机的 web 服务器包括硬件和软件，是 web 开发中的基本组件。软件方面包括理解 URL 和控制网络用户如何访问托管文件的部分。</p>
+<h2 id="whatisnginx">Nginx 是什么？</h2>
+<p>根据文档，<a href="https://nginx.org/en/?_ga=2.11834167.221818483.1628285825-2025993407.1628106374" target="_blank" rel="noopener"> Nginx </a>(发音为“engine X”)是一个 HTTP 和反向代理服务器、邮件代理服务器和通用 TCP/UDP 代理服务器，最初由伊戈尔·塞索耶夫编写。</p>
+<p>Nginx 用于各种有助于提高 Node.js 性能的任务。主要特性包括:</p>
+<ul>
+<li>反向代理服务器——随着应用流量的增加，提高性能的最佳方法是在 Node.js 服务器前使用 Nginx 作为反向代理服务器，以平衡服务器间的流量负载。这是 Nginx 在 Node.js 应用程序中的核心用例</li>
+<li>无状态负载平衡—这提高了性能，同时通过发送客户端请求，由任何能够访问所请求文件的服务器来完成，减少了后端服务的负载</li>
+<li>缓存静态内容——在 Node.js 应用程序中提供静态内容，并使用 Nginx 作为反向代理服务器，将应用程序性能提高了一倍，最高可达每秒 1，600 个请求</li>
+<li>实现 SSL/TLS 和 HTTP/2——考虑到最近在 Node.js 应用程序中从使用 SSL/TLS 到保护用户交互的转变，Nginx 也支持 HTTP/2 连接</li>
+<li>性能跟踪——您可以使用 Nginx 的实时仪表板上提供的统计数据，实时跟踪 Node.js 应用程序的整体性能</li>
+<li>可伸缩性—根据您所服务的资产，您可以利用 Nginx 中功能全面的 HTTP、TCP 和 UDP 负载平衡来扩展 Node.js 应用程序</li>
+</ul>
+<p>Nginx 目前支持 7 种脚本语言:Go、Node.js、Perl、PHP、Python、Ruby、Java Servlet 容器(最后一种是实验模块)。它使您能够在同一台服务器上运行用不同语言编写的应用程序。</p>
+<p>让我们设置 Node.js 应用程序。</p>
+<h2 id="creatinganodejsapplication">创建 Node.js 应用程序</h2>
+<p>对于这个简单的 Node.js 应用程序，我们将使用 Node.js 提供的 HTTP 模块构建一个 Node.js 服务器。</p>
+<pre class="language-bash hljs">mkdir nginx_server_project
+cd nginx_server_project
+npm init -y
+</pre>
+<p>上面的代码将创建文件夹<code>nginx_server_project</code>并将目录更改为文件夹。然后，我们用 npm 初始化 Node.js 应用程序，使用<code>-y</code>标志将<code>yes</code>设置为所有问题的默认答案。<em> <em/> </em></p>
+<p>下一步是创建包含应用程序源代码的<code>server.js</code>文件。用您选择的任何 IDE 或文本编辑器打开它:</p>
+<pre class="language-bash hljs">touch server.js
+vim server.js
+</pre>
+<p>现在是构建和启动服务器的时候了。让我们定义两个额外的子域，作为测试我们的应用程序功能是否完整的手段:</p>
+<pre class="language-javascript hljs">const http = require("http");
+
+const server = http.createServer((req, res) =&gt; {
+  const urlPath = req.url;
+  if (urlPath === "/overview") {
+    res.end('Welcome to the "overview page" of the nginX project');
+  } else if (urlPath === "/api") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        product_id: "xyz12u3",
+        product_name: "NginX injector",
+      })
+    );
+  } else {
+    res.end("Successfully started a server");
+  }
+});
+
+server.listen(3000, "localhost", () =&gt; {
+  console.log("Listening for request");
+});
+</pre>
+<p>我们创建了一个带有 Node.js HTTP 模块的服务器，该模块是使用上面代码中的<code>require</code>函数导入的。在我们的服务器中，我们将根据当前的路线呈现两种不同的响应。两条路线分别是<code>/overview</code>和<code>/api</code>。</p>
+<p>在<code>/overview</code>子域上，我们将呈现一个纯文本，而在<code>/api</code>子域上，我们将呈现一个 JSON 对象。上述应用程序将在您的虚拟机的公共 IPv4 地址上被访问，例如在端口<code>3000</code>上的<code>34.211.115.4</code>。</p>
+<p>现在节点服务器应用程序已经准备好了，让我们安装 Nginx 并进行配置。</p>
+<h2 id="installingnginx">安装 Nginx</h2>
+<p>我们将使用基于 Debian 的操作系统的默认包管理器来安装 Nginx，它被称为<a href="https://packages.debian.org/search?keywords=apt" target="_blank" rel="noopener"> apt </a>。Nginx 也适用于几乎所有的<a href="https://nginx.org/en/docs/install.html" target="_blank" rel="noopener">操作系统</a>的默认库。</p>
+<p>在安装 Nginx 之前，确保你已经安装了 Ubuntu OS 的<a href="https://nginx.org/en/linux_packages.html#Ubuntu" target="_blank" rel="noopener">先决条件。</a></p>
+<p>接下来，我们将根据我们项目的独特需求来配置 Nginx，然后我们将准备实现它。</p>
+<h3>配置 Nginx</h3>
+<p>为了让 Nginx 路由到监听端口 3000 的 Node.js 应用程序，我们需要首先取消 Nginx 的默认配置，然后创建一个新的配置供 Node.js 应用程序使用。</p>
+<p>要取消默认 Nginx 配置的链接，可以使用以下命令:</p>
+<pre class="language-bash hljs">sudo unlink /etc/nginx/sites-available/default
+</pre>
+<p>Nginx 配置保存在<code>/etc/nginx/sites-available</code>目录中。要创建新的配置，让我们导航到这个目录并创建一个指向 Node.js 应用程序的服务器块的配置文件。</p>
+<pre class="language-bash hljs">cd /etc/nginx/sites-available
+touch myserver.config
+</pre>
+<p>将目录更改为<code>/etc/nginx/sites-available</code>后，第二条命令将创建一个名为<code>myserver.config</code> <strong>的 Nginx 配置文件。</strong></p>
+<p>接下来，打开<code>myserver.config</code>文件:</p>
+<pre class="language-bash hljs">sudo vim /etc/nginx/sites-available/myserver.config
+</pre>
+<p>按以下配置粘贴:</p>
+<pre>#The Nginx server instance
+server{
+    listen 80;
+    server_name wach.quest;
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        # location /overview {
+        #     proxy_pass http://127.0.0.1:3000$request_uri;
+        #     proxy_redirect off;
+        # }
+    }
+}
+</pre>
+<p>上面的配置让 Nginx 监听<code>your-domain.com</code>上的端口 80。<code>/</code>是您的统一资源标识符(URI ),具有以下属性:</p>
+<ul>
+<li><code>proxy_set_header</code>，设置主机头为 Nginx 服务器的主机头</li>
+<li><code>proxy_pass http</code>，它指示 Nginx 将所有匹配位置模式的请求代理到上游(后端)服务器</li>
+<li><code>proxy_http_version</code>，将传入连接转换为 HTTP 1.1</li>
+<li><code>proxy_set_header Upgrade</code>，它将代理连接转换为类型<code>Upgrade</code>，因为 WebSockets 只在升级的连接上通信</li>
+<li><code>proxy_set_header Connection</code>，确保连接头值为<code>U``pgrade</code></li>
+</ul>
+<p>点击<code>Esc</code>键保存更改并退出文件。然后，键入命令<code>:wq</code>并按下<code>Enter</code>或<code>return</code>键。</p>
+<p>下一步，让我们通过创建一个到<code>sites-enabled</code>目录的符号来启用上面的文件，Nginx 在启动时会读取这个文件:</p>
+<pre class="language-bash hljs">sudo ln -s /etc/nginx/sites-available/myserver.config /etc/nginx/sites-enabled/
+</pre>
+<p>服务器块现在已启用并配置为基于<code>listen</code>端口和<code>location</code>路径返回对请求的响应。</p>
+<p>现在是时候启动 Node.js 应用程序和 Nginx 服务来触发最近的更改了。但是首先，让我们检查 Nginx 的状态，以确认配置工作正常:</p>
+<pre>sudo nginx -t 
+</pre>
+<p>运行上述命令的输出如下所示:</p>
+<pre>nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+</pre>
+<p>上面的输出证实了我们的配置是成功的。接下来，重启 Nginx 以使您的更改生效:</p>
+<pre class="language-bash hljs">sudo systemctl restart nginx
+</pre>
+<p>Nginx 再次运行后，让我们允许通过 Nginx 防火墙的完全访问:</p>
+<pre class="language-bash hljs">sudo ufw allow 'Nginx Full'
+</pre>
+<p>接下来，导航到 Node.js 应用程序的目录:</p>
+<pre class="language-bash hljs">cd ~/nginx_server_project
+</pre>
+<p>使用以下命令启动 Node.js 服务器应用程序:</p>
+<pre class="language-bash hljs">node server.js
+</pre>
+<p><img data-attachment-id="89135" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-server-running-listening-for-request/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png" data-orig-size="450,90" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node.js server running and listening for a request" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png" decoding="async" class="aligncenter size-full wp-image-89135 jetpack-lazy-image" src="../Images/68fc9b08c4d42febb41f4db91837c839.png" alt="Node.js Server Running And Listening For A Request" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png 450w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request-300x60.png 300w" data-lazy-sizes="(max-width: 450px) 100vw, 450px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="89135" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-server-running-listening-for-request/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png" data-orig-size="450,90" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node.js server running and listening for a request" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-89135" src="../Images/68fc9b08c4d42febb41f4db91837c839.png" alt="Node.js Server Running And Listening For A Request" srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png 450w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request-300x60.png 300w" sizes="(max-width: 450px) 100vw, 450px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-server-running-listening-for-request.png"/></noscript>
+<p>打开浏览器，使用<code>your-domain.com</code>访问 Node.js 应用程序:</p>
+<p><img data-attachment-id="89133" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png" data-orig-size="350,89" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the Node.js application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png" decoding="async" class="aligncenter size-full wp-image-89133 jetpack-lazy-image" src="../Images/69e4cee43b9d4c605163d51310f8c420.png" alt="Accessing The Node.js Application" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png 350w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint-300x76.png 300w" data-lazy-sizes="(max-width: 350px) 100vw, 350px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="89133" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png" data-orig-size="350,89" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the Node.js application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-89133" src="../Images/69e4cee43b9d4c605163d51310f8c420.png" alt="Accessing The Node.js Application" srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png 350w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint-300x76.png 300w" sizes="(max-width: 350px) 100vw, 350px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-endpoint.png"/></noscript>
+<p>现在，我们可以在浏览器上导航到地址<code>your-domain.com/overview</code>并访问我们应用程序的<code>/overview</code>端点:</p>
+<p><img data-attachment-id="89131" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-nginx-overview-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png" data-orig-size="388,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the /overview endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint-300x66.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png" decoding="async" class="aligncenter size-full wp-image-89131 jetpack-lazy-image" src="../Images/0bbcd792022519f1bf988353856c5d2e.png" alt="Accessing The /overview Endpoint" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png 388w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint-300x66.png 300w" data-lazy-sizes="(max-width: 388px) 100vw, 388px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="89131" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-nginx-overview-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png" data-orig-size="388,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the /overview endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint-300x66.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-89131" src="../Images/0bbcd792022519f1bf988353856c5d2e.png" alt="Accessing The /overview Endpoint" srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png 388w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint-300x66.png 300w" sizes="(max-width: 388px) 100vw, 388px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-overview-endpoint.png"/></noscript>
+<p>为了进一步测试我们定义的其他路径是否都正常工作，让我们尝试最后一个路径，<code>your-domain.com/api</code>:</p>
+<p><img data-attachment-id="89129" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-nginx-api-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png" data-orig-size="424,94" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the /api endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png" decoding="async" class="aligncenter size-full wp-image-89129 jetpack-lazy-image" src="../Images/61d68cae2ae9c20d302873dbc12eec88.png" alt="Accessing The /api Endpointq" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png 424w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint-300x67.png 300w" data-lazy-sizes="(max-width: 424px) 100vw, 424px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="89129" data-permalink="https://blog.logrocket.com/how-to-run-a-node-js-server-with-nginx/node-js-nginx-api-endpoint/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png" data-orig-size="424,94" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing the /api endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-89129" src="../Images/61d68cae2ae9c20d302873dbc12eec88.png" alt="Accessing The /api Endpointq" srcset="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png 424w, https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint-300x67.png 300w" sizes="(max-width: 424px) 100vw, 424px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/node-js-nginx-api-endpoint.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，我们学习了如何将 Nginx 设置为后端应用程序的 Node.js 服务器。</p>
+<p>我们使用 Node.js 和 Nginx 构建了一个简单的 Node.js 应用程序。然后，我们配置 Nginx 监听端口 3000，并在浏览器上提供我们在 Node.js 应用程序中预定义的内容。</p>
+<p>Ngnix 是一个很好的 web 应用交付工具，在 ADC 和 web 服务器层都提供了性能和可伸缩性。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,348 @@
+<html>
+<head>
+<title>What's new in TypeScript 4.7 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>TypeScript 4.7 中的新特性- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/whats-new-typescript-4-7/#0001-01-01">https://blog.logrocket.com/whats-new-typescript-4-7/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>TypeScript 4.7 中包含了许多重要的更新、介绍和改进。这次更新特别围绕类型推断、缩小分析、es 模块集成、实例化表达式等新特性。</p>
+<p>在本文中，我们将看看每一个新的变化，并了解我们今天如何使用它们。让我们逐一查看，了解新版本的实现是什么样子的。</p>
+
+<h2 id="setting-up-environment">设置环境</h2>
+<p>从特性的实现开始，我们需要调至本地开发环境并配置一些文件。</p>
+<p>首先，运行下面的命令，查看在根项目目录中为我们创建的一个<code>package.json</code>文件:</p>
+<pre class="language-shell hljs">mkdir ts4.7_walkthrough 
+cd ts4.7_walkthrough 
+npm init -y</pre>
+<p>我们将安装带有<code>-D</code>标志的最新版本的 TypeScript，将其安装为一个开发依赖项:</p>
+<pre class="language-shell hljs">npm install <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ff8b868f9a8c9c8d968f8bbf8d9c">[email protected]</a> -D</pre>
+<p>接下来，我们将运行<code>--init</code>命令来初始化 TypeScript:</p>
+<pre class="language-shell hljs">npx tsc --init
+</pre>
+<p>这将为我们创建一个<code>tsconfig.json</code>文件。我们将在这里添加一个选项，以便我们可以指定文件的输出文件夹:</p>
+<pre class="language-typescript hljs">{
+ "compilerOptions": {
+"outDir": "./output"
+  "declaration": true /* Generate .d.ts files from TypeScript and JavaScript files in your project. */,
+
+ }
+}
+</pre>
+<p>到目前为止，我们已经设置了输出目录，以获取将放入该文件夹的编译后的 JavaScript。我们还将更新我们的<code>package.json</code>文件的<code>scripts</code>部分，以包含构建和启动<code>script</code> : <br/> &lt;</p>
+<pre class="language-typescript hljs">"scripts": {
+ "build": "tsc",
+ "start": "tsc -w"
+},
+</pre>
+<p>有了这些，我们就可以用命令<code>npm start</code>运行我们的应用程序，它监听所有对 TypeScript 文件的更改，并为我们编译它们。</p>
+<p>现在，让我们开始探索新添加的特性和改进。</p>
+<h2 id="better-control-module-detection">更好地控制模块检测</h2>
+<p>在这个版本之前，我们需要在 Node 中编写服务器端代码时添加<code>type=module</code>或<code>.mjs</code>扩展。但是，在普通 JavaScript 中，模块化代码的运行方式与传统脚本代码略有不同。由于它们有不同的作用域规则，我们需要决定每个文件如何运行。</p>
+<p>在 TypeScript 中，如果在文件中写入任何导入和导出，则这些文件被视为模块。在这个最新版本中，我们有一个名为<code>moduleDetection</code>的选项来给我们更多的控制。该选项可以取三个值:<code>auto</code>、<code>legacy</code>和<code>force</code>。让我们了解一下他们每个人是做什么的。</p>
+<p>当使用<code>auto</code>模式时，TypeScript 将检查导入和导出语句，以及在<code>--jsx react-jsx</code>下运行时当前文件是否在 JSX。它还会检查在<code>--module nodenext/--module node12</code>下运行时<code>package.json</code>中的<code>type</code>字段是否被设置为该模块。</p>
+<p>另一方面，模式只检查导入和导出语句。</p>
+<p>最后，<code>force</code>模式将强制每个文件被当作一个模块。</p>
+<h2 id="objects-methods-improved-function-inference">对象和方法在函数推理方面有所改进</h2>
+<p>有了新版本的 TypeScript，我们可以从对象、方法和数组中的函数执行更精确的推理。</p>
+<p>我们倾向于从参数列表中任何位置的上下文不敏感的函数参数推断类型，例如当我们在通用函数参数列表中上下文键入箭头函数、对象文字和函数表达式的参数时，或者从参数列表中前面位置的上下文敏感的函数参数推断类型。</p>
+<pre class="language-typescript hljs">// Improved function inference in objects and methods
+declare function myCharacter&lt;T&gt;(arg: {
+ characterLetter: (a: string) =&gt; T,
+ changeCharacter: (x: T) =&gt; void
+}
+): void;
+
+// Works fine
+myCharacter({
+ characterLetter: () =&gt; "meow meow",
+ changeCharacter: x =&gt; x.slice(0, 4),
+});
+
+// Works fine
+myCharacter({
+ characterLetter: (a: string) =&gt; a,
+ changeCharacter: x =&gt; x.substring(0, 4),
+});
+
+// Was an error, but now it works.
+myCharacter({
+ characterLetter() { return "I love typescript" },
+ changeCharacter: x =&gt; x.toUpperCase(),
+});
+
+// Now works with ^@4.7
+myCharacter({
+ characterLetter: a =&gt; a,
+ changeCharacter: x =&gt; x.toUpperCase(),
+});
+
+// Now works with ^@4.7
+myCharacter({
+ characterLetter: function () { return "I love typescript"; },
+ changeCharacter: x =&gt; x.toUpperCase(),
+});
+</pre>
+<p>有了这些变化，我们现在可以在上下文敏感的、上下文类型的函数之间拥有相同的从左到右的信息流规则，而不管这些函数是作为对象或数组文字中的离散参数或属性出现的。</p>
+<h2 id="specialized-generic-function-instantiation-expressions">具有实例化表达式的专用通用函数</h2>
+<p>我们现在可以用实例化表达式来专门化通用函数。为了演示这一点，我们将创建一个名为<code>makeJuice</code>的通用类型接口。它将接受一个泛型，并将其传递给一个通用函数:</p>
+<pre class="language-typescript hljs">interface Fruits&lt;T&gt; {
+  value: T;
+}
+function makeJuice&lt;T&gt;(value: T) {
+  return { value };
+}
+</pre>
+<p>经常会有这样的情况，我们想要创建一个专门化的函数，并对函数进行包装，使其更加专门化。为了实现这一点，我们可以写:</p>
+<pre class="language-typescript hljs">function orangeJuice(fruit: Orange) {
+ return makeJuice(Orange);
+}
+
+// or can be written like
+
+const appleJuice: (fruit: Fruits) =&gt; Fruits&lt;Apple&gt; = makeJuice;
+</pre>
+<p>这种方法肯定有效，但是创建一个新函数来包装另一个函数是浪费时间，而且坦率地说，工作量太大。在新版本中，我们可以通过获取函数和构造函数并直接向它们提供类型参数来简化这一过程:</p>
+<pre class="language-typescript hljs">const appleJuice= makeJuice&lt;Apple&gt;;
+const orangeJuice= makeJuice&lt;Orange&gt;;
+</pre>
+<p>我们也可以只接收特定的类型，拒绝任何其他类型:</p>
+<pre class="language-typescript hljs">const makeAppleJuice = makeJuice&lt;number&gt;;
+
+// TypeScript correctly rejects this.
+makeAppleJuice('Apple');
+</pre>
+<p>这使得开发人员可以专注于通用函数，并接受和拒绝好的值。</p>
+<h2 id="more-control-folow-analysis-calculated-properties">对计算属性的更多控制流分析</h2>
+<p>随着 TypeScript 4.7 的发布，TypeScript 编译器现在可以分析计算属性的类型并正确地减少它们。你可以在下面看到一个例子:</p>
+<pre class="language-typescript hljs">const key = Symbol();
+const objectKey = Math.random() &lt;= 0.2 ? 90 : "Lucky person!";
+
+let obj = {
+ [key]: objectKey,
+};
+
+if (typeof obj[key] === "string") {
+ let str = obj[key].toUpperCase();
+ console.log(`You really are ${str}`);
+}
+</pre>
+<p><a href="https://devblogs.microsoft.com/typescript/announcing-typescript-4-7-beta/#groups-aware-organize-imports" target="_blank" rel="noopener">新版本</a>知道<code>obj[key]</code>是一个字符串。TypeScript 可以正确地检查计算属性是否在构造函数体结束时初始化。</p>
+<h2 id="object-method-snippet-autocompletion-inside-IDE">ide 中的对象方法片段自动完成</h2>
+<p>我们现在可以接收对象文字方法的代码片段完成。TypeScript 将为我们提供一个仅用于方法名称的典型完成条目，以及一个用于完整方法定义的单独完成条目。</p>
+<p id="gdcalert1"><img data-attachment-id="114219" data-permalink="https://blog.logrocket.com/whats-new-typescript-4-7/object-method-snippet-autocompletion-inside-ide/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif" data-orig-size="730,318" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="object-method-snippet-autocompletion-inside-IDE" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif" decoding="async" class="aligncenter size-full wp-image-114219 jetpack-lazy-image" src="../Images/28eef563ec017b15a31613a7eaa8ddee.png" alt="Object Method Snippet Autocompletion Inside IDE" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="114219" data-permalink="https://blog.logrocket.com/whats-new-typescript-4-7/object-method-snippet-autocompletion-inside-ide/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif" data-orig-size="730,318" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="object-method-snippet-autocompletion-inside-IDE" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-114219" src="../Images/28eef563ec017b15a31613a7eaa8ddee.png" alt="Object Method Snippet Autocompletion Inside IDE" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/object-method-snippet-autocompletion-inside-IDE.gif"/></noscript>
+<h2 id="typeof-queries-private-fields-allowed">现在允许在<code>#private</code>字段中进行<code>typeof</code>查询</h2>
+<p>有了这次更新，我们现在可以对私有字段执行<code>typeof</code>查询。你可以在下面看到一个例子:</p>
+<pre class="language-typescript hljs">class Programming {
+ #str = "Typescript rocks!";
+
+ get ourString(): typeof this.#str {
+     return this.#str;
+ }
+
+ set ourString(value: typeof this.#str) {
+     this.#str = value;
+ }
+}
+</pre>
+<h2 id="optional-variance-annotations-type-parameters">类型参数的可选方差注释</h2>
+<p>此外，我们现在能够显式地指定类型参数的变化:</p>
+<pre class="language-typescript hljs">interface Programming {
+ langList: string[];
+}
+
+interface typescriptLang extends Programming {
+ tsLang: string;
+}
+
+type Getter&lt;T&gt; = (value: T) =&gt; T;
+
+type Setter&lt;T&gt; = (value: T) =&gt; void;
+</pre>
+<p>让我们假设我们有两个不同的可替换的<code>Getters</code>，这完全取决于泛型<code>T</code>。在这种情况下，我们可以检查<code>Getter&lt;TypeScript&gt; → Getter&lt;Programming&gt;</code>是否有效。换句话说，我们需要检查<code>TypeScript → Programming</code>是否有效。</p>
+<p>检查<code>Setter&lt;Typescript&gt; → Setter&lt;Programming&gt;</code>是否有效包括查看<code>Typescript → Programming</code>是否也有效。方向的翻转类似于数学中的逻辑。本质上，我们看到的是 x&lt;y 是否是同一个 y &lt; x</p>
+<p>当我们需要像这样翻转方向来比较<code>T</code>时，我们说<code>Setter</code>在<code>T</code>上是逆变的。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>借助于<code>out</code>修饰语，我们现在可以明确地声明<code>Getter</code>在<code>T</code>上是协变的:</p>
+<pre class="language-typescript hljs">type Getter&lt;out T&gt; = () =&gt; T;
+</pre>
+<p>类似地，如果我们想明确表示<code>Setter</code>是<code>T</code>的逆变，我们可以给它一个修饰符:</p>
+<pre class="language-typescript hljs">type Setter&lt;in T&gt; = (value: T) =&gt; void;
+</pre>
+<p>我们在这里使用<code>out</code>和<code>in</code>修饰符，因为类型参数的方差依赖于它是用于输出还是输入。</p>
+<h2 id="group-aware-organize-imports-auto-sorting">可识别组的自动排序导入组织</h2>
+<p>TypeScript 现在有一个针对 JavaScript 和 TypeScript 的有组织的导入编辑器，但是，它可能不符合我们的期望。实际上，对我们的 import 语句进行本机排序更好。</p>
+<p>让我们举一个实际例子:</p>
+<pre class="language-typescript hljs">// local code
+import * as cost from "./cost";
+import * as expenses from "./expenses";
+import * as budget from "./budget";
+
+// built-ins
+import * as fs from "fs";
+import * as http from "http"
+import * as path from "path";
+import * as crypto from "crypto";
+</pre>
+<p>如果我们对以下文件运行 organize imports，我们会看到以下变化:</p>
+<pre class="language-typescript hljs">// built-ins
+import * as fs from "fs";
+import * as http from "http"
+import * as path from "path";
+import * as crypto from "crypto";
+
+//local code
+import * as cost from "./cost";
+import * as expenses from "./expenses";
+import * as budget from "./budget";
+</pre>
+<p>导入按路径排序，我们的注释和换行符被保留。这以一种组感知的方式组织导入。</p>
+<h2 id="resolution-mode-import-types"><code>Resolution</code>模式可用于<code>import()</code>类型</h2>
+<p>TypeScript 现在允许<code>/// &lt;reference types="…" /&gt;</code>指令和<code>import type</code>语句指定解析策略。这意味着我们可以解析导入的节点 ECMAScript 解析。但是，从 ECMAScript 模块引用通用 JavaScript 模块的类型会很有用，反之亦然。</p>
+<p>在 TypeScript 的夜间版本中，<code>import type</code>可以指定一个导入断言来实现类似的结果:</p>
+<pre class="language-typescript hljs">// Resolve `pkg` as if we were importing with a `require()`
+import type { TypeFromRequire } from "pkg" assert {
+ "resolution-mode": "require"
+};
+
+// Resolve `pkg` as if we were importing with an `import`
+import type { TypeFromImport } from "pkg" assert {
+ "resolution-mode": "import"
+};
+
+export interface MergedType extends TypeFromRequire, TypeFromImport {}
+</pre>
+<p>这些导入断言也可以用在<code>import()</code>类型上:</p>
+<pre class="language-typescript hljs">export type TypeFromRequire =
+   import("pkg", { assert: { "resolution-mode": "require" } }).TypeFromRequire;
+
+export type TypeFromImport =
+   import("pkg", { assert: { "resolution-mode": "import" } }).TypeFromImport;
+
+export interface MergedType extends TypeFromRequire, TypeFromImport {}
+</pre>
+<p>注意，<code>import type</code>和<code>import()</code>语法只支持 TypeScript 每夜构建中的<code>resolution</code>模式。我们会得到如下错误:</p>
+<pre class="language-plaintext hljs">**Resolution mode assertions are unstable. Use nightly TypeScript to silence this error. Try updating with 'npm install -D <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cabeb3baafb9a9b8a3babe8aa4afb2be">[email protected]</a>'.
+</pre>
+<h2 id="customization-resolution-modulesuffixes">使用<code>moduleSuffixes</code>定制分辨率</h2>
+<p>TypeScript 现在支持一个<code>moduleSuffixes</code>选项来定制如何查找模块说明符。例如，如果我们正在导入像<code>import * as foo from "./foo"</code>和<code>moduleSuffixes</code>配置这样的文件，它看起来像这样:</p>
+<pre class="language-typescript hljs">{
+ "compilerOptions": {
+     "moduleSuffixes": [".ios", ".native", ""]
+ }
+}
+</pre>
+<p>在这种配置下，我们强制应用程序查看路径中的相关文件:</p>
+<pre class="language-typescript hljs">./example.ios.ts
+./example.native.ts
+./example.ts
+</pre>
+<p>这个特性将变得非常方便，特别是在 React 本地项目中，我们在<code>tsconfig.json</code>中添加每个带有不同<code>moduleSuffixes</code>的目标平台。</p>
+<p>请注意，<code>moduleSuffixes</code>中的空字符串<code>""</code>是 TypeScript 查找<code>./example.ts</code>所必需的。</p>
+<h2 id="extends-constraints-infer-type-variables"><code>Extends</code>对<code>infer</code>类型变量的约束</h2>
+<p>对<code>infer</code>类型变量的约束允许开发人员根据类型的形状进行匹配和推断，并基于它们做出决定:</p>
+<pre class="language-typescript hljs">type FirstStringCheck&lt;T&gt; =
+   T extends [infer S, ...unknown[]]
+       ? S extends string ? S : never
+       : never;
+
+// string
+type A = FirstStringCheck&lt;[string, number, number]&gt;;
+
+// "typescript"
+type B = FirstStringCheck&lt;["typescript", number, number]&gt;;
+
+// "typescript" | "rocks"
+type C = FirstStringCheck&lt;["typescript" | "rocks", boolean]&gt;;
+
+// never
+type D = FirstStringCheck&lt;[boolean, number, string]&gt;;
+</pre>
+<p><code>FirstStringCheck</code>匹配任何至少有一个元素的元组类型，并获取第一个元素的类型作为<code>S</code>。然后，它将检查<code>S</code>是否与字符串兼容，如果兼容，则返回类型。</p>
+<p>以前，我们需要这样写<code>FirstStringCheck</code>的相同逻辑:</p>
+<pre class="language-typescript hljs">type FirstStringCheck&lt;T&gt; =
+   T extends [string, ...unknown[]]
+       // Grab the first type out of `T`
+       ? T[0]
+       : never;
+</pre>
+<p>在这种情况下，我们变得越来越手动，越来越少声明。我们不是仅仅坚持在<code>type</code>定义上进行模式匹配，而是为第一个元素提供一个名称，并提取<code>T</code>的<code>[0]</code>元素。</p>
+<p>这个新版本允许我们对任何推断类型进行约束，如下例所示:</p>
+<pre class="language-typescript hljs">type FirstStringCheck&lt;T&gt; =
+ T extends [infer S extends string, ...unknown[]]
+ ? S
+ : never;
+</pre>
+<p>当<code>S</code>匹配时，它会确定<code>S</code>是一个字符串类型。如果不是这样，它就会走上一条<code>never</code>的错误道路。</p>
+<h2 id="ecmascript-module-supported-node-js">Node.js 中支持 ECMAScript 模块</h2>
+<p>对 Node.js 来说，支持 ECMAScript 是一项艰巨的任务，因为它的生态系统是围绕 CommonJS 构建的。Node.js 在其 v12 更新中扩展了对 ECMAScript 模块的支持。</p>
+<p><a href="https://blog.logrocket.com/typescript-4-7-ecmascript-module-support/" target="_blank" rel="noopener"> TypeScript v4.5 已经在 Node.js </a>中推出了对 ESM 的支持，作为每晚从用户那里获得反馈的功能。现在，它引入了两个新的编译器选项，<code>node12</code>和<code>nodenext</code>，以扩展 ECMAScript 模块支持。随着这两个特性的到来，它为我们带来了其他几个令人兴奋的特性。</p>
+<pre class="language-typescript hljs">{
+ "compilerOptions": {
+     "module": "nodenext",
+ }
+}
+</pre>
+<h2 id="other-breaking-changes">其他突破性变化</h2>
+<p>此更新还有一些其他令人兴奋的突破性变化。下面就来讨论其中的几个吧！</p>
+<h3 id="stricter-spread-checks-jsx">JSX 更严格的价差检查</h3>
+<p>在 JSX 内部写一个<code>…spread</code>的时候，我们有一个更严格执行的内置规则。<code>unknown</code>和<code>never</code>(还有<code>null</code>和<code>undefined</code>的值已经不能分摊到 JSX 元素里了。这使得行为与对象文字的分布更加一致。</p>
+<pre class="language-typescript hljs">import React from "react";
+
+interface Props {
+   id?: string;
+}
+
+function Homepage(props: unknown) {
+   return &lt;div {...props} /&gt;;
+}
+</pre>
+<p>使用上面的代码，我们会收到一个类似这样的错误:</p>
+<pre class="language-plaintext hljs">Spread types may only be created from object types.
+</pre>
+<h3 id="stricter-checks-template-string-expression">使用模板字符串表达式进行更严格的检查</h3>
+<p>如果我们在 JavaScript 中使用符号值，JavaScript 和 TypeScript 都会抛出错误。但是，TypeScript 现在会检查模板字符串中是否使用了符号中包含的泛型值。</p>
+<pre class="language-typescript hljs">function keyPropertyLogger&lt;S extends string | symbol&gt;(key: S): S {
+ // Now an error.
+ console.log(`${key} is the key`);
+ return key;
+}
+
+function get&lt;T, K extends keyof T&gt;(obj: T, key: K) {
+ // Now an error.
+ console.log(`This is a key ${key}`);
+ return obj[key];
+}
+</pre>
+<p>TypeScript 现在将向我们抛出以下问题:</p>
+<pre class="language-typescript hljs">Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.
+</pre>
+<h3 id="readonly-tuples-read-only-length-property"><code>readonly</code>元组具有只读长度属性</h3>
+<p><code>readonly</code>元组现在将长度属性视为只读。这可以从具有可选尾部和 rest 元素类型的元组中看出。</p>
+<pre class="language-typescript hljs">function strLength(tuple: readonly [string, string, string]) {
+ // Throws an error now
+ tuple.length = 7;
+}
+</pre>
+<h3 id="readfile-method-no-longer-optional-languageservicehost">在 LanguageServiceHost 上，方法不再是可选的</h3>
+<p>如果我们正在创建一个 LanguageService 实例，LanguageServiceHost 将需要提供一个<code>readFile</code>方法。为了支持新的模块检测编译器选项，这是一个必要的改变。</p>
+<h2>结论</h2>
+<p>通过团队和贡献者的大量努力和辛勤工作，我们现在可以尝试 TypeScript 4.7 令人兴奋的新功能和改进。</p>
+<p>我们可以使用许多便利的功能来调整和优化我们的时间和效率。通过微软博客可以找到一个全面的发布主题列表，这是一个很好的资源。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket 不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自 Redux、Vuex 和@ngrx/store 的额外上下文。</p>
+<p>除了记录 Redux 操作和状态，LogRocket 还记录控制台日志、JavaScript 错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用 DOM 来记录页面上的 HTML 和 CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

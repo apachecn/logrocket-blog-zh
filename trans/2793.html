@@ -1,0 +1,147 @@
+<html>
+<head>
+<title>A deep dive into Rust iterators and closures - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>深入探究 Rust 迭代器和闭包</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rust-iterators-closures-deep-dive/#0001-01-01">https://blog.logrocket.com/rust-iterators-closures-deep-dive/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果你还不知道，Rust 是一种很棒的编程语言。事实上，它太棒了，以至于 Stack Overflow <a href="https://insights.stackoverflow.com/survey/2021#technology-most-loved-dreaded-and-wanted" target="_blank" rel="noopener">在过去的六年里把它选为最受欢迎的语言。</a></p>
+<p>Rust 是一种系统编程语言。虽然 C 和 C++等语言提供了对内存管理和垃圾收集等组件的细粒度控制，但由于语法的复杂性，它们使得构建现代应用程序更加困难。</p>
+<p>与此同时，像 Python 和 JavaScript 这样的语言——虽然对开发人员的生产力很有帮助——却缺乏低级语言所提供的性能和安全性。</p>
+<p>这就是生锈的原因。Rust 结合了编程的简易性和对核心系统级配置的访问。它从一开始就具有内存安全性、并发性和安全性，是构建可伸缩的高性能应用程序的最佳选择。</p>
+<p>本文不是对 Rust 的介绍。我最近写了一篇关于<a href="https://www.hardcoder.io/rust-getting-started-with-the-most-loved-programming-language/" target="_blank" rel="noopener">开始使用 Rust </a>的文章，所以如果你是新手的话可以看看。</p>
+<p>在本文中，我们将详细研究迭代器和闭包的中间 Rust 概念。</p>
+<p>(有趣的事实:Rust 非常重视双引号和分号。来自 JS/Python 背景，我学习 rust 的大部分时间都花在了调试这些问题上。)</p>
+
+<h2 id="iterators-in-rust">Rust 中的迭代器</h2>
+<p>迭代是遍历一组值的过程。您可能熟悉像“for 循环”、“while 循环”和“for each 循环”这样的循环</p>
+<p>在 Rust 中，迭代器帮助我们实现了循环的过程。在其他语言中，您可以直接开始遍历一个值数组。然而，在 Rust 中，你必须首先声明一个迭代器。</p>
+<p>让我们看一个简单的数组例子。我将声明一个命名年龄数组，我们将在本节中使用它。</p>
+<pre class="language-rust hljs">let ages = [27,35,40,10,19];
+</pre>
+<p>现在，让我们通过调用<code>iter()</code>函数将其声明为可循环数组。</p>
+<pre class="language-rust hljs">let ages_iterator = ages.iter();
+</pre>
+<p>如果这看起来令人困惑，不要担心。一旦我们看到一个实际的实现，你就会更好地理解它。</p>
+<p>让我们循环遍历这些值，并一个接一个地打印出来。</p>
+<pre class="language-rust hljs">for age in ages_iterator {
+  println!("Age = {:?}",age);
+}
+</pre>
+<p>您可以看到，我们使用了<code>ages_iterator</code>而不是 ages 向量来执行循环操作。</p>
+<p>默认情况下，所有的信任列表(数组、向量、映射)都是不可迭代的。使用<code>iter()</code>函数，我们告诉 Rust 给定的数组可以用于循环。</p>
+<p>这也被称为迭代器“懒惰”类似于函数在被调用之前不做任何事情，<code>iter()</code>函数用于调用数组中的迭代。</p>
+<h3 id="iterator-trait">迭代器特征</h3>
+<p>如果你不知道什么是铁锈性状，<a href="https://blog.rust-lang.org/2015/05/11/traits.html" target="_blank" rel="noopener">这篇文章</a>将为你提供关于性状的详细信息。简单来说，traits 类似于 C++中的抽象类或者 Java 中的接口。</p>
+<p>特征是 Rust 中抽象的基础，它们允许我们定义可以跨不同 Rust 类型共享的方法。</p>
+<p>想象一下，编写一个具有打印摘要消息功能的类。您可以调用这个类并调用它的方法来打印出不同的消息，比如脸书邮报或 Twitter tweet。类似地，您可以编写一个打印出摘要的特征，并且您可以<a href="https://doc.rust-lang.org/std/keyword.impl.html" target="_blank" rel="noopener">实现</a>(继承)该特征来打印一篇文章或一条 tweet。</p>
+<p>在 Rust 中，所有迭代器都实现了一个名为“iterator”的特性，这个特性有一个名为<code>next()</code>的方法。下面是来自官方 Rust 文档的关于迭代器特征如何定义的代码。</p>
+<pre class="language-rust hljs">pub trait Iterator {
+    type Item;
+
+    fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt;;
+
+    // methods with default implementations elided
+}
+</pre>
+<p>不要担心新的语法——您需要理解的是，当您附加了<code>iter()</code>方法以使值列表可迭代时，它将迭代器特性与类似<code>next()</code>的方法一起实现。</p>
+<p>我们来详细看看<code>next()</code>方法。</p>
+<h3 id="next-method"><code>next()</code>方法</h3>
+<p>当您不想使用循环遍历迭代器时,<code>next()</code>方法非常有用。简单地调用这个方法就可以一个接一个地返回元素。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们不使用循环而是使用<code>next()</code>方法打印出我们的年龄数组。注意，我们使用<code>mut</code>关键字将迭代器声明为可变的；这是因为 Rust 中的所有变量在默认情况下都是不可变的。</p>
+<pre class="language-rust hljs">fn main(){
+    let ages = [27,35,40,10,19];
+
+    let mut ages_iterator = ages.iter();
+
+    // display the iterator
+    println!("{:?}",ages_iterator);
+
+    // display each element in array
+    println!("{:?}",ages_iterator.next());
+    println!("{:?}",ages_iterator.next());
+    println!("{:?}",ages_iterator.next());
+    println!("{:?}",ages_iterator.next());
+    println!("{:?}",ages_iterator.next());
+    println!("{:?}",ages_iterator.next());
+
+    // display the iterator
+    println!("{:?}",ages_iterator);
+
+    // display the array
+    println!("{:?}",ages);
+}// example code for using the next method. 
+</pre>
+<p>在上面的例子中，我们首先声明一个可变迭代器，然后使用<code>next()</code>方法打印 ages 数组中的每一项。以下是这段代码的输出:</p>
+<pre class="language-rust hljs">Iter([27, 35, 40, 10, 19])
+Some(27)
+Some(35)
+Some(40)
+Some(10)
+Some(19)
+None
+Iter([])
+[27, 35, 40, 10, 19]
+</pre>
+<p>可以看到每个<code>next()</code>方法都返回第一个元素，然后将它从数组中移除。最后一个<code>next()</code>方法返回<code>None</code>，因为数组中没有值了。</p>
+<p>您还应该注意到，<code>next()</code>方法清除的是<code>ages_iterator</code>，而不是实际的数组本身。当我们打印迭代器和数组时，可以看到迭代器是空的，但数组不是。</p>
+<p>现在你已经知道了 Rust 中迭代器的工作原理，让我们看看闭包是如何在 Rust 中实现的。</p>
+<h2 id="closures-in-rust">生锈的盖子</h2>
+<p>简单地说，闭包是匿名函数，即使在代码块之外执行，它也可以访问代码块的局部范围。</p>
+<p>对于闭包，有两件事非常重要。它们总是匿名函数(或内联函数),它们的主要特征是让我们能够访问局部范围(环境)。</p>
+<p>下面是声明闭包的语法:</p>
+<pre class="language-rust hljs">let closure_name = |param1, param2| -&gt; return_type {.....  closure logic …..};
+</pre>
+<p>你可以看到<code>closure_name</code>是一个存储闭包的变量，但是实际的闭包是一个匿名函数。</p>
+<p>虽然您必须为函数中的<code>params</code>以及返回值定义数据类型，但是闭包可以自动处理它，但是传递给闭包的值的数据类型应该是一致的，否则它会在编译时抛出错误。为了向闭包传递参数，我们使用双管符号(<code>||</code>)。</p>
+<p>让我们编写一个简单的闭包，它将给定值递增 1:</p>
+<pre class="language-rust hljs">fn main() {
+    let mut my_val = 0;
+    let mut increment_closure = || {
+        my_val = my_val + 1;
+        println!("Value : {:?}",my_val);
+    };
+    increment_closure();
+    increment_closure();
+    increment_closure();
+    increment_closure();
+    increment_closure();
+}
+</pre>
+<p>在上面的代码中，您可以看到我们声明了一个名为<code>increment_closure</code>的闭包，它将变量<code>my_val</code>的值递增 1，并打印出<code>my_val</code>的当前值。</p>
+<p>下面是这段代码的输出:</p>
+<pre class="language-rust hljs">Value : 1
+Value : 2
+Value : 3
+Value : 4
+Value : 5
+</pre>
+<p>您可以看到闭包保留了变量的值。注意，我们在闭包中使用了关键字<code>mut</code>。这是因为您必须明确地告诉 Rust，闭包将会修改环境。</p>
+<h3 id="moving-closures">移动闭包</h3>
+<p>一般来说，闭包会创建对其作用域中的实体的引用，但是还有另一种类型的闭包，称为移动闭包，它拥有它所使用的所有变量的所有权。</p>
+<p>我们使用<code>move</code>关键字来定义一个移动闭包。下面是语法:</p>
+<pre class="language-rust hljs">let closure_name = move |param1, param2| -&gt; return_type {.....  closure logic …..};
+</pre>
+<p>移动闭包是在处理高级 Rust 特性(比如并发性)时使用的，因此它超出了本文的范围。要深入了解 Rust 闭包，<a href="https://medium.com/coding-rust/best-explanation-of-closure-in-rust-2b20210eba53" target="_blank" rel="noopener">查看这篇文章</a>。</p>
+<p>现在您已经理解了闭包是如何工作的，您可能想知道为什么我们首先需要它们。闭包主要用于抽象。</p>
+<p>如果您有一个想要更新的全局变量，任何函数都可以修改该变量。然而，编写一个闭包来更新一个变量可以确保只有那个闭包可以访问那个变量——这是 Rust 设计的一部分，以确保一个高度安全的编程语言。</p>
+<h2 id="conclusion">结论</h2>
+<p>与大多数编程语言不同，Rust 中不能使用循环迭代一组值(数组、向量、地图)。我们必须调用<code>iter()</code>方法来使列表可迭代。您还可以使用<code>next()</code>方法遍历列表中的值，一次一个。</p>
+<p>闭包是匿名的内联函数，可以访问它的环境。它们用于抽象环境，以便环境的变量只能由有限的实体修改。虽然普通闭包会创建对它们所处理的值的引用，但是移动闭包可以获得环境中值的所有权。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust 应用的 web 前端的全面可见性</h2><p>调试 Rust 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪 Rust 应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Rust 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>现代化调试 Rust 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

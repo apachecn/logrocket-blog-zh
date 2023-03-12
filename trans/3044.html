@@ -1,0 +1,482 @@
+<html>
+<head>
+<title>Node.js Express test-driven development with Jest - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Node.js 使用 Jest - LogRocket 博客表达测试驱动开发</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/node-js-express-test-driven-development-jest/#0001-01-01">https://blog.logrocket.com/node-js-express-test-driven-development-jest/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>测试驱动开发，或 TDD，是工作场所中相当常见的编程风格，并且在许多情况下，对于某些项目是强制性的。幸运的是，当您理解过程背后的基本原理时，TDD 非常简单。</p>
+<p>JavaScript 中也有很多用于后端测试的库和框架。其中最受欢迎的两个是<a href="https://jestjs.io/" target="_blank" rel="noopener"> Jest </a>和<a href="https://mochajs.org/" target="_blank" rel="noopener"> Mocha </a>，另外还有<a href="https://jasmine.github.io/" target="_blank" rel="noopener">茉莉</a>、<a href="https://github.com/avajs/ava" target="_blank" rel="noopener">艾娃</a>、<a href="https://github.com/substack/tape" target="_blank" rel="noopener">磁带</a>和<a href="https://qunitjs.com/" target="_blank" rel="noopener"> QUnit </a>。</p>
+<p>Node.js 现在有自己的内置测试运行器，自 18 版以来一直稳定。然而，它仍处于实验模式，因此很可能会随着时间的推移而改变。</p>
+<p>在本文中，我们将讨论如何使用新的 Node.js 测试运行器进行一些基本测试，以及使用 Jest 测试不同的端点。</p>
+
+<h2 id="testing-backend">后端测试</h2>
+<p>首先，让我们开始使用 Node.js 进行后端测试。</p>
+<h2 id="using-node-js-test-runner-test-backend-code">使用 Node.js 测试运行器测试后端代码</h2>
+<p>如果您想要使用内置的 Node.js 测试运行器，您需要导入下面的库，并按照<a href="https://nodejs.org/api/test.html#test-runner"> Node.js 文档运行测试</a>:</p>
+<pre class="language-javascript hljs">// JavaScript ESM Modules syntax
+import test from 'node:test';
+
+// JavaScript CommonJS syntax
+const test = require('node:test');
+</pre>
+<p>当然，你还需要确定你用的是 v18 或者更高版本。您可以使用<code>node -v</code>在命令行中检查您当前运行的版本。</p>
+<p>首先，让我们看看使用内置的 Node.js 测试运行器进行测试是什么样的。</p>
+<h3 id="project-setup">项目设置</h3>
+<p>打开您的 BASH 应用程序并<code>cd</code>到您选择的目录。运行以下命令来搭建您的项目:</p>
+<pre class="language-shell hljs">mkdir node-backend-testing
+cd node-backend-testing
+npm init -y
+touch index.js index.test.js
+</pre>
+<p>接下来，在代码编辑器中打开新创建的项目，并将代码添加到它们相关的文件中。</p>
+<p>下面是文件<code>index.js</code>的代码:</p>
+<pre class="language-javascript hljs">const calcAge = (dob) =&gt; {
+    const digits = {
+        year: 'numeric',
+    };
+
+    const year = new Date().toLocaleDateString('en-US', digits);
+
+    console.log(year);
+
+    return year - dob;
+};
+
+const createBox = (x, y) =&gt; {
+    return x * y;
+};
+
+const canDrive = () =&gt; {
+    const age = 18;
+
+    if (age &gt;= 18) {
+        return 'Full Driving Licence';
+    } else {
+        return 'Provisional License';
+    }
+};
+
+const powerLevel = () =&gt; {
+    const power = 9001;
+
+    if (power &gt; 9000) {
+        return true;
+    } else {
+        return false;
+    }
+};
+
+const workSchedule = (employeeOne, employeeTwo) =&gt; {
+    return employeeOne + employeeTwo;
+};
+
+module.exports = {
+    calcAge,
+
+    createBox,
+
+    canDrive,
+
+    powerLevel,
+
+    workSchedule,
+};
+</pre>
+<p>接下来，我们有了<code>index.test.js</code>的代码:</p>
+<pre class="language-javascript hljs">const test = require('node:test');
+
+const assert = require('assert/strict');
+
+const {
+  calcAge,
+  createBox,
+  canDrive,
+  powerLevel,
+  workSchedule,
+} = require('./index');
+
+// Calculates how old someone is and depending on the year this test could pass or fail
+
+test('calculates age', () =&gt; {
+  return assert.equal(calcAge(2000), 22);
+});
+
+// Creates a box with an equal height and width
+
+test('creates a box', async (t) =&gt; {
+  await t.test('creates a small box', () =&gt; {
+    assert.equal(createBox(10, 10), 100);
+  });
+
+  await t.test('creates a large box', () =&gt; {
+    assert.equal(createBox(50, 50), 2500);
+  });
+});
+
+// Checks to see whether or not the person has a full driving licence
+
+test('checks license', () =&gt; {
+  return assert.match(`${canDrive()}`, /Full Driving Licence/);
+});
+
+// Confirms that the person has a power level that is over 9000!
+
+test('confirms power level', () =&gt; {
+  return assert.ok(powerLevel());
+});
+
+// Checks to see if the employees have the same amount of shift work days in a week
+
+test('employees have an equal number of work days', () =&gt; {
+  const employeeOne = ['Monday', 'Tuesday', 'Wednesday,', 'Thursday'];
+
+  const employeeTwo = ['Friday', 'Saturday', 'Sunday,', 'Monday'];
+
+  return assert.equal(workSchedule(employeeOne.length, employeeTwo.length), 8);
+});
+</pre>
+<p>最后，为文件<code>package.json</code>添加以下运行脚本:</p>
+<pre class="language-json hljs">"scripts": {
+
+"test": "node index.test.js"
+
+},
+</pre>
+<p>测试脚本运行节点测试运行程序，然后运行<code>index.test.js</code>中的测试。</p>
+<h3 id="running-node-tests">运行节点测试</h3>
+<p>您只需要从根文件夹中运行一个命令。同样，您需要使用 Node v18 或更高版本才能工作。</p>
+<p>运行下面的命令，您应该看到控制台中通过了五个测试:</p>
+<pre class="language-shell hljs">npm run test
+</pre>
+<p>您可以试验一下<code>index.js</code>和<code>index.test.js</code>文件中的代码，看看测试是通过还是失败。如果您查看控制台中的测试错误，您就会知道失败的原因。</p>
+<p>下面我举几个例子。</p>
+<h4 id="calculate-age-test">计算年龄测试</h4>
+<p>要计算用户的年龄，请使用当前年份减去其出生年份。参见下面<code>index.test.js</code>文件中的例子:</p>
+<pre class="language-javascript hljs">test('calculates age', () =&gt; {
+  return assert.equal(calcAge(2000), 21);
+});
+</pre>
+<p>要查看测试失败，请输入不正确的年龄，如<code>21</code>。在本例中，该函数预期返回值为<code>22</code>，因此数字<code>21</code>会导致测试失败。</p>
+<h4 id="create--box-test">创建一个箱式测试</h4>
+<p>该测试期望方程<code>10 x 10</code>和<code>50 x 50</code>分别为<code>100</code>和<code>2500</code>的答案。输入不符合正确输出的值，以查看测试是否失败。</p>
+<pre class="language-javascript hljs">test('creates a box', async (t) =&gt; {
+  await t.test('creates a small box', () =&gt; {
+    assert.equal(createBox(10, 30), 100);
+  });
+
+  await t.test('creates a large box', () =&gt; {
+    assert.equal(createBox(50, 20), 2500);
+  });
+});
+</pre>
+<h4>检查许可证测试</h4>
+<p>这项测试检查一个人是否有有效的驾驶执照。将<code>index.js</code>文件的<code>canDrive</code>函数中的年龄更改为小于<code>18</code>的值。测试将会失败。</p>
+<pre class="language-javascript hljs">const canDrive = () =&gt; {
+  const age = 17;
+
+  if (age &gt;= 18) {
+    return 'Full Driving Licence';
+  } else {
+    return 'Provisional License';
+  }
+};
+</pre>
+<h4 id="confirm-power-level-test">确认功率水平测试</h4>
+<p>这个测试检验一个人是否有超过 9000 的异能水平(你抓到龙珠 Z 参考了吗？😁)</p>
+<p>将<code>index.js</code>文件的<code>powerLevel</code>功能内的功率水平更改为小于<code>9000</code>。测试将会失败。</p>
+<pre class="language-javascript hljs">const powerLevel = () =&gt; {
+  const power = 5000;
+
+  if (power &gt; 9000) {
+    return true;
+  } else {
+    return false;
+  }
+};
+</pre>
+<h4 id="same-number-work-days-test">相同工作日数测试</h4>
+<p>此测试检查员工的工作天数是否相等。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>两名员工目前每人工作四天，这样我们总共工作八天。要看到测试失败，只需在数组中输入或删除几天，这样它们就不再是相同的长度。</p>
+<pre class="language-javascript hljs">test('employees have an equal number of work days', () =&gt; {
+  const employeeOne = ['Monday', 'Tuesday', 'Wednesday,', 'Thursday'];
+
+  const employeeTwo = ['Friday', 'Saturday'];
+
+  return assert.equal(workSchedule(employeeOne.length, employeeTwo.length), 8);
+});
+</pre>
+<h2 id="using-jest-test-backend-code">使用 Jest 测试后端代码</h2>
+<p>现在，让我们使用 Jest 测试库做一些后端测试。</p>
+<h3 id="jest-project-setup">项目设置</h3>
+<p>打开您的 BASH 应用程序并<code>cd</code>到您喜欢的目录。运行以下命令来搭建您的项目:</p>
+<pre class="language-shell hljs">mkdir jest-backend-testing
+cd jest-backend-testing
+npm init -y
+npm i express http-errors jest nodemon supertest
+mkdir routes
+touch routes/products.js
+touch app.js app.test.js server.js
+</pre>
+<p>现在，在代码编辑器中打开项目，并将下面的代码添加到相应的文件中。</p>
+<p>下面是文件<code>routes/product.js</code>的代码:</p>
+<pre class="language-javascript hljs">const express = require('express');
+
+const router = express.Router();
+
+const createError = require('http-errors');
+
+// Products Array
+
+const products = [{ id: '1', name: 'Playstation 5', inStock: false }];
+
+// GET / =&gt; array of items
+
+router.get('/', (req, res) =&gt; {
+  res.json(products);
+});
+
+// GET / =&gt; items by ID
+
+router.get('/:id', (req, res, next) =&gt; {
+  const product = products.find(
+    (product) =&gt; product.id === String(req.params.id)
+  );
+
+  // GET /id =&gt; 404 if item not found
+
+  if (!product) {
+    return next(createError(404, 'Not Found'));
+  }
+
+  res.json(product);
+});
+
+router.post('/', (req, res, next) =&gt; {
+  const { body } = req;
+
+  if (typeof body.name !== 'string') {
+    return next(createError(400, 'Validation Error'));
+  }
+
+  const newProduct = {
+    id: '1',
+
+    name: body.name,
+
+    inStock: false,
+  };
+
+  products.push(newProduct);
+
+  res.status(201).json(newProduct);
+});
+
+module.exports = router;
+</pre>
+<p>接下来，文件<code>app.js</code>的代码:</p>
+<pre class="language-javascript hljs">const express = require('express');
+
+const productsRoute = require('./routes/products');
+
+const app = express();
+
+app.use(express.urlencoded({ extended: false }));
+
+app.use(express.json());
+
+app.use('/', productsRoute);
+
+module.exports = app;
+</pre>
+<p>下面是文件<code>app.test.js</code>的代码:</p>
+<pre class="language-javascript hljs">const request = require('supertest');
+
+const app = require('./app');
+
+describe('GET /', () =&gt; {
+  it('GET / =&gt; array of items', () =&gt; {
+    return request(app)
+      .get('/')
+
+      .expect('Content-Type', /json/)
+
+      .expect(200)
+
+      .then((response) =&gt; {
+        expect(response.body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: expect.any(String),
+
+              name: expect.any(String),
+
+              inStock: expect.any(Boolean),
+            }),
+          ])
+        );
+      });
+  });
+
+  it('GET / =&gt; items by ID', () =&gt; {
+    return request(app)
+      .get('/1')
+
+      .expect('Content-Type', /json/)
+
+      .expect(200)
+
+      .then((response) =&gt; {
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            id: expect.any(String),
+
+            name: expect.any(String),
+
+            inStock: expect.any(Boolean),
+          })
+        );
+      });
+  });
+
+  it('GET /id =&gt; 404 if item not found', () =&gt; {
+    return request(app).get('/10000000000').expect(404);
+  });
+
+  it('POST / =&gt; create NEW item', () =&gt; {
+    return (
+      request(app)
+        .post('/')
+
+        // Item send code
+
+        .send({
+          name: 'Xbox Series X',
+        })
+
+        .expect('Content-Type', /json/)
+
+        .expect(201)
+
+        .then((response) =&gt; {
+          expect(response.body).toEqual(
+            expect.objectContaining({
+              name: 'Xbox Series X',
+
+              inStock: false,
+            })
+          );
+        })
+    );
+  });
+
+  it('POST / =&gt; item name correct data type check', () =&gt; {
+    return request(app).post('/').send({ name: 123456789 }).expect(400);
+  });
+});
+</pre>
+<p>快到了！下面是<code>server.js</code>文件的代码:</p>
+<pre class="language-javascript hljs">const app = require('./app');
+
+const port = process.env.PORT || 3000;
+
+app.listen(port, () =&gt;
+  console.log(`Server running on port ${port}, http://localhost:${port}`)
+);
+</pre>
+<p>最后，将这些运行脚本添加到您的<code>package.json</code>文件中。</p>
+<pre class="language-json hljs">"scripts": {
+
+"start": "node server.js",
+
+"dev": "nodemon server.js",
+
+"test": "jest --watchAll"
+
+},
+</pre>
+<p><code>start</code>脚本使用 node 运行服务器文件。</p>
+<p><code>dev</code>脚本使用<code>nodemon</code>运行服务器文件，支持自动重载。</p>
+<p><code>test</code>脚本运行 test runner Jest，该 Jest 自动监视文件更改。</p>
+<h3 id="running-jest-tests">运行 Jest 测试</h3>
+<p>是时候启动应用程序并测试 runner 了。在不同的选项卡或窗口中运行下面的命令，这样一个脚本运行开发服务器，另一个运行 Jest 测试运行程序。</p>
+<p>服务器运行在<a href="http://localhost:3000/"> http://localhost:3000/ </a>:</p>
+<pre class="language-shell hljs">npm run dev
+
+npm run test
+</pre>
+<p>您现在应该已经运行了<code>dev</code>服务器。Jest 测试运行程序也应该运行五个通过的测试。让我们看一下每个测试，你可以看到他们通过或失败。</p>
+<p>测试与标题同名，所以在文件中应该很容易找到。</p>
+<h4 id="array-items-test">项目阵列测试</h4>
+<p>这个测试检查是否返回了一个对象数组。要看到它失败，打开<code>products.js</code>文件，用下面的代码替换顶部的路线:</p>
+<pre class="language-javascript hljs">router.get('/', (req, res) =&gt; {
+  res.send('products');
+});
+</pre>
+<p>您应该得到错误<code>expected Content-Type" matching /json/, got "text/html; charset=utf-8</code>并且测试应该失败。</p>
+<p>现在尝试将它改为下面的代码:</p>
+<pre class="language-javascript hljs">router.get('/', (req, res) =&gt; {
+  res.json('products');
+});
+</pre>
+<p>您应该会得到这个错误<code>Expected: ArrayContaining [ObjectContaining {"id": Any&lt;String&gt;, "inStock": Any&lt;Boolean&gt;, "name": Any&lt;String&gt;}]</code>。</p>
+<h4 id="items-id-test">通过<code>id</code>测试的项目</h4>
+<p>该测试检查返回的项目是否带有正确的<code>id</code>。将<code>products.js</code>中文件顶部的<code>products</code>数组更改为一个数字(而不是字符串)的<code>id</code>来查看它是否失败:</p>
+<pre class="language-javascript hljs">const products = [{ id: 1, name: 'Playstation 5', inStock: false }];
+</pre>
+<p>您应该得到这个错误:<code>expected "Content-Type" matching /json/, got "text/html; charset=utf-8"</code>。</p>
+<h4 id="item-not-found-test">未找到项目测试</h4>
+<p>该测试检查是否有项目找不到。要看到它失败，将<code>404 error</code>代码更改为<code>products.js</code>文件中的其他代码，如下例所示:</p>
+<pre class="language-javascript hljs">if (!product) {
+  return next(createError(400, 'Not Found'));
+}
+</pre>
+<p>您应该得到错误:<code>expected 404 "Not Found", got 400 "Bad Request"</code>。</p>
+<h4 id="correct-data-test">正确数据测试</h4>
+<p>该测试检查对象是否具有正确的数据和数据类型。要看到它失败，打开<code>app.test.js</code>文件，用下面的代码替换发送代码:</p>
+<pre class="language-javascript hljs">.send({
+
+name: 'Nintendo Switch',
+
+})
+</pre>
+<p>您应该会看到以下错误:</p>
+<pre class="language-shell hljs"> - Expected  - 2
+    + Received  + 3
+
+    - ObjectContaining {
+    + Object {
+    +   "id": "1",
+        "inStock": false,
+    -   "name": "Xbox Series X",
+    +   "name": "Nintendo Switch",
+</pre>
+<h4 id="correct-data-type-test">正确数据类型测试</h4>
+<p>该测试检查 name 变量的数据类型是否正确。只有在检测到字符串时，它才会失败。要查看测试是否失败，打开<code>app.test.js</code>文件，滚动到底部，将数字改为如下字符串:</p>
+<pre class="language-javascript hljs">return request(app).post('/').send({ name: '123456789' }).expect(400);
+</pre>
+<p>您应该得到这个错误:<code>expected 400 "Bad Request", got 201 "Created"</code>。</p>
+<h2 id="jest-new-features">笑话 28:新功能</h2>
+<p>Jest 28 于 2022 年 4 月发布，并带来了许多新功能。最受欢迎的功能之一叫做<a href="https://jestjs.io/docs/cli#--shard">s</a>T4】哈丁。本质上，分片允许您将测试套件分割成不同的分片来运行套件测试的一部分。</p>
+<p>例如，要运行三分之一的测试，可以使用下面的命令:</p>
+<pre class="language-shell hljs">jest --shard=1/3
+jest --shard=2/3
+jest --shard=3/3
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>仅此而已！我们刚刚介绍了使用 Node 和 Jest 在后端进行测试。我们所涵盖的只是测试的基础，还有很多东西需要学习！你可以在这里查看关于<a href="https://jestjs.io/" target="_blank" rel="noopener"> Jest </a>的官方文档。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

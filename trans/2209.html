@@ -1,0 +1,265 @@
+<html>
+<head>
+<title>Handling data fetching in Next.js with useSWR - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 useSWR - LogRocket Blog 处理 Next.js 中的数据获取</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/#0001-01-01">https://blog.logrocket.com/handling-data-fetching-next-js-useswr/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>数据获取模式是每个 web 框架中非常重要的一部分。这就是为什么每项网络技术的这一部分都在不断改进和创新。</p>
+<p>鉴于现代 web 开发范例在很大程度上依赖于数据获取功能来支持 SSR 和 CSR 等特性，跟上 web 这一领域的变化是有意义的。</p>
+<p>在这篇文章中，我将向您介绍最近刚刚引入 Next.js 的<code>useSWR</code>钩子，它有助于使数据获取更容易。为此，我们将构建一个随机用户生成站点。这并不是说你需要另外一个随机生成网站，但是它已经被证明可以有效地向开发者展示事情是如何工作的。</p>
+<p>我的目标是确保在这篇文章结束时，你会对<code>useSWR</code>钩子有更多的了解，从而改善你的 Next.js 创作体验。在我们开始之前，先简单介绍一下。</p>
+<h2><code>useSWR</code></h2>
+<p>在这个上下文中，SWR 代表“失效-重新验证”，我想 Next.js 开发人员对这个术语已经很熟悉了。Next.js 团队构建它是为了让开发人员在使用 Next 时有更多的方法来获取远程数据。它基本上是一组 React 挂钩，提供了诸如重新验证、变异、缓存等功能。开箱即用。</p>
+<p>我喜欢这样想:<code>useSWR</code>为我解决的问题是，它让我有机会立即向用户展示一些东西，并提供了一种方便的方式来管理他们的体验，同时在幕后加载实际内容。它是这样的:</p>
+<ul>
+<li>当发出请求时，它首先返回一个缓存值。可能是在<code>getStaticProps()</code>函数中生成的东西</li>
+<li>接下来，服务器将启动一个重新验证过程，并获取页面的实际数据</li>
+<li>最后，当重新验证成功时，SWR 将用实际数据更新页面</li>
+</ul>
+<p>在这种情况下，用户就不会盯着加载屏幕看，你的网站也能保持快速和高性能。</p>
+<h3><code>useSWR</code>用打字稿</h3>
+<p><code>useSWR</code>开箱即用的打字稿支持。它还为传入<code>fetcher</code>的参数推断了类型，以自动给出类型。也就是说，您可以用最简单的方式为自己的参数定义自定义类型，如下所示:</p>
+<pre>import useSWR from 'swr'
+const { data } = useSWR('https://www.users.com', (apiURL: string) =&gt; fetch(apiURL).then(res =&gt; res.json())
+</pre>
+<p>使用 SWR 不需要特殊的 TypeScript 特定配置。你可以<a href="https://swr.vercel.app/docs/typescript" target="_blank" rel="noopener">在这里</a>阅读更多关于 SWR 的 TypeScript。</p>
+<p>除了 SWR 的其他好处之外，您还可以使用它从任何支持 HTTP 的服务器检索数据。</p>
+<p>让我们开始使用 Next.js 和<code>useSWR</code>钩子来设置我们的随机用户生成器应用程序。</p>
+<h2>设置 Next.js 应用程序</h2>
+<p>要快速设置 Next.js 应用程序，请打开一个终端窗口并运行<code>create-next-app</code>命令，如下所示:</p>
+<pre class="language-bash hljs">npx create-next-app useswr-user-generator
+</pre>
+<p>按照提示完成设置过程，您应该在本地有一个<code>useswr-user-generator</code>应用程序。导航到应用程序目录，使用以下命令安装 SWR:</p>
+<pre class="language-bash hljs">cd useswr-user-generator # navigate into the project directory
+npm install swr axios # install swr and axios
+npm run dev # run the dev server
+</pre>
+<p>上面的命令将安装 SWR 和 Axios 包，并在<code>localhost:3000</code>在浏览器上打开项目。如果您检查，我们应该让项目在该端口上运行，如下所示:</p>
+<p><img data-attachment-id="69601" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/welcome-next-js-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png" data-orig-size="730,551" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome to Next.js page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page-300x226.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png" decoding="async" class="alignnone size-full wp-image-69601 aligncenter jetpack-lazy-image" src="../Images/d79fa9552c16894410d2571e98b17202.png" alt="Welcome to Next.js Page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page-300x226.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="69601" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/welcome-next-js-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png" data-orig-size="730,551" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome to Next.js page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page-300x226.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-69601 aligncenter" src="../Images/d79fa9552c16894410d2571e98b17202.png" alt="Welcome to Next.js Page" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page-300x226.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/welcome-next-js-page.png"/></noscript>
+<p>太好了，我们已经成功设置了一个 Next.js 应用程序。让我们继续建造这个随机发生器，好吗？</p>
+<h2>用 SWR 提取数据</h2>
+<p>在项目的根目录下，创建一个<code>components</code>文件夹。在这个文件夹中，添加一个<code>Users.js</code>文件，并用下面的代码片段更新它:</p>
+<pre>// components/Users.js
+
+import axios from "axios";
+import useSWR from "swr";
+import Image from "next/image";
+
+export default function Users() {
+  const address = `https://randomuser.me/api/?results=6`;
+  const fetcher = async (url) =&gt; await axios.get(url).then((res) =&gt; res.data);
+  const { data, error } = useSWR(address, fetcher);
+
+  if (error) &lt;p&gt;Loading failed...&lt;/p&gt;;
+  if (!data) &lt;h1&gt;Loading...&lt;/h1&gt;;
+
+  return (
+    &lt;div&gt;
+      &lt;div className="container"&gt;
+        {data &amp;&amp;
+          data.results.map((item) =&gt; (
+            &lt;div key={item.cell} className={`user-card  ${item.gender}`}&gt;
+              &lt;div&gt;
+                &lt;Image
+                  width={100}
+                  height={100}
+                  src={item.picture.large}
+                  alt="user-avatar"
+                  className="img"
+                /&gt;
+                &lt;h3&gt;{`${item.name.first}  ${item.name.last}`}&lt;/h3&gt;
+              &lt;/div&gt;
+              &lt;div className="details"&gt;
+                &lt;p&gt;Country: {item.location.country}&lt;/p&gt;
+                &lt;p&gt;State: {item.location.state}&lt;/p&gt;
+                &lt;p&gt;Email: {item.email}&lt;/p&gt;
+                &lt;p&gt;Phone: {item.phone}&lt;/p&gt;
+                &lt;p&gt;Age: {item.dob.age}&lt;/p&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          ))}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>让我们浏览一下这段代码。在上面的代码片段中，我们使用<code>useSWR()</code>钩子来获取 API <code>address</code>变量中指定的六个用户的数据。</p>
+<p><code>useSWR</code>钩子接受两个参数并返回两个值(基于请求的状态)。它接受:</p>
+<ul>
+<li>一个<code>key</code> —一个字符串，作为我们正在获取的数据的唯一标识符。这通常是我们调用的 API URL</li>
+<li>一个<code>fetcher</code> —任何返回提取数据的异步函数</li>
+</ul>
+<p>它返回:</p>
+<ul>
+<li><code>data</code> —请求的结果(如果成功)</li>
+<li><code>error</code> —发生的错误(如果有错误)</li>
+</ul>
+<p>在最简单的情况下，这就是如何用<code>useSWR</code>获取数据:</p>
+<pre>import useSWR from 'swr'
+
+export defaul function Users() {
+  const { data, error } = useSWR('/api/users', fetcher)
+
+  if (error) return &lt;div&gt;failed to load&lt;/div&gt;
+  if (!data) return &lt;div&gt;loading...&lt;/div&gt;
+  return &lt;div&gt;hello {data.name}!&lt;/div&gt;
+}
+</pre>
+<p>在我们的例子中，我们将 API URL 保存在<code>address</code>变量中，并定义了<code>fetcher</code>函数来处理请求并返回响应。</p>
+<p><em>注意，<a href="https://swr.vercel.app/docs/data-fetching" target="_blank" rel="noopener"><code>useSWR</code>文档</a>建议使用 Next.js 原生 fetch 函数对 SWR 有效，但对我来说并非如此。我试过了，但是不太好用，所以我用 Axios 代替。</em></p>
+<p>让我们检查一下浏览器，看看我们是否得到了我们的用户。为了显示用户页面，让我们将<code>&lt;Users /&gt;</code>组件导入到<code>pages/index.js</code>文件中，并像这样更新它:</p>
+<pre>// pages/index
+
+import Head from "next/head";
+import Users from "../components/Users";
+
+export default function Home() {
+  return (
+    &lt;div&gt;
+      &lt;Head&gt;
+        &lt;title&gt;Create Next App&lt;/title&gt;
+        &lt;meta name="description" content="Random user generator" /&gt;
+        &lt;link rel="icon" href="/favicon.ico" /&gt;
+      &lt;/Head&gt;
+      &lt;Users /&gt;
+
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>你可能已经注意到我使用了<a href="https://nextjs.org/docs/api-reference/next/image" target="_blank" rel="noopener"> Next.js 图像组件</a>来显示<code>Users.js</code>文件中的用户头像。因此，我们需要在<code>next.config.js</code>文件中指定图像域，如下所示:</p>
+<pre>module.exports = {
+  reactStrictMode: true,
+  images: {
+    domains: ["randomuser.me"],
+  },
+};
+</pre>
+<p>现在，当您查看浏览器时，我们应该会看到我们的用户按预期出现:</p>
+<p><img data-attachment-id="69597" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/random-user-generator-next-js/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png" data-orig-size="730,472" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Random user generator Next.js" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png" decoding="async" class="size-full wp-image-69597 aligncenter jetpack-lazy-image" src="../Images/4f6907be822af9814b734601cc45de5f.png" alt="Random User Generator Next.js" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js-300x194.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="69597" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/random-user-generator-next-js/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png" data-orig-size="730,472" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Random user generator Next.js" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png" decoding="async" loading="lazy" class="size-full wp-image-69597 aligncenter" src="../Images/4f6907be822af9814b734601cc45de5f.png" alt="Random User Generator Next.js" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js-300x194.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/random-user-generator-next-js.png"/></noscript>
+<p>那里！我们有我们的用户。所以，我们的<code>useSWR</code>钩子起作用了！但就这样吗？这与其他数据获取方法有何不同？请继续阅读…</p>
+<h2>为什么是<code>useSWR</code>？</h2>
+<p>这是一个很可能在这个时候问的问题。除了非常具有宣示性，我还不能说这对我来说是一个巨大的进步。这可能是现在谈论我非常喜欢的<code>useSWR</code>的一个特性(以及其他特性)的好时机:</p>
+<h3>页码</h3>
+<p>用<code>useSWR</code>分页轻而易举。让我们举个例子:想象一下，我们希望能够生成更多的用户，并根据需要将他们添加到这个页面，而不是只加载六个用户。当您构建的应用程序需要用户浏览相同内容的多个页面时，这一点尤其有用。我们可以通过在用户页面的末尾添加一个 Load More 按钮来演示这一点，以便在单击时生成更多的用户。让我们更新索引页面，将 count prop 传递给我们的<code>&lt;Users /&gt;</code>组件:</p>
+<pre>// pages/index.js
+
+import Head from "next/head";
+import Users from "../components/Users";
+export default function Home() {
+  const [count, setCount ] = useState(0);
+  return (
+    &lt;div&gt;
+      &lt;Users count={count} setCount={setCount} /&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>接下来，让我们在<code>components/Users.js</code>文件中添加一个按钮来更新计数，并从我们的 API 向页面加载更多用户:</p>
+<pre>import axios from "axios";
+import useSWR from "swr";
+import Image from "next/image";
+
+export default function Users({ count, setCount }) {
+  const address = `https://randomuser.me/api/?results=${count}`;
+  const fetcher = async (url) =&gt; await axios.get(url).then((res) =&gt; res.data);
+  const { data, error } = useSWR(address, fetcher);
+  if (error) &lt;p&gt;Loading failed...&lt;/p&gt;;
+  if (!data) &lt;h1&gt;Loading...&lt;/h1&gt;;
+  return (
+    &lt;div&gt;
+      &lt;div className="container"&gt;
+      // show users 
+      &lt;/div&gt;
+      &lt;center&gt;
+        &lt;div className="btn"&gt;
+          &lt;button onClick={() =&gt; setCount(count + 3)}&gt;Load More Users&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/center&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>让我们检查一下浏览器，看看我们的按钮是否按预期工作。单击时，它应该加载另外三个用户，并在页面上呈现他们和现有用户:</p>
+<p><img data-attachment-id="69625" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/loading-users-no-flicker-useswr-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif" data-orig-size="720,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loading-users-no-flicker-useswr" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1-300x200.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif" decoding="async" class="size-full wp-image-69625 aligncenter jetpack-lazy-image" src="../Images/d6f7f80699c7bf4481b75d0f689c0f65.png" alt="" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="69625" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/loading-users-no-flicker-useswr-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif" data-orig-size="720,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loading-users-no-flicker-useswr" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1-300x200.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif" decoding="async" loading="lazy" class="size-full wp-image-69625 aligncenter" src="../Images/d6f7f80699c7bf4481b75d0f689c0f65.png" alt="" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/loading-users-no-flicker-useswr-1.gif"/></noscript>
+<p>很管用。然而，这给我们带来了另一个问题。当按钮被点击时，Next.js 将向我们的 API 发出一个新的请求来获取另外三个用户，这将触发我们的加载状态。这就是为什么当点击按钮时，你会注意到屏幕上的闪烁。幸运的是，我们有一个简单的解决方案，非常感谢 SWR 缓存。</p>
+<p>我们可以预先生成这些用户(或者不同上下文中的下一个页面)，并在一个隐藏的<code>&lt;div&gt;</code>元素中呈现它们。这样，当按钮被单击时，我们将只显示该元素。因此，请求将在我们单击按钮之前发生，而不是在什么时候。</p>
+<p><img data-attachment-id="69623" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/load-users-on-click-useswr-next-js-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif" data-orig-size="720,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-users-on-click-useswr-next-js" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1-300x200.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif" decoding="async" class="size-full wp-image-69623 aligncenter jetpack-lazy-image" src="../Images/0341789675c27a3f1174e7522ced840e.png" alt="" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="69623" data-permalink="https://blog.logrocket.com/handling-data-fetching-next-js-useswr/load-users-on-click-useswr-next-js-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif" data-orig-size="720,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-users-on-click-useswr-next-js" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1-300x200.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif" decoding="async" loading="lazy" class="size-full wp-image-69623 aligncenter" src="../Images/0341789675c27a3f1174e7522ced840e.png" alt="" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/load-users-on-click-useswr-next-js-1.gif"/></noscript>
+<p>看到了吗？不再闪烁。</p>
+<p>除此之外，这里有一些你从 SWR 的盒子里得到的惊人的特性:</p>
+<ul>
+<li>可重用数据提取</li>
+<li>内置缓存</li>
+<li>SSR/ISR/SSG 支持</li>
+<li>类型脚本支持</li>
+<li>突变和重新验证</li>
+</ul>
+<p>还有很多性能优势，我们无法在本文的范围内讨论。下一步，我想让你看看<a href="https://swr.vercel.app/docs/getting-started" target="_blank" rel="noopener"> SWR 文档</a>，了解更多关于用法和益处的细节。</p>
+<h2>复杂的用例</h2>
+<p>让我们探索一个更复杂的用例。</p>
+<h3>使用的突变和重新验证</h3>
+<p>假设我们有自己的<code>/friends</code>端点，可以从数据库中检索我们所有的朋友，还可以向端点发送消息来添加新朋友。</p>
+<p>我们可以立即编写如下所示的代码:</p>
+<pre>import useSWR from "swr";  
+  const address = `http://localhost:3000/api/friends`;  
+  const fetcher = (...args) =&gt; fetch(...args).then((res) =&gt; res.json());
+  const { data, error } = useSWR(address, fetcher);
+  const addFriend = async () =&gt; {
+    const newUser = {
+      name: "Robbie Doe",
+      location: "Lagos",
+      age: 20,
+      email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="364454765259531855595b">[email protected]</a>",
+      image:
+        "https://www.shareicon.net/data/2016/09/15/829474_user_512x512.png",
+    };
+    await fetcher(address, {
+      method: "POST",
+      body: JSON.stringify(newUser),
+    });
+  };
+</pre>
+<p>当我们单击一个按钮来触发<code>addFriend()</code>函数时，我们将使用<code>useSWR</code>来发送到<code>/friends</code>端点，有效地向数据库添加一个新朋友。然而，我们的网站不会“知道”有更新，因此我们不会在屏幕上看到那个朋友。</p>
+<p>这就是 useSWR 突变出现的原因。我们可以使用突变来重新验证我们的页面:</p>
+<ol>
+<li>检查是否有新数据</li>
+<li>如果有，重新验证页面并呈现新数据，而不触发整个页面重新加载:</li>
+</ol>
+<pre>import useSWR from "swr";  
+  const address = `http://localhost:3000/api/friends`;  
+  const fetcher = (...args) =&gt; fetch(...args).then((res) =&gt; res.json());
+  const { data, error } = useSWR(address, fetcher);
+  const addFriend = async () =&gt; {
+    const newUser = {
+      name: "Robbie Doe",
+      location: "Lagos",
+      age: 20,
+      email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5e2c3c1e3a313b703d3133">[email protected]</a>",
+      image:
+        "https://www.shareicon.net/data/2016/09/15/829474_user_512x512.png",
+    };
+    await fetcher(address, { 
+      method: "POST",
+      body: JSON.stringify(newUser),
+    });
+    mutate(address);
+  };</pre>
+<p>现在，当我们通过发布一个新朋友来更新数据库时，useSWR 将重新验证页面，并确保我们不提供陈旧的数据。</p>
+<p>也就是说，useSWR 将自动在焦点上重新验证您的页面，以确保您的数据是最新的。但那可能很多。因此，您可以选择通过将此选项作为参数传递到 SWR 来退出对焦点的重新验证:</p>
+<pre>  const { data, error } = useSWR(address, fetcher, {
+    revalidateOnFocus: false
+  });
+</pre>
+<h2>结论</h2>
+<p>在这篇文章中，我们已经学习了<code>useSWR</code>钩子的基础知识。我们还用 Next.js 构建了一个迷你随机用户生成器应用程序来演示 SWR 功能。我希望这篇文章为您提供了一些关于使用<code>useSWR</code>在 Next.js 应用程序中获取数据的见解。我们建立的网站的现场演示由<a href="https://random-userswith-swr.netlify.app" target="_blank" rel="noopener">在 Netlify </a>上主持。你可以随意使用它，如果你想根据自己的喜好调整的话，也可以从 GitHub 获得<a href="https://github.com/kenny-io/useswr-hook-nextjs" target="_blank" rel="noopener">代码库。</a></p><div class="code-block code-block-30">
+<div class="blog-plug inline-plug next-plug"><h2><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank"> LogRocket </a>:全面了解生产 Next.js 应用</h2><p>调试下一个应用程序可能会很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪状态、自动显示 JavaScript 错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript></a><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你的 Next.js 应用上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用程序的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p><p>让您调试 Next.js 应用的方式现代化— <a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

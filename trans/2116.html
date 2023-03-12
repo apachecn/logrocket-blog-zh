@@ -1,0 +1,220 @@
+<html>
+<head>
+<title>Using WebSockets in Golang - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Golang - LogRocket 博客中使用 WebSockets</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-websockets-go/#0001-01-01">https://blog.logrocket.com/using-websockets-go/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在现代数字时代，用户希望信息能够被即时处理。不管应用程序是什么类型，滞后和缓冲都会对 UX 产生严重的后果。</p>
+<p>在过去，<a href="https://blog.logrocket.com/websockets-tutorial-how-to-go-real-time-with-node-and-react-8e4693fbf843/#HTTPpolling">使用像 HTTP 轮询</a>这样的方法发送和接收消息是一个真正的挑战。服务器上的阻塞给开发者和用户都带来了延迟和挫折。然而，2008 年 WebSockets 的发布为构建实时应用程序引入了一个有效而简单的解决方案。</p>
+<p>在本文中，我们将学习如何在 Go 中使用 WebSockets 实现一个待办事项应用。我们将深入探索 WebSockets，为 Go 设置 WebSockets，最后，探索 WebSockets 的一些用例。</p>
+<p>如果你是新手，我建议你先熟悉 Go 中的<a href="https://blog.logrocket.com/creating-a-web-server-with-golang/"> web 服务器。我们开始吧！</a></p>
+<h2>什么是 WebSockets？</h2>
+<p>WebSockets 是一种通信协议，它在单一持久的<span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qowz81zgz85ze5z69zez82zz74zz78zvz71zpqz90zjyomotz82zhz83zz67zz82zv9z90zz70zl h-lparen">传输</span> <span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qowz81zgz85ze5z69zez82zz74zz78zvz71zpqz90zjyomotz82zhz83zz67zz82zv9z90zz70zl">控制协议</span> (TCP)连接上使用全双工通信信道。</p>
+<p>使用全双工通信，服务器和客户端可以同时传输和接收数据而不会被阻塞，与使用半双工通信(如 HTTP 轮询)的替代方案相比，减少了开销。</p>
+<p>WebSockets 以较少的开销实现了 web 服务器和 web 浏览器或客户端应用程序之间的实时通信和快速数据传输。WebSocket 通信发起握手，握手使用 HTTP <code>Upgrade()</code>头从 HTTP 协议变为 WebSocket 协议。</p>
+<p>无需客户机的事先请求，就可以从服务器传输数据，允许消息来回传递，并保持连接打开，直到客户机或服务器终止连接。因此，在客户端和服务器之间可以进行双向实时数据传输。WebSocket 通信通常通过 TCP 端口号<code>443</code>来完成。</p>
+<p>WebSocket 协议规范定义了两种 URI 方案:</p>
+<ul>
+<li>WebSocket ( <code>ws</code>):用于非加密连接</li>
+<li>WebSocket Secure ( <code>wss</code>):用于加密连接</li>
+</ul>
+<p><img data-attachment-id="65288" data-permalink="https://blog.logrocket.com/using-websockets-go/websocket-protocol-specification-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png" data-orig-size="730,582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="websocket-protocol-specification-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png" decoding="async" class="aligncenter wp-image-65288 size-full jetpack-lazy-image" src="../Images/42559a65503ffcd19840030e562fd2a6.png" alt="WebSocket Protocol Specification Diagram" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram-300x239.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65288" data-permalink="https://blog.logrocket.com/using-websockets-go/websocket-protocol-specification-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png" data-orig-size="730,582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="websocket-protocol-specification-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png" decoding="async" loading="lazy" class="aligncenter wp-image-65288 size-full" src="../Images/42559a65503ffcd19840030e562fd2a6.png" alt="WebSocket Protocol Specification Diagram" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram-300x239.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/websocket-protocol-specification-diagram.png"/></noscript>
+<p>让我们探索使用 WebSockets 构建应用程序的每个步骤。</p>
+<h2>设置 HTTP 服务器</h2>
+<p>WebSockets 是建立在 HTTP 之上的，所以首先，我们将建立一个基本的 HTTP 服务器，它可以接受客户机连接并提供消息。将以下代码添加到您的<code>server.go</code>文件中:</p>
+<pre class="language-go hljs">package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func main() {
+    http.HandleFunc("/", func (w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, "Setting up the server!")
+    })
+    http.ListenAndServe(":8080", nil)
+}
+</pre>
+<p>通过运行<code>go run server.go</code>启动服务器。当您访问<code>localhost:3000</code>时，您应该会看到以下输出:</p>
+<pre>Setting up the server!
+</pre>
+<h2>开始握手</h2>
+<p>要建立 WebSocket 连接，客户端和服务器之间需要一次握手。握手使用<code>Upgrade()</code>方法将 HTTP 服务器连接升级到 WebSocket 协议。一旦服务器停止，我们还将使用<code>defer</code>来关闭连接。</p>
+<p>让我们修改我们的<code>server.go</code>文件来设置一个 WebSocket 握手:</p>
+<blockquote><p>注意:客户端必须发送第一个握手请求。然后，服务器可以验证这个 WebSocket 请求，并用适当的响应回复客户端。</p></blockquote>
+<pre class="language-go hljs">conn, err := upgrader.Upgrade(w, r, nil)
+if err != nil {
+log.Print("upgrade failed: ", err)
+return
+}
+defer conn.Close()</pre>
+<h2>设置我们的待办事项应用程序</h2>
+<p>现在我们已经在 WebSockets 中设置了一个基本的应用程序，让我们添加用于添加和完成任务的功能。我们将从客户端在应用程序中设置这两个命令，作为对命令的响应，我们将发送当前的待办事项列表。</p>
+<p>首先，我们将添加一个 web 模板，并设置我们的客户机来请求连接并向服务器发送消息。我们将使用一个简单的 HTML 文件和一个创建套接字连接的脚本。</p>
+<p>随着应用程序的进一步构建，您可以将 JavaScript 代码移到一个单独的文件中。我们将向<code>websockets.html</code>添加以下代码:</p>
+<pre class="language-html hljs">&lt;html&gt;
+  &lt;div&gt;
+    &lt;h1&gt;Go websockets TODO example&lt;/h1&gt;
+    &lt;p&gt;Available commands for todo app&lt;/p&gt;
+    &lt;p&gt;- add [task]&lt;/p&gt;
+    &lt;p&gt;- done [task]&lt;/p&gt;
+    &lt;input id="input" type="text" size="40" /&gt;
+    &lt;button onclick="send()"&gt;Send&lt;/button&gt;
+    &lt;pre id="output"&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+  &lt;style&gt;
+    html {
+      text-align: center;
+      font-size: 16px;
+    }
+    div {
+      padding: 1rem;
+    }
+    #input {
+      font-size: 16px;
+    }
+    p {
+        font-size: 16px;
+    }
+  &lt;/style&gt;
+  &lt;script&gt;
+    var input = document.getElementById("input");
+    var output = document.getElementById("output");
+    var socket = new WebSocket("ws://localhost:8080/todo");
+
+    socket.onopen = function () {
+      output.innerHTML += "Status: Connected\n";
+    };
+
+    socket.onmessage = function (e) {
+      output.innerHTML += "\nServer: " + e.data + "\n";
+    };
+
+    function send() {
+      socket.send(input.value);
+      input.value = "";
+    }
+  &lt;/script&gt;
+&lt;/html&gt;
+</pre>
+<p>现在我们的客户端已经准备好了，让我们更新我们的处理程序来管理我们的待办事项应用程序的功能。<br/>我们将添加命令<code>add</code>和<code>done</code>来完成任务。待办事项处理程序也将以待办事项列表的当前状态进行响应。</p>
+<p>将以下代码复制到<code>server.go</code>:</p>
+<pre class="language-go hljs">package main
+
+import (
+    "log"
+    "net/http"
+    "strings"
+
+    "github.com/gorilla/websocket"
+)
+
+var upgrader = websocket.Upgrader{}
+var todoList []string
+
+func getCmd(input string) string {
+    inputArr := strings.Split(input, " ")
+    return inputArr[0]
+}
+
+func getMessage(input string) string {
+    inputArr := strings.Split(input, " ")
+    var result string
+    for i := 1; i &lt; len(inputArr); i++ {
+        result += inputArr[i]
+    }
+    return result
+}
+
+func updateTodoList(input string) {
+    tmpList := todoList
+    todoList = []string{}
+    for _, val := range tmpList {
+        if val == input {
+            continue
+        }
+        todoList = append(todoList, val)
+    }
+}
+
+func main() {
+
+    http.HandleFunc("/todo", func(w http.ResponseWriter, r *http.Request) {
+        // Upgrade upgrades the HTTP server connection to the WebSocket protocol.
+        conn, err := upgrader.Upgrade(w, r, nil)
+        if err != nil {
+            log.Print("upgrade failed: ", err)
+            return
+        }
+        defer conn.Close()
+
+        // Continuosly read and write message
+        for {
+            mt, message, err := conn.ReadMessage()
+            if err != nil {
+                log.Println("read failed:", err)
+                break
+            }
+            input := string(message)
+            cmd := getCmd(input)
+            msg := getMessage(input)
+            if cmd == "add" {
+                todoList = append(todoList, msg)
+            } else if cmd == "done" {
+                updateTodoList(msg)
+            }
+            output := "Current Todos: \n"
+            for _, todo := range todoList {
+                output += "\n - " + todo + "\n"
+            }
+            output += "\n----------------------------------------"
+            message = []byte(output)
+            err = conn.WriteMessage(mt, message)
+            if err != nil {
+                log.Println("write failed:", err)
+                break
+            }
+        }
+    })
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        http.ServeFile(w, r, "websockets.html")
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+</pre>
+<p>现在，运行您的服务器，您应该会在<code>localhost:8080</code>上看到工作待办应用程序。随意添加新项目来个性化您的待办事项列表。</p>
+<p>添加并完成几个任务后，待办事项应用程序应该看起来像下面的截图:</p>
+<p><img data-attachment-id="65291" data-permalink="https://blog.logrocket.com/using-websockets-go/final-go-websocket-to-do-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png" data-orig-size="730,816" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-go-websocket-to-do-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app-268x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png" decoding="async" class="aligncenter wp-image-65291 size-full jetpack-lazy-image" src="../Images/306745c78ea31bc38c0204019406c56b.png" alt="Final Go Websocket To Do App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app-268x300.png 268w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65291" data-permalink="https://blog.logrocket.com/using-websockets-go/final-go-websocket-to-do-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png" data-orig-size="730,816" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-go-websocket-to-do-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app-268x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png" decoding="async" loading="lazy" class="aligncenter wp-image-65291 size-full" src="../Images/306745c78ea31bc38c0204019406c56b.png" alt="Final Go Websocket To Do App" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app-268x300.png 268w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/final-go-websocket-to-do-app.png"/></noscript>
+<h2>WebSockets 的用例</h2>
+<p>WebSockets 的主要目的是支持全双工或双向通信。除了提供实时更新，WebSockets 还包括一个单一的轻量级服务器，可以支持多个开放式 WebSocket 连接。与大多数其他方法相比，WebSockets 可以在更长的时间内维持客户端和服务器之间的连接。</p>
+<p>目前，WebSockets 为 Android、iOS、web 和桌面应用程序提供跨平台支持，WebSockets 通常用于以下类型的应用程序:</p>
+<ul>
+<li>实时消息传递</li>
+<li>多人游戏</li>
+<li>实时分数馈送</li>
+<li>协作编辑工具</li>
+<li>实时位置和方向应用</li>
+<li>音频和视频<a href="https://blog.logrocket.com/creating-chat-application-with-webrtc/">使用 WebRTC 聊天</a></li>
+</ul>
+<h2>摘要</h2>
+<p>在本文中，我们探索了 WebSockets，简要介绍了它们是如何工作的，密切关注全双工通信。为了理解 WebSockets 在 Go 中是如何工作的，我们构建了一个简单的待办事项应用程序，它具有添加和删除任务的功能。最后，我们看了使 WebSockets 有用和通用的几个附加特性，并回顾了 WebSockets 的一些实际应用。</p>
+<p>在 Go 中使用 WebSockets 相当简单明了，但是这种组合会对应用程序的性能产生巨大的影响。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

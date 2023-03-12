@@ -1,0 +1,260 @@
+<html>
+<head>
+<title>Understanding deep linking in Flutter with Uni Links - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Uni Links 理解 Flutter 中的深度链接</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/#0001-01-01">https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>深度链接为您提供了一个指向已安装应用程序特定部分的 web 浏览器链接。这些链接还可以设置为将用户导航到特定的内容页面(如活动、新闻更新等)，并传递自定义数据(如促销代码)。</p>
+<p>例如，如果你想与朋友分享这篇文章，那么你可以发送一个指向这篇文章的 URL，而不是 blog.logrocket.com 网站来导航和查找这篇文章。这意味着您需要手动或使用深层链接来处理应用程序的触发方式。</p>
+<p>此外，当深层链接被触发时，您的应用程序可能已经在运行，因此您也需要在后台运行的应用程序中处理深层链接点击。</p>
+<p>在本教程中，您将学习如何使用 uni_links 来帮助您。</p>
+<p><em>注意，如果你是 Flutter 新手，请通过官方文档了解一下。</em></p>
+<h2 id="what-are-uni-links">什么是 Uni 链接？</h2>
+<p><a href="https://pub.dev/packages/uni_links" target="_blank" rel="noopener"> Uni Links (uni_links) </a>是一个 Flutter 插件，用于接收传入的 App/深度链接(适用于 Android)以及通用链接和自定义 URL 方案(适用于 iOS)。</p>
+<p>它目前支持 Android、iOS 和 web 平台。</p>
+<h2 id="setting-up-uni-links">设置 Uni 链接</h2>
+<p>在 pubspec 依赖关系中添加<code>uni_links</code>:</p>
+<pre class="language-yaml hljs">uni_links: ^0.5.1</pre>
+<p>接下来，您需要在 Android 或 iOS 配置文件中声明链接的模式。</p>
+<h3 id="android-config">Android 配置</h3>
+<p>在 Android 中，有两种类型的 Uni 链接:</p>
+<ul>
+<li>App 链接:这个链接需要一个指定的主机，一个托管的文件(<code>assetlinks.json</code>)，它只和<code>https</code>方案(<a href="https://your_host"> https://your_host </a>)一起工作。这是您需要添加到配置文件中的应用程序链接意图过滤器。你可以根据自己的喜好更换主持人:<pre class="language-xml hljs">&lt;!-- App Links --&gt;       &lt;intent-filter android:autoVerify="true"&gt;         &lt;action android:name="android.intent.action.VIEW" /&gt;         &lt;category android:name="android.intent.category.DEFAULT" /&gt;         &lt;category android:name="android.intent.category.BROWSABLE" /&gt;         &lt;!-- Accepts URIs that begin with https://YOUR_HOST --&gt;         &lt;data           android:scheme="https"           android:host="unilinks.example.com" /&gt;       &lt;/intent-filter&gt;</pre></li>
+<li>深层链接:这种链接不需要主机、主机文件或任何自定义方案。它提供了一种使用 URL:<span>your _ scheme://any _ host</span>来利用你的应用的方法。这是您需要添加到配置中的深度链接意图过滤器。您还可以更改方案和主机:<pre>&lt;!-- Deep Links --&gt; &lt;intent-filter&gt; &lt;action android:name="android.intent.action.VIEW" /&gt; &lt;category android:name="android.intent.category.DEFAULT" /&gt;  &lt;category android:name="android.intent.category.BROWSABLE" /&gt;  &lt;!-- Accepts URIs that begin with YOUR_SCHEME://YOUR_HOST --&gt;  &lt;data android:scheme="logrckt" android:host="unilinks.example.com" /&gt;  &lt;/intent-filter&gt;</pre></li>
+</ul>
+<p>您需要在您的主 AndroidManifest.xml 文件(<code>android/app/src/main/AndroidManifest.xml</code>)中声明这些意图过滤器中的任何一个。</p>
+<h3 id="ios-config">iOS config</h3>
+<p>在 iOS 中，还有两种类型的 uni 链接:</p>
+<ul>
+<li>通用链接:这些链接只适用于<code>https</code>方案，并且需要指定的主机、权限和托管文件。类似安卓里的 App 链接。您需要通过 Xcode 或编辑<code>ios/Runner/Runner.entitlements</code>文件:<pre class="language-xml hljs">&lt;?xml version="1.0" encoding="UTF-8"?&gt; &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt; &lt;plist version="1.0"&gt; &lt;dict&gt;   &lt;!-- ... other keys --&gt;   &lt;key&gt;com.apple.developer.associated-domains&lt;/key&gt;   &lt;array&gt;     &lt;string&gt;applinks:[YOUR_HOST]&lt;/string&gt;   &lt;/array&gt;   &lt;!-- ... other keys --&gt; &lt;/dict&gt; &lt;/plist&gt;</pre>来添加或创建一个<code>com.apple.developer.associated-domains</code>权限</li>
+<li>自定义 URL:该 URL 不需要主机、权限、托管文件或任何自定义方案。类似 Android 中的一个深度链接，需要在<code>ios/Runner/Info.plist</code>文件中添加主机和方案如下:<pre>&lt;key&gt;CFBundleURLTypes&lt;/key&gt;   &lt;array&gt;       &lt;dict&gt;           &lt;key&gt;CFBundleTypeRole&lt;/key&gt;           &lt;string&gt;Editor&lt;/string&gt;           &lt;key&gt;CFBundleURLName&lt;/key&gt;           &lt;string&gt;unilinks.example.com&lt;/string&gt;           &lt;key&gt;CFBundleURLSchemes&lt;/key&gt;           &lt;array&gt;               &lt;string&gt;logrckt&lt;/string&gt;           &lt;/array&gt;       &lt;/dict&gt;   &lt;/array&gt;</pre></li>
+</ul>
+<p><em> N.B、任何 app 都可以在安卓深度链接、iOS 自定义网址的情况下认领你的方案和主机组合，所以要保证你的主机和方案尽可能的唯一。</em></p>
+<h2 id="usage">使用</h2>
+<p>如前所述，您的应用程序有两种方式来处理深层链接:</p>
+<ul>
+<li>冷启动:如果应用程序被终止，冷启动将重新启动应用程序(不在后台运行)。在这种情况下，<code>_initURIHandler</code>将被调用并拥有初始链接</li>
+<li>回到前台:如果应用程序在后台运行，你需要把它带回到前台，流将产生链接。初始链接可以为空，也可以是应用程序启动时使用的链接</li>
+</ul>
+<p>在应用程序的生命周期中，<code>_initURIHandler</code>应该只处理一次，因为它用于启动应用程序，并且在应用程序的整个过程中不会改变。所以，在你的<code>main.dart</code>中的任何地方创建一个全局变量<code>_initialURILinkHandled</code>作为<code>false</code>:</p>
+<pre class="language-dart hljs">bool _initialURILinkHandled = false;</pre>
+<p>在您的<code>main.dart</code>文件中，通过删除现有代码并创建新变量来清理您的<code>MyHomePage</code>小部件，如下所示:</p>
+<pre class="language-dart hljs">Uri? _initialURI;
+Uri? _currentURI;
+Object? _err;
+
+StreamSubscription? _streamSubscription;</pre>
+<p>你在这里声明:</p>
+<ul>
+<li>两个<code>Uri</code>变量用于识别初始和有效/当前 URI，</li>
+<li>一个<code>Object</code>用于在链接解析出现故障时存储错误</li>
+<li>一个<code>StreamSubscription</code>对象，当应用程序在前台时，它会监听传入的链接</li>
+</ul>
+<p>接下来，创建如下的<code>_initURIHandler</code>方法:</p>
+<pre class="language-dart hljs">Future&lt;void&gt; _initURIHandler() async {
+ // 1
+ if (!_initialURILinkHandled) {
+   _initialURILinkHandled = true;
+   // 2
+   Fluttertoast.showToast(
+       msg: "Invoked _initURIHandler",
+       toastLength: Toast.LENGTH_SHORT,
+       gravity: ToastGravity.BOTTOM,
+       timeInSecForIosWeb: 1,
+       backgroundColor: Colors.green,
+       textColor: Colors.white
+   );
+   try {
+     // 3
+     final initialURI = await getInitialUri();
+     // 4
+     if (initialURI != null) {
+       debugPrint("Initial URI received $initialURI");
+       if (!mounted) {
+         return;
+       }
+       setState(() {
+         _initialURI = initialURI;
+       });
+     } else {
+       debugPrint("Null Initial URI received");
+     }
+   } on PlatformException { // 5
+     debugPrint("Failed to receive initial uri");
+   } on FormatException catch (err) { // 6
+     if (!mounted) {
+       return;
+     }
+     debugPrint('Malformed Initial URI received');
+     setState(() =&gt; _err = err);
+   }
+ }
+}</pre>
+<p>在上面的代码中，您执行了以下操作:</p>
+<ol>
+<li>这里使用了一个检查，这样即使在小部件被释放的情况下,<code>_initURIHandler</code>也只会被调用一次</li>
+<li>当这个方法被调用时，使用<code><a href="https://pub.dev/packages/fluttertoast" target="_blank" rel="noopener">fluttertoast</a></code>包显示一个 toast</li>
+<li>使用<code>getInitialUri</code>方法解析并返回链接，作为<code>initialURI</code>变量中的新 URI</li>
+<li>检查<code>initialURI</code>是否为空。如果不为空，设置<code>_initialURI</code>值 w.r.t <code>initialURI</code></li>
+<li>使用<code>PlatformException</code>处理平台消息失败</li>
+<li>如果链接作为 URI 无效，则处理<code>FormatException</code></li>
+</ol>
+<p>接下来，创建用于在应用程序已经启动时接收链接的<code>_incomingLinkHandler</code>方法:</p>
+<pre class="language-dart hljs">void _incomingLinkHandler() {
+ // 1
+ if (!kIsWeb) {
+   // 2
+   _streamSubscription = uriLinkStream.listen((Uri? uri) {
+     if (!mounted) {
+       return;
+     }
+     debugPrint('Received URI: $uri');
+     setState(() {
+       _currentURI = uri;
+       _err = null;
+     });
+     // 3
+   }, onError: (Object err) {
+     if (!mounted) {
+       return;
+     }
+     debugPrint('Error occurred: $err');
+     setState(() {
+       _currentURI = null;
+       if (err is FormatException) {
+         _err = err;
+       } else {
+         _err = null;
+       }
+     });
+   });
+ }
+}</pre>
+<p>这段代码执行了以下操作:</p>
+<ol>
+<li>增加了一个检查平台的条件，因为网络平台只会将链接作为初始链接来处理</li>
+<li>监听传入链接流，并更新<code>_currentURI</code>和<code>_err</code>变量</li>
+<li>使用<code>onError</code>事件处理错误，并更新<code>_currentURI</code>和<code>_err</code>变量</li>
+</ol>
+<p>在创建了这些方法来监听传入的链接之后，您需要在呈现小部件树之前调用它们。在<code>MyHomePage</code>小部件的<code>initState</code>中调用这些方法:</p>
+<pre class="language-dart hljs">@override
+void initState() {
+ super.initState();
+ _initURIHandler();
+ _incomingLinkHandler();
+}</pre>
+<p>类似地，要在应用程序终止时释放资源，请关闭<code>dispose</code>方法中的<code>StreamSubscription</code>对象:</p>
+<pre class="language-dart hljs">@override
+void dispose() {
+ _streamSubscription?.cancel();
+ super.dispose();
+}</pre>
+<p>接下来，更新<code>build</code>方法:</p>
+<pre class="language-dart hljs">@override
+Widget build(BuildContext context) {
+ return Scaffold(
+     appBar: AppBar(
+       title: Text(widget.title),
+     ),
+     body: Center(
+         child: Padding(
+       padding: const EdgeInsets.symmetric(horizontal: 20),
+       child: Column(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: &lt;Widget&gt;[
+           // 1
+           ListTile(
+             title: const Text("Initial Link"),
+             subtitle: Text(_initialURI.toString()),
+           ),
+           // 2
+           if (!kIsWeb) ...[
+             // 3
+             ListTile(
+               title: const Text("Current Link Host"),
+               subtitle: Text('${_currentURI?.host}'),
+             ),
+             // 4
+             ListTile(
+               title: const Text("Current Link Scheme"),
+               subtitle: Text('${_currentURI?.scheme}'),
+             ),
+             // 5
+             ListTile(
+               title: const Text("Current Link"),
+               subtitle: Text(_currentURI.toString()),
+             ),
+             // 6
+             ListTile(
+               title: const Text("Current Link Path"),
+               subtitle: Text('${_currentURI?.path}'),
+             )
+           ],
+           // 7
+           if (_err != null)
+             ListTile(
+               title:
+                   const Text('Error', style: TextStyle(color: Colors.red)),
+               subtitle: Text(_err.toString()),
+             ),
+           const SizedBox(height: 20,),
+           const Text("Check the blog for testing instructions")
+         ],
+       ),
+     )));
+}</pre>
+<p>在这里，您已经完成了以下操作:</p>
+<ol>
+<li>使用<code>_initialURI</code>变量显示收到的初始链接</li>
+<li>增加了一个复选框，只在移动平台上显示链接</li>
+<li>显示了传入链接的主机。我们已经在前面定义了主机</li>
+<li>与主机类似，显示了之前配置的传入链路的方案</li>
+<li>使用<code>_currentURI</code>变量显示当前或活动的输入链接</li>
+<li>显示了与主机和方案一起出现的路径</li>
+<li>如果不为空，则显示错误</li>
+</ol>
+<p>构建并重新启动应用程序；它看起来会像这样:</p>
+<p><img data-attachment-id="99321" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png" data-orig-size="476,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="uni-links-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-279x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png" decoding="async" class="aligncenter size-full wp-image-99321 jetpack-lazy-image" src="../Images/0c59ffcf50b582b84085effbf313915f.png" alt="Uni Links Demo Desktop" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png 476w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-279x300.png 279w" data-lazy-sizes="(max-width: 476px) 100vw, 476px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="99321" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png" data-orig-size="476,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="uni-links-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-279x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-99321" src="../Images/0c59ffcf50b582b84085effbf313915f.png" alt="Uni Links Demo Desktop" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png 476w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-279x300.png 279w" sizes="(max-width: 476px) 100vw, 476px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo.png"/></noscript>
+<p><img data-attachment-id="99323" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo-mobile/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png" data-orig-size="288,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="uni-links-demo-mobile" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png" decoding="async" class="aligncenter size-full wp-image-99323 jetpack-lazy-image" src="../Images/c019bd5a9905c6e7b0058ee985e4d830.png" alt="Uni Links Demo Mobile" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png 288w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile-169x300.png 169w" data-lazy-sizes="(max-width: 288px) 100vw, 288px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="99323" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo-mobile/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png" data-orig-size="288,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="uni-links-demo-mobile" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-99323" src="../Images/c019bd5a9905c6e7b0058ee985e4d830.png" alt="Uni Links Demo Mobile" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png 288w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile-169x300.png 169w" sizes="(max-width: 288px) 100vw, 288px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-mobile.png"/></noscript>
+<p>因为应用程序手动重启，所以<code>ListTile</code>的所有字幕在手机上都将是空的。在下一步中，您将测试您的更改。</p>
+<h2 id="testing-your-deep-links">测试你的深层链接</h2>
+<p>您可以通过使用 CLI 工具调用与您注册的方案的链接来测试您的更改。</p>
+<h3 id="android">机器人</h3>
+<p>如果已经安装了 Android Studio(带有 SDK 平台工具),您可以执行以下操作:</p>
+<pre class="language-dart hljs">adb shell 'am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "logrckt://host/path/subpath"'
+adb shell 'am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "logrckt://unilinks.example.com/path/portion/?uid=123&amp;token=abc"'
+adb shell 'am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "logrckt://unilinks.example.com/?arr%5b%5d=123&amp;arr%5b%5d=abc&amp;addr=1%20Nowhere%20Rd&amp;addr=Rand%20City%F0%9F%98%82"'
+adb shell 'am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "logrckt://<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="87f2e9eeebeee9ecf4a9c7">[email protected]</a>@malformed.invalid.url/path?"'</pre>
+<p>这将根据您的方案和主机发送呼叫到您的应用程序，您的应用程序将出现在前台。</p>
+<p>如果您的路径中没有 ADB，但是有<code>$ANDROID_HOME</code> env 变量，那么使用<code>"$ANDROID_HOME"/platform-tools/…</code>和上面的命令。</p>
+<p>或者，您可以简单地在 ADB shell 中运行该命令。</p>
+<h3 id="ios">ios</h3>
+<p>如果 Xcode 已经安装，您可以执行以下操作:</p>
+<pre class="language-dart hljs">/usr/bin/xcrun simctl openurl booted "logrckt://host/path/subpath"
+/usr/bin/xcrun simctl openurl booted "logrckt://unilinks.example.com/path/portion/?uid=123&amp;token=abc"
+/usr/bin/xcrun simctl openurl booted "logrckt://unilinks.example.com/?arr%5b%5d=123&amp;arr%5b%5d=abc&amp;addr=1%20Nowhere%20Rd&amp;addr=Rand%20City%F0%9F%98%82"
+/usr/bin/xcrun simctl openurl booted "logrckt://<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c7b2a9aeabaea9acb4e987">[email protected]</a>@malformed.invalid.url/path?"</pre>
+<p>如果您的路径中有<code>xcrun</code>(或<code>simctl</code>)，您可以直接调用它。标志 booted 假定一个开放的模拟器带有一个引导的设备。</p>
+<p><em>注意，对于 App 链接或者通用链接，可以用<code>logrckt</code>的<code>https</code>方案试试上面的例子。</em></p>
+
+<p> </p>
+<p><img data-attachment-id="99325" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo-ios/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png" data-orig-size="288,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Uni Links Demo iOS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png" decoding="async" class="aligncenter size-full wp-image-99325 jetpack-lazy-image" src="../Images/cae1dae5000c97ba3a4fec6909ac2184.png" alt="Uni Links Demo iOS" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png 288w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios-169x300.png 169w" data-lazy-sizes="(max-width: 288px) 100vw, 288px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="99325" data-permalink="https://blog.logrocket.com/understanding-deep-linking-flutter-uni-links/uni-links-demo-ios/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png" data-orig-size="288,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Uni Links Demo iOS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-99325" src="../Images/cae1dae5000c97ba3a4fec6909ac2184.png" alt="Uni Links Demo iOS" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png 288w, https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios-169x300.png 169w" sizes="(max-width: 288px) 100vw, 288px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/uni-links-demo-ios.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>你可以在这里找到最终项目。</p>
+<p>在本教程中，您了解了深度链接以及如何在 Flutter 应用程序中使用它。下一步，您可以尝试使用<a href="https://firebase.flutter.dev/docs/dynamic-links/overview" target="_blank" rel="noopener"> Firebase 动态链接</a>进行深度链接，因为即使用户没有安装应用程序，也可以通过将它们重定向到 Play/App Store 进行安装。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

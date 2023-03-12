@@ -1,0 +1,237 @@
+<html>
+<head>
+<title>Generic persistent data storage in Android using Jetpack DataStore - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Android 中使用 Jetpack 数据存储的通用持久数据存储</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/#0001-01-01">https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>无论如何，任何现代 Android 应用程序都会在设备上本地存储一些用户或配置数据。过去，开发人员依赖于<a href="https://developer.android.com/reference/android/content/SharedPreferences" target="_blank" rel="noopener"> SharedPreferences API </a>以键值对的形式存储简单数据。</p>
+<p>SharedPreferences API 的不足之处在于其读写操作的同步 API。由于 Android 不赞成在主线程上执行非 UI 工作，所以使用起来不安全。</p>
+<p>在本文中，您将了解如何将<a href="https://developer.android.com/topic/libraries/architecture/datastore" target="_blank" rel="noopener">数据存储 API </a>用于通用持久存储。这种方法将允许我们创建一个存储类，我们可以在其中指定任何我们希望保存为设备的键值对的数据类型。</p>
+<p>我们将讨论以下主题:</p>
+
+<h2 id="advantages-jetpack-datastore">使用 Jetpack 数据存储的优势</h2>
+<ul>
+<li>数据存储是完全异步的，使用<a href="https://blog.logrocket.com/understanding-kotlin-coroutines/" target="_blank" rel="noopener"> Kotlin 协程</a></li>
+<li>读写操作在后台完成，不用担心阻塞 UI</li>
+<li>有了协程，就有了在使用数据存储时发出错误信号的机制</li>
+</ul>
+<h2 id="setting-up-sample-android-application">设置一个示例 Android 应用程序</h2>
+<p>在本演示中，我们将创建一个示例应用程序，从内存源获取应用程序的配置，并使用数据存储将它们保存在设备上。</p>
+<p>在我们开始之前，有几个先决条件:</p>
+<ul>
+<li>Android 移动开发和 Kotlin 的基础知识</li>
+<li>安装在您电脑上的 Android Studio</li>
+</ul>
+<p>让我们从创建一个空的 Android Studio 项目开始。</p>
+<figure id="attachment_103683" aria-describedby="caption-attachment-103683" class="wp-caption aligncenter"><img data-attachment-id="103683" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/click-new-project/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png" data-orig-size="730,571" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="click-new-project" data-image-description="" data-image-caption="&lt;p&gt;Click &lt;strong&gt;New Project&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project-300x235.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png" decoding="async" class="size-full wp-image-103683 jetpack-lazy-image" src="../Images/dd9a988dcbcf6faccfa8cfad8c486be2.png" alt="Click New Project" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project-300x235.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="103683" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/click-new-project/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png" data-orig-size="730,571" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="click-new-project" data-image-description="" data-image-caption="&lt;p&gt;Click &lt;strong&gt;New Project&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project-300x235.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png" decoding="async" loading="lazy" class="size-full wp-image-103683" src="../Images/dd9a988dcbcf6faccfa8cfad8c486be2.png" alt="Click New Project" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project-300x235.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/click-new-project.png"/></noscript><figcaption id="caption-attachment-103683" class="wp-caption-text">Click <strong>New Project</strong></figcaption></figure>
+<figure id="attachment_103686" aria-describedby="caption-attachment-103686" class="wp-caption aligncenter"><img data-attachment-id="103686" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/select-empty-activity/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="select-empty-activity" data-image-description="" data-image-caption="&lt;p&gt;Select &lt;strong&gt;empty activity&lt;/strong&gt;, then click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity-300x213.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png" decoding="async" class="size-full wp-image-103686 jetpack-lazy-image" src="../Images/1e29cec00721ff0e80f722eafc4e6764.png" alt="Select empty activity, click Next" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity-300x213.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="103686" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/select-empty-activity/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="select-empty-activity" data-image-description="" data-image-caption="&lt;p&gt;Select &lt;strong&gt;empty activity&lt;/strong&gt;, then click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity-300x213.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png" decoding="async" loading="lazy" class="size-full wp-image-103686" src="../Images/1e29cec00721ff0e80f722eafc4e6764.png" alt="Select empty activity, click Next" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity-300x213.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/select-empty-activity.png"/></noscript><figcaption id="caption-attachment-103686" class="wp-caption-text">Select <strong>Empty Activity</strong>, then click <strong>Next</strong></figcaption></figure>
+<figure id="attachment_103688" aria-describedby="caption-attachment-103688" class="wp-caption aligncenter"><img data-attachment-id="103688" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/specify-project-package-name/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="specify-project-package-name" data-image-description="" data-image-caption="&lt;p&gt;Specify the project and package names, then click &lt;strong&gt;Finish&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name-300x213.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png" decoding="async" class="size-full wp-image-103688 jetpack-lazy-image" src="../Images/abe50ce7ea8ca5298819e2d03df2325c.png" alt="Specify the project and package names, then click Finish" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name-300x213.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="103688" data-permalink="https://blog.logrocket.com/generic-persistent-data-storage-android-using-jetpack-datastore/specify-project-package-name/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png" data-orig-size="730,519" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="specify-project-package-name" data-image-description="" data-image-caption="&lt;p&gt;Specify the project and package names, then click &lt;strong&gt;Finish&lt;/strong&gt;&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name-300x213.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png" decoding="async" loading="lazy" class="size-full wp-image-103688" src="../Images/abe50ce7ea8ca5298819e2d03df2325c.png" alt="Specify the project and package names, then click Finish" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name-300x213.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/specify-project-package-name.png"/></noscript><figcaption id="caption-attachment-103688" class="wp-caption-text">Specify the project and package names, then click <strong>Finish</strong></figcaption></figure>
+<p>将以下依赖项复制并粘贴到您的应用程序级<code>build.gradle</code>文件中。</p>
+<pre class="language-kotlin hljs">implementation "androidx.datastore:datastore-preferences:1.0.0"
+implementation "io.insert-koin:koin-android:3.1.4"
+implementation 'com.google.code.gson:gson:2.8.7'
+</pre>
+<p>除了数据存储的依赖关系，还有额外的<code>koin</code>和<code>gson</code>依赖关系，它们分别用于依赖注入和序列化/反序列化。</p>
+<p>插入这些依赖项后，Android Studio 会提示你同步项目。这通常需要几秒钟。</p>
+<h2 id="creating-kotlin-storage-interface">创建 Kotlin 存储接口</h2>
+<p>创建一个 Kotlin 接口文件，如下所示。</p>
+<pre class="language-kotlin hljs">interface Storage&lt;T&gt; {
+
+    fun insert(data: T): Flow&lt;Int&gt;
+
+    fun insert(data: List&lt;T&gt;): Flow&lt;Int&gt;
+
+    fun get(where: (T) -&gt; Boolean): Flow&lt;T&gt;
+
+    fun getAll(): Flow&lt;List&lt;T&gt;&gt;
+
+    fun clearAll(): Flow&lt;Int
+}
+</pre>
+<p>我们使用存储接口来定义持久数据存储的操作。换句话说，这是一个持久存储将履行的契约。我们打算与接口关联的任何数据类型都应该能够在我们创建的接口中执行所有四种操作。</p>
+<h2 id="creating-concrete-implementation-storage-interface">创建存储接口的具体实现</h2>
+<p><code>PersistentStorage</code>是我们上一步定义的<code>Storage</code>接口的具体实现。</p>
+<pre class="language-kotlin hljs">class PersistentStorage&lt;T&gt; constructor(
+    private val gson: Gson,
+    private val type: Type,
+    private val dataStore: DataStore&lt;Preferences&gt;,
+    private val preferenceKey: Preferences.Key&lt;String&gt;
+) : Storage&lt;T&gt;
+</pre>
+<p>到现在为止，你会发现我们正在利用<code>Storage</code>和<code>PersistentStorage</code>中的泛型。这样做是为了实现类型安全。如果您的代码依赖通用持久存储来存储数据，那么只有一种数据类型会与特定的<code>Storage</code>实例相关联。</p>
+<p>还需要许多对象依赖关系:</p>
+<ol>
+<li>如前所述，这将用于序列化/反序列化</li>
+<li>我们的实现为用户提供了保存多份相同类型数据的灵活性——能力越大，责任越大。用 GSON 读写列表会导致数据损坏或丢失，因为 Java 还没有提供表示泛型类型的方法，而且 GSON 不能识别在运行时使用哪种类型进行转换，所以我们使用类型标记来有效地将我们的对象转换成 JSON 字符串，反之亦然，没有任何复杂性</li>
+<li>Preference Key:这是一个 Android Jetpack 数据存储特定的对象；它基本上是从<code>DataStore</code>保存和检索数据的一个键</li>
+<li><code>DataStore</code>:这将为写入和读取首选项提供 API</li>
+</ol>
+<h2 id="implementing-getall-operation">执行<code>getAll</code>操作</h2>
+<pre class="language-kotlin hljs">...
+fun getAll(): Flow&lt;List&gt; {
+    return dataStore.data.map { preferences -&gt;
+        val jsonString = preferences[preferenceKey] ?: EMPTY_JSON_STRING
+        val elements = gson.fromJson&lt;List&gt;(jsonString, typeToken)
+        elements
+    }
+}
+...</pre>
+<p><code>DataStore.data</code>用<code>Flow&lt;Preferences&gt;</code>返回一个首选项流，可以使用<code>map</code>操作符将其转换成一个<code>Flow&lt;List&lt;T&gt;&gt;</code>。在 map 块内部，我们首先尝试用 preference 键检索 JSON 字符串。</p>
+<p>在值为<code>null</code>的情况下，我们将<code>EMPTY_JSON_STRING</code>分配给<code>jsonString</code>。<code>EMPTY_JSON_STRING</code>实际上是一个常量变量，定义如下:</p>
+<pre class="language-kotlin hljs">private const val EMPTY_JSON_STRING = "[]"
+</pre>
+<p>GSON 会很方便地将它识别为有效的 JSON 字符串，它表示指定类型的空列表。这种方法更符合逻辑，而不是抛出一些可能导致应用程序崩溃的异常。我确信我们不希望这种情况发生在我们的应用程序中🙂</p>
+<h2 id="implementing-insert-operation">执行<code>insert</code>操作</h2>
+<pre class="language-kotlin hljs">fun insert(data: List&lt;T&gt;): Flow&lt;Int&gt; {
+    return flow {
+        val cachedDataClone = getAll().first().toMutableList()
+        cachedDataClone.addAll(data)
+        dataStore.edit {
+            val jsonString = gson.toJson(cachedDataClone, type)
+            it[preferenceKey] = jsonString
+            emit(OPERATION_SUCCESS)
+        }
+    }
+}
+</pre>
+<p>为了将数据写入数据存储，我们在<code>Datastore</code>上调用 edit。在 transform 块中，我们编辑了<code>MutablePreferences</code>，如上面的代码块所示。</p>
+<p>为了避免用新数据覆盖旧数据，在用新创建的列表修改<code>MutablePreferences</code>之前，我们创建了一个包含旧数据和新数据的列表。</p>
+<p>注意，我选择使用方法重载在 vararg 参数上插入单个或一个数据列表，因为 Kotlin 中的 vararg 在将数据列表复制到数组时需要额外的内存。</p>
+<h2 id="implementing-get-operation">执行<code>get</code>操作</h2>
+<pre class="language-kotlin hljs">fun get(where: (T) -&gt; Boolean): Flow {
+    return getAll().map { cachedData -&gt;
+        cachedData.first(where)
+    }
+}</pre>
+<p>在这个操作中，我们希望从存储中获取与谓词<code>where</code>匹配的单个数据。这个谓词将在客户端实现。</p>
+<h2 id="implementing-clearall-operation">执行<code>clearAll</code>操作</h2>
+<pre class="language-kotlin hljs">fun clearAll(): Flow&lt;Int&gt; {
+    return flow {
+        dataStore.edit {
+            it.remove(preferenceKey)
+            emit(OPERATION_SUCCESS)
+        }
+    }
+}
+</pre>
+<p>顾名思义，我们希望擦除与<code>preference</code>键相关的数据。<code>emit(OPERATION_SUCCESS)</code>是我们通知客户操作成功的方式。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>至此，我们已经对通用存储 API 进行了公正的评价。接下来，我们将设置模型类和内存中的数据源。</p>
+<h2 id="creating-model-class-in-memory-data-source">创建<code>model</code>类和内存中的数据源</h2>
+<p>创建一个<code>Config</code>数据类，像这样:</p>
+<pre class="language-kotlin hljs">data class Config(val type: String, val enable: Boolean)
+</pre>
+<p>为了简单起见，这个数据类只捕获一个配置类型及其相应的切换值。根据您的用例，您的 config 类可以描述更多的动作。</p>
+<pre class="language-kotlin hljs">class DataSource {
+
+    private val _configs = listOf(
+        Config("in_app_billing", true),
+        Config("log_in_required", false),
+    )
+
+    fun getConfigs(): Flow&lt;List&lt;Config&gt;&gt; {
+        return flow {
+            delay(500) // mock network delay
+            emit(_configs)
+        }
+    }
+}
+</pre>
+<p>由于缺少实际的服务器来连接，我们将配置存储在内存中，并在需要时进行检索。我们还包括了一个模拟实际网络调用的延迟。</p>
+<h2 id="how-inject-dependencies-with-koin">如何用 Koin 注入依赖关系</h2>
+<p>虽然本文的重点是创建一个极简的演示 Android 应用程序，但采用一些现代实践也是可以的。我们将通过<code>ViewModel</code>实现获取配置的代码，并在必要时使用<a href="https://insert-koin.io/" target="_blank" rel="noopener"> koin </a>提供对对象的依赖。</p>
+<h3>什么是 Koin？</h3>
+<p>Koin 是一个强大的 Kotlin 依赖注入框架。它有简单的 API，并且相对容易设置。</p>
+<h3>创建一个<code>ViewModel</code>类</h3>
+<pre class="language-kotlin hljs">class MainViewModel(
+    private val dataSource: DataSource,
+    private val configStorage: Storage&lt;Config&gt;
+) : ViewModel() {
+
+    init {
+        loadConfigs()
+    }
+
+    private fun loadConfigs() = viewModelScope.launch {
+        dataSource
+            .getConfigs()
+            .flatMapConcat(configStorage::insert)
+            .collect()
+    }
+}
+</pre>
+<p>这里，我们从数据源获取配置，并将它们保存到我们的数据存储首选项中。目的是能够在本地检索这些配置，而不必对服务器进行额外的网络调用。发起这个请求最明显的地方是在应用程序启动时。</p>
+<p>像这样定义你的 koin 模块:</p>
+<pre class="language-kotlin hljs">private val Context.dataStore: DataStore&lt;Preferences&gt; by preferencesDataStore(name = "com.enyason.androiddatastoreexample.shared.preferences")
+
+val dataAccessModule = module {
+
+    single&lt;Storage&lt;Config&gt;&gt; {
+        PersistentStorage(
+            gson = get(),
+            type = object : TypeToken&lt;List&lt;Config&gt;&gt;() {}.type,
+            preferenceKey = stringPreferencesKey("config"),
+            dataStore = androidContext().dataStore
+        )
+    }
+
+    single { Gson() }
+
+    viewModel {
+        MainViewModel(
+            dataSource = DataSource(),
+            configStorage = get()
+        )
+    }
+
+}
+</pre>
+<p>我们现在把重任委托给了 Koin。我们不再需要担心对象是如何被创建的——Koin 为我们处理所有的事情。</p>
+<p><code>single</code>定义告诉 Koin 在应用程序的整个生命周期中只创建一个指定类型的实例。<code>viewModel</code>定义告诉 Koin 只创建扩展 Android <code>ViewModel</code>类的对象类型。</p>
+<h2 id="initializing-koin-prepare-dependencies">初始化 Koin 以准备依赖关系</h2>
+<p>我们需要初始化 Koin，以便在应用程序请求之前准备好依赖项。创建一个<code>Application</code>类，如下所示:</p>
+<pre class="language-kotlin hljs">class App : Application() {
+
+    override fun onCreate() {
+        super.onCreate()
+        startKoin {
+            androidContext(<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f6829e9f85b6b78686">[email protected]</a>)
+            modules(dataAccessModule)
+        }
+    }
+}
+</pre>
+<p>我们最终将所有的部分连接在一起，我们的项目现在应该可以像预期的那样工作了。请查看<a href="https://github.com/enyason/AndroidDataStoreExample" target="_blank" rel="noopener">GitHub repo</a>了解完整的项目设置。</p>
+<h2 id="benefits-generic-persistent-storage-android-datastore">采用 Android 数据存储的通用持久存储的优势</h2>
+<ul>
+<li>与 SharedPreferences API 不同，DataStore APIs 由 Kotlin 协同例程提供支持，这使得通用持久存储线程是安全的</li>
+<li>对于任何对象类型，读写逻辑只编写一次</li>
+<li>类型安全保证:<code>Storage&lt;Config&gt;</code>确定只检索<code>Config</code>类型的数据</li>
+<li>旨在管理应用偏好的类通常会导致整体类，这是一种糟糕的软件工程实践。使用本文中讨论的通用方法，您可以用更少的代码完成更多的工作</li>
+<li>我们可以有效地进行单元测试<code>PersistentStorage&lt;T&gt;</code></li>
+</ul>
+<h2>结论</h2>
+<p>实现通用持久存储是使用 Android DataStore 管理数据的一种优雅方式。我上面讨论的收益超过了 Android 上使用 SharedPreference 的传统方法。我希望你喜欢这个教程😊</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p><div class="code-block code-block-32">
+<div class="blog-plug inline-plug kotlin-plug"><h2>LogRocket :即时重现你的安卓应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款 Android 监控解决方案，可以帮助您即时重现问题，确定 bug 的优先级，并了解您的 Android 应用程序的性能。</p><p>LogRocket 还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket 的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的 Android 应用程序— <a class="signup" href="hhttps://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer">免费试用 LogRocket】。</a></p></div>
+</div>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

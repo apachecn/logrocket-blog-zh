@@ -1,0 +1,1234 @@
+<html>
+<head>
+<title>Full-stack Rust: A complete tutorial with examples - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>全栈 Rust:带示例的完整教程</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/#0001-01-01">https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在这篇博客的前面，我们介绍了如何使用 warp 用 Rust 创建一个<a href="https://blog.logrocket.com/create-an-async-crud-web-service-in-rust-with-warp/" target="_blank" rel="noopener"> CRUD web 服务，以及如何使用 Yew </a>用 Rust<a href="https://blog.logrocket.com/rust-webassembly-frontend-web-app-yew/" target="_blank" rel="noopener">构建一个前端 web 应用。</a></p>
+<p>在本教程中，我们将把所有这些放在一起，构建一个简单的全栈 web 应用程序，其特点是有一个数据库支持的 REST 后端和一个基于 Wasm 的单页面应用程序在前端，它调用这个后端。</p>
+<p>最重要的是，我们将创建一个共享的 Rust 模块，它将被前端和后端使用，以演示如何在这样的设置中共享代码。</p>
+<p>我们将构建一个非常简单的宠物主人应用程序，使用户能够添加主人和他们的宠物。我们的应用程序将为主人和他们的宠物列表提供详细的视图，使他们能够根据需要删除和添加宠物。</p>
+<p>以下是我们将要介绍的内容:</p>
+
+<p>你不需要阅读前面提到的文章来理解，但是因为这篇文章包括了这两个概念，所以我们不会对基础知识进行同样深度的讨论。如果你想深入研究，请随意浏览。</p>
+<p>事不宜迟，我们开始吧！</p>
+<h2 id="setting-up-a-full-stack-rust-app">设置全栈 Rust 应用程序</h2>
+<p>接下来，你所需要的就是一个<a href="https://www.rust-lang.org/" target="_blank" rel="noopener">相当新的生锈装置</a>。<a href="https://blog.logrocket.com/packaging-a-rust-web-service-using-docker/" target="_blank" rel="noopener"> Docker </a>，或者其他方式的<a href="https://blog.logrocket.com/create-a-backend-api-with-rust-and-postgres/" target="_blank" rel="noopener">运行 Postgres 数据库</a>，也会很有用。</p>
+<p>在这种情况下，由于我们将在 Rust 中编写后端和前端，并且我们将在它们之间共享一些代码，我们将使用<a href="https://blog.logrocket.com/demystifying-cargo-in-rust/" target="_blank" rel="noopener"> Cargo </a>创建一个多成员工作空间项目。</p>
+<p>首先，创建一个新的 Rust 项目:</p>
+<pre class="language-rust hljs">cargo new rust-fullstack-example
+cd rust-fullstack-example
+</pre>
+<p>然后，删除<code>src</code>文件夹并编辑<code>Cargo.toml</code>文件，如下所示:</p>
+<pre class="language-rust hljs">[workspace]
+
+members = [
+    "backend",
+    "frontend",
+
+    #Internal
+    "common"
+]
+</pre>
+<p>现在我们可以创建三个独立的 Rust 项目:</p>
+<pre class="language-rust hljs">cargo new --lib common
+cargo new backend
+cargo new --lib frontend
+</pre>
+<p>导航到<code>common</code>目录并编辑<code>Cargo.toml</code>文件，添加以下依赖项:</p>
+<pre class="language-rust hljs">[dependencies]
+serde = {version = "=1.0.126", features = ["derive"] }
+</pre>
+<p>接下来，编辑<code>frontend</code>中的<code>Cargo.toml</code>文件，并添加这些依赖项:</p>
+<pre class="language-rust hljs">[dependencies]
+yew = "0.18"
+wasm-bindgen = "0.2.67"
+serde_json = "1"
+serde = {version = "=1.0.126", features = ["derive"] }
+anyhow = "1"
+yew-router = "0.15.0"
+common = { version = "0.1.0", path = "../common" }
+</pre>
+<p>我们使用<a href="https://yew.rs/" target="_blank" rel="noopener">红豆杉</a>来构建<a href="https://blog.logrocket.com/webassembly-runtimes-compared/" target="_blank" rel="noopener">基于 Wasm 的前端</a>。我们为路由和错误以及<a href="https://blog.logrocket.com/json-and-rust-why-serde_json-is-the-top-choice/" target="_blank" rel="noopener"> JSON 处理</a>添加了更多的实用程序库，以及对我们的<code>common</code>库的内部依赖，它将保存前端和后端之间共享的代码。</p>
+<p>最后，编辑<code>backend</code>中的<code>Cargo.toml</code>文件，并添加这些依赖项:</p>
+<pre class="language-rust hljs">[dependencies]
+tokio = { version = "=1.6.1", features = ["macros", "rt-multi-thread"] }
+warp = "=0.3.1"
+mobc = "=0.7.2"
+mobc-postgres = { version = "=0.7.0", features = ["with-chrono-0_4", "with-serde_json-1"] }
+serde = {version = "=1.0.126", features = ["derive"] }
+serde_json = "=1.0.64"
+thiserror = "=1.0.24"
+common = { version = "0.1.0", path = "../common" }
+</pre>
+<p>我们使用<a href="https://github.com/seanmonstar/warp" target="_blank" rel="noopener"> warp </a> web 框架来构建后端。由于我们使用 Postgres 数据库来存储我们的数据，我们还将为 Postgres 添加<a href="https://github.com/importcjj/mobc" target="_blank" rel="noopener"> mobc </a>连接池。</p>
+<p>除此之外，由于 Warp 是为<a href="https://tokio.rs/" target="_blank" rel="noopener"> Tokio </a>优化的，我们需要将它添加为我们的异步运行时。我们将添加一些用于错误和 JSON 处理的实用程序库，以及对我们的<code>common</code>项目的内部依赖。</p>
+<p>这就是设置。让我们开始为我们的<code>common</code>项目中的<code>frontend</code>和<code>backend</code>编写共享代码。</p>
+<h2 id="common-functionality">通用功能</h2>
+<p>我们将从充实<code>common</code>模块开始，在这里我们将添加<code>frontend</code>和<code>backend</code>之间的共享数据模型。在真实的应用程序中，可以共享更多的东西——包括验证、助手、实用程序等。—但是，在这种情况下，我们将坚持使用数据结构。</p>
+<p>在<code>lib.rs</code>中，我们将为我们的<code>Owner</code>和<code>Pet</code>模型添加数据模型:</p>
+<pre class="language-rust hljs">use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+pub struct Owner {
+    pub id: i32,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct OwnerRequest {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct OwnerResponse {
+    pub id: i32,
+    pub name: String,
+}
+
+impl OwnerResponse {
+    pub fn of(owner: Owner) -&gt; OwnerResponse {
+        OwnerResponse {
+            id: owner.id,
+            name: owner.name,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+pub struct Pet {
+    pub id: i32,
+    pub name: String,
+    pub owner_id: i32,
+    pub animal_type: String,
+    pub color: Option&lt;String&gt;,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct PetRequest {
+    pub name: String,
+    pub animal_type: String,
+    pub color: Option&lt;String&gt;,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct PetResponse {
+    pub id: i32,
+    pub name: String,
+    pub animal_type: String,
+    pub color: Option&lt;String&gt;,
+}
+
+impl PetResponse {
+    pub fn of(pet: Pet) -&gt; PetResponse {
+        PetResponse {
+            id: pet.id,
+            name: pet.name,
+            animal_type: pet.animal_type,
+            color: pet.color,
+        }
+    }
+}
+</pre>
+<p>我们定义了数据库域结构<code>Owner</code>和<code>Pet</code>，以及请求和响应数据对象，我们将使用它们在前端和后端之间进行通信。</p>
+<p>分享这段代码是件好事，因为如果我们不适应这种变化，在 API 的某个地方添加或删除一个字段会在前端给我们带来编译错误。这可能会节省我们在更新 API 时追踪错误的时间。</p>
+<p><code>Owner</code>非常简单，只有一个<code>name</code>和数据库 ID。<code>Pet</code>型有一个<code>name</code>，一个<code>animal_type</code>，还有一个可选的<code>color</code>。</p>
+<p>我们还定义了一些助手，从数据库域对象为 API 创建数据对象。</p>
+<p>这就是我们将在<code>common</code>项目中投入的全部内容。</p>
+<p>让我们继续我们应用程序的后端部分。</p>
+<h2 id="building-the-rest-backend">构建 REST 后端</h2>
+<p>我们从数据模型的数据库定义开始:</p>
+<pre class="language-rust hljs">CREATE TABLE IF NOT EXISTS owner
+(
+    id SERIAL PRIMARY KEY NOT NULL,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pet
+(
+    id SERIAL PRIMARY KEY NOT NULL,
+    owner_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    animal_type VARCHAR(255) NOT NULL,
+    color VARCHAR(255),
+
+    CONSTRAINT fk_pet_owner_id FOREIGN KEY (owner_id) REFERENCES pet(id)
+);
+</pre>
+<p>这用它们各自的字段定义了我们的两个数据表。</p>
+<p>我们将自下而上构建后端，从数据库层开始，一直到 web 服务器和路由定义。</p>
+<p>首先，我们将创建一个<code>db</code>模块。在这里，我们将从<code>mod.rs</code>中的一些数据库和连接池初始化代码开始:</p>
+<pre class="language-rust hljs">type Result&lt;T&gt; = std::result::Result&lt;T, error::Error&gt;;
+
+const DB_POOL_MAX_OPEN: u64 = 32;
+const DB_POOL_MAX_IDLE: u64 = 8;
+const DB_POOL_TIMEOUT_SECONDS: u64 = 15;
+const INIT_SQL: &amp;str = "./db.sql";
+
+pub async fn init_db(db_pool: &amp;DBPool) -&gt; Result&lt;()&gt; {
+    let init_file = fs::read_to_string(INIT_SQL)?;
+    let con = get_db_con(db_pool).await?;
+    con.batch_execute(init_file.as_str())
+        .await
+        .map_err(DBInitError)?;
+    Ok(())
+}
+
+pub async fn get_db_con(db_pool: &amp;DBPool) -&gt; Result&lt;DBCon&gt; {
+    db_pool.get().await.map_err(DBPoolError)
+}
+
+pub fn create_pool() -&gt; std::result::Result&lt;DBPool, mobc::Error&lt;Error&gt;&gt; {
+    let config = Config::from_str("postgres://<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0a7a65797e6d786f794a3b383d243a243a243b">[email protected]</a>:7878/postgres")?;
+
+    let manager = PgConnectionManager::new(config, NoTls);
+    Ok(Pool::builder()
+        .max_open(DB_POOL_MAX_OPEN)
+        .max_idle(DB_POOL_MAX_IDLE)
+        .get_timeout(Some(Duration::from_secs(DB_POOL_TIMEOUT_SECONDS)))
+        .build(manager))
+}
+</pre>
+<p>在<code>init_db</code>中，我们读取前面提到的<code>db.sql</code>文件并执行它来初始化我们的表。</p>
+<p><code>create_pool</code>和<code>get_db_con</code>助手用于初始化数据库池，并从池中获取新的连接。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>说完这些设置细节，让我们看看<code>owner.rs</code>中的第一个域访问对象。</p>
+<pre class="language-rust hljs">pub const TABLE: &amp;str = "owner";
+const SELECT_FIELDS: &amp;str = "id, name";
+
+pub async fn fetch(db_pool: &amp;DBPool) -&gt; Result&lt;Vec&lt;Owner&gt;&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!("SELECT {} FROM {}", SELECT_FIELDS, TABLE);
+    let rows = con.query(query.as_str(), &amp;[]).await.map_err(DBQueryError)?;
+
+    Ok(rows.iter().map(|r| row_to_owner(&amp;r)).collect())
+}
+
+pub async fn fetch_one(db_pool: &amp;DBPool, id: i32) -&gt; Result&lt;Owner&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!("SELECT {} FROM {} WHERE id = $1", SELECT_FIELDS, TABLE);
+
+    let row = con
+        .query_one(query.as_str(), &amp;[&amp;id])
+        .await
+        .map_err(DBQueryError)?;
+    Ok(row_to_owner(&amp;row))
+}
+
+pub async fn create(db_pool: &amp;DBPool, body: OwnerRequest) -&gt; Result&lt;Owner&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!("INSERT INTO {} (name) VALUES ($1) RETURNING *", TABLE);
+    let row = con
+        .query_one(query.as_str(), &amp;[&amp;body.name])
+        .await
+        .map_err(DBQueryError)?;
+    Ok(row_to_owner(&amp;row))
+}
+
+fn row_to_owner(row: &amp;Row) -&gt; Owner {
+    let id: i32 = row.get(0);
+    let name: String = row.get(1);
+    Owner { id, name }
+}
+</pre>
+<p>所有者有三种数据库操作:</p>
+<ol>
+<li><code>fetch</code>获取所有所有者</li>
+<li>获取给定 ID 的所有者</li>
+<li>创建新的所有者</li>
+</ol>
+<p>这些方法的实现相当简单。首先，我们从池中获得一个连接，然后我们定义要执行的 Postgres 查询，并使用给定的值执行它，传播任何错误。</p>
+<p>最后，我们使用<code>row_to_owner</code>助手将返回的数据库行数据转换成实际的<code>Owner</code>结构。</p>
+<p><code>pet.rs</code>数据访问对象非常相似:</p>
+<pre class="language-rust hljs">pub const TABLE: &amp;str = "pet";
+const SELECT_FIELDS: &amp;str = "id, owner_id, name, animal_type, color";
+
+pub async fn fetch(db_pool: &amp;DBPool, owner_id: i32) -&gt; Result&lt;Vec&lt;Pet&gt;&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!(
+        "SELECT {} FROM {} WHERE owner_id = $1",
+        SELECT_FIELDS, TABLE
+    );
+    let rows = con
+        .query(query.as_str(), &amp;[&amp;owner_id])
+        .await
+        .map_err(DBQueryError)?;
+
+    Ok(rows.iter().map(|r| row_to_pet(&amp;r)).collect())
+}
+
+pub async fn create(db_pool: &amp;DBPool, owner_id: i32, body: PetRequest) -&gt; Result&lt;Pet&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!(
+        "INSERT INTO {} (name, owner_id, animal_type, color) VALUES ($1, $2, $3, $4) RETURNING *",
+        TABLE
+    );
+    let row = con
+        .query_one(
+            query.as_str(),
+            &amp;[&amp;body.name, &amp;owner_id, &amp;body.animal_type, &amp;body.color],
+        )
+        .await
+        .map_err(DBQueryError)?;
+    Ok(row_to_pet(&amp;row))
+}
+
+pub async fn delete(db_pool: &amp;DBPool, owner_id: i32, id: i32) -&gt; Result&lt;u64&gt; {
+    let con = get_db_con(db_pool).await?;
+    let query = format!("DELETE FROM {} WHERE id = $1 AND owner_id = $2", TABLE);
+    con.execute(query.as_str(), &amp;[&amp;id, &amp;owner_id])
+        .await
+        .map_err(DBQueryError)
+}
+
+fn row_to_pet(row: &amp;Row) -&gt; Pet {
+    let id: i32 = row.get(0);
+    let owner_id: i32 = row.get(1);
+    let name: String = row.get(2);
+    let animal_type: String = row.get(3);
+    let color: Option&lt;String&gt; = row.get(4);
+    Pet {
+        id,
+        name,
+        owner_id,
+        animal_type,
+        color,
+    }
+}
+</pre>
+<p>这里我们有以下三种方法:</p>
+<ol>
+<li><code>fetch</code>获取属于给定<code>owner_id</code>的所有宠物</li>
+<li><code>create</code>为给定的<code>owner_id</code>创建一个新宠物</li>
+<li><code>delete</code>用给定的<code>id</code>和<code>owner_id</code>删除宠物</li>
+</ol>
+<p>在实现方面，它遵循与上面的<code>owner.rs</code>完全相同的概念。</p>
+<p>数据库层到此结束。让我们向上移动一步，在<code>src</code>中实现<code>handler.rs</code>。</p>
+<pre class="language-rust hljs">pub async fn list_pets_handler(owner_id: i32, db_pool: DBPool) -&gt; Result&lt;impl Reply&gt; {
+    let pets = db::pet::fetch(&amp;db_pool, owner_id)
+        .await
+        .map_err(reject::custom)?;
+    Ok(json::&lt;Vec&lt;_&gt;&gt;(
+        &amp;pets.into_iter().map(PetResponse::of).collect(),
+    ))
+}
+
+pub async fn create_pet_handler(
+    owner_id: i32,
+    body: PetRequest,
+    db_pool: DBPool,
+) -&gt; Result&lt;impl Reply&gt; {
+    Ok(json(&amp;PetResponse::of(
+        db::pet::create(&amp;db_pool, owner_id, body)
+            .await
+            .map_err(reject::custom)?,
+    )))
+}
+
+pub async fn delete_pet_handler(owner_id: i32, id: i32, db_pool: DBPool) -&gt; Result&lt;impl Reply&gt; {
+    db::pet::delete(&amp;db_pool, owner_id, id)
+        .await
+        .map_err(reject::custom)?;
+    Ok(StatusCode::OK)
+}
+
+pub async fn list_owners_handler(db_pool: DBPool) -&gt; Result&lt;impl Reply&gt; {
+    let owners = db::owner::fetch(&amp;db_pool).await.map_err(reject::custom)?;
+    Ok(json::&lt;Vec&lt;_&gt;&gt;(
+        &amp;owners.into_iter().map(OwnerResponse::of).collect(),
+    ))
+}
+
+pub async fn fetch_owner_handler(id: i32, db_pool: DBPool) -&gt; Result&lt;impl Reply&gt; {
+    let owner = db::owner::fetch_one(&amp;db_pool, id)
+        .await
+        .map_err(reject::custom)?;
+    Ok(json(&amp;OwnerResponse::of(owner)))
+}
+
+pub async fn create_owner_handler(body: OwnerRequest, db_pool: DBPool) -&gt; Result&lt;impl Reply&gt; {
+    Ok(json(&amp;OwnerResponse::of(
+        db::owner::create(&amp;db_pool, body)
+            .await
+            .map_err(reject::custom)?,
+    )))
+}
+</pre>
+<p>API-surface 由六个操作组成:</p>
+<ol>
+<li>列出所有者</li>
+<li>获取给定 ID 的所有者</li>
+<li>创建所有者</li>
+<li>创建宠物</li>
+<li>删除宠物</li>
+<li>列出给定主人的宠物</li>
+</ol>
+<p>在每种情况下，我们只需在数据库层调用相应的操作，并将返回的<code>Owner</code>或<code>Pet</code>分别转换为<code>OwnerResponse</code>或<code>PetResponse</code>，将任何错误直接返回给调用者。</p>
+<p>最后，再进一步，我们实现了指向<code>main.rs</code>中这些处理程序的实际 web 服务器。</p>
+<pre class="language-rust hljs">mod db;
+mod error;
+mod handler;
+
+type Result&lt;T&gt; = std::result::Result&lt;T, Rejection&gt;;
+type DBCon = Connection&lt;PgConnectionManager&lt;NoTls&gt;&gt;;
+type DBPool = Pool&lt;PgConnectionManager&lt;NoTls&gt;&gt;;
+
+#[tokio::main]
+async fn main() {
+    let db_pool = db::create_pool().expect("database pool can be created");
+
+    db::init_db(&amp;db_pool)
+        .await
+        .expect("database can be initialized");
+
+    let pet = warp::path!("owner" / i32 / "pet");
+    let pet_param = warp::path!("owner" / i32 / "pet" / i32);
+    let owner = warp::path("owner");
+
+    let pet_routes = pet
+        .and(warp::get())
+        .and(with_db(db_pool.clone()))
+        .and_then(handler::list_pets_handler)
+        .or(pet
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_db(db_pool.clone()))
+            .and_then(handler::create_pet_handler))
+        .or(pet_param
+            .and(warp::delete())
+            .and(with_db(db_pool.clone()))
+            .and_then(handler::delete_pet_handler));
+
+    let owner_routes = owner
+        .and(warp::get())
+        .and(warp::path::param())
+        .and(with_db(db_pool.clone()))
+        .and_then(handler::fetch_owner_handler)
+        .or(owner
+            .and(warp::get())
+            .and(with_db(db_pool.clone()))
+            .and_then(handler::list_owners_handler))
+        .or(owner
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_db(db_pool.clone()))
+            .and_then(handler::create_owner_handler));
+
+    let routes = pet_routes
+        .or(owner_routes)
+        .recover(error::handle_rejection)
+        .with(
+            warp::cors()
+                .allow_credentials(true)
+                .allow_methods(&amp;[
+                    Method::OPTIONS,
+                    Method::GET,
+                    Method::POST,
+                    Method::DELETE,
+                    Method::PUT,
+                ])
+                .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT])
+                .expose_headers(vec![header::LINK])
+                .max_age(300)
+                .allow_any_origin(),
+        );
+
+    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+}
+
+fn with_db(db_pool: DBPool) -&gt; impl Filter&lt;Extract = (DBPool,), Error = Infallible&gt; + Clone {
+    warp::any().map(move || db_pool.clone())
+}
+</pre>
+<p>有相当多的东西需要打开，所以让我们浏览一下。</p>
+<p>最初，我们定义模块和一些类型以节省打字时间。然后，在<code>main</code>函数(或<code>tokio::main</code>，我们应用程序的异步入口点)中，我们首先初始化数据库池和数据库。</p>
+<p>在底部，有一个<code>with_db</code>过滤器，这是 warp 中向处理程序传递数据的首选方式——在本例中是连接池。</p>
+<p>然后我们为<code>pet</code>定义几个路由基，其形式为<code>/owner/$ownerId/pet</code>；<code>pet_param</code>，在末尾加了一个<code>/$petId</code>；还有<code>owner</code>，简单的包含<code>/owner</code>。</p>
+<p>有了这些基础，我们可以定义通向不同处理程序的路线:</p>
+<ul>
+<li><code>GET /owner</code>列出所有所有者</li>
+<li><code>GET /owner/$ownerId</code>返回给定 ID 的所有者</li>
+<li><code>POST /owner</code>创建所有者</li>
+<li>列出给定主人的所有宠物</li>
+<li>为给定的主人创造一只宠物</li>
+<li>删除具有给定 ID 和主人 ID 的宠物</li>
+</ul>
+<p>然后，我们用一个<a href="https://blog.logrocket.com/the-ultimate-guide-to-enabling-cross-origin-resource-sharing-cors/" target="_blank" rel="noopener"> CORS 配置</a>将所有东西连接在一起，并在端口<code>8000</code>上运行服务器。</p>
+<p><code>backend</code>到此结束。您可以通过简单地运行<code>cargo run</code>来运行它，如果您有一个 Postgres 数据库运行在端口<code>7878</code>(例如，使用 Docker)，您将有 REST API 运行在<a href="http://localhost:8000" rel="nofollow"> http://localhost:8000 </a>。</p>
+<p>您可以使用 cURL 通过运行如下命令来测试它:</p>
+<pre class="language-rust hljs">curl -X POST http://localhost:8000/owner -d '{"name": "mario"}' -H 'content-type: application/json'
+
+curl -v -X POST http://localhost:8000/owner/1/pet -d '{"name": "minka", "animal_type": "cat", "color": "black-brown-white"}' -H 'content-type: application/json'
+</pre>
+<h2 id="frontend-implementation">前端实现</h2>
+<p>现在我们有了一个功能齐全的后端，我们需要一种方法来与之交互。</p>
+<p>在<code>frontend</code>的例子中，我们将从<code>lib.rs</code>的顶部开始，向下遍历组件，因为一步一步地遍历组件树更自然。</p>
+<p>我们将使用<code>yew_router</code>进行路由。否则，我们将使用与<a href="https://yew.rs/getting-started/build-a-sample-app" target="_blank" rel="noopener">官方文件</a>建议的相同的设置，使用<code><a href="https://github.com/thedodd/trunk" target="_blank" rel="noopener">trunk</a></code>来构建和服务 web 应用。</p>
+<p>在我们的应用程序中，有两个模块，<code>pet</code>和<code>owner</code>。然而，在我们开始编写任何 Rust 代码之前，我们需要在我们的<code>frontend</code>项目根目录下创建我们的<code>index.html</code>文件，包括我们将使用的样式:</p>
+<pre class="language-html hljs">&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Rust Fullstack Example&lt;/title&gt;
+    &lt;style&gt;
+        body {
+            font-size: 14px;
+            font-family: sans-serif;
+        }
+        a {
+            text-decoration: none;
+            color: #339;
+        }
+        a:hover {
+            text-decoration: none;
+            color: #33f;
+        }
+        .app {
+            background-color: #efefef;
+            margin: 100px 25% 25% 25%;
+            width: 50%;
+            padding: 10px;
+        }
+        .app .nav {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .app .refresh {
+            text-align: center;
+            margin: 10px 0 10px 0;
+        }
+        .list-item {
+            margin: 2px;
+            padding: 5px;
+            background-color: #cfc;
+        }
+        .pet {
+            margin-top: 10px;
+        }
+        .completed {
+            text-decoration: line-through;
+            background-color: #dedede;
+        }
+        .detail {
+            font-size: 16px;
+        }
+        .detail h1 {
+            font-size: 24px;
+        }
+        .detail .id {
+            color: #999;
+        }
+        .detail .completed {
+            color: #3f3;
+        }
+        .detail .not-completed {
+            color: #f33;
+        }
+    &lt;/style&gt;
+  &lt;/head&gt;
+&lt;/html&gt;
+</pre>
+<p>这个 HTML 文件将被用作一个起点，<code>trunk</code>将添加相应的代码片段，使我们的应用程序在构建应用程序时能够在<code>dist</code>文件夹中使用它。</p>
+<h3>从根源开始</h3>
+<p>让我们从顶部的<code>lib.rs</code>开始。</p>
+<p>我们首先定义一些模块和一个包含根组件的结构，以及一些路由。</p>
+<pre class="language-rust hljs">mod owner;
+mod pet;
+
+pub type Anchor = RouterAnchor&lt;AppRoute&gt;;
+
+struct FullStackApp {}
+
+pub enum Msg {}
+
+#[derive(Switch, Clone, Debug)]
+pub enum AppRoute {
+    #[to = "/app/create-owner"]
+    CreateOwner,
+    #[to = "/app/create-pet/{id}"]
+    CreatePet(i32),
+    #[to = "/app/{id}"]
+    Detail(i32),
+    #[to = "/"]
+    Home,
+}
+</pre>
+<p>我们的应用程序有<code>Home</code>(例如，列出主人)，查看主人详细信息页面和创建主人和宠物的路线。</p>
+<p>然后，我们为我们的<code>FullStackApp</code>实现<code>Component</code>特征，这样我们就可以使用它作为入口点。</p>
+<pre class="language-rust hljs">impl Component for FullStackApp {
+    type Message = Msg;
+    type Properties = ();
+    fn create(_: Self::Properties, _link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        Self {}
+    }
+
+    fn update(&amp;mut self, _msg: Self::Message) -&gt; ShouldRender {
+        true
+    }
+
+    fn change(&amp;mut self, _props: Self::Properties) -&gt; ShouldRender {
+        true
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div class=classes!("app")&gt;
+                &lt;div class=classes!("nav")&gt;
+                    &lt;Anchor route=AppRoute::Home&gt;{"Home"}&lt;/Anchor&gt;
+                &lt;/div&gt;
+                &lt;div class=classes!("content")&gt;
+                    &lt;Router&lt;AppRoute, ()&gt;
+                        render = Router::render(move |switch: AppRoute| {
+                            match switch {
+                                AppRoute::CreateOwner =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;owner::create::CreateForm /&gt;
+                                        &lt;/div&gt;}
+                                }
+                                AppRoute::CreatePet(owner_id) =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;pet::create::CreateForm owner_id=owner_id/&gt;
+                                        &lt;/div&gt;}
+                                }
+                                AppRoute::Detail(owner_id) =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;owner::detail::Detail owner_id=owner_id/&gt;
+                                        &lt;/div&gt;}
+                                }
+                                AppRoute::Home =&gt; {
+                                    html! {
+                                        &lt;div&gt;
+                                            &lt;owner::list::List /&gt;
+                                            &lt;br /&gt;
+                                            &lt;Anchor route=AppRoute::CreateOwner&gt;
+                                                { "Create New Owner" }
+                                            &lt;/Anchor&gt;
+                                        &lt;/div&gt;
+                                    }
+                                }
+                            }
+                        })
+                    /&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>我们的根组件实际上做不了多少事情；它只包含一个简单的菜单，带有一个<code>Home</code>链接，总是可见的，然后包括路由器，它为我们的每条路由配置应该显示哪个组件以及什么只是额外的标记。</p>
+<p>例如，对于默认的<code>Home</code>路线<code>AppRoute::Home</code>，我们显示了一个所有者列表和一个到<code>Create New Owner</code>表单的链接。</p>
+<p>最后，我们需要下面的代码片段来让 Wasm-magic 发挥作用，因此我们从<code>trunk</code>中获得了一个实际的 web 应用程序:</p>
+<pre class="language-rust hljs">#[wasm_bindgen(start)]
+pub fn run_app() {
+    App::&lt;FullStackApp&gt;::new().mount_to_body();
+}
+</pre>
+<h3>所有者列表</h3>
+<p>让我们从<code>Home</code>上显示的所有者列表开始，因为这是最简单的组成部分。</p>
+<p>在<code>owner</code>模块中，我们创建了一个<code>mod.rs</code>文件、一个<code>create.rs</code>、一个<code>detail.rs</code>和一个<code>list.rs</code>文件。</p>
+<p>在<code>mod.rs</code>中，我们简单地导出这些模块:</p>
+<pre class="language-rust hljs">pub mod create;
+pub mod detail;
+pub mod list;
+</pre>
+<p>然后，我们开始实现<code>list.rs</code>。</p>
+<p>目标是从后端获取所有者列表，并显示链接到其详细页面的每个所有者。</p>
+<p>我们首先定义了<code>List</code>结构，这是我们组件的基础:</p>
+<pre class="language-rust hljs">pub struct List {
+    fetch_task: Option&lt;FetchTask&gt;,
+    owners: Option&lt;Vec&lt;OwnerResponse&gt;&gt;,
+    link: ComponentLink&lt;Self&gt;,
+}
+</pre>
+<p><code>ComponentLink</code>是 Yew 在组件内部发送消息的方法，例如，触发 web 请求等副作用。</p>
+<p>因为我们使用的是 Yew 的<code>FetchService</code>，我们还需要保存我们将用来从后端获取所有者的<code>fetch_task</code>。</p>
+<p>最初,<code>owners</code>的列表是<code>None</code>,一旦对后端的请求(希望如此)返回所有者列表，列表就会被填充。</p>
+<p>然后，我们定义我们的<code>Msg</code>枚举，定义由组件处理的消息。</p>
+<pre class="language-rust hljs">pub enum Msg {
+    MakeReq,
+    Resp(Result&lt;Vec&lt;OwnerResponse&gt;, anyhow::Error&gt;),
+}
+</pre>
+<p>我们只需创建一个发出请求的动作和一个从后端接收结果的动作。</p>
+<p>这样，我们可以如下实现<code>Component</code>:</p>
+<pre class="language-rust hljs">impl Component for List {
+    type Properties = ();
+    type Message = Msg;
+
+    fn create(_props: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        link.send_message(Msg::MakeReq);
+        Self {
+            fetch_task: None,
+            link,
+            owners: None,
+        }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_list() }
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakeReq =&gt; {
+                self.owners = None;
+                let req = Request::get("http://localhost:8000/owner")
+                    .body(Nothing)
+                    .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;Vec&lt;OwnerResponse&gt;, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::Resp(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) =&gt; {
+                if let Ok(data) = resp {
+                    self.owners = Some(data);
+                }
+            }
+        }
+        true
+    }
+
+    fn change(&amp;mut self, _props: Self::Properties) -&gt; ShouldRender {
+        true
+    }
+}
+</pre>
+<p>当组件被创建时，我们使用组件链接来触发<code>MakeReq</code>，向后端发送对所有者的请求。然后我们初始化组件。</p>
+<p>在<code>update</code>中，我们处理请求和响应消息，使用<code>FetchService</code>向<code><a href="http://localhost:8000/owner" rel="nofollow">http://localhost:8000/owner</a></code>发送请求，在那里我们的后端为我们提供所有者列表。</p>
+<p>然后我们解析回调中的响应并调用<code>Msg::Resp(data)</code>，如果没有错误发生，它将把数据设置到我们的组件中。</p>
+<p>在<code>render</code>函数中，我们简单地调用<code>render_list</code>，我们在<code>List</code>上实现它，如下所示:</p>
+<pre class="language-rust hljs">impl List {
+    fn render_list(&amp;self) -&gt; Html {
+        if let Some(t) = &amp;self.owners {
+            html! {
+                &lt;div class=classes!("list")&gt;
+                    { t.iter().map(|name| self.view_owner(name)).collect::&lt;Html&gt;() }
+                &lt;/div&gt;
+            }
+        } else {
+            html! {
+                &lt;div class=classes!("loading")&gt;{"loading..."}&lt;/div&gt;
+            }
+        }
+    }
+
+    fn view_owner(&amp;self, owner: &amp;OwnerResponse) -&gt; Html {
+        html! {
+            &lt;div class=classes!("list-item")&gt;
+                &lt;Anchor route=AppRoute::Detail(owner.id as i32)&gt;
+                    { &amp;owner.name }
+                &lt;/Anchor&gt;
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>基本上，如果我们设置了<code>self.owners</code>,我们遍历列表并为每个列表呈现<code>view_owner</code>。这会创建一个带有所有者 ID 的到<code>AppRoute::Detail</code>的链接，这是一个到详细页面的链接。</p>
+<p>如果我们没有数据，我们会显示一条<code>loading…</code>消息。</p>
+<p>这是给列表所有者的。让我们继续阅读<code>detail.rs</code>中的详细页面。</p>
+<h3>为所有者创建详细信息页面</h3>
+<p>所有者详细信息页面有点复杂。在这里，我们需要发出两个请求:一个是获取具有给定所有者 ID 的所有者(这样我们也可以刷新页面并直接使用路线)，以及所有者的宠物列表。此外，我们必须实现删除宠物的功能。</p>
+<p>总的想法是一样的:</p>
+<pre class="language-rust hljs">#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub owner_id: i32,
+}
+
+pub struct Detail {
+    props: Props,
+    link: ComponentLink&lt;Self&gt;,
+    pets: Option&lt;Vec&lt;PetResponse&gt;&gt;,
+    owner: Option&lt;OwnerResponse&gt;,
+    fetch_pets_task: Option&lt;FetchTask&gt;,
+    fetch_owner_task: Option&lt;FetchTask&gt;,
+    delete_pet_task: Option&lt;FetchTask&gt;,
+}
+
+pub enum Msg {
+    MakePetsReq(i32),
+    MakeOwnerReq(i32),
+    MakeDeletePetReq(i32, i32),
+    RespPets(Result&lt;Vec&lt;PetResponse&gt;, anyhow::Error&gt;),
+    RespOwner(Result&lt;OwnerResponse, anyhow::Error&gt;),
+    RespDeletePet(Response&lt;Json&lt;Result&lt;(), anyhow::Error&gt;&gt;&gt;, i32),
+}
+</pre>
+<p>我们为调用它的组件定义了属性——在本例中，是来自路由路径的<code>owner id</code>。</p>
+<p>然后，我们定义<code>Detail</code>结构，它保存我们组件的数据，包括我们要获取的<code>pets</code>和<code>owner</code>，以及组件链接、道具和用于获取宠物、获取主人和删除宠物的<code>FetchTasks</code>。</p>
+<p>让我们来看看组件的实现:</p>
+<pre class="language-rust hljs">impl Component for Detail {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        link.send_message(Msg::MakePetsReq(props.owner_id));
+        link.send_message(Msg::MakeOwnerReq(props.owner_id));
+        Self {
+            props,
+            link,
+            owner: None,
+            pets: None,
+            fetch_pets_task: None,
+            fetch_owner_task: None,
+            delete_pet_task: None,
+        }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_detail(&amp;self.owner, &amp;self.pets)}
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakePetsReq(id) =&gt; {
+                let req = Request::get(&amp;format!("http://localhost:8000/owner/{}/pet", id))
+                    .body(Nothing)
+                    .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;Vec&lt;PetResponse&gt;, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::RespPets(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_pets_task = Some(task);
+                ()
+            }
+            Msg::MakeOwnerReq(id) =&gt; {
+                let req = Request::get(&amp;format!("http://localhost:8000/owner/{}", id))
+                    .body(Nothing)
+                    .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;OwnerResponse, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::RespOwner(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_owner_task = Some(task);
+                ()
+            }
+            Msg::MakeDeletePetReq(owner_id, pet_id) =&gt; {
+                let req = Request::delete(&amp;format!(
+                    "http://localhost:8000/owner/{}/pet/{}",
+                    owner_id, pet_id
+                ))
+                .body(Nothing)
+                .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    move |response: Response&lt;Json&lt;Result&lt;(), anyhow::Error&gt;&gt;&gt;| {
+                        Msg::RespDeletePet(response, pet_id)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.delete_pet_task = Some(task);
+                ()
+            }
+            Msg::RespPets(resp) =&gt; {
+                if let Ok(data) = resp {
+                    self.pets = Some(data);
+                }
+            }
+            Msg::RespOwner(resp) =&gt; {
+                if let Ok(data) = resp {
+                    self.owner = Some(data);
+                }
+            }
+            Msg::RespDeletePet(resp, id) =&gt; {
+                if resp.status().is_success() {
+                    self.pets = self
+                        .pets
+                        .as_ref()
+                        .map(|pets| pets.into_iter().filter(|p| p.id != id).cloned().collect());
+                }
+            }
+        }
+        true
+    }
+
+    fn change(&amp;mut self, props: Self::Properties) -&gt; ShouldRender {
+        self.props = props;
+        true
+    }
+}
+</pre>
+<p>基本原理是一样的，我们的<code>view</code>调用一个<code>render_detail</code>函数，我们稍后会看到，在<code>create</code>中，我们也初始化我们的组件，并通过发送相应的消息和给定的<code>owner_id</code>来触发宠物和主人的获取。</p>
+<p>在<code>update</code>中，我们需要实现获取宠物和主人的请求和响应处理程序。这些几乎与<code>List</code>组件中的完全相同，只是 URL 和返回类型不同。</p>
+<p>在<code>MakeDeletePetReq</code>的处理程序中，我们使用给定的<code>owner_id</code>和<code>pet_id</code>发送<code>DELETE</code>请求。如果成功了，我们就触发<code>Msg::RespDeletePet</code>信息。</p>
+<p>在那里，如果请求成功，我们只需从宠物列表中删除具有给定 ID 的宠物。这很好，因为这意味着我们不需要重新提取整个宠物列表。</p>
+<p>让我们看看所有者详细信息的呈现代码:</p>
+<pre class="language-rust hljs">impl Detail {
+    fn render_detail(
+        &amp;self,
+        owner: &amp;Option&lt;OwnerResponse&gt;,
+        pets: &amp;Option&lt;Vec&lt;PetResponse&gt;&gt;,
+    ) -&gt; Html {
+        match owner {
+            Some(o) =&gt; {
+                html! {
+                    &lt;div class=classes!("detail")&gt;
+                        &lt;h1&gt;{&amp;o.name}{" ("}&lt;span class=classes!("id")&gt;{o.id}&lt;/span&gt;{")"}&lt;/h1&gt;
+                        {
+                            self.view_pet_list(pets)
+                        }
+
+                    &lt;br /&gt;
+                    &lt;Anchor route=AppRoute::CreatePet(o.id as i32)&gt;
+                        { "Create New Pet" }
+                    &lt;/Anchor&gt;
+                    &lt;/div&gt;
+                }
+            }
+            None =&gt; {
+                html! {
+                    &lt;div class=classes!("loading")&gt;{"loading..."}&lt;/div&gt;
+                }
+            }
+        }
+    }
+
+    fn view_pet_list(&amp;self, pets: &amp;Option&lt;Vec&lt;PetResponse&gt;&gt;) -&gt; Html {
+        match pets {
+            Some(p) =&gt; {
+                html! {
+                    p.iter().map(|pet| self.view_pet(pet)).collect::&lt;Html&gt;()
+                }
+            }
+            None =&gt; {
+                html! {
+                    &lt;div class=classes!("loading")&gt;{"loading..."}&lt;/div&gt;
+                }
+            }
+        }
+    }
+
+    fn view_pet(&amp;self, pet: &amp;PetResponse) -&gt; Html {
+        let id = pet.id;
+        let owner_id = self.props.owner_id;
+        html! {
+            &lt;div class=classes!("list-item", "pet")&gt;
+                &lt;div&gt;&lt;b&gt;{ &amp;pet.name }&lt;/b&gt; { " (" } &lt;button onclick=self.link.callback(move |_| Msg::MakeDeletePetReq(owner_id, id))&gt;{"Delete"}&lt;/button&gt; {")"}&lt;/div&gt;
+                &lt;div&gt;{ &amp;pet.animal_type }&lt;/div&gt;
+                &lt;div&gt;{ &amp;pet.color.as_ref().unwrap_or(&amp;String::new()) }&lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>同样，如果我们有数据，我们就渲染它。否则，我们显示一个<code>loading…</code>指示器。一旦我们有了我们的<code>owner</code>，我们就在它的名字旁边显示它的 ID。</p>
+<p>下面，我们用<code>view_pet</code>中宠物的实际渲染来渲染宠物列表。我们还创建了删除宠物的按钮，它有一个触发<code>MsgMakeDeletePetReq</code>消息的<code>onclick</code>处理程序。</p>
+<p>在宠物列表下方，我们显示了一个到<strong>创建宠物</strong>路线的链接。</p>
+<p>我们快完成了。现在我们只需要看看创建主人和宠物的组件。先说<code>create.rs</code>里的车主:</p>
+<pre class="language-rust hljs">pub struct CreateForm {
+    link: ComponentLink&lt;Self&gt;,
+    fetch_task: Option&lt;FetchTask&gt;,
+    state_name: String,
+}
+
+pub enum Msg {
+    MakeReq,
+    Resp(Result&lt;OwnerResponse, anyhow::Error&gt;),
+    EditName(String),
+}
+</pre>
+<p>同样，我们从<code>Component</code>结构和<code>Msg</code>枚举开始。</p>
+<p>在这种情况下，我们需要数据基础设施来请求创建所有者，但是我们还需要一种创建和编辑表单的方法。</p>
+<p>为此，我们在组件上创建了<code>state_name</code>字段，在<code>Msg</code>中创建了<code>EditName(String)</code>。</p>
+<p>接下来让我们看看<code>Component</code>的实现:</p>
+<pre class="language-rust hljs">impl Component for CreateForm {
+    type Properties = ();
+    type Message = Msg;
+
+    fn create(_props: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        Self {
+            link,
+            state_name: String::new(),
+            fetch_task: None,
+        }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_form() }
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakeReq =&gt; {
+                let body = OwnerRequest {
+                    name: self.state_name.clone(),
+                };
+                let req = Request::post("http://localhost:8000/owner")
+                    .header("Content-Type", "application/json")
+                    .body(Json(&amp;body))
+                    .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;OwnerResponse, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::Resp(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) =&gt; {
+                ConsoleService::info(&amp;format!("owner created: {:?}", resp));
+                if let Ok(_) = resp {
+                    RouteAgent::dispatcher().send(RouteRequest::ChangeRoute(Route {
+                        route: "/".to_string(),
+                        state: (),
+                    }));
+                }
+            }
+            Msg::EditName(input) =&gt; {
+                self.state_name = input;
+            }
+        }
+        true
+    }
+
+    fn change(&amp;mut self, _props: Self::Properties) -&gt; ShouldRender {
+        true
+    }
+}
+
+impl CreateForm {
+    fn render_form(&amp;self) -&gt; Html {
+        let edit_name = self
+            .link
+            .callback(move |e: InputData| Msg::EditName(e.value));
+
+        html! {
+            &lt;div class=classes!("pet-form")&gt;
+                &lt;div&gt;
+                    &lt;input type="text" value={self.state_name.clone()} oninput={edit_name} /&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;button onclick=self.link.callback(move |_| Msg::MakeReq)&gt;{"Submit"}&lt;/button&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>正如您所看到的，在<code>CreateForm</code>实现内部的<code>render_form</code>中，我们创建了一个简单的表单输入字段，它将<code>self.state_name</code>作为一个值。这意味着它直接连接到我们的国家。</p>
+<p>我们使用<code>oninput</code>事件处理程序，每当有人将文本写入输入字段时，用输入字段的值调用<code>Msg::EditName</code>消息。</p>
+<p>当您查看<code>Component</code>实现中的<code>update</code>函数时，<code>Msg::EditName</code>的处理程序只是将<code>self.state_name</code>设置为输入中的给定值。这确保了我们总是拥有组件内表单字段中的值。</p>
+<p>一旦我们点击触发<code>Msg::MakeReq</code>的<code>Submit</code>按钮，这是很重要的。在这里，我们使用<code>self.state_name</code>作为<code>name</code>的值，创建一个 JSON 有效负载来创建一个所有者。</p>
+<p>然后我们将这个有效负载发送到后端端点来创建一个所有者，如果一切顺利，使用<code>yew_router</code>的<code>RouteAgent</code>和 dispatcher 手动将路由改回<code>"</code> / <code>"</code>，这是我们的主路由。</p>
+<h3>宠物的详细信息页面</h3>
+<p>这就是用紫杉处理表单是多么容易！让我们通过创建一个内部有<code>mod.rs</code>和<code>create.rs</code>的<code>pet</code>模块来看看这个难题的最后部分。</p>
+<p>在<code>mod.rs</code>中，我们再次只导出<code>create</code>:</p>
+<pre class="language-rust hljs">pub mod create;
+</pre>
+<p>在<code>create.rs</code>中，我们实现了添加新宠物的组件，这将与我们刚刚实现的主人的<code>CreateForm</code>非常相似。</p>
+<pre class="language-rust hljs">#[derive(Properties, Clone, PartialEq)]
+pub struct Props {
+    pub owner_id: i32,
+}
+
+pub struct CreateForm {
+    props: Props,
+    link: ComponentLink&lt;Self&gt;,
+    fetch_task: Option&lt;FetchTask&gt;,
+    state_pet_name: String,
+    state_animal_type: String,
+    state_color: Option&lt;String&gt;,
+}
+
+pub enum Msg {
+    MakeReq(i32),
+    Resp(Result&lt;PetResponse, anyhow::Error&gt;),
+    EditName(String),
+    EditAnimalType(String),
+    EditColor(String),
+}
+</pre>
+<p><code>CreatePet</code>表单将我们想要为其创建宠物的主人的<code>owner_id</code>作为道具。</p>
+<p>然后，我们定义<code>state_pet_name</code>、<code>state_animal_type</code>和<code>state_color</code>来保持我们三个表单字段的状态，就像我们为所有者所做的一样。</p>
+<p>对于<code>Msg</code>，情况是一样的:我们需要每个表单字段的处理程序，以及发出<code>create pet</code>请求并处理其响应的处理程序。</p>
+<p>我们来看看<code>Component</code>的实现和渲染逻辑:</p>
+<pre class="language-rust hljs">impl Component for CreateForm {
+    type Properties = Props;
+    type Message = Msg;
+
+    fn create(props: Self::Properties, link: ComponentLink&lt;Self&gt;) -&gt; Self {
+        Self {
+            props,
+            link,
+            state_pet_name: String::new(),
+            state_animal_type: String::from("cat"),
+            state_color: Some(String::from("black")),
+            fetch_task: None,
+        }
+    }
+
+    fn view(&amp;self) -&gt; Html {
+        html! {
+            &lt;div&gt;
+                { self.render_form(self.props.owner_id) }
+            &lt;/div&gt;
+        }
+    }
+
+    fn update(&amp;mut self, msg: Self::Message) -&gt; ShouldRender {
+        match msg {
+            Msg::MakeReq(id) =&gt; {
+                let body = PetRequest {
+                    name: self.state_pet_name.clone(),
+                    animal_type: self.state_animal_type.clone(),
+                    color: self.state_color.clone(),
+                };
+                let req = Request::post(&amp;format!("http://localhost:8000/owner/{}/pet", id))
+                    .header("Content-Type", "application/json")
+                    .body(Json(&amp;body))
+                    .expect("can make req to backend");
+
+                let cb = self.link.callback(
+                    |response: Response&lt;Json&lt;Result&lt;PetResponse, anyhow::Error&gt;&gt;&gt;| {
+                        let Json(data) = response.into_body();
+                        Msg::Resp(data)
+                    },
+                );
+
+                let task = FetchService::fetch(req, cb).expect("can create task");
+                self.fetch_task = Some(task);
+                ()
+            }
+            Msg::Resp(resp) =&gt; {
+                ConsoleService::info(&amp;format!("pet created: {:?}", resp));
+                if let Ok(_) = resp {
+                    RouteAgent::dispatcher().send(RouteRequest::ChangeRoute(Route {
+                        route: format!("/app/{}", self.props.owner_id),
+                        state: (),
+                    }));
+                }
+            }
+            Msg::EditName(input) =&gt; {
+                self.state_pet_name = input;
+            }
+            Msg::EditAnimalType(input) =&gt; {
+                ConsoleService::info(&amp;format!("input: {:?}", input));
+                self.state_animal_type = input;
+            }
+            Msg::EditColor(input) =&gt; {
+                self.state_color = Some(input);
+            }
+        }
+        true
+    }
+
+    fn change(&amp;mut self, props: Self::Properties) -&gt; ShouldRender {
+        self.props = props;
+        true
+    }
+}
+
+impl CreateForm {
+    fn render_form(&amp;self, owner_id: i32) -&gt; Html {
+        let edit_name = self
+            .link
+            .callback(move |e: InputData| Msg::EditName(e.value));
+        let edit_animal_type = self.link.callback(move |e: ChangeData| match e {
+            ChangeData::Select(elem) =&gt; Msg::EditAnimalType(elem.value()),
+            _ =&gt; unreachable!("only used on select field"),
+        });
+        let edit_color = self
+            .link
+            .callback(move |e: InputData| Msg::EditColor(e.value));
+
+        html! {
+            &lt;div class=classes!("pet-form")&gt;
+                &lt;div&gt;
+                    &lt;input type="text" value={self.state_pet_name.clone()} oninput={edit_name} /&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;select onchange={edit_animal_type}&gt;
+                        &lt;option value="cat" selected=true&gt;{ "Cat" }&lt;/option&gt;
+                        &lt;option value="dog"&gt;{ "Dog" }&lt;/option&gt;
+                    &lt;/select&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;input type="text" value={self.state_color.clone()} oninput={edit_color} /&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;button onclick=self.link.callback(move |_| Msg::MakeReq(owner_id))&gt;{"Submit"}&lt;/button&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        }
+    }
+}
+</pre>
+<p>先说<code>CreateForm</code>中的<code>render_form</code>函数。这里，我们再次为宠物的所有字段创建输入字段。然而，这一次有了一个变化:我们对动物类型使用了一个<code>select</code>字段，因为我们想将其限制为猫和狗。</p>
+<p>这意味着，对于<code>edit_animal_type</code>的回调处理程序，我们得到一个<code>ChangeData</code>而不是一个<code>InputData</code>。在其中，我们需要匹配变化的类型。我们只想对<code>ChangeData::Select(elem)</code>做出反应，并获取元素的值，将其发送到我们的组件状态中进行设置。</p>
+<p>对于其他两个字段，过程与我们的<code>Create Owner</code>组件相同。</p>
+<p>就<code>Component</code>实现而言，这里也没有什么新东西。我们在后端实现了调用<code>create pet</code>端点的处理程序，以及将表单输入字段值传递给状态的处理程序，因此我们可以为这个端点创建有效负载。</p>
+<p>随着最后一个组件的完成，我们的 Rust 全栈 web 应用程序实现就完成了！剩下的唯一事情就是测试它是否真的有效。</p>
+<h2 id="testing-our-rust-full-stack-app">测试我们的 Rust 全栈应用</h2>
+<p>我们可以通过在端口 7878 上运行 Postgres 数据库来运行<code>frontend</code>和<code>backend</code>(导航到<a href="http://localhost:8080" rel="nofollow"> http://localhost:8080 </a>)。</p>
+<p>在那里，迎接我们的是一个空的屏幕。我们可以点击<strong>创建新的所有者</strong>，它向我们展示了表单:</p>
+<p><img data-attachment-id="65896" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/mario-submit/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg" data-orig-size="730,72" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Mario submit" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit-300x30.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg" decoding="async" class="aligncenter size-full wp-image-65896 jetpack-lazy-image" src="../Images/dc7939d96e5f856570c68b81f3534368.png" alt="Mario Submit" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit-300x30.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65896" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/mario-submit/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg" data-orig-size="730,72" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Mario submit" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit-300x30.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65896" src="../Images/dc7939d96e5f856570c68b81f3534368.png" alt="Mario Submit" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit-300x30.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/mario-submit.jpeg"/></noscript>
+<p>提交将创建所有者，我们将在<code>Home</code>的列表中看到:</p>
+<p><img data-attachment-id="65898" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/create-new-owner/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg" data-orig-size="730,77" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create new owner" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner-300x32.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg" decoding="async" class="aligncenter size-full wp-image-65898 jetpack-lazy-image" src="../Images/b527fc2fcf3058862e7364c628c366aa.png" alt="Create New Owner" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner-300x32.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65898" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/create-new-owner/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg" data-orig-size="730,77" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create new owner" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner-300x32.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65898" src="../Images/b527fc2fcf3058862e7364c628c366aa.png" alt="Create New Owner" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner-300x32.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-owner.jpeg"/></noscript>
+<p>接下来，让我们单击新所有者，查看所有者详细信息页面:</p>
+<p><img data-attachment-id="65900" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/empty-owner-detail/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg" data-orig-size="730,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Empty owner detail" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail-300x38.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg" decoding="async" class="aligncenter size-full wp-image-65900 jetpack-lazy-image" src="../Images/196a62d1d5de75cc77c749546e07641a.png" alt="Empty Owner Detail" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail-300x38.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65900" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/empty-owner-detail/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg" data-orig-size="730,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Empty owner detail" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail-300x38.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65900" src="../Images/196a62d1d5de75cc77c749546e07641a.png" alt="Empty Owner Detail" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail-300x38.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/empty-owner-detail.jpeg"/></noscript>
+<p>现在我们可以开始使用<code>Create New Pet</code>添加一些宠物了:</p>
+<p><img data-attachment-id="65902" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/create-new-pet/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg" data-orig-size="730,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create New Pet" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet-300x35.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg" decoding="async" class="aligncenter size-full wp-image-65902 jetpack-lazy-image" src="../Images/bd8dacdce8d68fab5f4bed7725df9073.png" alt="Create New Pet" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet-300x35.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65902" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/create-new-pet/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg" data-orig-size="730,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create New Pet" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet-300x35.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65902" src="../Images/bd8dacdce8d68fab5f4bed7725df9073.png" alt="Create New Pet" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet-300x35.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/create-new-pet.jpeg"/></noscript>
+<p>完成后，我们会被重定向回<strong>主人详细信息</strong>页面，该页面会显示我们新添加的宠物列表:</p>
+<p><img data-attachment-id="65904" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/owner-detail-pets/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg" data-orig-size="730,220" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Owner Detail Pets" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets-300x90.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg" decoding="async" class="aligncenter size-full wp-image-65904 jetpack-lazy-image" src="../Images/e1ee79fe487c2ba9822c53e4466480d5.png" alt="Owner Detail Pets" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets-300x90.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65904" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/owner-detail-pets/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg" data-orig-size="730,220" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Owner Detail Pets" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets-300x90.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65904" src="../Images/e1ee79fe487c2ba9822c53e4466480d5.png" alt="Owner Detail Pets" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets-300x90.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/owner-detail-pets.jpeg"/></noscript>
+<p>最后，我们可以点击宠物旁边的<strong>删除</strong>按钮来删除宠物:</p>
+<p><img data-attachment-id="65906" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/delete-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg" data-orig-size="370,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Delete button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button-300x75.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg" decoding="async" class="aligncenter size-full wp-image-65906 jetpack-lazy-image" src="../Images/3221239ea8a939a7a3185e833a40b4b3.png" alt="Delete Button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg 370w, https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button-300x75.jpeg 300w" data-lazy-sizes="(max-width: 370px) 100vw, 370px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65906" data-permalink="https://blog.logrocket.com/full-stack-rust-a-complete-tutorial-with-examples/delete-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg" data-orig-size="370,92" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Delete button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button-300x75.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-65906" src="../Images/3221239ea8a939a7a3185e833a40b4b3.png" alt="Delete Button" srcset="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg 370w, https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button-300x75.jpeg 300w" sizes="(max-width: 370px) 100vw, 370px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/09/delete-button.jpeg"/></noscript>
+<p>奇幻；有用！所有这些都是用铁锈写的。</p>
+<p>你可以在<a href="https://github.com/zupzup/rust-fullstack-example" target="_blank" rel="noopener"> GitHub </a>上找到这个例子的完整代码。</p>
+<h2>结论</h2>
+<p>在本教程中，我们演示了如何完全在 Rust 中构建一个简单的全栈 web 应用程序。我们讨论了如何使用 Cargo 创建多模块工作区，以及如何在应用程序的前端和后端之间共享代码。</p>
+<p>因此，Rust web 生态系统仍在不断成熟，所以令人印象深刻的是，你已经可以构建带有太多模糊的现代全栈 web 应用程序。</p>
+<p>我很高兴看到 Wasm 之旅如何继续，我非常期待看到<a href="https://blog.logrocket.com/a-practical-guide-to-async-in-rust/" target="_blank" rel="noopener"> Rust async web 生态系统</a>进一步发展，提高稳定性、兼容性和库中的丰富性。</p>
+<p>无论如何，Rust 的 web 开发前景看好！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust 应用的 web 前端的全面可见性</h2><p>调试 Rust 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪 Rust 应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Rust 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>现代化调试 Rust 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,463 @@
+<html>
+<head>
+<title>Using built-in utility types in TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 TypeScript - LogRocket 博客中使用内置实用程序类型</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-built-in-utility-types-in-typescript/#0001-01-01">https://blog.logrocket.com/using-built-in-utility-types-in-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>TypeScript 拥有所有编程语言中最强大的类型系统之一——主要是因为它已经发展到可以容纳所有可以在 JavaScript 中做的动态事情。</p>
+<p>包含诸如条件类型、查找类型和映射类型等特性意味着您可以在 TypeScript 中编写一些非常高级的类型函数。</p>
+<h2><strong>什么是</strong> <strong> t </strong>型<strong> f </strong>油膏？</h2>
+<p>TypeScript 允许您从任何现有类型创建类型别名。例如:</p>
+<pre>// Example
+type Str = string; 
+
+// Usage
+let message: Str = 'Hello world';
+</pre>
+<p>TypeScript 类型别名也支持泛型。传统上，泛型用于基于一种类型约束另一种类型。例如，<code>value</code>、<code>setValue</code>对和泛型的类型用于确保<code>setValue</code>总是被<code>value</code>使用的相同类型调用:</p>
+<pre>// Example
+type ValueControl&lt;T&gt; = {
+  value: T,
+  setValue: (newValue: T) =&gt; void,
+};
+
+// Usage 
+const example: ValueControl&lt;number&gt; = {
+  value: 0,
+  setValue: (newValue) =&gt; example.value = newValue,
+};
+</pre>
+<p>注意，在上面的例子中，我们可以为<code>ValueControl</code>传入一个类型。在我们的例子中，我们传入了类型<code>number</code>(即<code>ValueControl&lt;number&gt;</code>)。</p>
+<p>TypeScript 真正强大的特性是，传递给泛型函数的类型可以在条件(条件类型)和映射(映射类型)中使用。下面是一个使用条件<em>从类型中排除</em> <code>null</code>和<code>undefined</code>的类型示例:</p>
+<pre>/**
+ * Exclude null and undefined from T
+ */
+type NoEmpty&lt;T&gt; = T extends null | undefined ? never : T;
+
+// Usage 
+type StrOrNull = string | null;
+type Str = NoEmpty&lt;StrOrNull&gt;; // string
+</pre>
+<p>然而，您不一定需要使用这些基础级特性，因为 TypeScript 还附带了许多方便的内置实用函数。</p>
+<p>事实上，我们的类型<code>NoEmpty&lt;T&gt;</code>已经作为 TypeScript 的一部分发布了(它被称为<code>NonNullable&lt;T&gt;</code>，我们将在下面介绍它)。在本文中，我们将通过真实的例子来介绍这些类型的函数，以了解为什么您会想要使用它们。</p>
+<h2>TypeScript 中的内置类型函数</h2>
+<p>从 TypeScript 4.0 开始，您可以在 TypeScript 中使用这些内置的类型函数，而不需要任何额外的包:</p>
+<h3><code>Partial&lt;T&gt;</code></h3>
+<p><code>Partial</code>将输入类型<code>T</code>的所有成员标记为可选。下面是一个简单的<code>Point</code>类型的例子:</p>
+<pre>type Point = { x: number, y: number };
+
+// Same as `{ x?: number, y?: number }`
+type PartialPoint = Partial&lt;Point&gt;;
+</pre>
+<p>一个常见的用例是在许多状态管理库中找到的<em> update </em>模式，在这种情况下，您只需提供想要更改的属性的子集。例如:</p>
+<pre>class State&lt;T&gt; {
+  constructor(public current: T) { }
+  // Only need to pass in the properties you want changed
+  update(next: Partial&lt;T&gt;) {
+    this.current = { ...this.current, ...next };
+  }
+}
+
+// Usage
+const state = new State({ x: 0, y: 0 });
+state.update({ y: 123 }); // Partial. No need to provide `x`.
+console.log(state.current); // Update successful: { x: 0, y: 123 }
+</pre>
+<h3><code>Required&lt;T&gt;</code></h3>
+<p><code>Required</code>做与<code>Partial&lt;T&gt;</code>相反的事。它使得输入类型<code>T</code> <em>的所有成员都不可选</em>。换句话说，这使得它们<em>成为必需的</em>。下面是这种转变的一个例子:</p>
+<pre>type PartialPoint = { x?: number, y?: number };
+
+// Same as `{ x: number, y: number }`
+type Point = Required&lt;PartialPoint&gt;;
+</pre>
+<p>一个用例是当一个类型有可选的成员，但是你的部分代码需要提供所有的成员。你可以有一个带有可选成员的配置，但是在内部，你要初始化它们，这样你就不必处理所有代码的空检查:</p>
+<pre>// Optional members for consumers
+type CircleConfig = {
+  color?: string,
+  radius?: number,
+}
+
+class Circle {
+  // Required: Internally all members will always be present
+  private config: Required&lt;CircleConfig&gt;;
+
+  constructor(config: CircleConfig) {
+    this.config = {
+      color: config.color ?? 'green',
+      radius: config.radius ?? 0,
+    }
+  }
+
+  draw() {
+    // No null checking needed :)
+    console.log(
+      'Drawing a circle.',
+      'Color:', this.config.color,
+      'Radius:', this.config.radius
+    );
+  }
+}
+</pre>
+<h3><code>Readonly&lt;T&gt;</code></h3>
+<p>这将输入类型<code>T</code>的所有属性标记为<code>readonly</code>。下面是这种转变的一个例子:</p>
+<pre>type Point = { x: number, y: number };
+
+// Same as `{ readonly x: number, readonly y: number }`
+type ReadonlyPoint = Readonly&lt;Point&gt;;
+</pre>
+<p>这对于<em>冻结</em>对象以防止编辑的常见模式很有用。例如:</p>
+<pre>function makeReadonly&lt;T&gt;(object: T): Readonly&lt;T&gt; {
+  return Object.freeze({ ...object });
+}
+
+const editablePoint = { x: 0, y: 0 };
+editablePoint.x = 2; // Success: allowed
+
+const readonlyPoint = makeReadonly(editablePoint);
+readonlyPoint.x = 3; // Error: readonly
+</pre>
+<h3><code>Pick&lt;T, Keys&gt;</code></h3>
+<p>从<code>T</code>中仅选取指定的<code>Keys</code>。在下面的代码中，我们有一个带有按键<code>'x' | 'y' | 'z'</code>的<code>Point3D</code>，我们可以通过只选择按键<code>'x' | 'y'</code>来创建一个<code>Point2D</code>:</p>
+<pre>type Point3D = {
+  x: number,
+  y: number,
+  z: number,
+};
+
+// Same as `{ x: number, y: number }`
+type Point2D = Pick&lt;Point3D, 'x' | 'y'&gt;;
+</pre>
+<p>这对于获取对象的子集很有用，就像我们在上面的例子中通过创建<code>Point2D</code>看到的那样。</p>
+<p>一个更常见的用例是简单地获取您感兴趣的属性。下面演示了这一点，我们从所有的<code>CSSProperties</code>中得到<code>width</code>和<code>height</code>:</p>
+<pre>// All the CSSProperties
+type CSSProperties = {
+  color?: string,
+  backgroundColor?: string,
+  width?: number,
+  height?: number,
+  // ... lots more
+};
+
+function setSize(
+  element: HTMLElement,
+  // Usage: Just need the size properties
+  size: Pick&lt;CSSProperties, 'width' | 'height'&gt;
+) {
+  element.setAttribute('width', (size.width ?? 0) + 'px');
+  element.setAttribute('height', (size.height ?? 0) + 'px');
+}
+</pre>
+<h3><code>Record&lt;Keys, Value&gt;</code></h3>
+<p>给定一组由<code>Keys</code>指定的成员名，这将创建一个类型，其中每个成员都属于类型<code>Value</code>。这里有一个例子来说明这一点:</p>
+<pre>// Same as `{x: number, y: number}`
+type Point = Record&lt;'x' | 'y', number&gt;;
+</pre>
+<p>当一个类型的所有成员都有相同的<code>Value</code>时，使用<code>Record</code>可以帮助你更好地阅读代码，因为很明显所有成员都有相同的<code>Value</code>类型。在上面的<code>Point</code>示例中，这一点很明显。</p>
+<p>当有大量成员时，那么<code>Record</code>就更有用了。下面是不使用 Record 的代码:</p>
+<pre>type PageInfo = {
+  id: string,
+  title: string,
+};
+
+type Pages = {
+  home: PageInfo,
+  services: PageInfo,
+  about: PageInfo,
+  contact: PageInfo,
+};
+</pre>
+<p>下面是使用<code>Record</code>的代码:</p>
+<pre>type Pages = Record&lt;
+  'home' | 'services' | 'about' | 'contact',
+  { id: string, title: string }
+&gt;;
+</pre>
+<h3><code>Exclude&lt;T, Excluded&gt;</code></h3>
+<p>这将<code>T</code>中的<code>Excluded</code>类型排除在外。</p>
+<pre>type T0 = Exclude&lt;'a' | 'b' | 'c', 'a'&gt;; // 'b' | 'c'
+type T1 = Exclude&lt;'a' | 'b' | 'c', 'a' | 'b'&gt;; // 'c'
+type T2 = Exclude&lt;string | number | (() =&gt; void), Function&gt;; // string | number
+</pre>
+<p>最常见的用例是从对象中排除某些键。例如:</p>
+<pre>type Dimensions3D = 'x' | 'y' | 'z';
+type Point3D = Record&lt;Dimensions3D, number&gt;;
+
+// Use exclude to create Point2D
+type Dimensions2D = Exclude&lt;Dimensions3D, 'z'&gt;;
+type Point2D = Record&lt;Dimensions2D, number&gt;;
+</pre>
+<p>您还可以使用它从联合中排除其他不需要的成员(例如，<code>null</code>和<code>undefined</code>):</p>
+<pre>type StrOrNullOrUndefined = string | null | undefined;
+
+// string
+type Str = Exclude&lt;StrOrNullOrUndefined, null | undefined&gt;;
+</pre>
+<h3><code>NonNullable&lt;T&gt;</code></h3>
+<p>这从类型<code>T</code>中排除了<code>null</code>和<code>undefined</code>。和<code>Exclude&lt;T, null | undefined&gt;</code>有异曲同工之妙。</p>
+<p>一个简单的 JavaScript premier: nullable 是可以被赋予一个<a href="https://developer.mozilla.org/en-US/docs/Glossary/Nullish" target="_blank" rel="noopener">空值</a>的东西，例如<code>null</code>或<code>undefined</code>。所以，不可空是不应该接受空值的东西。</p>
+<p>这是我们用<code>Exclude</code>看到的同一个例子，但是这一次，让我们使用<code>NonNullable</code>:</p>
+<pre>type StrOrNullOrUndefined = string | null | undefined;
+
+// Same as `string`
+// Same as `Exclude&lt;StrOrNullOrUndefined, null | undefined&gt;`
+type Str = NonNullable&lt;StrOrNullOrUndefined&gt;;
+</pre>
+<h3><code>Extract&lt;T, Extracted&gt;</code></h3>
+<p>这将从<code>T</code>中提取<code>Extracted</code>类型。你可以把它看作是<code>Exclude</code>的反义词，因为，不是指定你想要排除的类型(<code>Exclude</code>，而是指定你想要保留/提取的类型(<code>Extract</code>):</p>
+<pre>type T0 = Extract&lt;'a' | 'b' | 'c', 'a'&gt;; // 'a'
+type T1 = Extract&lt;'a' | 'b' | 'c', 'a' | 'b'&gt;; // 'a' | 'b'
+type T2 = Extract&lt;string | number | (() =&gt; void), Function&gt;; // () =&gt; void
+</pre>
+<p>Extract 可以被认为是两种给定类型的交集。这在下面进行了演示，其中提取了公共元素<code>'a' | 'b'</code>:</p>
+<pre>type T3 = Extract&lt;'a' | 'b' | 'c', 'a' | 'b' | 'd'&gt;; // 'a' | 'b'
+</pre>
+<p><code>Extract</code>的一个用例是找到两种类型的公共基础，就像这样:</p>
+<pre>type Person = {
+  id: string,
+  name: string,
+  email: string,
+};
+
+type Animal = {
+  id: string,
+  name: string,
+  species: string,
+};
+
+/** Use Extract to get the common keys */
+type CommonKeys = Extract&lt;keyof Person, keyof Animal&gt;;
+
+/** 
+ * Map over the keys to find the common structure 
+ * Same as `{ id: string, name: string }`
+ **/
+type Base = {
+  [K in CommonKeys]: (Animal &amp; Person)[K]
+};
+</pre>
+<h3><code>Omit&lt;T, Keys&gt;</code></h3>
+<p>从类型<code>T</code>中省略由<code>Keys</code>指定的键。这里有一个例子:</p>
+<pre>type Point3D = {
+  x: number,
+  y: number,
+  z: number,
+};
+
+// Same as `{ x: number, y: number }`
+type Point2D = Omit&lt;Point3D, 'z'&gt;;
+</pre>
+<p>在传递对象之前省略它的某些属性是 JavaScript 中的一种常见模式。</p>
+<p>类型函数提供了一种方便的方式来注释这样的转换。例如，通常在登录前删除 PII(个人身份信息，如电子邮件地址和姓名)。您可以用<code>Omit</code>来注释这个转换。</p>
+<pre>type Person = {
+  id: string,
+  hasConsent: boolean,
+  name: string,
+  email: string,
+};
+
+// Utility to remove PII from `Person`
+function cleanPerson(person: Person): Omit&lt;Person, 'name' | 'email'&gt; {
+  const { name, email, ...clean } = person;
+  return clean;
+}
+</pre>
+<h3><code>Parameters&lt;Function&gt;</code></h3>
+<p>给定一个<code>Function</code>类型，该类型将函数参数的类型作为一个元组返回。下面是一个演示这种转换的示例:</p>
+<pre>function add(a: number, b: number) {
+  return a + b;
+}
+
+// Same as `[a: number, b: number]`
+type AddParameters = Parameters&lt;typeof add&gt;;
+</pre>
+<p>您可以将<code>Parameters</code>与 TypeScript 的索引<em>和查找类型</em>结合起来，以获得任何单个参数。我们甚至可以获取第一个参数的类型:</p>
+<pre>function add(a: number, b: number) {
+  return a + b;
+}
+
+// Same as `number`
+type A = Parameters&lt;typeof add&gt;[0];
+</pre>
+<p><code>Parameters</code>的一个关键用例是捕获函数参数类型的能力，这样您就可以在代码中使用它来确保类型安全。</p>
+<pre>// A save function in an external library
+function save(person: { id: string, name: string, email: string }) {
+  console.log('Saving', person);
+}
+
+// Ensure that ryan matches what is expected by `save`
+const ryan: Parameters&lt;typeof save&gt;[0] = {
+  id: '1337',
+  name: 'Ryan',
+  email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5f2d263e311f3a273e322f333a713c3032">[email protected]</a>',
+};
+</pre>
+<h3><code>ConstructorParameters&lt;ClassConstructor&gt;</code></h3>
+<p>这和我们上面看到的<code>Parameters</code>型差不多。唯一的区别是<code>ConstructorParameters</code>在类构造函数上工作，就像这样:</p>
+<pre>class Point {
+  private x: number;
+  private y: number;
+  constructor(initial: { x: number, y: number }) {
+    this.x = initial.x;
+    this.y = initial.y;
+  }
+}
+
+// Same as `[initial: { x: number, y: number} ]`
+type PointParameters = ConstructorParameters&lt;typeof Point&gt;;
+</pre>
+<p>当然，<code>ConstructorParamters</code>的主要用例也是类似的。在下面的例子中，我们使用它来确保我们的初始值将被<code>Point</code>类接受:</p>
+<pre>class Point {
+  private x: number;
+  private y: number;
+  constructor(initial: { x: number, y: number }) {
+    this.x = initial.x;
+    this.y = initial.y;
+  }
+}
+
+// Ensure that `center` matches what is expected by `Point` constructor
+const center: ConstructorParameters&lt;typeof Point&gt;[0] = {
+  x: 0,
+  y: 0,
+};
+</pre>
+<h3><code>ReturnType&lt;Function&gt;</code></h3>
+<p>给定一个<code>Function</code>类型，这将获得函数返回的类型。</p>
+<pre>function createUser(name: string) {
+  return {
+    id: Math.random(),
+    name: name
+  };
+}
+
+// Same as `{ id: number, name: string }`
+type User = ReturnType&lt;typeof createUser&gt;;
+</pre>
+<p>一个可能的用例类似于我们在<code>Parameters</code>中看到的。它允许你得到一个函数的返回类型，这样你就可以用它来类型化其他变量。这实际上在上面的例子中得到了证明。</p>
+<p>还可以使用<code>ReturnType</code>来确保一个函数的输出与另一个函数的输入相同。这在 React 中很常见，在 React 中，您有一个自定义钩子来管理 React 组件所需的状态。</p>
+<pre>import React from 'react';
+
+// Custom hook
+function useUser() {
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  return {
+    name,
+    setName,
+    email,
+    setEmail,
+  };
+}
+
+// Custom component uses the return value of the hook
+function User(props: ReturnType&lt;typeof useUser&gt;) {
+  return (
+    &lt;&gt;
+      &lt;div&gt;Name: {props.name}&lt;/div&gt;
+      &lt;div&gt;Email: {props.email}&lt;/div&gt;
+    &lt;/&gt;
+  );
+}
+</pre>
+<h3><code>InstanceType&lt;ClassConstructor&gt;</code></h3>
+<p><code>InstanceType</code>类似于我们上面看到的<code>ReturnType</code>。唯一的区别是<code>InstanceType</code>在一个类构造器上工作。</p>
+<pre>class Point {
+  x: number;
+  y: number;
+  constructor(initial: { x: number, y: number }) {
+    this.x = initial.x;
+    this.y = initial.y;
+  }
+}
+
+// Same as `{x: number, y: number}`
+type PointInstance = InstanceType&lt;typeof Point&gt;;
+</pre>
+<p>你通常不需要对任何静态类使用这个，比如上面的<code>Point</code>类。这是因为您可以只使用类型注释<code>Point</code>，如下所示:</p>
+<pre>class Point {
+  x: number;
+  y: number;
+  constructor(initial: { x: number, y: number }) {
+    this.x = initial.x;
+    this.y = initial.y;
+  }
+}
+
+// You wouldn't do this
+const verbose: InstanceType&lt;typeof Point&gt; = new Point({ x: 0, y: 0 });
+
+// Because you can do this
+const simple: Point = new Point({ x: 0, y: 0 });
+</pre>
+<p>然而，TypeScript 也允许您创建动态类，例如，下面的函数<code>DisposibleMixin</code>动态返回一个类:</p>
+<pre>type Class = new (...args: any[]) =&gt; any;
+
+// creates a class dynamically and returns it
+function DisposableMixin&lt;Base extends Class&gt;(base: Base) {
+  return class extends base {
+    isDisposed: boolean = false;
+    dispose() {
+      this.isDisposed = true;
+    }
+  };
+}
+</pre>
+<p>现在我们可以使用<code>InstanceType</code>来获取通过调用<code>DisposiblePoint</code>创建的实例的类型:</p>
+<pre>type Class = new (...args: any[]) =&gt; any;
+
+function DisposableMixin&lt;Base extends Class&gt;(base: Base) {
+  return class extends base {
+    isDisposed: boolean = false;
+    dispose() {
+      this.isDisposed = true;
+    }
+  };
+}
+
+// dynamically created class
+const DisposiblePoint = DisposableMixin(class {
+  x = 0;
+  y = 0;
+});
+
+// Same as `{isDisposed, dispose, x, y}`
+let example: InstanceType&lt;typeof DisposiblePoint&gt;;
+</pre>
+<h2>结论</h2>
+<p>正如我们所看到的，TypeScript 有许多内置的实用程序类型。其中许多都是您可以自己编写的简单定义，例如，如果您想要排除 null 和 undefined，您可以自己轻松编写以下内容:</p>
+<pre>// Your custom creation
+type NoEmpty&lt;T&gt; = T extends null | undefined ? never : T;
+
+// Usage 
+type StrOrNull = string | null;
+
+// string - People need to look at `NoEmpty` to understand what it means
+type Str = NoEmpty&lt;StrOrNull&gt;; 
+</pre>
+<p>然而，使用内置版本<code>NonNullable</code>(做同样的事情)可以提高代码的可读性，所以熟悉 TypeScript 标准库的人不需要解析主体<code>T extends null | undefined ? never : T;</code>来理解发生了什么。</p>
+<p>下面演示了这一点:</p>
+<pre>// No need for creating something custom
+
+// Usage 
+type StrOrNull = string | null;
+
+// string - People that know TS know what `NonNullable` does
+type Str = NonNullable&lt;StrOrNull&gt;; 
+</pre>
+<p>最终，你应该尽可能使用像<code>ReadOnly</code> / <code>Partial</code> / <code>Required</code>这样的内置类型，而不是创建自定义类型。除了节省编写代码的时间之外，它还让您不必考虑用<em>命名</em>您的实用程序，因为它们已经由 TypeScript 团队为您命名了。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket 不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自 Redux、Vuex 和@ngrx/store 的额外上下文。</p>
+<p>除了记录 Redux 操作和状态，LogRocket 还记录控制台日志、JavaScript 错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用 DOM 来记录页面上的 HTML 和 CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

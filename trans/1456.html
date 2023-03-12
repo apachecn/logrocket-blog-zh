@@ -1,0 +1,275 @@
+<html>
+<head>
+<title>Using FastAPI to get updates from GitHub to Telegram - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 FastAPI 从 GitHub 获取 Telegram - LogRocket 博客的更新</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/#0001-01-01">https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>无论你是一名初露头角的开发人员还是一名经验丰富的软件工程师，你都可能使用过<a href="https://github.com" target="_blank" rel="noopener"> GitHub </a>，这是一个平台，人们可以在这个平台上托管他们项目的源代码，为其他开发人员的其他项目做出贡献，并开发开源软件。</p>
+<p>实际上，GitHub 已经成为事实上的平台，在这里你可以找到各种各样的开源软件和相关项目。它有大量的功能和一个开放的 API，用于开发将连接到 GitHub 的应用程序。</p>
+<p><a href="https://telegram.org/" target="_blank" rel="noopener"> Telegram </a>是一个快速可扩展的消息平台，它的一大优势是聊天机器人。聊天机器人易于编程，具有简单的 HTTP API，并且易于管理。而且，大多数语言都有包装器来使用 Telegram 的 Bot API。</p>
+<p>在本文中，我们将创建一个电报机器人，它使用 Python 和 GitHub webhooks 从 GitHub 存储库中获取更新。我们将在服务器端使用 FastAPI，在发送消息时使用 Telegram 的 HTTP API。</p>
+<h2>要求</h2>
+<ul>
+<li><a href="https://www.python.org/downloads/" target="_blank" rel="noopener"> Python </a>安装在你的机器上以便创建服务器。</li>
+<li>一份<a href="https://telegram.org/" target="_blank" rel="noopener">电报</a>记述</li>
+<li>一个电报机器人，我们将在接下来的章节中讨论它。</li>
+</ul>
+<h2>设置 Python 开发环境</h2>
+<p>在我们开始之前，我们将创建一个<a href="https://docs.python.org/3/tutorial/venv.html" target="_blank" rel="noopener"> Python 虚拟环境</a>来进行一个干净的设置。</p>
+<p>这些是我们构建项目所需的包:</p>
+<ul>
+<li><a href="https://fastapi.tiangolo.com" target="_blank" rel="noopener"> FastAPI </a>作为后端框架</li>
+<li><a href="https://www.python-httpx.org" target="_blank" rel="noopener"> HTTPX </a>用于与电报 API 通信的异步 HTTP 请求。</li>
+<li>服务器的<a href="https://www.uvicorn.org/" target="_blank" rel="noopener">uv icon</a></li>
+<li>通过隧道连接我们的本地服务器</li>
+</ul>
+<p>准备好了吗？让我们从设置环境开始。我们将把所有代码写在一个<code>main.py</code>文件中:</p>
+<pre>$ mkdir fastapi-tg
+$ cd fastapi-tg
+$ python3 -m venv venv
+$ source venv/bin/activate # For Linux and Mac
+$ venv\Scripts\activate # For Windows
+(venv) $ pip install fastapi uvicorn pyngrok httpx
+</pre>
+<h2>从电报获取 bot 凭证</h2>
+<p>为了让信息发送给我们并被我们接收，我们需要一些可编程的东西。这就是电报机器人的用武之地。机器人是电报信息平台的可编程聊天机器人。</p>
+<p>电报机器人将有一个<code>BOT_TOKEN</code>，这是机器人的唯一标识符。要为 Telegram 创建一个机器人，我们需要获得<code>BOT_TOKEN</code>。为此，我们将通过电报与另一个机器人对话，<a href="https://t.me/BotFather" target="_blank" rel="noopener">机器人父亲</a>。</p>
+<p>我们可以通过输入<code>/newbot</code>命令来创建一个新的机器人。我们还需要输入机器人的名称和显示名称。</p>
+<p><img data-attachment-id="31812" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/creating-new-bot/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png" data-orig-size="647,488" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creating a new bot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot-300x226.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png" decoding="async" class="aligncenter size-full wp-image-31812 jetpack-lazy-image" src="../Images/09be6fbab991231413f4184f338a6eb0.png" alt="Creating a New Bot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png 647w, https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot-300x226.png 300w" data-lazy-sizes="(max-width: 647px) 100vw, 647px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31812" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/creating-new-bot/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png" data-orig-size="647,488" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creating a new bot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot-300x226.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31812" src="../Images/09be6fbab991231413f4184f338a6eb0.png" alt="Creating a New Bot" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png 647w, https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot-300x226.png 300w" sizes="(max-width: 647px) 100vw, 647px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/creating-new-bot.png"/></noscript>
+<p>完成这些步骤后，我们将收到<code>BOT_TOKEN</code>。一旦有了它，就在<code>terminal/cmd</code>中将它设置为环境变量，我们将在本节结束时完成。</p>
+<p>现在，通过执行<code>/start</code>命令启动您的机器人。</p>
+<p>一旦我们成功创建了一个电报机器人，下一步就是获得一个<code>CHAT_ID</code>，它是一个电报用户的唯一标识符，每个电报用户都有一个。</p>
+<p>要获得<code>CHAT_ID</code>，在 Telegram 中打开与<a href="https://t.me/JsonDumpBot" target="_blank" rel="noopener"> <strong> Json Dump Bot </strong> </a>的聊天对话。<code>/start</code>命令本身会给你一个文本形式的 JSON 对象。它看起来类似于这样:</p>
+<pre>{
+  "update_id": 143931094,
+  "message": {
+    "message_id": 155844,
+    "from": {
+      "id": 123456789, //this is the Chat_ID of a telegram user
+      "is_bot": false,
+      "first_name": "&lt;name&gt;",
+      "username": "&lt;username&gt;"
+    },
+    "chat": {
+      "id": 123456789, //this is the Chat_ID of a telegram user
+      "first_name": "&lt;name&gt;",
+      "username": "&lt;username&gt;",
+      "type": "private"
+    },
+    "date": 1575035172,
+    "text": "/start",
+    "entities": [
+      {
+        "offset": 0,
+        "length": 6,
+        "type": "bot_command"
+      }
+    ]
+  }
+}
+</pre>
+<p>我们可以从<code>id</code>键得到<code>CHAT_ID</code>。一旦我们有了<code>TOKEN</code>和<code>CHAT_ID</code>，我们需要将它们作为环境变量添加到我们的本地会话中。</p>
+<p>在终端/命令提示符下，执行以下命令:</p>
+<pre># for linux/mac
+$ export TOKEN=&lt;bot_token&gt;
+$ export CHAT_ID=&lt;chat_id&gt;
+
+# for windows
+$ set TOKEN=&lt;bot_token&gt;
+$ set CHAT_ID=&lt;chat_id&gt;
+</pre>
+<p>一旦您加载了环境变量，让我们编写我们的服务器</p>
+<h2>用 fastagi 创建服务器</h2>
+<p>我们将以“你好，世界”开始带有 FastAPI 的端点。FastAPI 是一个相对较新的 Python web 框架，在过去的几个月里广受欢迎。</p>
+<p>它支持异步操作，并基于<a href="https://docs.python.org/3/library/typing.html" target="_blank" rel="noopener"> Python 类型提示</a>和<a href="https://github.com/OAI/OpenAPI-Specification" target="_blank" rel="noopener"> OpenAPI </a>，这是 API 的一个规范。我们还在<code>/docs</code>和<code>/redoc</code>端点获取文档。</p>
+<p>让我们创建一个简单的“Hello World”端点，它返回一个作为 url 参数传递的<code>name</code>:</p>
+<pre># main.py
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/{name}")
+async def helloname(name:str):
+    """
+    Returns a Hello to the User with a wave emoji
+    """
+    return f"Hello {name} 👋"
+</pre>
+<p>注意，这是一个带有 FastAPI 的简单的“Hello World”应用程序。这里，我们将端点指定为<code>/</code>。这个端点有一个 URL 参数，我们将其指定为<code>name</code>。</p>
+<p>为了运行服务器，我们将使用 ASGI(异步服务器网关接口)服务器。</p>
+<p>在终端中执行以下命令来启动服务器:</p>
+<pre>$ uvicorn main:app --reload --port 9000
+</pre>
+<p>这将在<code>port 9000</code>启动我们的 FastAPI 服务器。如果我们导航到<code><a href="http://localhost:9000/docs" rel="nofollow">http://localhost:9000/docs</a></code>，我们可以找到由<a href="https://swagger.io/" target="_blank" rel="noopener"> Swagger </a>自动生成的交互文档。</p>
+<p><img data-attachment-id="31813" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/swagger-documentation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png" data-orig-size="730,144" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Swagger documentation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation-300x59.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png" decoding="async" class="aligncenter size-full wp-image-31813 jetpack-lazy-image" src="../Images/4356eda5eaafe7865e8fdfee460d91f9.png" alt="Swagger Documentation" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation-300x59.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31813" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/swagger-documentation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png" data-orig-size="730,144" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Swagger documentation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation-300x59.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31813" src="../Images/4356eda5eaafe7865e8fdfee460d91f9.png" alt="Swagger Documentation" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation-300x59.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/swagger-documentation.png"/></noscript>
+<p>如果我们导航到<code><a href="http://localhost:9000/redoc" rel="nofollow">http://localhost:9000/redoc</a></code>，我们将看到更多使用 redoc 自动生成的文档。</p>
+<p><img data-attachment-id="31814" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/redoc-documentation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png" data-orig-size="730,339" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Redoc documentation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png" decoding="async" class="aligncenter size-full wp-image-31814 jetpack-lazy-image" src="../Images/c4ba842b96bd52eccec6cfabfb6e240d.png" alt="Redoc Documentation" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation-300x139.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31814" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/redoc-documentation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png" data-orig-size="730,339" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Redoc documentation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31814" src="../Images/c4ba842b96bd52eccec6cfabfb6e240d.png" alt="Redoc Documentation" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation-300x139.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/redoc-documentation.png"/></noscript>
+<p>如果我们尝试用<a href="https://curl.se/" target="_blank" rel="noopener"> curl </a>或<a href="https://httpie.io" target="_blank" rel="noopener"> Httpie </a>获取端点，结果将是这样:</p>
+<p><img data-attachment-id="31815" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/server-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png" data-orig-size="422,352" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Server response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response-300x250.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png" decoding="async" class="aligncenter size-full wp-image-31815 jetpack-lazy-image" src="../Images/528d9227295ff82a2bffc6607970efd1.png" alt="Server Response" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png 422w, https://blog.logrocket.com/wp-content/uploads/2021/01/server-response-300x250.png 300w" data-lazy-sizes="(max-width: 422px) 100vw, 422px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31815" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/server-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png" data-orig-size="422,352" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Server response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response-300x250.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31815" src="../Images/528d9227295ff82a2bffc6607970efd1.png" alt="Server Response" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png 422w, https://blog.logrocket.com/wp-content/uploads/2021/01/server-response-300x250.png 300w" sizes="(max-width: 422px) 100vw, 422px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/server-response.png"/></noscript>
+<p>现在，让我们编写接收 webhooks 和发送消息的服务器。我们的服务器将执行以下任务:</p>
+<ul>
+<li>从 GitHub 接收 webhooks</li>
+<li>处理 webhook 负载并转换为消息</li>
+<li>通过电报将消息发送给用户</li>
+</ul>
+<h2>从 GitHub 接收 webhooks</h2>
+<p>Webhooks 是一个服务器在一个动作发生时发送给另一个应用程序的有效载荷和信息。通常 webhook 的有效载荷是 JSON 格式的。</p>
+<p>如果存储库中发生了某个动作，GitHub 会向指定的 URL 发送一个 webhook。我们将编写我们的服务器来接收这些 webhooks 并处理它们，然后在接下来的部分中为服务器添加更多的功能。</p>
+<p>为了简单起见，我们将只处理<code>star</code>和<code>pull_request</code> GitHub 事件。当存储库被启动时会触发<code>star</code>事件，当打开或关闭一个拉请求时会触发<code>pull_request</code>事件。你可以在这里阅读更多关于<a href="https://docs.github.com/en/free-pro-team@latest/developers/webhooks-and-events/webhook-events-and-payloads#pull_request" target="_blank" rel="noopener"> GitHub 拉请求的信息</a>。</p>
+<pre># main.py
+from fastapi import FastAPI,Request
+import os
+
+app=FastAPI()
+
+TOKEN = os.getenv("TOKEN")  # Telegram Bot API Key
+CHAT_ID = os.getenv("CHAT_ID")  # Telegram Chat ID
+
+async def sendTgMessage():
+# TODO
+
+@app.post("/hook")
+async def recWebHook(req: Request):
+    """
+    Receive the Webhook and process the Webhook Payload to get relevant data
+    Refer https://developer.github.com/webhooks/event-payloads for all GitHub Webhook Events and Payloads
+    """
+    body = await req.json()
+    event = req.headers.get("X-Github-Event")
+    if event == "star":  # check if the event is a star
+        nos_stars = body\["repository"\]["stargazers_count"]
+        starrer_username = body\["sender"\]["login"]
+        repo_url = body\["repository"\]["html_url"]
+        repo_name = body\["repository"\]["name"]
+        message = f"{starrer_username} has starred the \[{repo_name}\]({repo_url}). \n\n The Total Stars are {nos_stars}"
+        await sendTgMessage(message)
+    elif event == "pull_request":  # check if event is a pull request
+        pr_number = body["number"]
+        if body\["pull_request"\]["merged"] == True:
+            pr_action = "merged"
+        pr_action = body["action"]
+        pr_title = body\["pull_request"\]["title"]
+        pr_desc = body\["pull_request"\]["body"]
+        pr_login = body\["sender"\]["login"]
+        pr_login_url = body\["sender"\]["html_url"]
+        pr_url = body\["pull_request"\]["html_url"]
+        message = f"Pull Request(\[{pr_number}\]({pr_url})) {pr_action} by \[{pr_login}\]({pr_login_url}).\n\n Title: *{pr_title}* \n\n Description: **{pr_desc}**"
+        await sendTgMessage(message)
+</pre>
+<p>在这段代码中，我们编写了<code>/hook</code>端点来接收来自 GitHub 的 webhook，并将 web hook 处理成将通过 Telegram 发送的消息。然后，我们将使用 FastAPI 的<code>Request</code>类接收 webhook 有效负载及其头部。</p>
+<p>首先，我们将检查动作是什么。如果是 star 或 pull 请求事件，我们将为该特定事件生成消息。我们从 JSON 主体中获得所需的数据。JSON 被解析为 Python 字典，所以我们将使用字典键作为索引，并获取这些键的值。你也可以使用字典的<code><a href="https://www.programiz.com/python-programming/methods/dictionary/get" target="_blank" rel="noopener">get()</a></code>方法来做同样的事情。</p>
+<p>对于 star 事件，我们接收当前的星数、为存储库加星的人的 GitHub 用户名和存储库的 URL。对于拉请求，我们还将获取拉请求的标题和主体，并检查拉请求是否被合并。</p>
+<p>通过这种方式，我们可以扩展到许多其他事件，如问题和评论，几乎所有的事件都是类似的模式。现在，我们将编写<code>sendTgMessage()</code>方法来将生成的图像发送到 telegram。</p>
+<h3>向电报发送信息</h3>
+<p>Telegram 有一个强大的 bot API。它有大量的包装器，但是在这篇博文中，我们将使用 HTTP API 通过上面创建的 bot 异步发送消息。</p>
+<pre># main.py
+import httpx
+
+async def sendTgMessage(message:str):
+    """
+    Sends the Message to telegram with the Telegram BOT API
+    """
+    tg_msg = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    API_URL = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    async with httpx.AsyncClient() as client:
+        await client.post(API_URL, json=tg_msg)
+</pre>
+<p>这里我们有一个函数，它将消息作为参数。Telegram 非常支持消息中的 Markdown 和 HTML 格式。让我们在这里使用降价格式选项。你可以在这里阅读更多关于电报信息的<a href="https://core.telegram.org/bots/api#formatting-options" target="_blank" rel="noopener">格式选项。</a></p>
+<p>Telegram Bot API 需要 JSON 形式的数据作为对<code>sendMessage</code>端点的<code>POST</code>请求的主体。JSON 主体需要以下键来发送消息:</p>
+<ul>
+<li><code>CHAT_ID</code>键是用户的聊天 ID，机器人应该在那里发送消息</li>
+<li><code>text</code>键表示消息应该是什么</li>
+<li><code>parse_mode</code>是消息的格式选项</li>
+<li>你可以在<a href="https://core.telegram.org/bots/api#sendmessage" target="_blank" rel="noopener">文档</a>中读到关于<code>sendMessage</code> API 方法的其他键。</li>
+</ul>
+<p>我们使用 Python 字典作为<code>POST</code>请求体，并用<a href="https://www.python-httpx.org/" target="_blank" rel="noopener"> httpx </a>发送请求。Httpx 是一个异步 HTTP 库，具有类似于 Python 请求库的 API。</p>
+<p>一旦消息被发送，无论消息是否被发送，我们都会收到一个 JSON 响应。</p>
+<h2>运行和测试服务器</h2>
+<p>让我们运行我们的服务器。以下是完整的源代码:</p>
+<pre># main.py
+from fastapi import FastAPI, Request
+import os
+import httpx
+
+app = FastAPI()
+
+TOKEN = os.getenv("TOKEN")  # Telegram Bot API Key
+CHAT_ID = os.getenv("CHAT_ID")  # Telegram Chat ID
+
+async def sendTgMessage(message: str):
+    """
+    Sends the Message to telegram with the Telegram BOT API
+    """
+    print(message)
+    tg_msg = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    API_URL = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    async with httpx.AsyncClient() as client:
+        await client.post(API_URL, json=tg_msg)
+
+@app.post("/hook")
+async def recWebHook(req: Request):
+    """
+    Receive the Webhook and process the Webhook Payload to get relevant data
+    Refer https://developer.github.com/webhooks/event-payloads for all GitHub Webhook Events and Payloads
+    """
+    body = await req.json()
+    print(body)
+    event = req.headers.get("X-Github-Event")
+    if event == "star":  # check if the event is a star
+        nos_stars = body\["repository"\]["stargazers_count"]
+        starrer_username = body\["sender"\]["login"]
+        repo_url = body\["repository"\]["html_url"]
+        repo_name = body\["repository"\]["name"]
+        message = f"{starrer_username} has starred the \[{repo_name}\]({repo_url}). \n\n The Total Stars are {nos_stars}"
+        await sendTgMessage(message)
+    elif event == "pull_request":  # check if event is a pull request
+        pr_number = body["number"]
+        if body\["pull_request"\]["merged"] == True:
+            pr_action = "merged"
+        pr_action = body["action"]
+        pr_title = body\["pull_request"\]["title"]
+        pr_desc = body\["pull_request"\]["body"]
+        pr_login = body\["sender"\]["login"]
+        pr_login_url = body\["sender"\]["html_url"]
+        pr_url = body\["pull_request"\]["html_url"]
+        message = f"Pull Request(\[{pr_number}\]({pr_url})) {pr_action} by \[{pr_login}\]({pr_login_url}).\n\n Title: {pr_title} \n\n Description: {pr_desc}"
+        await sendTgMessage(message)
+</pre>
+<p>要运行我们的服务器，请在命令行/终端中执行以下命令。确保您在虚拟环境中:</p>
+<pre>$ uvicorn main:app --reload --port 9000
+</pre>
+<p>这将在端口 9000 上打开我们的服务器。为了从 GitHub 接收数据到我们的本地服务器，我们必须将我们的本地服务器暴露给互联网，这就是<a href="https://ngrok.com/" target="_blank" rel="noopener"> ngrok </a>的用武之地。我们已经用 pip 安装了<a href="https://pypi.org/project/pyngrok/" target="_blank" rel="noopener"> Pyngrok </a>。Pyngrok 是 ngrok 的 Python 包装器，有自己的二进制文件用于分发。</p>
+<p>为了隧道我们的服务器，我们需要让我们的服务器运行。打开另一个终端/命令行窗口或选项卡，并激活虚拟环境。然后执行以下命令:</p>
+<pre>$ ngrok http 9000
+</pre>
+<p>您应该会看到类似如下的输出:</p>
+<p><img data-attachment-id="31816" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/ngrok-sample-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ngrok sample output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png" decoding="async" class="aligncenter size-full wp-image-31816 jetpack-lazy-image" src="../Images/f682731368f848e5c73fa0cde1465270.png" alt="Ngrok Sample Output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output-300x98.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31816" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/ngrok-sample-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ngrok sample output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31816" src="../Images/f682731368f848e5c73fa0cde1465270.png" alt="Ngrok Sample Output" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output-300x98.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/ngrok-sample-output.png"/></noscript>
+<p>将会有两个 URL 暴露我们的本地服务器。我们只需要带有前缀<code>https</code>或第二个 URL 的那个。</p>
+<p>下一步是告诉 GitHub 将 webhooks 发送到这个 URL。</p>
+<h3>连接到 GitHub</h3>
+<p>要将我们的服务器连接到 GitHub，我们需要一个存储库。这可以是新的存储库，也可以是现有的存储库。如果您想要创建新的存储库，请导航到<a href="https://github.new" rel="nofollow"> https://github.new </a>来创建新的存储库。</p>
+<p>要设置 webhooks，请转到您的存储库中的<strong>设置</strong>选项卡，并选择<strong> webhooks 部分</strong>。按下<code>Add Webhook</code>按钮添加一个新的网页挂钩。然后你会被要求输入你的 GitHub 密码。</p>
+<p>一旦完成，添加我们从 ngrok 收到的 URL(不要忘记添加<code>/hook</code>作为 URL 的后缀)，因为这是我们接收 webhooks 的端点。将<code>content-type</code>改为<code>application/json</code>。然后，选择您想要获取的 webhook 事件。在我们的例子中，我们需要<code>star</code>和<code>pull_request</code>事件。最后，保存这些更改。</p>
+<p>这里有一个简短的视频。</p>
+<p><img data-attachment-id="31818" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/video-walkthrough/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif" data-orig-size="730,365" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Video walkthrough" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough-300x150.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif" decoding="async" class="aligncenter wp-image-31818 size-full jetpack-lazy-image" src="../Images/d64cfb8cf90db4d7a86039918c66a29d.png" alt="Video Walkthrough" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31818" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/video-walkthrough/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif" data-orig-size="730,365" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Video walkthrough" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough-300x150.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif" decoding="async" loading="lazy" class="aligncenter wp-image-31818 size-full" src="../Images/d64cfb8cf90db4d7a86039918c66a29d.png" alt="Video Walkthrough" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/video-walkthrough.gif"/></noscript>
+<p>为了确保我们的机器人正在工作，启动存储库。如果一切正常，我们将从我们创建的机器人那里收到一条发往指定<code>CHAT_ID</code>的电报消息。下面是一个示例消息。</p>
+<p><img data-attachment-id="31817" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/sample-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png" data-orig-size="321,70" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Sample message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message-300x65.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png" decoding="async" class="aligncenter size-full wp-image-31817 jetpack-lazy-image" src="../Images/6fcd01467b2160310740c4dfdeb1ebb7.png" alt="Sample Message" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png 321w, https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message-300x65.png 300w" data-lazy-sizes="(max-width: 321px) 100vw, 321px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31817" data-permalink="https://blog.logrocket.com/using-fastapi-to-get-updates-from-github-to-telegram/sample-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png" data-orig-size="321,70" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Sample message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message-300x65.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31817" src="../Images/6fcd01467b2160310740c4dfdeb1ebb7.png" alt="Sample Message" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png 321w, https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message-300x65.png 300w" sizes="(max-width: 321px) 100vw, 321px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/sample-message.png"/></noscript>
+<p>恭喜你！我们的服务器正在工作并向 Telegram 发送消息。多酷啊。</p>
+<p>您可以扩展 webhook 处理来获得关于问题、评论、推送等的详细信息。GitHub 文档中很好地记录了所有的 webhook 事件。此外，电报机器人 API 文档是一个很好的参考。</p>
+<p>你可以在<a href="https://github.com/athul/Telegram-GH-Webhooks" target="_blank" rel="noopener"> GitHub </a>找到完整的源代码。</p>
+<h2>使用 GitHub 和 Telegram 的后续步骤</h2>
+<p>当然，您可以进一步扩展这个项目，以获得关于问题、新的推送和拉取请求审查以及任何其他 GitHub webhook 事件的信息。但是要确保在 GitHub webhook 设置中更改您需要的事件。</p>
+<p>您还可以使用 bot 向<strong>频道/组</strong>发送消息——只需将 bot 添加到频道/组，并用<a href="https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35" target="_blank" rel="noopener">频道/组 ID </a>更改<code>CHAT_ID</code>环境变量。</p>
+<h2>结论</h2>
+<p>我们已经学习了如何用 FastAPI 和 Python 制作 REST API，创建 Telegram Bot，以及用 ngrok 将本地服务器连接到 GitHub。感谢阅读！</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

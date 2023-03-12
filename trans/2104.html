@@ -1,0 +1,272 @@
+<html>
+<head>
+<title>Managing SvelteKit and Shopify cart interactions - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>管理 SvelteKit 和 Shopify 购物车交互- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/#0001-01-01">https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>每个电子商务解决方案最重要的部分之一是购物车功能。让用户能够方便地在购物车中添加和删除商品至关重要。</p>
+<p/>
+<p>在之前的帖子中，我向您展示了如何使用 SvelteKit 和 Shopify Storefront API 构建一个快速的电子商务网站。但是我们并没有在那篇文章中谈到如何管理购物车。这就是我们要做的事情——向您展示如何通过 Shopify Storefront cart API 添加和删除购物车中的产品。</p>
+<p>这里有一个快速回顾:我们正在谈论的网站目前<a href="https://sveltekit-shopify-ecommerce.netlify.app" target="_blank" rel="noopener">部署在 Netlify </a>上，托管在<a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce" target="_blank" rel="noopener"> GitHub </a>上。如果你想的话，看看它，玩一会儿。当你完成的时候，回来让我们直接进入。</p>
+<h2>将商品添加到购物车</h2>
+<p>查看我们部署的站点，我们可以在产品详细信息页面中看到，我们可以单击一个按钮将产品添加到购物车中。这似乎是一个非常好的无服务器功能的候选，但 Svelte 也提供 API 路线，我们将在这个项目中使用它。</p>
+<p>使用简单的 API 路由，我们可以设置一个<code>add-to-cart</code>端点，当用户点击<code>Add To Cart</code>按钮时，我们可以将我们的产品细节发布到这个端点。端点将接收数据，并向 Shopify 发出一个<code>POST</code>请求，要么创建一个包含产品的购物车，要么将产品添加到购物车中(如果存在的话)。</p>
+<p>在<code>src/routes</code>文件夹中，创建一个名为<code>api</code>的新文件夹。在其中，我们可以创建第一个名为<code>add-to-cart.js</code>的端点，并像这样设置它:</p>
+<pre>// src/routes/api/add-to-cart
+import { createCartWithItem } from './utils/createCartWithItem';
+import { addItemToCart } from './utils/addItemToCart';
+
+export async function post(request) {
+    let { cartId, itemId, quantity } = JSON.parse(request.body);
+    quantity = parseInt(quantity);
+    if (cartId) {
+        console.log('Adding item to existing cart...');
+        const shopifyResponse = await addItemToCart({
+            cartId,
+            itemId,
+            quantity
+        });
+        return {
+            statusCode: 200,
+            body: JSON.stringify(shopifyResponse.cartLinesAdd.cart)
+        };
+    } else {
+        console.log('Creating new cart with item...');
+        const createCartResponse = await createCartWithItem({
+            itemId,
+            quantity
+        });
+        return {
+            statusCode: 200,
+            body: JSON.stringify(createCartResponse.cartCreate.cart)
+        };
+    }
+}
+</pre>
+<p>这里的逻辑很简单。当点击<code>Add To Cart</code>按钮时，我们从产品页面获取必要的详细信息(<code>cartId</code>、<code>itemId</code>和<code>quantity</code>，并将它们发送到这个端点。然后在上面的端点中，我们接收数据并检查请求体中是否存在有效的<code>cartId</code>。</p>
+<ul>
+<li>如果是，我们继续将产品添加到购物车中</li>
+<li>否则，我们将使用收到的产品数据创建一个购物车</li>
+</ul>
+<p>我在这里使用了效用函数(<code><a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce/blob/master/src/routes/api/utils/createCartWithItem.js" target="_blank" rel="noopener">createCartWithItem</a></code>和<code><a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce/blob/master/src/routes/api/utils/addItemToCart.js" target="_blank" rel="noopener">addItemToCart</a></code>)来加快速度。请随意查阅它们，以便更好地了解我们在那里做了什么。</p>
+<p>现在我们已经设置了一个端点来接收产品数据并将其添加到购物车中，我们可以返回到产品页面并定义一个<code>addToCart</code>函数来将数据发送到这个端点:</p>
+<pre>//src/routes/products/[handle].svelte
+&lt;script context="module"&gt;
+    import { getProductDetails } from '../../../store'; 
+    export async function load(ctx) {
+        // ...
+    }
+&lt;/script&gt;
+
+&lt;script&gt;
+    // ...
+    let quantity = 0;
+    let selectedProduct = productVariants[0].id;
+        const addToCart = async () =&gt; {
+        // add selected product to cart
+        try {
+            const addToCartResponse = await fetch('/api/add-to-cart', {
+                method: 'POST',
+                body: JSON.stringify({
+                    cartId: localStorage.getItem('cartId'),
+                    itemId: selectedProduct,
+                    quantity: quantity
+                })
+            });
+            const data = await addToCartResponse.json();
+            // save cart to localStorage
+            localStorage.setItem('cartId', data.id);
+            localStorage.setItem('cart', JSON.stringify(data));
+            location.reload();
+        } catch (e) {
+            console.log(e);
+        }
+    };
+    function price(itemPrice) {
+        const amount = Number(itemPrice).toFixed(2);
+        return amount + ' ' + 'USD';
+    }
+&lt;/script&gt;
+&lt;main&gt;
+&lt;!-- page content --&gt;
+&lt;/main&gt;
+</pre>
+<p>我们在这里所做的只是将<code>addToCart()</code>函数添加到这个文件中。我们已经知道该函数应该做什么，这正是我们设置它要做的:收集产品的<code>itemId</code>、<code>cartId</code>和选定的<code>quantity</code>，并将其发送到我们的<code>add-to-cart</code>端点。</p>
+<p>如果<code>cartId</code>为空——当用户第一次单击该按钮时，我希望它为空——将创建一个新的购物车并保存到<code>localStorage</code>。让我们来测试一下:</p>
+<pre>![add to cart](https://res.cloudinary.com/kennyy/video/upload/v1628966905/addtocart_yg0ov8.gif)
+</pre>
+<p><img data-attachment-id="65104" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/add-cart-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif" data-orig-size="600,467" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add to cart SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify-300x234.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif" decoding="async" class="size-full wp-image-65104 aligncenter jetpack-lazy-image" src="../Images/0a69ba78578b2fe1686494b92aa6dea5.png" alt="Add to Cart SvelteKit Shopify" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65104" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/add-cart-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif" data-orig-size="600,467" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add to cart SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify-300x234.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif" decoding="async" loading="lazy" class="size-full wp-image-65104 aligncenter" src="../Images/0a69ba78578b2fe1686494b92aa6dea5.png" alt="Add to Cart SvelteKit Shopify" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-sveltekit-shopify.gif"/></noscript>
+<p>Annnnnnnnnnnd，是的！我们成功地将商品添加到购物车中，耶！但现在还不那么明显。将响应记录到控制台对用户来说并不十分有用，所以让我们创建一个<code>Header</code>组件，以便在商品被添加到购物车时显而易见:</p>
+<pre>// src/components/Header.svelte
+&lt;script&gt;
+    import { onMount } from 'svelte';
+    let count;
+    import '../../src/app.css';
+    let cart;
+    onMount(() =&gt; {
+        cart = JSON.parse(localStorage.getItem('cart'));
+        if (cart) {
+            count = cart.lines.edges.length;
+        }
+    });
+&lt;/script&gt;
+&lt;section&gt;
+    &lt;header class="app-header"&gt;
+        &lt;h1&gt;Shoperoni&lt;/h1&gt;
+        &lt;nav class="main-nav"&gt;
+            &lt;ul&gt;
+                &lt;li class="main-nav-item"&gt;
+                    &lt;a href="/"&gt;All&lt;/a&gt;
+                &lt;/li&gt;
+                &lt;li class="main-nav-item"&gt;
+                    &lt;a href="/?type=cheese"&gt;Cheeses&lt;/a&gt;
+                &lt;/li&gt;
+                &lt;li class="main-nav-item"&gt;
+                    &lt;a href="/?type=meat"&gt;Meats&lt;/a&gt;
+                &lt;/li&gt;
+                &lt;li class="main-nav-item"&gt;
+                    &lt;a href="/?type=boards"&gt;Boards&lt;/a&gt;
+                &lt;/li&gt;
+
+                &lt;li class="main-nav-item"&gt;
+                        &lt;div class="cart-size"&gt;{count || 0}&lt;/div&gt;
+                        &lt;a href="/cart"&gt;Cart&lt;/a&gt;
+                &lt;/li&gt;
+            &lt;/ul&gt;
+        &lt;/nav&gt;
+    &lt;/header&gt;
+&lt;/section&gt;
+</pre>
+<p>这是将在页面顶部显示我们的导航项目的<code>&lt;Header/&gt;</code>组件。在该组件中，我们向导航栏添加了一个购物车条目。购物车计数将根据购物车中的商品数量增加/减少(从<code>localStorage</code>开始)。</p>
+<p>现在我们只需要更新我们的<code>src/routes/__layout.svelte</code>文件来导入和使用新的<code>Header</code>组件:</p>
+<pre>// src/routes/__layout.svelte
+&lt;script&gt;
+    import Header from '../components/Header.svelte';
+    import '../app.css';
+&lt;/script&gt;
+&lt;Header /&gt;
+&lt;main&gt;
+    &lt;slot /&gt;
+&lt;/main&gt;
+</pre>
+<p>在浏览器上测试一下，我们应该会得到想要的体验:</p>
+<pre>![add to cart working demo](https://res.cloudinary.com/kennyy/video/upload/v1628971519/add_to_cart_demo_kv41g5.gif)
+</pre>
+<p><img data-attachment-id="65125" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/add-cart-ui-updates-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif" data-orig-size="600,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add to cart UI updates SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify-300x231.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif" decoding="async" class="size-full wp-image-65125 aligncenter jetpack-lazy-image" src="../Images/9ef33598560d2634064dcba9b727ae5f.png" alt="Add to Cart UI Updates SvelteKit Shopify" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65125" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/add-cart-ui-updates-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif" data-orig-size="600,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add to cart UI updates SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify-300x231.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif" decoding="async" loading="lazy" class="size-full wp-image-65125 aligncenter" src="../Images/9ef33598560d2634064dcba9b727ae5f.png" alt="Add to Cart UI Updates SvelteKit Shopify" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/add-cart-ui-updates-sveltekit-shopify.gif"/></noscript>
+<h2>制作购物车页面</h2>
+<p>此时，当我们向购物车添加商品时，我们可能需要查看购物车，对吗？让我们在<code>src/routes</code>文件夹中创建一个<code>cart.svelte</code>页面，设置如下:</p>
+<pre>// src/routes/cart.svelte
+&lt;script&gt;
+    import CartTable from '../components/CartTable.svelte';
+    import CartTotal from '../components/CartTotal.svelte';
+    import { onMount } from 'svelte';
+    let cart;
+    let cartItems = [];
+    onMount(() =&gt; {
+        // get cart details from localStorage
+        cart = JSON.parse(localStorage.getItem('cart'));
+        cartItems = cart.lines.edges;
+    });
+&lt;/script&gt;
+&lt;section&gt;
+    &lt;main class="cart-page"&gt;
+        &lt;article class="cart-page-content"&gt;
+            &lt;h1&gt;Your Cart&lt;/h1&gt;
+            {#if cartItems.length &gt; 0}
+                &lt;CartTable /&gt;
+                &lt;CartTotal /&gt;
+            {:else}
+                &lt;section v-else&gt;
+                    &lt;p class="cart-page-message"&gt;Your cart is empty, fill it up!&lt;/p&gt;
+                    &lt;a href="/" class="cart-page-button is-dark"&gt; Back to Products &lt;/a&gt;
+                &lt;/section&gt;
+            {/if}
+        &lt;/article&gt;
+    &lt;/main&gt;
+&lt;/section&gt;
+</pre>
+<p>在这个购物车页面上，当组件挂载时，我们从<code>localStorage</code>获取购物车数据，并将其保存到我们声明的<code>cart</code>变量中。然后在页面内容中，我们将有条件地显示购物车中的商品(如果有的话)。否则，我们只是告诉用户将商品添加到购物车中。</p>
+<p>至此，我们已经成功设置了购物车页面。如果你注意到我们在这里使用了新的组件，好眼力！您可以在这里访问它们:<a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce/blob/master/src/components/CartTable.svelte" target="_blank" rel="noopener"> <code>CartTable</code>组件</a>和<a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce/blob/master/src/components/CartTotal.svelte" target="_blank" rel="noopener"> <code>CartTotal</code>组件</a>。</p>
+<p>我努力把这篇文章控制在一个合理的长度内，所以我不会深入到实用函数和组件的细节中。我提供了到项目存储库的链接，也提供了到我们在这些片段中访问的直接文件的链接，这样，如果您想快速查找它们，就很容易了。</p>
+<p>让我们回到浏览器上查看我们的购物车页面实现:</p>
+<pre>![cart page](https://res.cloudinary.com/kennyy/video/upload/v1628973488/cart_page_so8n2p.gif) 
+</pre>
+<p><img data-attachment-id="65127" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/cart-page-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif" data-orig-size="600,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Cart page SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify-300x228.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif" decoding="async" class="size-full wp-image-65127 aligncenter jetpack-lazy-image" src="../Images/94f22afb785c3b1e3fd99eac48b06491.png" alt="Cart Page SvelteKit Shopify" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65127" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/cart-page-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif" data-orig-size="600,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Cart page SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify-300x228.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif" decoding="async" loading="lazy" class="size-full wp-image-65127 aligncenter" src="../Images/94f22afb785c3b1e3fd99eac48b06491.png" alt="Cart Page SvelteKit Shopify" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/cart-page-sveltekit-shopify.gif"/></noscript>
+<h2>从购物车中移除商品</h2>
+<p>看起来我们的购物车工作正常，唯一剩下的事情就是从购物车中移除物品。</p>
+<p>这将与我们向购物车添加商品的操作相反。当用户点击<code>Remove Item</code>按钮时，我们将向我们的<code>/remove-from-cart</code>端点发出 post 请求，并用新的响应更新<code>localStorage</code>中的购物车。让我们在<code>api</code>文件夹中创建端点:</p>
+<pre>// src/routes/api/remove-from-cart
+import { removeItemFromCart } from './utils/removeItemFromCart';
+export async function post(request) {
+    const { cartId, lineId } = JSON.parse(request.body);
+    try {
+        const shopifyResponse = await removeItemFromCart({
+            cartId,
+            lineId
+        });
+        return {
+            statusCode: 200,
+            body: JSON.stringify(shopifyResponse.cartLinesRemove.cart)
+        };
+    } catch (error) {
+        console.log('There was an error removing-item-from-cart');
+        console.log(error);
+    }
+}
+</pre>
+<p>像我们到目前为止使用的其他实用函数一样，您可以在这里<a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce/blob/master/src/routes/api/utils/removeItemFromCart.js" target="_blank" rel="noopener">找到<code>removeItemFromCart()</code>函数</a>供您使用。看起来我们都准备好从购物车中移除物品了，除了我们还没有把它挂在我们的<code>Remove Item</code>按钮上。为此，我们需要在从我们的<code>CartTable</code>组件中单击按钮时触发 post 请求:</p>
+<pre>//src/components/CartTable.svelte
+&lt;script&gt;
+    import { formatCurrency } from '../utils/currency';
+    import { onMount } from 'svelte';
+    let cartItems = [];
+    let cart;
+    onMount(() =&gt; {
+        cart = JSON.parse(localStorage.getItem('cart'));
+        cartItems = cart.lines.edges;
+    });
+    function itemTotal(price, quantity) {
+        const totalPrice = Number(price) * Number(quantity);
+        return totalPrice.toFixed(2);
+    }
+    async function removeItem(lineId) {
+        // remove item from Shopify cart
+        const removeItemFromCart = await fetch('/api/remove-from-cart', {
+            method: 'POST',
+            body: JSON.stringify({
+                cartId: localStorage.getItem('cartId'),
+                lineId
+            })
+        })
+            .then((res) =&gt; res.json())
+            .then((data) =&gt; data);
+        // update localStorage;
+        localStorage.setItem('cartId', removeItemFromCart.id);
+        localStorage.setItem('cart', JSON.stringify(removeItemFromCart));
+        location.reload();
+    }
+&lt;/script&gt;
+&lt;section&gt;
+    &lt;!-- other page content --&gt;
+    &lt;td class="cart-table-cell"&gt;
+        &lt;button on:click={removeItem(item.id)}&gt;Remove Item&lt;/button&gt;
+    &lt;/td&gt;
+&lt;/section&gt;
+</pre>
+<p>现在，如果我们单击<code>Remove Item</code>按钮，我们应该会看到商品从购物车中移除:</p>
+<pre>![remove item from cart](https://res.cloudinary.com/kennyy/video/upload/v1628978644/remove_from_cart_gycv7k.gif)
+</pre>
+<p><img data-attachment-id="65137" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/remove-from-cart-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif" data-orig-size="600,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Remove from Cart SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify-300x232.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif" decoding="async" class="size-full wp-image-65137 aligncenter jetpack-lazy-image" src="../Images/dabd0be910657dea5c71613a93fa29fd.png" alt="Remove from Cart SvelteKit Shopify" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65137" data-permalink="https://blog.logrocket.com/managing-sveltekit-shopify-cart-interactions/attachment/remove-from-cart-sveltekit-shopify/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif" data-orig-size="600,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Remove from Cart SvelteKit Shopify" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify-300x232.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif" decoding="async" loading="lazy" class="size-full wp-image-65137 aligncenter" src="../Images/dabd0be910657dea5c71613a93fa29fd.png" alt="Remove from Cart SvelteKit Shopify" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/08/remove-from-cart-sveltekit-shopify.gif"/></noscript>
+<p>至此，我们的 mini Shopify 和 SvelteKit 冒险结束了。我希望你和我一样喜欢这个过程。</p>
+<p>如果您有任何问题，请随时提出问题，或者更好的是，在<a href="https://github.com/kenny-io/sveltekit-shopify-ecommerce" target="_blank" rel="noopener">项目库</a>上发送一个 PR。如果你想探索这个网站，演示也在 Netlify 的<a href="https://sveltekit-shopify-ecommerce.netlify.app" target="_blank" rel="noopener">网站上进行。</a></p><div class="code-block code-block-22">
+<div class="blog-plug inline-plug ecomm-plug"><h2><a href="https://lp.logrocket.com/blg/ecommerce-signup"> LogRocket </a>:看看用户为什么不完成你的电子商务流程中的一个步骤的技术和 UX 原因。</h2><a class="signup" href="https://lp.logrocket.com/blg/ecommerce-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d60d88871d85e76e0dcca90f4bbaf78c.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/insights-step-2-lg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/insights-step-2-lg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d60d88871d85e76e0dcca90f4bbaf78c.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/insights-step-2-lg.png"/></noscript></a><p>LogRocket 就像是一个网络和移动应用程序和网站的 DVR，记录你的电子商务应用程序上发生的一切。LogRocket 没有猜测用户不转化的原因，而是主动揭示了阻止你转化的根本原因，比如 JavaScript 错误或死点击。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>开始主动监控您的电子商务应用程序— <a class="signup" href="https://lp.logrocket.com/blg/ecommerce-signup" target="_blank" rel="noopener noreferrer">免费试用</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

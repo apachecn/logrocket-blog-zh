@@ -1,0 +1,316 @@
+<html>
+<head>
+<title>How to add Redis cache to a NestJS app - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何向 NestJS 应用程序添加 Redis 缓存</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/add-redis-cache-nestjs-app/#0001-01-01">https://blog.logrocket.com/add-redis-cache-nestjs-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>性能，性能，性能！这就是缓存的全部意义。</p>
+<p>缓存特别有助于提高应用程序的性能，从而显著提高其效率。</p>
+<p>本文将研究如何使用 Redis 为 NestJS 应用程序添加缓存功能。我们将讨论什么是缓存，Redis，并回顾实现过程。</p>
+<p>所以拿起一杯咖啡(或者任何你们这些天喝的东西)。这将会是一次有趣的经历！</p>
+
+<h2 id="what-is-caching">什么是缓存？</h2>
+<p>在计算中，缓存是频繁查询的重复数据的临时存储。数据保存在易于访问的位置，以减少延迟。</p>
+<p>让我打个比方来帮助更好地解释这个概念…</p>
+<p>假设你最终还是得到了那杯咖啡！想象一下，每次你喝一点咖啡，你都必须回到你的咖啡机旁。你倒满杯子，喝一小口，然后把它放在那里，回到你的工作站继续阅读这篇文章。</p>
+<p>因为你必须不停地来回走到你的咖啡机和咖啡杯前，所以你要花几个小时才能喝完你的咖啡(还有这篇文章)。这就是没有缓存的情况。</p>
+<p>让我们想象一个不同的场景。比方说，当你走向咖啡机喝第一口咖啡时，不是喝一口然后回到你的工作间，而是倒满你的杯子，拿着它回到你的工作间。</p>
+<p>当你继续阅读这篇文章的时候，你总是在你的办公桌上放着你的咖啡。你可以很快地啜饮一口(降低延迟)，这样你就可以专注于这篇文章，更快地完成它。<a href="https://blog.logrocket.com/caching-strategies-to-speed-up-your-api/" target="_blank" rel="noopener">这是实现缓存时发生的情况</a>。</p>
+<p>如果我们把这个类比带到现实世界，咖啡机就是网络服务器，咖啡本身就是经常被查询的数据。</p>
+<h2 id="what-is-redis">什么是里兹？</h2>
+<p>根据 Redis 官方网站<a href="https://redis.io/docs/about/#:~:text=Redis%20is%20an%20open%20source,%2C%20geospatial%20indexes%2C%20and%20streams." target="_blank" rel="noopener">的说法，“Redis 是一个开源的内存数据结构存储，用作数据库、缓存、消息代理和流媒体引擎。”</a></p>
+<p><a href="https://blog.logrocket.com/guide-to-fully-understanding-redis/" target="_blank" rel="noopener">需要注意的是，Redis 并不单独处理缓存</a>。它提供了数据结构，如散列、集合、字符串、列表、位图和带有范围查询、流、超级日志和地理空间索引的排序集合。</p>
+<h2 id="implementing-redis-cache-nestjs-app">在 NestJS 应用程序中实现 Redis 缓存</h2>
+<h3 id="prerequisites">先决条件</h3>
+<p>要阅读本文，您需要以下内容:</p>
+<ul>
+<li>安装在计算机上的 Node.js</li>
+<li>JavaScript 和 Node.js 的基础知识</li>
+<li>安装在计算机上的 NestJS 命令行界面(CLI)</li>
+<li>对 Nest 工作原理的基本了解</li>
+</ul>
+<p>如果你没有安装 NestJS，<a href="https://docs.nestjs.com/" target="_blank" rel="noopener">这将帮助你达到速度</a>。</p>
+<p>在您的机器上安装了 NestJS CLI 之后，让我们继续为我们的应用程序设置 Redis 缓存。</p>
+<h2 id="setting-up-redis-cache-nestjs-app">为我们的 NestJS 应用程序设置 Redis 缓存</h2>
+<p>首先，让我们创建一个新项目。我们就叫它<code>redis-setup</code>。安装 NestJS 后打开终端，运行下面一行代码:</p>
+<pre class="language-bash hljs">nest new redis-setup
+</pre>
+<p>之后，我们要选择我们喜欢的包管理器。</p>
+<p id="gdcalert1"><img data-attachment-id="124213" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/preferred-package-manager/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png" data-orig-size="730,447" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="preferred-package-manager" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png" decoding="async" class="aligncenter size-full wp-image-124213 jetpack-lazy-image" src="../Images/b6ff6990ca5bfec8ae6b95035068baea.png" alt="Package Manager Screenshot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager-300x184.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124213" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/preferred-package-manager/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png" data-orig-size="730,447" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="preferred-package-manager" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124213" src="../Images/b6ff6990ca5bfec8ae6b95035068baea.png" alt="Package Manager Screenshot" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager-300x184.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/preferred-package-manager.png"/></noscript>
+<p>就我而言，我选择了<code>npm</code>，但是请选择适合你的！之后，安装将继续。</p>
+<p>一旦安装完成，我们会看到类似下面的截图。我们必须通过运行<code>cd redis-setup</code>来<code>cd</code>进入我们的应用。</p>
+<p id="gdcalert2"><img data-attachment-id="124215" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/cd-redis-setup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png" data-orig-size="730,472" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="cd redis-setup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png" decoding="async" class="aligncenter size-full wp-image-124215 jetpack-lazy-image" src="../Images/94df0fb8fa3d7cc7aaa8666c7aa3bcaf.png" alt="Cd Into Redis Setup Screenshot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup-300x194.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124215" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/cd-redis-setup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png" data-orig-size="730,472" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="cd redis-setup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124215" src="../Images/94df0fb8fa3d7cc7aaa8666c7aa3bcaf.png" alt="Cd Into Redis Setup Screenshot" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup-300x194.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/cd-redis-setup.png"/></noscript>
+<p>一旦进入项目目录，我们将在终端中运行<code>code</code>。这将自动在 VS 代码中打开项目，前提是它已经安装。</p>
+<p id="gdcalert3"><img data-attachment-id="124218" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/vs-code-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vs-code" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png" decoding="async" class="aligncenter size-full wp-image-124218 jetpack-lazy-image" src="../Images/7df15585238ff91a274371cf461ae089.png" alt="VS Code" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code-300x187.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124218" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/vs-code-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vs-code" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124218" src="../Images/7df15585238ff91a274371cf461ae089.png" alt="VS Code" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code-300x187.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/vs-code.png"/></noscript>
+<p>下面是我们的<code>redis-setup</code>项目的样子。</p>
+<p id="gdcalert4"><img data-attachment-id="124221" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/redis-setup-project/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="redis-setup-project" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png" decoding="async" class="aligncenter size-full wp-image-124221 jetpack-lazy-image" src="../Images/006ec289a7c5f0221ce10507d6301577.png" alt="Redis Setup Project Screenshot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project-300x187.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124221" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/redis-setup-project/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="redis-setup-project" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124221" src="../Images/006ec289a7c5f0221ce10507d6301577.png" alt="Redis Setup Project Screenshot" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project-300x187.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/redis-setup-project.png"/></noscript>
+<p>在我们继续设置之前，我们需要在应用程序中安装四个主要的包。</p>
+<h3 id="installing-packages">安装软件包</h3>
+<p>我们需要安装的第一个包是<code>node-cache-manager</code>。节点缓存模块管理器允许在缓存、分层缓存和一致的接口中轻松包装功能。通过在终端中运行<code>npm install cache-manager</code>来安装它。</p>
+<p>接下来，我们需要安装<code>node-cache-manager</code>的 TypeScript 实现<code>@types/cache-manager</code>。通过在终端运行<code>npm i @types/cache-manager</code>来安装它。</p>
+<p>第三，我们将安装<code>cache-manager-redis-store</code>。这个包为将配置传递给<code>node_redis</code>包提供了一个非常简单的包装器。通过在终端运行<code>npm install cache-manager-redis-store --save</code>来安装它</p>
+<p>最后我们需要安装<code>@types/cache-manager-redis-store</code>。这是<code>cache-manager-redis-store</code>包的 TypeScript 实现。通过在终端运行<code>npm i --save-dev @types/cache-manager-redis-store</code>来安装它。</p>
+<p>完成安装后，我们可以继续为我们的应用程序配置<code>redis-cache</code>。</p>
+<h3 id="configuring-redis-cache">配置<code>redis-cache</code></h3>
+<p>配置<code>redis-cache</code>的第一步是导入<code>CacheModule</code>并调用它的方法<code>register()</code>。这个方法将采用我们的 Redis 配置。</p>
+<pre class="language-javascript hljs">//import CacheModule from @nestjs/common'
+
+import { Module, CacheModule } from '@nestjs/common';
+</pre>
+<p>在接受一个对象的<code>register()</code>中，我们将创建一个名为<code>store</code>的属性，并将<code>redisStore</code>赋给它。<code>redisStore</code>将代表我们安装的<code>cache-manager-redis-store</code>库。</p>
+<pre class="language-javascript hljs">//import CacheModule from '@neskjs/common/cache';
+import { Module, CacheModule } from '@nestjs/common';
+
+//import redisStore from 'cache-manager-redis-store';
+import * as redisStore from 'cache-manager-redis-store';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [CacheModule.register({ store: redisStore })],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<p>接下来，我们将在<code>register()</code>方法对象中设置另一个属性。我们将添加另一个名为<code>host</code>的属性，并将其值设置为默认值<code>localhost</code>。我们将把<code>port</code>设置为<code>6379</code>的默认值。</p>
+<pre class="language-javascript hljs">//import CacheModule from '@neskjs/common/cache';
+import { Module, CacheModule } from '@nestjs/common';
+
+//import redisStore from 'cache-manager-redis-store';
+import * as redisStore from 'cache-manager-redis-store';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [CacheModule.register({ 
+    store: redisStore, 
+    host: 'localhost', //default host
+    port: 6379 //default port
+  })],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<p>通过以上操作，我们已经在 Redis 和我们的 NestJS 应用程序之间建立了一个简单的基本配置！</p>
+<p>第二步是将功能注入我们的控制器。这是为了让我们的控制器可以与 Redis 商店通信。我们需要注射<code>CacheManager</code>。</p>
+<p>在我们的项目目录中，前往<code>app.controller.ts</code>。在这个文件中，我们将从<code>@nestjs/common</code>导入<code>Get</code>、<code>Inject</code>和<code>CACHE_MANAGER</code>。</p>
+<pre class="language-javascript hljs">//importing Get, Inject, Inject, and CACHE_MANAGER from nestjs/common
+import { Controller, Get, Inject, CACHE_MODULE } from '@nestjs/common';
+</pre>
+<p>之后，我们将传入<code>Inject</code>和<code>CACHE_MANAGER</code>令牌。接下来，我们将从<code>cache-manager</code>导入<code>Cache</code>，并将其传递给我们的<code>cacheManager</code>。</p>
+<pre class="language-javascript hljs">//importing Get, Inject, Inject, and CACHE_MANAGER from nestjs/common
+import { Controller, Get, Inject, CACHE_MANAGER } from '@nestjs/common';
+//import the cache manager
+import Cache from 'cache-manager';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache{}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+</pre>
+<p><strong> N.B. </strong>，<code>Cache</code>类从<code>cache-manager</code>库导入，<code>CACHE_MANAGER</code>令牌从<code>@nestjs/common</code>导入。</p>
+<p><code>CACHE_MANAGER</code>注入了<code>redis-cache-store</code>，而<code>Cache</code>提供了默认的<code>Cache</code>通信方法，也适用于任何其他商店。</p>
+<p>先来了解一下 Redis 商店的<code>get</code>和<code>set</code>方法。</p>
+<h3 id="get-set-methods"><code>get</code>和<code>set</code>方法</h3>
+<p><code>Cache</code>实例有<code>get</code>方法，这是我们从<code>cache-manager</code>包中得到的。这个方法使我们能够从缓存中获取项目。如果缓存为空，则返回<code>null</code>。</p>
+<pre class="language-javascript hljs">let val = await this.cacheManager.get('key');
+</pre>
+<p>我们使用<code>get</code>方法向缓存中添加一个条目。默认的缓存时间是 5 秒，但是我们可以根据需要随时手动设置生存时间(TTL)。这将取决于应用程序的规格。</p>
+<pre class="language-javascript hljs">await this.cacheManager.set('key', 'value', {ttl: 2000});
+</pre>
+<p>在我们的<code>get</code>方法中，我们将传递 URL 来检查我们的 Redis 存储。</p>
+<pre class="language-javascript hljs">@Get('get-number-cache')
+</pre>
+<p>接下来，在我们的<code>app.controller.ts</code>中，我们将创建一个获取数字的方法。我们将使用字符串<code>number</code>检查我们的号码在 Redis 商店中是否可用。</p>
+<pre class="language-javascript hljs">const val = await this.cacheManager.get('number')
+    if(val) {
+      return { 
+        data: val,
+        FromRedis: 'this is loaded from redis cache'
+      }
+    }
+</pre>
+<p>如果是这种情况，我们将把数据返回给端点。但是，如果数据不存在于<code>redis-store</code>中，我们使用键<code>number</code>存储它，并将 TTL 设置为任何所需的值。在我们的例子中，我们将使用<code>1000</code>。</p>
+<p>最后，我们将从我们的虚拟数据库<code>randomNumDbs</code>返回存储的数据。在这种情况下，我们随机生成数字。我们可以使用字符串，但是在现实世界的生产应用程序中，这是我们从数据库中为每个第一个请求获取数据的地方。</p>
+<pre class="language-javascript hljs">if(!val){
+      await this.cacheManager.set('number', this.randomNumDbs , { ttl: 1000 })
+      return {
+        data: this.randomNumDbs,
+        FromRandomNumDbs: 'this is loaded from randomNumDbs'
+    }
+</pre>
+<p>下面是完整的代码:</p>
+<pre class="language-javascript hljs">@Controller()
+export class AppController {
+  //This would be our dummy database since we won't be connecting to a database in the article
+  randomNumDbs = Math.floor(Math.random() * 10)
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+
+  @Get('get-number-cache')
+  async getNumber(): Promise&lt;any&gt; {
+    const val = await this.cacheManager.get('number')
+    if(val) {
+      return { 
+        data: val,
+        FromRedis: 'this is loaded from redis cache'
+      }
+    }
+
+    if(!val){
+      await this.cacheManager.set('number', this.randomNumDbs , { ttl: 1000 })
+      return {
+        data: this.randomNumDbs,
+        FromRandomNumDbs: 'this is loaded from randomNumDbs'
+    }
+  }
+}
+</pre>
+<p>现在是时候运行我们的应用程序并测试我们到目前为止所做的事情了。要在终端中实现这一点，运行<code>npm start</code>并在浏览器中访问 URL<a href="http://localhost:3000/get-number-cache">http://localhost:3000/get-number-cache</a>。</p>
+<p>在第一次加载时，我们的请求将从我们的虚拟随机数数据库中提取。</p>
+<p id="gdcalert5"><img data-attachment-id="124223" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/random-number-database-request/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png" data-orig-size="730,219" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="random-number-database-request" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png" decoding="async" class="aligncenter size-full wp-image-124223 jetpack-lazy-image" src="../Images/127813e9eb4212793c77b40b5ffb24d2.png" alt="Random Number Database Request" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request-300x90.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124223" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/random-number-database-request/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png" data-orig-size="730,219" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="random-number-database-request" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124223" src="../Images/127813e9eb4212793c77b40b5ffb24d2.png" alt="Random Number Database Request" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request-300x90.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/random-number-database-request.png"/></noscript>
+<p>第二个请求(和其他请求)将从 Redis 存储中加载，直到缓存的数据过期。</p>
+<p id="gdcalert6"><img data-attachment-id="124226" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/loaded-redis-cache/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png" data-orig-size="730,179" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loaded-redis-cache" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache-300x74.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png" decoding="async" class="aligncenter size-full wp-image-124226 jetpack-lazy-image" src="../Images/1baa57252ae6c92bb745650a3aee77cd.png" alt="Loaded Redis Cache" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache-300x74.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124226" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/loaded-redis-cache/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png" data-orig-size="730,179" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loaded-redis-cache" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache-300x74.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124226" src="../Images/1baa57252ae6c92bb745650a3aee77cd.png" alt="Loaded Redis Cache" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache-300x74.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/loaded-redis-cache.png"/></noscript>
+<p>Redis 缓存还有另外两种方法:<code>del</code>和<code>reset</code>。</p>
+<h3 id="del-reset-methods"><code>del</code>和<code>reset</code>方法</h3>
+<p>如果还不清楚的话，<code>del</code>方法可以帮助我们从缓存中移除一个条目。</p>
+<pre class="language-javascript hljs">await this.cacheManager.del('number');
+</pre>
+<p>另一方面，<code>reset</code>方法清除整个 Redis 存储缓存</p>
+<pre class="language-javascript hljs">await this.cacheManager.reset();
+</pre>
+<h2 id="setting-up-automatic-caching-interceptor">使用拦截器设置自动缓存</h2>
+<p>自动缓存使用<code>CacheInterceptor</code>启用控制器内部每个<code>Get</code>动作方法的缓存。</p>
+<p>在我们的<code>app.module.ts</code>文件中，我们将导入<code>CacheInterceptor</code>。使用<code>TTL</code>属性为我们的自动缓存全局配置过期时间。要启用<code>CacheInterceptor</code>，我们需要将其导入到数组<code>providers</code>中。</p>
+<pre class="language-javascript hljs">//import CacheModule from '@neskjs/common/cache';
+import { Module, CacheModule, CacheInterceptor } from '@nestjs/common';
+
+//import redisStore from 'cache-manager-redis-store';
+import * as redisStore from 'cache-manager-redis-store';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+
+@Module({
+  imports: [CacheModule.register({ 
+    store: redisStore, 
+    host: 'localhost', //default host
+    port: 6379, //default port
+    ttl: 2000, //ttl
+  })],
+  controllers: [AppController],
+  providers: [
+    {
+      provide:APP_INTERCEPTOR,
+      useClass: CacheInterceptor
+    },
+    AppService],
+})
+export class AppModule {}
+</pre>
+<p>接下来，在<code>app.controller.ts</code>中，我们从<code>@nestjs/common</code>导入<code>UseInterceptor</code>和<code>CacheInterceptor</code>。</p>
+<pre class="language-javascript hljs">import { Controller, Get, Inject, CACHE_MANAGER, UseInterceptors, CacheInterceptor } from '@nestjs/common';
+</pre>
+<p>我们直接在<code>@controller()</code>下面使用<code>UseInterceptors</code>装饰器，并将<code>CacheInterceptor</code>传递给它。这将为控制器中的所有<code>Get</code>端点启用自动缓存。</p>
+<pre class="language-javascript hljs">//importing Get, Inject, Inject, and CACHE_MANAGER from nestjs/common
+import {Controller, Get, Inject, CACHE_MANAGER, UseInterceptors, CacheInterceptor} from '@nestjs/common';
+//import the cache manager
+import {Cache} from 'cache-manager';
+import { AppService } from './app.service';
+//import Profile.ts
+import {User} from './shared/model/User';
+
+@UseInterceptors(CacheInterceptor)
+@Controller()
+export class AppController {
+  fakeModel:User = {
+    id: 1,
+    name: 'John Doe',
+    email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6e01050b0b2e09030f0702400d0103">[email protected]</a>',
+    phone: '123456789',
+    address: '123 Main St',
+    createdAt: new Date(),
+  }
+
+  @Get('auto-caching')
+  getAutoCaching() {
+    return this.fakeModel;
+  }
+}
+</pre>
+<p>对于自动缓存，<code>key</code>是<code>route</code>值。这是将要存储在我们缓存中的内容，如下面的截图所示。</p>
+<p id="gdcalert7"><img data-attachment-id="124229" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/key-route-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png" data-orig-size="730,186" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="key-route-value" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png" decoding="async" class="aligncenter size-full wp-image-124229 jetpack-lazy-image" src="../Images/346c4f8076315ee9234005dc38b6467e.png" alt="Key Route Value" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value-300x76.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="124229" data-permalink="https://blog.logrocket.com/add-redis-cache-nestjs-app/attachment/key-route-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png" data-orig-size="730,186" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="key-route-value" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-124229" src="../Images/346c4f8076315ee9234005dc38b6467e.png" alt="Key Route Value" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value-300x76.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/key-route-value.png"/></noscript>
+<p>我们可以在 CLI 中输入<code>keys *</code>命令来确认这一点。</p>
+<p>在我们想要存储特定路线的数据的情况下，我们不会使用全局定义的<code>time</code>和<code>key</code>。我们可以定制我们的方法来获得不同的时间。</p>
+<p>在<code>app.controller.ts</code>中，我们使用一个叫做<code>@CacheTTL()</code>的装饰器。对于惟一键，我们使用另一个装饰器<code>@CacheKey()</code>，从<code>@nestjs/common</code>导入。</p>
+<pre class="language-javascript hljs">//importing Get, Inject, Inject, and CACHE_MANAGER from nestjs/common
+import {Controller, Get, Inject, CACHE_MANAGER, UseInterceptors, CacheInterceptor, CacheKey, CacheTTL} from '@nestjs/common';
+</pre>
+<p>指定一个将数据保存到 Redis 存储中的字符串，并为我们的控制器指定一个私有时间。</p>
+<pre class="language-javascript hljs">@Get('auto-caching')
+  @CacheKey('auto-caching-fake-model')
+  @CacheTTL(10)
+  getAutoCaching() {
+    return this.fakeModel;
+  }
+</pre>
+<p>下面是<code>app.controller.ts</code>文件自动缓存代码的完整代码。</p>
+<pre class="language-javascript hljs">//importing Get, Inject, Inject, and CACHE_MANAGER from nestjs/common
+import {Controller, Get, Inject, CACHE_MANAGER, UseInterceptors, CacheInterceptor, CacheKey, CacheTTL} from '@nestjs/common';
+//import the cache manager
+import {Cache} from 'cache-manager';
+import { AppService } from './app.service';
+//import Profile.ts
+import {User} from './shared/model/User';
+
+@UseInterceptors(CacheInterceptor)
+@Controller()
+export class AppController {
+  fakeModel:User = {
+    id: 1,
+    name: 'John Doeeee',
+    email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="731c18161633141e121a1f5d101c1e">[email protected]</a>',
+    phone: '123456789',
+    address: '123 Main St',
+    createdAt: new Date(),
+  }
+
+  @Get('auto-caching')
+  @CacheKey('auto-caching-fake-model')
+  @CacheTTL(10)
+  getAutoCaching() {
+    return this.fakeModel;
+  }
+}
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>就是这样！在本文中，我们讨论了如何向 NestJS 应用程序添加 Redis 缓存。</p>
+<p>Redis 支持更低的应用程序延迟和非常高的数据访问。这使得软件工程师能够构建高性能、可靠的解决方案。</p>
+<p>在我看来，Redis 利大于弊(如果有的话)。我希望我已经分享了一些关于 NestJS 和 Redis 商店如何工作的深入信息！</p>
+<p>如果你喜欢这篇文章，请在评论区发表评论！谢谢你陪我看完这一集。再见！！！</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+ 
+</div>    
+</body>
+</html>

@@ -1,0 +1,293 @@
+<html>
+<head>
+<title>How to build a REST client with JavaScript proxies - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用 JavaScript 代理构建 REST 客户端</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-rest-client-javascript-proxies/#0001-01-01">https://blog.logrocket.com/build-rest-client-javascript-proxies/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>元编程是一种编程技术，它允许一个程序像对待自己的数据一样对待另一个程序的数据。例如，一个程序可以被设计成在运行时读取、生成、分析或修改其他程序，以及修改自身。代理是元编程的一个特性，它通过将不同的函数作为参数传递来增强函数的行为，本质上允许开发人员欺骗 JavaScript 语言。</p>
+<p>在本文中，我们将了解 JavaScript 代理是如何工作的，然后我们将使用 JavaScript 代理对象构建一个天气预报应用程序。要跟随本教程，您需要 JavaScript 的基础知识。我们开始吧！</p>
+
+<h2 id="what-is-proxy">什么是代理？</h2>
+<p>代理充当操作对象或<code>handler</code>和<code>target</code>对象之间的一层，用于拦截和重定义<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#a_complete_traps_list_example">基本操作或<code>traps</code> </a>，如获取、设置和定义属性。代理对象通常用于记录属性访问、验证、格式化、净化输入等。</p>
+<p><code>proxy()</code>对象是<code>target</code>对象的包装器，通过它可以在<code>traps</code>的帮助下访问和修改<code>target</code>对象的属性。代理用于两个主要目标，这两个目标指导如何实际使用代理对象:</p>
+<ul>
+<li>代理在修改<code>target</code>对象的属性之前控制数据</li>
+<li>当访问<code>target</code>对象的属性时，代理执行附加功能</li>
+</ul>
+<h2 id="why-use-proxy">为什么应该使用代理？</h2>
+<p>我们可以使用代理进行以下操作:</p>
+<ul>
+<li>完全控制数据</li>
+<li>确保对象或函数的正确行为</li>
+<li>用于 REST API 调用、数据验证和监控异步函数</li>
+<li>在类型检查和可撤销引用中</li>
+<li>为了在 JavaScript 中实现 DOM(文档对象模型)</li>
+</ul>
+<h2 id="how-does-proxy-work">代理是如何工作的？</h2>
+<h3 id="proxy-syntax">代理语法</h3>
+<pre class="“language-javascript">let proxy = new Proxy(target, handler);
+</pre>
+<p><code>target</code>和<code>handler</code>是传递给<code>proxy()</code>对象的两个参数:</p>
+<ul>
+<li><code>target</code>:您想要代理的原始对象</li>
+<li><code>handler</code>:包含控制<code>target</code>对象行为的方法</li>
+</ul>
+<p><code>target</code>对象是被包装的对象，<code>handler</code>是在<code>target</code>对象上使用的函数，<code>traps</code>方法在<code>handler</code>内部使用，对<code>target</code>对象执行操作。</p>
+<h2 id="traps-method"><code>traps</code>方法</h2>
+<p><code>traps</code>是通过<code>proxy()</code>对象在<code>target</code>对象上执行一些动作时触发的处理程序方法。<code>traps</code>方法可以从 RESTful API 中检索数据，然后用于验证、格式化和存储 RESTful 数据响应到<code>target</code>对象中。让我们简单看看一些常见的<code>traps</code>方法，以及我们如何使用<code>traps</code>来验证 RESTful API 响应:</p>
+<h3 id="set-trap"><code>set()</code>陷阱</h3>
+<p>每当使用<code>proxy()</code>对象修改<code>target</code>对象的属性时，就会触发<code>set()</code>陷阱。它可以用来控制<code>target</code>对象的行为。</p>
+<p>让我们学习如何使用<code>set()</code>陷阱从 API 获取数据，然后在将数据存储到<code>target</code>对象之前验证响应数据。作为一个例子，我们将演示如何在 JavaScript 代理对象中使用<a href="https://genderize.io/"> genderize.io API </a>，这是一个免费的 API，它使用现有的人口比例统计预测给定姓名的男性或女性性别关联:</p>
+<pre class="“language-javascript">let person = {
+        name: "",
+             gender: "",
+        probability: "",
+        count: ""
+}
+
+const handler = {
+   set(target, property, value) {
+
+     fetch('https://api.genderize.io/?name='+value)
+     .then(response =&gt; (response.json()))
+    .then(data =&gt; {
+     if (typeof value === 'string') {
+       if(data.name !=='undefined'){
+            target['name']=data.name
+            target['gender']=data.gender
+            target[probability]=data.probability
+            target[count]=data.count
+       }else {
+          target['name']=''
+          target['gender']=''
+          target[probability]=''
+          target[count]=''
+      }
+ }else{
+               throw new TypeError('The value of "name" must be a string.')
+ }
+    });
+
+    }
+};
+
+const proxyPerson = new Proxy(person, handler);
+proxyPerson.name ="popoola"
+</pre>
+<p>在上面的例子中，<code>set()</code>陷阱用于验证名称，获取性别，然后用我们从 API 中检索的数据更新<code>person</code>对象的属性。</p>
+<h3 id="get-trap"><code>get()</code>陷阱</h3>
+<p>当通过<code>proxy()</code>对象访问<code>target</code>对象的属性时，触发<code>get()</code>陷阱。使用这个陷阱的方法有很多；首先，我们可以用它来限制对某些属性的访问，或者只返回部分值。</p>
+<p>让我们演示如何使用<code>get()</code>陷阱从<code>target</code>对象返回一个自定义值:</p>
+<pre class="“language-javascript">let person = {
+                 name: "",
+                  gender: "",
+                  probability: "",
+                  count: ""
+}
+
+const handler = {
+     get(target, property) {
+         if(property==='userDetails'){
+                return`${target.name} is a ${target.gender}`
+         }elseif(property==='userInfo'){
+                If (target.name==="Male"){
+Return  "the user is a man"
+              }else{
+Return  " the user is a woman"
+         }
+         }else{
+
+
+                return target[property]
+        }
+
+       console.log(target[property])
+     return target[property];
+
+    }
+}
+
+const proxyPerson = new Proxy(person, handler);
+
+console.log(proxyPerson.userDetails);
+console.log(proxyPerson.gender);
+</pre>
+<p><code>person</code>对象没有属性<code>userDetails</code>和<code>userInfo</code>。因此，我们使用<code>get()</code>陷阱根据<code>person</code>对象的属性返回一个定制值。</p>
+<h3 id="more-traps">更多<code>traps</code></h3>
+<p>下面的列表包括从<code>proxy()</code>对象中可用的其他<code>traps</code>:</p>
+<ul>
+<li><code>construct</code>:新运算符的陷阱用法</li>
+<li><code>getPrototypeOf</code>:捕获对<code>[[GetPrototypeOf]]</code>的内部呼叫</li>
+<li><code>setPrototypeOf</code>:将呼叫拦截到<code>Object.setPrototypeOf</code></li>
+<li><code>isExtensible</code>:将呼叫拦截到<code>Object.isExtensible</code></li>
+<li><code>preventExtensions</code>:将呼叫拦截到<code>Object.preventExtensions</code></li>
+<li><code>getOwnPropertyDescriptor</code>:将呼叫拦截到<code>Object.getOwnPropertyDescriptor</code></li>
+</ul>
+<h2 id="build-weather-forecast-app-proxy">使用代理构建天气预报应用程序</h2>
+<h3 id="requirements">要求</h3>
+<p>要获取您的 API 密钥，请访问<code><a href="https://openweathermap.org/api" rel="nofollow">https://openweathermap.org/api</a></code>并注册。如果您点击<strong> API 键</strong>，您应该会看到类似下图的内容:</p>
+<p><img data-attachment-id="102494" data-permalink="https://blog.logrocket.com/build-rest-client-javascript-proxies/openweathermap-api-key/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png" data-orig-size="730,213" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openweathermap-api-key" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key-300x88.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png" decoding="async" class="aligncenter wp-image-102494 size-full jetpack-lazy-image" src="../Images/40f28fdbe9539fe19dd3e3272f9fa1f4.png" alt="Openweathermap Api Key" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key-300x88.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="102494" data-permalink="https://blog.logrocket.com/build-rest-client-javascript-proxies/openweathermap-api-key/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png" data-orig-size="730,213" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openweathermap-api-key" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key-300x88.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png" decoding="async" loading="lazy" class="aligncenter wp-image-102494 size-full" src="../Images/40f28fdbe9539fe19dd3e3272f9fa1f4.png" alt="Openweathermap Api Key" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key-300x88.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/openweathermap-api-key.png"/></noscript>
+<p>为了演示如何使用 JavaScript 代理对象构建 REST 客户端应用程序，让我们创建一个天气预报应用程序，它允许用户搜索任何地址，然后提供该地址的天气详细信息。</p>
+<h3 id="creating-index-html">正在创建<code>index.html</code></h3>
+<p>创建<code>index.html</code>页面，并向其中添加以下 HTML 代码:</p>
+<pre class="“language-javascript">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;&lt;/title&gt;
+&lt;/head&gt;
+&lt;style&gt;
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color:#dddddd;
+}
+&lt;/style&gt;
+
+&lt;body&gt;
+&lt;h1 style="text-align:center;"&gt; Weather forecast &lt;/h1&gt;
+&lt;div style="float:left;width:300px;height:200px;background-coor:red;margin-left:50px"&gt;        &lt;label&gt;enter city name&lt;/label&gt;
+          &lt;input type="text" value="" id="city" onchange="check('state')"&gt;&lt;br&gt;
+            &lt;label&gt;enter state name&lt;/label&gt;
+          &lt;input type="text" value="" id="state"onchange="check('country')"&gt;&lt;br&gt;
+          &lt;label&gt;enter country name&lt;/label&gt;
+            &lt;input type="text" value="" id="country"onchange="{proxyPerson.name ='load'}"&gt; &lt;br&gt;
+
+                  &lt;input type="submit" id="load" onclick ="{proxyPerson.name}" value="weather forecast"&gt;
+&lt;/div&gt;
+&lt;div style="float:right;width:300px;height:200px;background-coor:red;margin-right:50px;"&gt;
+
+
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;td&gt;location&lt;/td&gt;
+    &lt;td&gt;&lt;span id="location"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+  &lt;td&gt;Status&lt;/td&gt;
+  &lt;td&gt;&lt;span id="status"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+  &lt;td&gt;Description&lt;/td&gt;
+  &lt;td&gt;&lt;span id="description"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+  &lt;td&gt;Pressure&lt;/td&gt;
+  &lt;td&gt;&lt;span id="pressure"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+  &lt;td&gt;Humidity&lt;/td&gt;
+  &lt;td&gt;&lt;span id="humidity"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+  &lt;td&gt;temperature &lt;/td&gt;
+  &lt;td&gt;&lt;span id="temperature"&gt;&lt;/span&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/body&gt;
+
+&lt;script type="text/javascript" src="proxy.js"&gt;&lt;/script&gt;
+&lt;/html&gt;
+</pre>
+<p>上面的代码是接口；它有三个输入字段，用户将输入一个<code>city</code>、<code>state</code>和<code>country</code>来检索城市的天气预报。</p>
+<h3 id="creating-proxyjs">正在创建<code>proxy.js</code></h3>
+<p>现在我们的接口已经准备好了，让我们创建一个<code>proxy.js</code>文件，它将包含应用程序的所有功能。将以下代码添加到<code>proxy.js</code>:</p>
+<pre class="“language-javascript">function check(id){
+document.getElementById(id).value ="";
+}
+
+let location = {
+    name: "",
+    lat: "",
+    lon: ""
+}
+
+const handler = {
+
+   set(target, property, value) {
+
+       let apikey  = '0abe276c48b3362cd8a7950b9382ee37'
+       let city = document.getElementById("city").value;
+       let state = document.getElementById("state").value;
+       let country = document.getElementById("country").value;
+
+       if(city!="" &amp;&amp; state!="" &amp;&amp; country !=""){
+
+     fetch('https://api.openweathermap.org/geo/1.0/direct?q='+city+','+state+','+country+'&amp;limit=1&amp;appid='+apikey )
+     .then(response =&gt; (response.json()))
+    .then(data =&gt; {
+
+       target\['name'] = data[0\]['name']
+       target\['lat'] = data[0\]['lat']
+       target\['lon'] = data[0\]['lon']
+       console.log(target['lat'])
+
+
+    });
+
+     }else {
+
+     alert("please enter a valid location ")
+     }
+    }, 
+
+    get(target, property) {
+    let apikey  = '0abe276c48b3362cd8a7950b9382ee37'
+    let lat = target['lat'];
+    let lon = target['lon'];
+    if(lat!=""&amp;&amp; lon!=""){
+    fetch('https://api.openweathermap.org/data/2.5/weather?lat='+lat+'&amp;lon='+lon+'&amp;appid='+apikey)
+    .then(response =&gt; (response.json()))
+    .then(data =&gt; {
+    document.getElementById("location").innerHTML = data['name'];
+   document.getElementById("description").innerHTML = data\['weather'\][0]['description']
+   document.getElementById("status").innerHTML =  data\['weather'\][0]['main']
+   let  icon = data\['weather'\][0]['icon']
+
+   document.getElementById("temperature").innerHTML = data\['main'\]['temp']
+   document.getElementById("pressure").innerHTML =  data\['main'\]['pressure']
+    document.getElementById("humidity").innerHTML = data\['main'\]['humidity']
+
+    });
+
+    }else{
+    alert("please enter a valid location")
+    }
+    }
+
+};
+const proxyPerson = new Proxy(location, handle)
+</pre>
+<p>当创建<code>proxyPerson</code>对象时，我们传入<code>location</code>对象作为我们想要代理的原始对象。然后我们传入一个<code>handler</code>对象作为第二个参数，它控制<code>location</code>对象的行为。</p>
+<p>我们使用<code>set()</code>陷阱从城市中检索用户的地址，以及州和国家的输入字段。然后，我们向<code>openweathermap.org</code>端点发送请求，以获取地址的<code>latitude</code>和<code>longitude</code>。最后，我们用城市<code>name</code>、<code>latitude</code>和<code>longitude</code>更新<code>location</code>对象的属性。我们使用<code>get()</code>陷阱从<code>location</code>对象获取<code>latitude</code>和<code>longitude</code>，然后从<code>openweathermap.org</code>端点获取天气细节，最后在页面上显示天气细节。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们学习了什么是代理以及它们是如何工作的，探索了一些典型的代理陷阱，最后使用 JavaScript 代理对象构建了一个天气预报应用程序。希望您能更好地理解 JavaScript 中的代理对象如何改进您的代码。我希望你喜欢这个教程！如果你有任何问题，请留下评论。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试 JavaScript 错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的 JavaScript 前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket 记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的 JavaScript 代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,541 @@
+<html>
+<head>
+<title>Infinite scrolling with GraphQL - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>无限滚动 GraphQL - LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/infinite-scrolling-graphql/#0001-01-01">https://blog.logrocket.com/infinite-scrolling-graphql/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当构建为用户提供长信息列表的应用程序时，比如新闻提要、论坛中的帖子或聊天应用程序中的消息，我们的目标是向用户显示合理数量的信息。</p>
+<p>在用户开始滚动初始列表后，web 客户端应该立即加载更多的内容，以不断向用户提供这些信息。这个过程被称为无限滚动。</p>
+<p>想象你正在浏览地球上每个人的名单。尽管这个列表并不是无限的，但感觉确实是这样的。您的浏览器可能很难处理来自 GraphQL 服务器的超过 80 亿个条目的列表。</p>
+<p>这就产生了分页的需要。GraphQL API 中的分页允许客户端或我们的前端从 API 中查询部分项目列表。在我们的前端，我们现在可以构建无限的滚动功能。</p>
+<p>本文将讨论 GraphQL 中分页的概念及其工作原理。我们将深入探讨无限滚动的概念及其应用、优点和缺点。我们还将看到如何将我们的 Vue 前端连接到一个提供数据列表的演示 GraphQL API。至此，我们将演示如何在前端实现无限滚动来获取数据。</p>
+
+
+<p>分页是将内容分离或划分为称为页面的离散部分的过程。</p>
+<p>虽然我们在本文中试图完成的并不涉及创建页面来显示内容，但它仍然依赖于将内容分成几部分的概念，以便在用户滚动时加载内容。</p>
+<p><a href="https://blog.logrocket.com/guide-pagination-load-more-buttons-infinite-scroll/" target="_blank" rel="noopener">无限滚动是我们今天在应用中看到的三种主要分页形式之一</a>。让我们快速看一下所有三种常见的分页形式:编号、加载更多和无限滚动。</p>
+
+<p>当我们谈论分页时，编号分页通常就是我们所指的。在这种形式中，内容被分割并显示在不同的页面上。</p>
+<p>这种分页形式的一个很好的例子是 Google 搜索结果。</p>
+<p><img data-attachment-id="125314" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/numbered-pagination-google/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png" data-orig-size="719,121" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="numbered-pagination-google" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google-300x50.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png" decoding="async" class="aligncenter size-full wp-image-125314 jetpack-lazy-image" src="../Images/d2d395432d7762b7e0527d0ec2858ab4.png" alt="Numbered Pagination Google Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png 719w, https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google-300x50.png 300w" data-lazy-sizes="(max-width: 719px) 100vw, 719px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125314" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/numbered-pagination-google/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png" data-orig-size="719,121" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="numbered-pagination-google" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google-300x50.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125314" src="../Images/d2d395432d7762b7e0527d0ec2858ab4.png" alt="Numbered Pagination Google Example" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png 719w, https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google-300x50.png 300w" sizes="(max-width: 719px) 100vw, 719px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/numbered-pagination-google.png"/></noscript>
+
+<p>load more 方法是另一种常见的分页形式。这是“加载更多”按钮位于列表末尾的位置，单击它会加载更多的项目。它也可以以“下一步”按钮的形式出现，可以加载更多的项目，但不一定在同一页面上。</p>
+<p>博客就是一个很好的例子。通常在列表的底部有一个按钮，当它被点击时会加载更多的博客文章。这种方法非常适合希望用户在页面末尾看到页脚的网站。</p>
+<p><img data-attachment-id="125327" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/load-more-articles/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png" data-orig-size="730,171" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-more-articles" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles-300x70.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png" decoding="async" class="aligncenter size-full wp-image-125327 jetpack-lazy-image" src="../Images/16c6d82a067c67b705a94dae5999f384.png" alt="Load More Articles" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles-300x70.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125327" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/load-more-articles/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png" data-orig-size="730,171" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-more-articles" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles-300x70.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125327" src="../Images/16c6d82a067c67b705a94dae5999f384.png" alt="Load More Articles" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles-300x70.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-articles.png"/></noscript>
+<p>对于未编号的页面，还有另一种形式的 load more 分页方法。例如，您可以使用这些按钮在旧版本的 Reddit 中加载更多内容。</p>
+<p><img data-attachment-id="125329" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/old-reddit-view-more/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png" data-orig-size="427,53" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="old-reddit-view-more" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png" decoding="async" class="aligncenter size-full wp-image-125329 jetpack-lazy-image" src="../Images/0c7bf5f86960fea70baccfe8fcd54047.png" alt="View More On Old Reddit" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png 427w, https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more-300x37.png 300w" data-lazy-sizes="(max-width: 427px) 100vw, 427px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125329" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/old-reddit-view-more/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png" data-orig-size="427,53" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="old-reddit-view-more" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125329" src="../Images/0c7bf5f86960fea70baccfe8fcd54047.png" alt="View More On Old Reddit" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png 427w, https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more-300x37.png 300w" sizes="(max-width: 427px) 100vw, 427px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/old-reddit-view-more.png"/></noscript>
+
+<p>无限滚动在提要中尤其常见，在提要中，用户可以继续滚动一长串项目。在这种方法中没有页面的概念，但是用户滚动的列表是一些较短列表的组合。当用户滚动时，获取并添加主列表的这些子集。</p>
+<p>新版 Reddit 和大多数社交媒体平台都使用无限滚动。</p>
+<p><img data-attachment-id="125331" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/infinite-scrolling-reddit/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png" data-orig-size="730,293" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scrolling-reddit" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png" decoding="async" class="aligncenter size-full wp-image-125331 jetpack-lazy-image" src="../Images/b6c5adb47f2987824cb1649191a4974c.png" alt="Infinite Scroll Reddit Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit-300x120.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125331" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/infinite-scrolling-reddit/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png" data-orig-size="730,293" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scrolling-reddit" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125331" src="../Images/b6c5adb47f2987824cb1649191a4974c.png" alt="Infinite Scroll Reddit Example" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit-300x120.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-reddit.png"/></noscript>
+
+<p>我们已经看到了在应用程序中实现分页的常用方法，现在让我们看看它在 GraphQL 中是如何工作的。虽然没有一种特定的方法来实现分页，但是 GraphQL 官方网站给了我们三种主要的方法:</p>
+<ul>
+<li>基于偏移量的分页</li>
+<li>基于光标的分页</li>
+<li>基于 ID 的分页</li>
+</ul>
+
+<p>这种方法通常被认为是 GraphQL 中最简单的分页形式。对于基于偏移量的分页，查询通常包括两个参数:<code>first</code>(或<code>limit</code>)和<code>offset</code>(或<code>skip</code>)。<code>first</code>参数定义了列表返回多少项，而<code>offset</code>参数定义了我们应该在列表中跳过多少项。</p>
+<p>使用这种分页设置，您的查询可能如下所示:</p>
+<pre class="language-graphql hljs">query {
+  people(first: 3, offset: 0) {
+    name
+  }
+}
+</pre>
+<p>该查询将从第一个人 0 开始获取列表中的三个人。我们会得到名单上的前三个人。</p>
+<p><img data-attachment-id="125335" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/first-three-people-query-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png" data-orig-size="730,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="first-three-people-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png" decoding="async" class="aligncenter size-full wp-image-125335 jetpack-lazy-image" src="../Images/8d907af33c3faaf4b5acedf794a2a4e0.png" alt="First Three People Query" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125335" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/first-three-people-query-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png" data-orig-size="730,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="first-three-people-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125335" src="../Images/8d907af33c3faaf4b5acedf794a2a4e0.png" alt="First Three People Query" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-people-query-1.png"/></noscript>
+<p>你也可以决定不从名单上的第一个人开始。也许您希望第二页从列表中的第四个人开始有另外三个人。没问题！您的查询参数只需稍作修改:</p>
+<pre class="language-graphql hljs">query {
+  people(first: 3, offset: 3) {
+    name
+  }
+}
+</pre>
+<p>现在，结果将偏移三个项目，并从第四个项目而不是第一个项目开始。</p>
+<p><img data-attachment-id="125338" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/first-three-offset-three-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png" data-orig-size="730,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="first-three-offset-three-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png" decoding="async" class="aligncenter size-full wp-image-125338 jetpack-lazy-image" src="../Images/91c35c2fd434cc0aaf68d196c27120c5.png" alt="First Three Items Offset By Three" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125338" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/first-three-offset-three-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png" data-orig-size="730,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="first-three-offset-three-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125338" src="../Images/91c35c2fd434cc0aaf68d196c27120c5.png" alt="First Three Items Offset By Three" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/first-three-offset-three-query.png"/></noscript>
+<p>我们也可以自由地改变<code>first</code>和<code>offset</code>值来满足我们的需要。下面的查询从列表中获得四个项目，其<code>offset</code>为<code>1</code>:</p>
+<pre class="language-graphql hljs">query {
+  people(first: 4, offset: 1) {
+    name
+  }
+}
+</pre>
+<p>这意味着列表将从第二个项目开始包含四个项目。</p>
+<p><img data-attachment-id="125340" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/four-items-starting-second-one-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png" data-orig-size="730,236" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="four-items-starting-second-one-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png" decoding="async" class="aligncenter size-full wp-image-125340 jetpack-lazy-image" src="../Images/ddb6fa61078578f980845aab3a3c85c0.png" alt="Four Items Starting With Second One" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query-300x97.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125340" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/four-items-starting-second-one-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png" data-orig-size="730,236" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="four-items-starting-second-one-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125340" src="../Images/ddb6fa61078578f980845aab3a3c85c0.png" alt="Four Items Starting With Second One" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query-300x97.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/four-items-starting-second-one-query.png"/></noscript>
+<p>这是基于偏移量的分页的基础。虽然它很简单，但也有它的缺点——即它容易重复或遗漏数据。当在分页过程中向列表中添加新项目时，通常会出现此问题。</p>
+<p>当添加新的项目时，项目在数组中的位置可能会改变。由于<code>offset</code>依赖于项目位置，如果一个项目被添加到列表的顶部，前一页的最后一个列表项目可能会成为下一页的第一个项目，因为它的位置现在更低了。</p>
+
+<p>基于光标的分页是 GraphQL 中最广泛接受的分页标准。它对分页时列表中发生的变化具有弹性，因为它不依赖于项目的位置，而是依赖于一个<code>cursor</code>。</p>
+<p>基于光标的分页可以通过几种方式实现。最常见且被广泛接受的一种遵循<a href="https://relay.dev/graphql/connections.htm" target="_blank" rel="noopener">继电器图 QL 连接规范</a>。</p>
+<p>为基于光标的分页实现中继连接规范可能很复杂，但它给了我们更多的灵活性和信息。</p>
+<p>这个规范给了我们一些可以用来分页的参数。包括向前分页的<code>first</code>和<code>after</code>(或<code>afterCursor</code>),向后分页的<code>last</code>和<code>before</code>。<br/>我们还可以访问多个领域。</p>
+<p>让我们评估一下这个查询:</p>
+<pre class="language-graphql hljs">query ($first: Int, $after: String) {
+  allPeople(first: $first, after: $after){
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    edges {
+      cursor
+      node {
+        id
+        name
+      }
+    }
+  }
+}
+</pre>
+<p>您会注意到，对于字段的参数<code>first</code>和<code>after</code>，我们有:</p>
+<ul>
+<li><code>pageInfo</code>:包含页面上的信息，包括:<ul>
+<li><code>hasNextPage</code>:当前页面(或部分、子集)之后是否还有其他项目</li>
+<li><code>endCursor</code>:当前页面最后一个列表项的光标</li>
+</ul>
+</li>
+<li><code>edges</code>:包含列表中每个项目的以下数据:<ul>
+<li><code>cursor</code>:通常是一个<a href="https://relay.dev/graphql/connections.htm#sec-Cursor" target="_blank" rel="noopener">不透明值</a>，可以从项目数据中生成</li>
+<li><code>node</code>:实际项目数据</li>
+</ul>
+</li>
+</ul>
+<p>现在，回头看看上面包含以下变量的查询:</p>
+<pre class="language-json hljs">{
+  "first": 2,
+  "after": "YXJyYXljb25uZWN0aW9uOjI="
+}
+</pre>
+<p>这是我们得到的回应:</p>
+<pre class="language-graphql hljs">{
+  "allPeople": {
+    "pageInfo": {
+      "hasNextPage": true,
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjQ="
+    },
+    "edges": [
+      {
+        "cursor": "YXJyYXljb25uZWN0aW9uOjM=",
+        "node": {
+          "id": "cGVvcGxlOjQ=",
+          "name": "Darth Vader"
+        }
+      },
+      {
+        "cursor": "YXJyYXljb25uZWN0aW9uOjQ=",
+        "node": {
+          "id": "cGVvcGxlOjU=",
+          "name": "Leia Organa"
+        }
+      }
+    ]
+  }
+}
+</pre>
+<blockquote><p>您可以在 SWAPI GraphiQL playground 上亲自尝试这个查询。</p></blockquote>
+
+<p>尽管基于 ID 的分页不像其他两种方法那样常用，但仍然值得讨论。</p>
+<p>这种方法非常类似于基于偏移量的分页。不同之处在于，它没有使用<code>offset</code>来确定返回的列表应该从哪里开始，而是使用了接受列表中某项的<code>id</code>的<code>afterID</code>(或者简单地称为<code>after</code>)。</p>
+<p>看一下这个查询:</p>
+<pre class="language-graphql hljs">query {
+  people(first: 3, after: "C") {
+    name
+  }
+}
+</pre>
+<p>这将从列表中获取带有<code>C</code>的<code>id</code>的项目之后的前三个项目。<img data-attachment-id="125343" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/id-of-c-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png" data-orig-size="730,236" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="id-of-c-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png" decoding="async" class="aligncenter size-full wp-image-125343 jetpack-lazy-image" src="../Images/894682d65e4c722588ea2eec0825bc05.png" alt="ID Of C Query" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query-300x97.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125343" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/id-of-c-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png" data-orig-size="730,236" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="id-of-c-query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125343" src="../Images/894682d65e4c722588ea2eec0825bc05.png" alt="ID Of C Query" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query-300x97.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/id-of-c-query.png"/></noscript>
+<p>这有助于解决基于偏移量的分页问题，因为返回的项不再依赖于项的位置。现在，他们依赖于使用<code>id</code>作为唯一标识符的商品本身。</p>
+<p>好了，现在我们已经熟悉了 GraphQL 中分页的工作方式，让我们深入了解无限滚动吧！</p>
+
+<p>我想假设我们之前都至少使用过一次社交媒体或新闻订阅应用。因此，我们应该熟悉无限卷轴是怎么一回事。在您到达页面底部之前或同时，新内容会添加到提要中。</p>
+<p>对于 JavaScript 应用程序，我们可以通过两种主要方式实现无限滚动:要么使用滚动事件处理程序，要么使用<a href="https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API" target="_blank" rel="noopener">交叉点观察器 API </a>。</p>
+
+<p>对于滚动事件处理程序，我们运行一个函数，该函数将在两种情况下获取以下页面:</p>
+<ul>
+<li>滚动位置在页面的底部</li>
+<li>有下一页要提取</li>
+</ul>
+<p>该方法的通用 JavaScript 代码如下所示:</p>
+<pre class="language-javascript hljs"> window.addEventListener('scroll', () =&gt; {
+    let {
+        scrollTop,
+        scrollHeight,
+        clientHeight
+    } = document.documentElement;
+
+    if (scrollTop + clientHeight &gt;= scrollHeight &amp;&amp; hasNextPage) {
+      fetchMore()
+    }
+});
+</pre>
+<p>在这里，我们正在收听<code>window</code>中的<code>scroll</code>事件。在回调函数中，我们得到文档的<code>scrollTop</code>、<code>scrollHeight</code>和<code>clientHeight</code>。</p>
+<p>然后，我们有一个<code>if</code>语句来检查添加到视窗高度(<code>clientHeight</code>)的滚动量(<code>scrollTop</code>)是否大于或等于页面高度(<code>scrollHeight</code>)，以及<code>hasNextPage</code>是否为真。</p>
+<p>如果该语句为真，它将运行函数<code>fetchMore()</code>来获取更多的条目并将它们添加到列表中。</p>
+<h3 id="intersection-observer-api">交叉点观察器 API</h3>
+<p>与 scroll 事件处理程序方法不同，此方法不依赖于 scroll 事件。相反，它会观察元素何时在视口中可见，并触发一个事件。</p>
+<p>这里有一个基本的例子:</p>
+<pre class="language-javascript hljs">const options = {
+  root: document.querySelector("#list"),
+  threshold: 0.1,
+};
+
+let observer = new IntersectionObserver((entries) =&gt; {
+  const entry = entries[0];
+  if (entry.isIntersecting) {
+    fetchMore()
+  }
+}, options);
+
+observer.observe(document.querySelector("#target"));
+</pre>
+<p>我们用观察者的设置来定义选项。有了它，我们可以观察根元素中<code>target</code>元素的可见性的变化。这里的<code>root</code>是一个带有<code>list</code>的<code>id</code>的元素。<br/>我们还有一个<code>threshold</code>，它决定了<code>target</code>元素与根元素相交的程度。</p>
+<p>我们将<code>IntersectionObserver</code>功能分配给<code>observer.value</code>。然后我们传递一个回调函数和定义好的<code>options</code>。</p>
+<p>回调接受参数<code>entries</code>，这是回调接收到的条目列表，对于每个报告其交集状态发生变化的目标，都有一个<code>entry</code>。每个条目包含几个属性，比如<code>isIntersecting</code>，它告诉我们目标元素现在是否与根元素相交，并且在大多数情况下是可见的。</p>
+<p>一旦<code>entry.isIntersecting</code>为真，就会触发<code>fetchMore()</code>函数，向列表中添加更多的条目。</p>
+<h2 id="building-application">构建我们的应用程序</h2>
+<p>我们将使用 Apollo Client 构建一个简单的 Vue 应用程序，与演示 GraphQL API 进行交互。你可以在 Netlify 上找到我们将要构建的<a href="https://vue-graphql-infinite-scroll.netlify.app/" target="_blank" rel="noopener">最终项目。</a></p>
+<p>要开始，您需要:</p>
+<ul>
+<li>文本编辑器—例如 VSCode</li>
+<li><a href="https://vuejs.org/" target="_blank" rel="noopener"> Vue </a>的基础知识</li>
+<li><a href="https://graphql.org/" target="_blank" rel="noopener"> GraphQL </a>的基础知识</li>
+<li>最近安装的<a href="https://nodejs.org/en/" target="_blank" rel="noopener"> Node.js </a>版本</li>
+</ul>
+<h3 id="setting-up-demo-api">设置我们的演示 API</h3>
+<p>对于本教程，我们将使用 SWAPI GraphQL 包装器，一个使用 GraphQL 构建的围绕<a href="https://swapi.dev/" target="_blank" rel="noopener"> SWAPI </a>的包装器。</p>
+<p>首先，从 GitHub 中锥形化<a href="https://github.com/graphql/swapi-graphql" target="_blank" rel="noopener">存储库</a>:</p>
+<pre class="language-bash hljs">git clone https://github.com/graphql/swapi-graphql.git
+</pre>
+<p>然后安装以下依赖项:</p>
+<pre class="language-bash hljs">npm install
+</pre>
+<p>使用以下命令启动服务器:</p>
+<p>这将在随机的本地主机端口启动 GraphQL API 服务器。</p>
+<blockquote><p><span>🚨如果你在 Windows 上安装时遇到了类似于本期中提到的</span> <a href="https://github.com/graphql/swapi-graphql/issues/192" target="_blank" rel="noopener">的问题，你可以按照说明来解决。在<br/> <code>package.json</code>中，还可以编辑第 40 行(<code>build:lambda</code>)在<code>NODE_ENV</code>—<code>SET NODE_ENV</code>前添加<code>SET</code>。然后再次运行<code>npm install</code>。</a></p></blockquote>
+<p>或者，您可以简单地使用<a href="https://swapi-gql.netlify.app/.netlify/functions/index" target="_blank" rel="noopener">这个部署版本</a>进行查询。</p>
+<h3 id="creating-vue-app">创建我们的 Vue 应用</h3>
+<p>要创建新的应用程序，请导航到您选择的目录并运行:</p>
+<pre class="language-bash hljs">npm init <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="27515242674b4653425453">[email protected]</a>
+</pre>
+<p>现在，按照提示配置您的安装:</p>
+<pre class="language-bash hljs">√ Project name: ... vue-infinite-scroll
+√ Add TypeScript? ... No / Yes
+√ Add JSX Support? ... No / Yes
+√ Add Vue Router for Single Page Application development? ... No / Yes
+√ Add Pinia for state management? ... No / Yes
+√ Add Vitest for Unit Testing? ... No / Yes
+√ Add Cypress for both Unit and End-to-End testing? ... No / Yes
+√ Add ESLint for code quality? ... No / Yes
+
+Scaffolding project in C:\Users\user\Documents\otherprojs\writing\logrocket\vue-infinite-scroll...
+
+Done. Now run:
+  cd vue-infinite-scroll
+  npm install
+  npm run dev
+</pre>
+<p>导航到您新创建的<code>vue-infinite-scroll</code>目录，安装上面输出中列出的包并启动应用程序:</p>
+<pre class="language-bash hljs">cd vue-infinite-scroll
+npm install
+npm run dev
+</pre>
+<p>接下来，我们将安装以下软件包:</p>
+<pre class="language-bash hljs">npm install --save graphql graphql-tag @apollo/client @vue/apollo-composable
+</pre>
+<p>我们正在为 Apollo 安装额外的<code>@vue/apollo-composable</code>包，支持 Vue 组合 API。</p>
+<p>接下来，我们来做一些配置。</p>
+<p>在<code>./src/main.js</code>文件中，添加以下内容以创建一个<code>ApolloClient</code>实例:</p>
+<pre class="language-javascript hljs">// ./src/main.js
+
+import { createApp, provide, h } from 'vue'
+import { createPinia } from 'pinia'
+
+import { ApolloClient, InMemoryCache } from '@apollo/client/core'
+import { DefaultApolloClient } from '@vue/apollo-composable'
+
+import App from './App.vue'
+import './assets/base.css'
+
+// Cache implementation
+const cache = new InMemoryCache()
+
+// Create the apollo client
+const apolloClient = new ApolloClient({
+  cache,
+  uri: 'http://localhost:64432'
+  // or
+  // uri: 'https://swapi-gql.netlify.app/.netlify/functions/index`
+})
+
+const app = createApp({
+  setup() {
+    provide(DefaultApolloClient, apolloClient)
+  },
+  render: () =&gt; h(App)
+})
+
+app.use(createPinia())
+app.mount('#app')
+</pre>
+<p>这里，我们用<code>InMemoryCache</code>和<code>uri</code>创建了一个<code>apolloClient</code>实例，这是我们之前设置的 SWAPI GraphQL 服务器。</p>
+<p>现在，我们将从 GraphQL 获取数据。在<code>./src/App.vue</code>文件中，让我们建立我们的列表:</p>
+<pre class="language-vue hljs">&lt;!-- ./src/App.vue --&gt;
+&lt;script setup&gt;
+import { computed, onMounted, ref } from "vue";
+
+import gql from "graphql-tag";
+import { useQuery } from "@vue/apollo-composable";
+
+// GraphQL query
+const ALLSTARSHIPS_QUERY = gql`
+  query AllStarships($first: Int, $after: String) {
+    allStarships(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          name
+          starshipClass
+        }
+      }
+    }
+  }
+`;
+
+// destructure
+const {
+  // result of the query
+  result,
+  // loading state of the query
+  loading,
+  // query errors, if any
+  error,
+  // method to fetch more
+  fetchMore,
+  // access to query variables
+  variables
+} = useQuery(ALLSTARSHIPS_QUERY, { first: 5 });
+
+// computed value to know if there are more pages after the last result
+const hasNextPage = computed(() =&gt; result.value.allStarships.pageInfo.hasNextPage);
+
+&lt;/script&gt;
+&lt;template&gt;
+  &lt;main&gt;
+    &lt;ul class="starship-list"&gt;
+      &lt;p v-if="error"&gt;oops&lt;/p&gt;
+      &lt;!-- "infinite" list --&gt;
+      &lt;li v-else v-for="starship in result?.allStarships.edges" :key="starship.node.id" class="starship-item"&gt;
+        &lt;p&gt;{{ starship.node.name }}&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+    &lt;!-- target button, load more manually when clicked --&gt;
+    &lt;button ref="target" @click="loadMore" class="cta"&gt;
+      &lt;span v-if="loading"&gt;Loading...&lt;/span&gt;
+      &lt;span v-else-if="!hasNextPage"&gt;That's a wrap!&lt;/span&gt;
+      &lt;span v-else&gt;More&lt;/span&gt;
+    &lt;/button&gt;
+  &lt;/main&gt;
+&lt;/template&gt;
+&lt;style scoped&gt;
+button {
+  cursor: pointer;
+}
+main {
+  width: 100%;
+  max-width: 30rem;
+  margin: auto;
+  padding: 2rem;
+}
+.starship-list {
+  list-style: none;
+  padding: 4rem 0 4rem 0;
+}
+.starship-item {
+  font-size: xx-large;
+  padding: 1rem 0;
+}
+.cta {
+  padding: 0.5rem 1rem;
+  background: var(--vt-c-white-soft);
+  color: var(--color-background-soft);
+  border: none;
+  border-radius: 0.5rem;
+}
+&lt;/style&gt;
+</pre>
+<p>我们首先从<code>graphql-tag</code>包中导入<code>gql</code>，从<code>@vue/apollo-composable</code>中导入<code>useQuery</code>。<code>useQuery</code>允许我们进行 GraphQL 查询。</p>
+<p>接下来，我们用我们将在查询时定义的<code>first</code>和<code>after</code>变量来设置我们的查询<code>ALLSTARSHIPS_QUERY</code>。</p>
+<p>为了进行查询，我们使用<code>useQuery()</code>。<code>useQuery()</code>提供了<code>result</code>、<code>loading</code>、<code>error</code>、<code>fetchMore</code>、<code>variables</code>等几种属性。</p>
+<p>当调用<code>useQuery()</code>时，我们传入实际的查询<code>ALLSTARSHIPS_QUERY</code>和一个包含变量<code>{ first: 5 }</code>的对象来获取前五项。</p>
+<p>同样，在我们的<code>&lt;template&gt;</code>中有一个带<code>ref="target"</code>的<code>&lt;button&gt;</code>。这是我们的“加载更多”按钮。</p>
+<p>随着我们的进展，我们将只使用它来观察何时到达列表的末尾，并使用交叉点观察器 API 自动加载更多的内容。</p>
+<p>这是我们现在应该有的:</p>
+<p><img data-attachment-id="125346" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/static-list-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png" data-orig-size="730,371" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="static-list-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships-300x152.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png" decoding="async" class="aligncenter size-full wp-image-125346 jetpack-lazy-image" src="../Images/39e67e61966966b0d97260af3cfbca78.png" alt="Static List Of Starships" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships-300x152.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125346" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/static-list-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png" data-orig-size="730,371" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="static-list-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships-300x152.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125346" src="../Images/39e67e61966966b0d97260af3cfbca78.png" alt="Static List Of Starships" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships-300x152.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/static-list-starships.png"/></noscript>
+
+<p>让我们一步一步来看看如何使用目标按钮在点击时加载更多的项目。这对于阿波罗来说非常简单。Apollo 提供了<code>fetchMore()</code>方法，顾名思义，我们可以用它来获取更多的内容并将其与原始结果合并。</p>
+<p>为此，我们将把<code>fetchMore()</code>包装在<code>./src/App.vue</code>中的<code>loadMore()</code>函数中:</p>
+<pre class="language-vue hljs">&lt;!-- ./src/App.vue --&gt;
+&lt;script setup&gt;
+// ...
+
+// function to load more content and update query result
+const loadMore = () =&gt; {
+  // fetchMore function from `useQuery` to fetch more content with `updateQuery`
+  fetchMore({
+
+    // update `after` variable with `endCursor` from previous result
+    variables: {
+      after: result.value?.allStarships.pageInfo.endCursor,
+    },
+
+    // pass previous query result and the new results to `updateQuery`
+    updateQuery: (previousQueryResult, { fetchMoreResult }) =&gt; {
+      // define edges and pageInfo from new results
+      const newEdges = fetchMoreResult.allStarships.edges;
+      const pageInfo = fetchMoreResult.allStarships.pageInfo;
+
+      // if newEdges actually have items,
+      return newEdges.length
+        ? // return a reconstruction of the query result with updated values
+          {
+            // spread the value of the previous result
+            ...previousQueryResult,
+
+            allStarships: {
+              // spread the value of the previous `allStarhips` data into this object
+              ...previousQueryResult.allStarships,
+
+              // concatenate edges
+              edges: [...previousQueryResult.allStarships.edges, ...newEdges],
+
+              // override with new pageInfo
+              pageInfo,
+            },
+          }
+        : // else, return the previous result
+          previousQueryResult;
+    },
+  });
+};
+</pre>
+<p>这里，我们有调用<code>fetchMore()</code>方法的<code>loadMore()</code>函数。<code>fetchMore()</code>接受一个<code>variables</code>和<code>updateQuery()</code>的对象。</p>
+<p>我们将在<code>variables</code>属性中定义更新的变量。这里，我们更新<code>after</code>变量，使其与第一个(或前一个)结果中的最后一个光标相对应。</p>
+<p>然而，在<code>updateQuery()</code>中，我们从新的查询结果中获取并定义<code>edges</code>和<code>pageInfo</code>，并重构查询结果(如果有的话)。我们通过使用<code>spread</code>语法来连接对象属性，或者用新的属性完全替换它们，从而保留了以前的<code>result</code>对象的值(例如，用<code>pageInfo</code>)。</p>
+<p>至于边缘，我们将新的结果添加到<code>edges</code>数组中先前的结果中。<br/>还记得“目标”按钮吗？我们有一个调用<code>loadMore()</code>函数的<code>@click</code>处理程序:</p>
+<pre class="language-vue hljs">&lt;button ref="target" @click="loadMore" class="cta"&gt;
+</pre>
+<p>现在，我们应该让我们的应用程序加载更多的星舰，只需按一下按钮:</p>
+<p><img data-attachment-id="125348" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/load-more-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-more-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif" decoding="async" class="aligncenter size-full wp-image-125348 jetpack-lazy-image" src="../Images/4bee35b2f8ce0cd2ecffd1fbc803aacb.png" alt="Load More Starships" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125348" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/load-more-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="load-more-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125348" src="../Images/4bee35b2f8ce0cd2ecffd1fbc803aacb.png" alt="Load More Starships" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/load-more-starships.gif"/></noscript>
+<p>厉害！让我们把推进器开大一点，看看我们如何才能摆脱手工操作，获得真正的无限滚动感。首先，我们将看看如何用滚动事件处理程序做到这一点。</p>
+
+<p>这将与我们之前解释的类似。在<code>./src/App.vue</code>中，我们有一个<code>onMounted()</code>钩子，一旦应用安装，我们就开始监听滚动事件:</p>
+<pre class="language-vue hljs">&lt;!-- ./src/App.vue --&gt;
+&lt;script setup&gt;
+// ...
+
+onMounted(() =&gt; {
+  // listen to the scroll event in the window object (the page)
+  window.addEventListener(
+    "scroll",
+    () =&gt; {
+      // define
+      let {
+        // the amount useer has scrolled
+        scrollTop,
+        // the height of the page
+        scrollHeight,
+        // the height of viewport
+        clientHeight
+      } = document.documentElement;
+      // if user has scrolled to the bottom of the page
+      if (scrollTop + clientHeight &gt;= scrollHeight &amp;&amp; hasNextPage.value) {
+        // exccute the loadMore function to fetch more items
+        loadMore();
+      }
+    },
+    {
+      // indicate that the listener will not cancel the scroll
+      passive: true,
+    }
+  );
+});
+&lt;/script&gt;
+</pre>
+<p>你可以看到，在滚动事件监听器回调中，当用户滚动到页面底部时，我们执行了<code>loadMore()</code>函数。</p>
+<blockquote><p><span>🚩scroll 事件处理程序方法的一个缺点是用户必须滚动才能工作。确保页面上的内容不会太小，用户无法滚动浏览。</span></p></blockquote>
+<p>让我们来看看它的实际应用:</p>
+<p><img data-attachment-id="125351" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/scroll-event-handler-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scroll-event-handler-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif" decoding="async" class="aligncenter size-full wp-image-125351 jetpack-lazy-image" src="../Images/5008e25b8065a7a3d8e90f4d8766a655.png" alt="Scroll Event Handler Starships" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125351" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/scroll-event-handler-starships/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scroll-event-handler-starships" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125351" src="../Images/5008e25b8065a7a3d8e90f4d8766a655.png" alt="Scroll Event Handler Starships" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/scroll-event-handler-starships.gif"/></noscript>
+<p>太棒了。接下来，让我们看看如何用交叉点观察器 API 实现同样的事情。</p>
+
+<p>对于这个方法，我们需要观察一个元素，它会告诉我们什么时候到达了列表的末尾。没有比我们的按钮更好的元素了！</p>
+<p>为了定位我们的<code>&lt;script&gt;</code>中的按钮，我们将创建一个<code>target</code>(与<code>&lt;template&gt;</code>中按钮的<code>ref</code>属性中使用的名称相同)变量，并将其赋给一个<code>ref(null)</code>。</p>
+<p>我们还将为<code>observer</code>创建一个<code>ref</code>，它将是我们在<code>onMounted()</code>钩子中的<code>IntersectionObserver()</code>:</p>
+<pre class="language-vue hljs">&lt;!-- ./src/App.vue --&gt;
+&lt;script setup&gt;
+// ...
+
+// create ref for observer
+const observer = ref(null);
+
+// create ref for target element for observer to observe
+const target = ref(null);
+
+onMounted(() =&gt; {
+  // ...
+
+  // options for observer
+  const options = {
+    threshold: 1.0,
+  };
+
+  // define observer
+  observer.value = new IntersectionObserver(([entry]) =&gt; {
+    // if the target is visible
+    if (entry &amp;&amp; entry.isIntersecting) {
+      // load more content
+      loadMore();
+    }
+  }, options);
+
+  // define the target to observe
+  observer.value.observe(target.value);
+});
+&lt;/script&gt;
+</pre>
+<p>在这里，在我们的<code>onMounted()</code>钩子中，我们首先定义将传递给我们的<code>observer</code>的选项。</p>
+<p>我们通过初始化一个新的<code>IntersectionObserver()</code>并传递一个回调函数和我们的<code>options</code>来定义观察者。</p>
+<p>该函数接受一个析构的<code>[entry]</code>作为参数。然后，<code>if</code>语句确定该条目是否与根相交。这个交集意味着目标在视口中可见，并执行<code>loadMore()</code>功能。</p>
+<p><code>entry</code>由我们传递给<code>observer.observe()</code>的参数决定。</p>
+<p>这样，我们就有了一个非常整洁的无限滚动列表！</p>
+<p><img data-attachment-id="125354" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/infinite-scrolling-list/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scrolling-list" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif" decoding="async" class="aligncenter size-full wp-image-125354 jetpack-lazy-image" src="../Images/eee8d3a11479910071cabe2d2c415962.png" alt="Final Infinite Scrolling List" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="125354" data-permalink="https://blog.logrocket.com/infinite-scrolling-graphql/attachment/infinite-scrolling-list/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif" data-orig-size="720,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="infinite-scrolling-list" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list-300x144.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-125354" src="../Images/eee8d3a11479910071cabe2d2c415962.png" alt="Final Infinite Scrolling List" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/infinite-scrolling-list.gif"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>我们做到了！我们创建了一个简单的 Vue 应用程序，它从具有无限滚动功能的 GraphQL API 中获取数据。</p>
+<p>我们讨论了分页的基础知识、它的不同形式以及分页在 GraphQL 中的工作方式。我们讨论了无限滚动以及如何在 JavaScript 中实现这种效果。我们还深入研究了实现它的两种主要方法:滚动事件处理程序和交叉点观察器 API。</p>
+<p>我们用 Vue 和 Apollo Client 构建了我们的应用程序，将它连接到 GraphQL API，并使用 scroll 事件处理程序和 Intersection Observer API 构建了无限滚动功能，从中获得了很多乐趣。</p>
+<p>无限滚动是我们可以组织大量信息显示给用户的众多方式之一。它有它的优点和缺点，但是有了我们在这里讨论的一切，我确信你将能够找出它是否是你下一个大项目的最佳方法！</p>
+<h2 id="further-readings-resources">进一步的阅读和资源</h2>
+<p>如果您试图理解 GraphQL 的分页和无限滚动，有大量的资源可供阅读:</p>
+
+<p>您可以获得演示 API 和前端项目的存储库</p>
+
+<p> </p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的 GraphQL 请求</h2><p>虽然 GraphQL 有一些调试请求和响应的特性，但确保 GraphQL 可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的 GraphQL 请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪 Apollo 客户机状态并检查 GraphQL 查询的键值对。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

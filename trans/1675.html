@@ -1,0 +1,124 @@
+<html>
+<head>
+<title>Best practices for loading fonts in Vue - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Vue - LogRocket 博客中加载字体的最佳实践</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/#0001-01-01">https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>添加字体不会对性能产生负面影响。在本文中，我们将探讨在 Vue 应用程序中加载字体的最佳实践。</p>
+<h2>为自定义字体正确声明<code>font-face</code></h2>
+<p>确保正确声明字体是加载字体的一个重要方面。这是通过使用<code>font-face</code>属性声明您选择的字体来完成的。在您的 Vue 项目中，这个声明可以在您的根 CSS 文件中完成。在开始之前，我们先来看看 Vue 应用的结构:</p>
+<pre>/root
+  public/
+    fonts/
+      Roboto/
+        Roboto-Regular.woff2
+        Roboto-Regular.woff
+    index.html
+  src/
+    assets/
+      main.css
+    components/
+    router/
+    store/
+    views/
+    main.js
+</pre>
+<p>我们可以像这样在<code>main.css</code>中进行<code>font-face</code>声明:</p>
+<pre>// src/assets/main.css
+
+@font-face {
+  font-family: "Roboto";
+  font-weight: 400;
+  font-style: normal;
+  font-display: auto;
+  unicode-range: U+000-5FF;
+  src: local("Roboto"), url("/fonts/Roboto/Roboto-Regular.woff2") format("woff2"), url("/fonts/Roboto/Roboto-Regular.woff") format("woff");
+}
+</pre>
+<p>首先要注意的是<code>font-display: auto</code>。使用<code>auto</code>作为值允许浏览器使用最合适的策略来显示字体。这取决于一些因素，如网络速度、设备类型、空闲时间等。</p>
+<p>为了更好地控制字体的加载方式，你应该使用<code>font-display: block</code>来指示浏览器暂时隐藏文本，直到字体完全下载完毕。其他可能的值有<code>swap</code>、<code>fallback</code>和<code>optional</code>。你可以在这里阅读更多关于他们<a href="https://css-tricks.com/almanac/properties/f/font-display/" target="_blank" rel="noopener">的信息。</a></p>
+<p>需要注意的是<code>unicode-range: U+000-5FF</code>，它指示浏览器只加载所需的字形范围(U+000–U+5FF)。你也想使用<a href="https://css-tricks.com/understanding-web-fonts-getting/" target="_blank" rel="noopener"> woff 和 woff2 </a>字体格式，这是优化的格式，可以在大多数现代浏览器中工作。</p>
+<p>另一个需要注意的是<code>src</code>顺序。首先，我们检查字体的本地副本是否可用(<code>local("Roboto")</code>)并使用它。很多 Android 设备都预装了 Roboto，在这种情况下，将使用预装的副本。如果本地副本不可用，如果浏览器支持，它会继续下载 woff2 格式。否则，它会跳到声明中受支持的下一种字体。</p>
+<h2>预加载字体</h2>
+<p>一旦您的自定义字体被声明，您可以使用<code>&lt;link rel="preload"&gt;</code>告诉浏览器预先加载字体。在<code>public/index.html</code>中，添加以下内容:</p>
+<pre>&lt;link rel="preload" as="font" href="./fonts/Roboto/Roboto-Regular.woff2" type="font/woff2" crossorigin="anonymous"&gt;
+</pre>
+<p><code>rel="preload"</code>指示浏览器尽快开始获取资源。<code>as="font"</code>告诉浏览器这是一种字体，因此它会优先处理请求。还要注意<code>crossorigin="anonymous"</code>,因为没有它，浏览器会丢弃预装的字体。这是因为<a href="https://github.com/w3c/preload/issues/32" target="_blank" rel="noopener">浏览器匿名获取字体</a>，所以使用这个属性允许匿名请求。</p>
+<p>使用<code>link=preload</code>增加了自定义字体在需要之前被下载的机会。这个小小的调整大大加快了字体的加载速度，从而加快了 web 应用程序中文本的呈现速度。</p>
+<h2>对托管字体使用<code>link=preconnect</code></h2>
+<p>当使用来自像<a href="https://fonts.google.com/" target="_blank" rel="noopener">谷歌字体</a>这样的网站的托管字体时，你可以通过使用<code>link=preconnect</code>获得更快的加载时间。它告诉浏览器提前建立到域的连接。</p>
+<p>如果您使用的是 Google fonts 提供的 Roboto 字体，您可以在<code>public/index.html</code>:</p>
+<pre>&lt;link rel="preconnect" href="https://fonts.gstatic.com"&gt;
+...
+&lt;link href="https://fonts.googleapis.com/css2?family=Roboto&amp;display=swap" rel="stylesheet"&gt;
+</pre>
+<p>这将建立到源<a href="https://fonts.gstatic.com" rel="nofollow">https://fonts.gstatic.com</a>的初始连接，并且当浏览器需要来自源的资源时，连接将已经建立。从下图中可以看出区别:</p>
+<p><img data-attachment-id="40676" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/without-link-preconnect/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png" data-orig-size="639,288" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Without link preconnect" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png" decoding="async" class="aligncenter size-full wp-image-40676 jetpack-lazy-image" src="../Images/cc770f04cc1f68358f4a62bb755c80df.png" alt="Without Link Preconnect" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png 639w, https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect-300x135.png 300w" data-lazy-sizes="(max-width: 639px) 100vw, 639px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="40676" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/without-link-preconnect/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png" data-orig-size="639,288" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Without link preconnect" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-40676" src="../Images/cc770f04cc1f68358f4a62bb755c80df.png" alt="Without Link Preconnect" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png 639w, https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect-300x135.png 300w" sizes="(max-width: 639px) 100vw, 639px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/without-link-preconnect.png"/></noscript>
+<p>在没有<code>link=preconnect</code>的情况下加载字体，可以看到连接所需的时间(DNS 查找、初始连接、SSL 等)。当像这样使用<code>link=preconnect</code>时，结果看起来非常不同:</p>
+<p><img data-attachment-id="40678" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/with-link-preconnect/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png" data-orig-size="643,187" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="With link preconnect" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect-300x87.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png" decoding="async" class="aligncenter size-full wp-image-40678 jetpack-lazy-image" src="../Images/69d491ead6c2882ec82a9a3fcc12b4f1.png" alt="With Link Preconnect" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png 643w, https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect-300x87.png 300w" data-lazy-sizes="(max-width: 643px) 100vw, 643px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="40678" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/with-link-preconnect/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png" data-orig-size="643,187" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="With link preconnect" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect-300x87.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-40678" src="../Images/69d491ead6c2882ec82a9a3fcc12b4f1.png" alt="With Link Preconnect" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png 643w, https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect-300x87.png 300w" sizes="(max-width: 643px) 100vw, 643px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/with-link-preconnect.png"/></noscript>
+<p>在这里，您会注意到 DNS 查找、初始连接和 SSL 所花费的时间不再存在了，因为之前已经建立了连接。</p>
+<p><img data-attachment-id="40679" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/roboto-font/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png" data-orig-size="543,109" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Roboto font" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png" decoding="async" class="aligncenter size-full wp-image-40679 jetpack-lazy-image" src="../Images/2afbc2586eaad60fae02fe9e94ac02ec.png" alt="Roboto Font" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png 543w, https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font-300x60.png 300w" data-lazy-sizes="(max-width: 543px) 100vw, 543px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="40679" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/roboto-font/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png" data-orig-size="543,109" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Roboto font" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-40679" src="../Images/2afbc2586eaad60fae02fe9e94ac02ec.png" alt="Roboto Font" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png 543w, https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font-300x60.png 300w" sizes="(max-width: 543px) 100vw, 543px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/roboto-font.png"/></noscript>
+<h2>服务人员缓存字体</h2>
+<p>字体是静态资源，不会有太大的变化，所以它们是缓存的好选择。理想情况下，您的 web 服务器应该在字体上设置一个更长的<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control" target="_blank" rel="noopener">最大期限</a>标题，这样浏览器就可以更长时间地缓存它们。如果您正在构建一个渐进式 web 应用程序(PWA ),那么您可以使用<a href="https://developers.google.com/web/fundamentals/primers/service-workers" target="_blank" rel="noopener">服务工作者</a>来缓存字体并直接从缓存中提供它们。</p>
+<p>要开始使用 Vue 构建 PWA，请使用<strong> vue-cli </strong>工具生成一个新项目:</p>
+<pre>vue create pwa-app
+</pre>
+<p>选择<strong>手动选择功能</strong>选项，然后选择<strong>渐进式网络应用(PWA)支持</strong>:</p>
+<p><img data-attachment-id="40680" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/creating-new-pwa-project-vue-cli/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png" data-orig-size="522,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creating new PWA project in Vue CLI" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli-300x119.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png" decoding="async" class="aligncenter size-full wp-image-40680 jetpack-lazy-image" src="../Images/4759c07c9cf599327cecbdbea9aa322d.png" alt="Creating New PWA Project in Vue CLI" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png 522w, https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli-300x119.png 300w" data-lazy-sizes="(max-width: 522px) 100vw, 522px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="40680" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/creating-new-pwa-project-vue-cli/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png" data-orig-size="522,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creating new PWA project in Vue CLI" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli-300x119.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-40680" src="../Images/4759c07c9cf599327cecbdbea9aa322d.png" alt="Creating New PWA Project in Vue CLI" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png 522w, https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli-300x119.png 300w" sizes="(max-width: 522px) 100vw, 522px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/creating-new-pwa-project-vue-cli.png"/></noscript>
+<p>这些是我们生成 PWA 模板所需的唯一内容。完成后，您可以将目录更改为<code>pwa-app</code>并为应用程序提供服务:</p>
+<pre>cd pwa-app
+yarn serve
+</pre>
+<p>您会注意到在<code>src</code>目录中有一个文件<code>registerServiceWorker</code>，它包含默认配置。在项目的根目录下，创建<code>vue.config.js</code>(如果不存在),或者添加以下内容(如果存在):</p>
+<pre>// vue.config.js
+
+module.exports = {
+  pwa: {
+    workboxOptions: {
+      skipWaiting: true,
+      clientsClaim: true,
+    }
+  }
+}
+</pre>
+<p>vue-cli 工具使用<a href="https://cli.vuejs.org/core-plugins/pwa.html" target="_blank" rel="noopener"> PWA 插件</a>生成服务工作者。在底层，它使用<a href="https://developers.google.com/web/tools/workbox" target="_blank" rel="noopener">工具箱</a>来配置服务工作者及其控制的元素、要使用的缓存策略以及其他必要的配置。在上面的代码片段中，我们确保我们的应用程序始终由最新版本的服务人员控制。这是必要的，因为它确保我们的用户总是查看应用程序的最新版本。您可以查看<a href="https://developers.google.com/web/tools/workbox" target="_blank" rel="noopener">工具箱配置</a>文档，以获得对所生成的服务人员行为的更多控制。</p>
+<p>接下来，我们将自定义字体添加到<code>public</code>目录中。我有以下结构:</p>
+<pre>root/
+  public/
+    index.html
+    fonts/
+      Roboto/
+        Roboto-Regular.woff
+        Roboto-Regular.woff2
+</pre>
+<p>一旦您完成了 Vue 应用程序的开发，您就可以通过从终端运行以下命令来构建它:</p>
+<pre>yarn build
+</pre>
+<p>这将结果输出到<code>dist</code>文件夹中。如果您检查文件夹的内容，您会注意到一个类似于<code>precache-manifest.1234567890.js</code>的文件。它包含要缓存的资产列表，这只是一个包含修订版和 URL 的键-值对列表:</p>
+<pre>self.__precacheManifest = (self.__precacheManifest || []).concat([
+  {
+    "revision": "3628b4ee5b153071e725",
+    "url": "/fonts/Roboto/Roboto-Regular.woff2"
+  },
+  ...
+]);
+</pre>
+<p>默认情况下，<code>public/</code>文件夹中的所有内容都被缓存，包括自定义字体。有了这个，你就可以用一个像<a href="https://www.npmjs.com/package/serve" target="_blank" rel="noopener"> serve </a>这样的包来服务你的应用程序，或者在一个 web 服务器上托管<code>dist</code>文件夹来查看结果。你可以在下面找到这个应用的截图:</p>
+<p><img data-attachment-id="40681" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/screenshot-vue-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png" data-orig-size="730,471" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Screenshot in Vue app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png" decoding="async" class="aligncenter size-full wp-image-40681 jetpack-lazy-image" src="../Images/e5546ace868a84a9fecfb5813adeb8f7.png" alt="Screenshot in Vue App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app-300x194.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="40681" data-permalink="https://blog.logrocket.com/best-practices-for-loading-fonts-in-vue/screenshot-vue-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png" data-orig-size="730,471" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Screenshot in Vue app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app-300x194.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-40681" src="../Images/e5546ace868a84a9fecfb5813adeb8f7.png" alt="Screenshot in Vue App" srcset="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app-300x194.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/04/screenshot-vue-app.png"/></noscript>
+<p>在随后的访问中，字体会从缓存中加载，从而加快应用程序的加载速度。</p>
+<h2>结论</h2>
+<p>在这篇文章中，我们看了一些在 Vue 应用程序中加载字体的最佳实践。使用这些实践将确保你提供好看的字体，而不损害你的应用程序的性能。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的 Vue 应用</h2><p>调试 Vue.js 应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的 Vue 突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Vue 应用程序中发生的一切，包括网络请求、JavaScript 错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex 插件将 Vuex 突变记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试 Vue 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

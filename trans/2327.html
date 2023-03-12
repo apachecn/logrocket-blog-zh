@@ -1,0 +1,381 @@
+<html>
+<head>
+<title>Using an SQL database in Golang - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Golang - LogRocket 博客中使用 SQL 数据库</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-sql-database-golang/#0001-01-01">https://blog.logrocket.com/using-sql-database-golang/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>十二因素应用程序方法中的进程原则断言应用程序作为无状态进程执行。这意味着需要持久化的数据应该存储在外部后台服务中，比如数据库。</p>
+<p>当将这一原则应用于 Golang 编写的应用程序时，您可能需要使用 SQL 数据库来持久化数据。</p>
+<p>在本教程中，我们将学习如何使用 SQL 数据库构建一个用 Golang 编写的基于控制台的提醒应用程序。</p>
+<p>我们将关注 Microsoft SQL Server，并将 Golang 应用程序连接到 SQL Server 中的数据库，以存储用户的提醒。我们选择 Microsoft SQL Server 而不是 MySQL，不是因为一个比另一个好，而是因为一个的教程比另一个少。除此之外，MSSQL 语法比 MySQL 简单。</p>
+<p>以下是我们将要介绍的内容:</p>
+
+<h2 id="golang-sql-prerequisites">Golang 和 SQL 先决条件</h2>
+<p>要继续构建控制台应用程序，建议您具备以下条件:</p>
+<ul>
+<li>对 Go 编程语言的基本理解</li>
+<li>Golang 安装在您的本地计算机上</li>
+<li>Docker 安装在您的本地计算机上</li>
+</ul>
+<h2 id="using-microsoft-sql-server">使用 Microsoft SQL Server</h2>
+<p>Microsoft SQL Server 是一个包含多个组件的关系数据库管理系统(RDBMS)。其中一个组件是数据库引擎，它管理存储在 SQL Server 中的数据。</p>
+<p>在本教程中，我们将使用 SQL Server 的数据库引擎组件。为了建立到数据库引擎的连接，我们需要 Golang 标准库中的数据库包和<a href="https://github.com/denisenkom/go-mssqldb"> <code>go-mssqldb</code>包</a>。</p>
+<p>首先，让我们将 SQL Server 实例作为 Docker 映像安装在本地计算机上。</p>
+<h3 id="installing-microsoft-sql-server">安装 Microsoft SQL Server</h3>
+<p>我们现在可以从计算机终端通过 Docker 镜像安装微软 SQL<a href="https://blog.logrocket.com/docker-sql-server/">S</a><a href="https://blog.logrocket.com/docker-sql-server/">server 实例。</a></p>
+<p>从您的终端执行下面的 Docker <code>pull</code>命令，从 DockerHub 中提取 2019 Microsoft SQL server 实例的容器映像:</p>
+<pre class="language-go hljs">docker pull mcr.microsoft.com/mssql/server:2019-latest
+</pre>
+<p>接下来，执行下面的 Docker run 命令，使用 Docker 运行提取的容器映像。下面的命令包含作为<a href="https://docs.docker.com/compose/environment-variables/">环境变量</a>传递到容器映像的参数，以配置容器。</p>
+<p>确保将命令中的<code>INSTANCE_PASSWORD</code>占位符更改为更安全的密码，并记住该密码，因为我们稍后会用到它:</p>
+<pre class="language-go hljs">sudo docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=INSTANCE_PASSWORD" \
+   -p 1433:1433 --name sql1 -h sql1 \
+   -d mcr.microsoft.com/mssql/server:2019-latest
+</pre>
+<p>您可以进一步执行<code>docker ps</code>命令来查看在后台运行的 MSSQL 容器。</p>
+<p><img data-attachment-id="75312" data-permalink="https://blog.logrocket.com/using-sql-database-golang/docker-container-mssql-instance/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png" data-orig-size="730,28" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Docker container MSSQL instance" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance-300x12.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png" decoding="async" class="aligncenter wp-image-75312 size-full jetpack-lazy-image" src="../Images/3af3cef23e4278bab367f7bd7a09b5b1.png" alt="Docker Container MSSQL Instance In terminal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance-300x12.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75312" data-permalink="https://blog.logrocket.com/using-sql-database-golang/docker-container-mssql-instance/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png" data-orig-size="730,28" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Docker container MSSQL instance" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance-300x12.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png" decoding="async" loading="lazy" class="aligncenter wp-image-75312 size-full" src="../Images/3af3cef23e4278bab367f7bd7a09b5b1.png" alt="Docker Container MSSQL Instance In terminal" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance-300x12.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Docker-container-MSSQL-instance.png"/></noscript>
+<h2 id="creating-sql-server-database">创建 SQL Server 数据库</h2>
+<p>在上一节中，我们提取了 Microsoft SQL Server 映像来运行 SQL Server 实例。现在，让我们在 SQL Server 实例中为 Golang 应用程序创建一个数据库。</p>
+<p>要创建数据库，您可以使用数据库 GUI 工具，如<a href="https://docs.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms?view=sql-server-ver15">SQL Server Management Studio(SSMS)</a>，或者通过<a href="https://docs.microsoft.com/en-us/sql/tools/sqlcmd-utility?view=sql-server-ver15"> s </a> <a href="https://docs.microsoft.com/en-us/sql/tools/sqlcmd-utility?view=sql-server-ver15"> qlcmd CLI 实用程序</a>。</p>
+<p>我们将继续连接到运行 SQL server 实例的 Docker 映像，从终端创建一个数据库。</p>
+<p>首先，执行下面的 Docker <code>exec</code>命令，在运行 SQL Server 实例的 Docker 容器中启动一个 Bash shell。这一步使我们能够访问容器中的 sqlcmd 工具:</p>
+<pre class="language-go hljs">sudo docker exec -it sql1 "bash"
+</pre>
+<p>接下来，通过在上面开始的交互式 Bash shell 中执行下面的命令来连接 sqlcmd。</p>
+<p>同样，请注意，您必须使用运行 Docker 映像时使用的密码来更改下面的<code>INSTANCE_PASSWORD</code>占位符:</p>
+<pre class="language-go hljs">/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "INSTANCE_PASSWORD"
+</pre>
+<p>要开始创建数据库，输入下面的 SQL 查询来创建一个名为<code>goConsole</code>的数据库:</p>
+<pre class="language-go hljs">CREATE DATABASE goConsole
+</pre>
+<p>接下来，运行下面的<a href="https://docs.microsoft.com/en-us/sql/t-sql/language-elements/sql-server-utilities-statements-go?redirectedfrom=MSDN&amp;view=sql-server-ver15">批处理分隔符命令</a>来执行您在上面输入的 SQL 查询:</p>
+<pre class="language-go hljs">GO 
+</pre>
+<p>为了进一步确认数据库已创建，我们可以键入下面的<code>SELECT</code>语句，按名称检索所有可用的数据库:</p>
+<pre class="language-go hljs">SELECT Name from sys.Databases
+</pre>
+<p>然后，运行下面的命令来执行上面的<code>SELECT</code>语句:</p>
+<pre class="language-go hljs">GO
+</pre>
+<p>在新的 SQL Server 实例中创建的五个数据库将打印出来:</p>
+<p><img data-attachment-id="75303" data-permalink="https://blog.logrocket.com/using-sql-database-golang/sql-server-databases-retrieved-name/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png" data-orig-size="442,252" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SQL server databases retrieved name" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png" decoding="async" class="aligncenter wp-image-75303 jetpack-lazy-image" src="../Images/9e8e503397db820132277e10dce7ee95.png" alt="SQL Server Databases Retrieved Name" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png 442w, https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75303" data-permalink="https://blog.logrocket.com/using-sql-database-golang/sql-server-databases-retrieved-name/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png" data-orig-size="442,252" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SQL server databases retrieved name" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png" decoding="async" loading="lazy" class="aligncenter wp-image-75303" src="../Images/9e8e503397db820132277e10dce7ee95.png" alt="SQL Server Databases Retrieved Name" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png 442w, https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/SQL-server-databases-retrieved-name.png"/></noscript>
+<h3 id="creating-reminders-table">创建<code>Reminders</code>表</h3>
+<p>要为我们的提醒应用程序在<code>goConsole</code>数据库中创建一个<code>Reminders</code>表，键入下面的两个 SQL 查询，首先使用<a href="https://docs.microsoft.com/en-us/sql/t-sql/language-elements/use-transact-sql?view=sql-server-ver15"> USE 语句</a>将当前数据库从<code>master</code>设置为<code>goConsole</code>:</p>
+<pre class="language-go hljs">USE goConsole
+</pre>
+<p>接下来，键入下面的<code>CREATE TABLE statement</code>，在<code>goConsole</code>数据库中创建一个名为<code>Reminders</code>的表:</p>
+<pre class="language-go hljs">CREATE TABLE Reminders ( ID int IDENTITY(1, 1), title varchar(75), description varchar(175), alias varchar(70)) 
+</pre>
+<p>当上面的 SQL 查询执行时，将创建一个<code>Reminders</code>表，该表将包含<code>ID</code>、<code>title</code>、<code>description</code>和<code>alias</code>列。</p>
+<p>使用带有<code>ID</code>列的<code>IDENTITY</code>函数可以确保每当一条新记录插入到<code>Reminders</code>表中时，<code>ID</code>列的值就会自动增加<code>1</code>。</p>
+<p>继续运行下面的 Go 命令，执行我们在上面键入的两个 SQL 查询:</p>
+<pre class="language-go hljs">GO  
+</pre>
+<p>现在数据库已经创建好了，让我们继续本教程的 Golang 部分。</p>
+<h2 id="building-golang-console-application">构建 Golang 控制台应用程序</h2>
+<p>在本节中，我们将构建一个简化的控制台应用程序，以使用我们刚刚创建的<code>goConsole</code>数据库。然而，在我们继续之前，理解 Golangs 的 sql 包和方法是很重要的。</p>
+<p><a href="https://pkg.go.dev/database/sql@go1.17.2"> Golang 的 sql 包</a>来自 Golang 的标准库，它提供了一个围绕 SQL 数据库的接口。要使用 sql 数据库，我们必须使用带有 SQL 数据库驱动程序的 SQL 包。</p>
+<p>当我们在 sql 包中使用<code>go-mssqldb</code>数据库驱动程序时，我们将看到这是如何实现的。</p>
+<p>Golang 方法类似于函数，但是，一个方法有一个附加的接收者参数。</p>
+<p>在本教程中，我们将创建一个 struct 类型来包含一个存储指向 sql 包中的数据库处理程序的指针的字段，并创建具有 struct 类型的接收器的方法。</p>
+<p>还要注意的是，我们将只实现没有预警的提醒数据的<code>CREATE</code>、<code>RETRIEVE</code>、<code>DELETE</code>操作。</p>
+<h3 id="creating-go-application">创建 Go 应用程序</h3>
+<p>要开始创建 Go 应用程序，执行下面的两个命令来创建一个新的目录来存储 Go 项目，并移动到<code>mssql-go-cli</code>目录中:</p>
+<pre class="language-go hljs"># create a new directory
+mkdir mssql-go-cli
+
+# move into new directory
+cd mssql-go-cli
+</pre>
+<p>接下来，执行下面的 Go 命令，用一个<code>go.mod</code>文件引导一个 Go 项目，以管理这个项目中的依赖项:</p>
+<pre class="language-go hljs">go mod init mssql-go-cli
+</pre>
+<p>执行下面的<code>go get</code>命令来安装<code>go-mssqldb</code>包，以便从这个 Go 应用程序连接您的 Microsoft SQL 数据库:</p>
+<pre class="language-go hljs">go get github.com/denisenkom/go-mssqldb github.com/joho/godotenv/cmd/godotenv
+</pre>
+<p>最后，创建一个<code>main.go</code>文件，并将下面代码块的内容添加到文件中。main 函数中的代码充当应用程序的样板，而我们将在下一节中实现真正的逻辑:</p>
+<pre class="language-go hljs">// main.go
+package main
+import "fmt"
+
+func main() {
+  fmt.Println("-&gt; Welcome to the Reminders Console App built using Golang and Microsoft SQL Server")  
+}
+</pre>
+<p>当应用程序通过<code>go run main.go</code>命令运行时，一个字符串打印到控制台，如下所示:</p>
+<p><img data-attachment-id="75301" data-permalink="https://blog.logrocket.com/using-sql-database-golang/welcome-reminders-console-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png" data-orig-size="881,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome reminders console app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-300x29.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png" decoding="async" class="aligncenter size-full wp-image-75301 jetpack-lazy-image" src="../Images/289e19c6def5ad413010b2b1923088f6.png" alt="Welcome Message From The Reminder Console Application In The Terminal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png 881w, https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-300x29.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-768x75.png 768w" data-lazy-sizes="(max-width: 881px) 100vw, 881px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75301" data-permalink="https://blog.logrocket.com/using-sql-database-golang/welcome-reminders-console-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png" data-orig-size="881,86" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome reminders console app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-300x29.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-75301" src="../Images/289e19c6def5ad413010b2b1923088f6.png" alt="Welcome Message From The Reminder Console Application In The Terminal" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png 881w, https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-300x29.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app-768x75.png 768w" sizes="(max-width: 881px) 100vw, 881px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Welcome-reminders-console-app.png"/></noscript>
+<p>此时，我们让 Go 应用程序在没有连接到 SQL Server 的情况下工作。因此，接下来让我们创建一个自定义数据库包，其中包含用于建立到 SQL Server 实例的连接的代码。</p>
+<h2 id="building-database-package">构建数据库包</h2>
+<p>Go 包是一个目录中包含 Go 代码的文件集合。因此，要为这个应用程序创建数据库包，我们必须在<code>mssql-go-cli</code>项目目录中创建一个新目录。</p>
+<p>为此，创建一个名为<code>database</code>的目录，并在名为<code>database.go</code>的新目录中创建一个文件。</p>
+<p>接下来，将下面代码块的内容添加到<code>database.go</code>文件中，创建一个带有导出的<code>SqlDb</code>字段的导出的<code>Database</code>结构。字段的数据类型指向<code>DB</code>结构:</p>
+<pre class="language-go hljs">// ./database/database.go
+package database
+
+import (
+   "context"
+   "database/sql"
+)
+
+type Database struct {
+   SqlDb *sql.DB
+}
+
+var dbContext = context.Background()
+</pre>
+<p>然后，在下一步中，从数据库包中导出的结构在 main 函数中初始化。</p>
+<h3 id="building-main-function">建筑主体功能</h3>
+<p>让我们继续重构<code>main.go</code>文件，提示用户进行操作并接受来自控制台的输入。</p>
+<p>将下面代码块的内容添加到<code>main.go</code>文件中:</p>
+<pre class="language-go hljs">// ./main.go
+package main
+
+import (
+   "bufio"
+   "database/sql"
+   "fmt"
+   _ "github.com/denisenkom/go-mssqldb"
+   "github.com/joho/godotenv"
+   "mssql-go-cli/database"
+   "os"
+)
+
+func main() {
+    envErr := godotenv.Load(); if envErr != nil {
+       fmt.Printf("Error loading credentials: %v", envErr)
+    }
+
+var (
+   password = os.Getenv("MSSQL_DB_PASSWORD")
+   user = os.Getenv("MSSQL_DB_USER")
+   port = os.Getenv("MSSQL_DB_PORT")
+   database = os.Getenv("MSSQL_DB_DATABASE")
+)
+
+connectionString := fmt.Sprintf("user id=%s;password=%s;port=%s;database=%s", user, password, port, database)
+
+   sqlObj, connectionError := sql.Open("mssql", database.ConnectionString); if connectionError != nil {
+      fmt.Println(fmt.Errorf("error opening database: %v", connectionError))
+   }
+
+   data := database.Database{
+      SqlDb: sqlObj,
+   }
+
+   fmt.Println("-&gt; Welcome to Reminders Console App, built using Golang and Microsoft SQL Server")
+   fmt.Println("-&gt; Select a numeric option; \n [1] Create a new Reminder \n [2] Get a reminder \n [3] Delete a reminder")
+
+   consoleReader := bufio.NewScanner(os.Stdin)
+   consoleReader.Scan()
+   userChoice := consoleReader.Text()
+
+   switch userChoice {
+   case "1":
+      var (
+         titleInput,
+         descriptionInput,
+         aliasInput string
+      )
+      fmt.Println("You are about to create a new reminder. Please provide the following details:")
+
+      fmt.Println("-&gt; What is the title of your reminder?")
+      consoleReader.Scan()
+      titleInput = consoleReader.Text()
+
+      fmt.Println("-&gt; What is the description of your reminder?")
+      consoleReader.Scan()
+      descriptionInput = consoleReader.Text()
+
+      fmt.Println("-&gt; What is an alias of your reminder? [ An alias will be used to retrieve your reminder ]")
+      consoleReader.Scan()
+      aliasInput = consoleReader.Text()
+
+      data.CreateReminder(titleInput, descriptionInput, aliasInput)
+
+   case "2":
+      fmt.Println("-&gt; Please provide an alias for your reminder:")
+      consoleReader.Scan()
+      aliasInput := consoleReader.Text()
+
+      data.RetrieveReminder(aliasInput)
+
+   case "3":
+      fmt.Println("-&gt; Please provide the alias for the reminder you want to delete:")
+      consoleReader.Scan()
+      deleteAlias := consoleReader.Text()
+
+      data.DeleteReminder(deleteAlias)
+
+   default:
+      fmt.Printf("-&gt; Option: %v is not a valid numeric option. Try 1 , 2 , 3", userChoice)
+   }
+}
+</pre>
+<p>快速浏览一下，当上面的 main 函数执行时，文本打印到控制台，通知用户创建、检索或删除提醒的可用操作。然后，用户的输入将匹配开关表达式中的一种情况。</p>
+<p>为了更好地理解代码，让我们将文件分解，并逐步检查主要部分。</p>
+<h4>理解主函数的代码</h4>
+<p>首先，<code>.env</code>文件中的环境变量通过<code>dotenv</code>包中的<code>Load</code>函数加载到应用程序中。然后，我们可以通过调用<code>sql.Open()</code>打开数据库，并将结果存储在<code>Database</code>结构的<code>SqlDb</code>字段中。</p>
+<p>从代码块的第 36 行开始，一条消息打印到控制台，通知用户创建、检索或删除提醒的操作。bufio 包中的扫描器然后从控制台读取一个输入，并将文本值存储在<code>userChoice</code>变量中。</p>
+<p>然后，我们可以使用<code>userChoice</code>变量作为代码中包含的 switch 语句的条件表达式。</p>
+<p>只要 switch 语句中的任何一个事例匹配，就会进一步提示用户通过控制台提供更多的细节，这些细节将作为参数传递给一个助手函数，该函数对数据库执行 SQL 查询。</p>
+<p>例如，第一种情况匹配一个<code>1</code>控制台输入来创建一个提醒。当匹配时，进一步提示用户输入将要创建的提醒的标题、描述和别名细节。</p>
+<p>上面声明的变量存储所提供的细节，并作为参数传递给一个<code>createReminder</code>函数，以在连接的 Microsoft SQL 数据库上执行一个<code>CREATE</code>操作。</p>
+<p>现在，我们有了一个通过控制台接受用户输入的应用程序。然而，这些输入还没有存储在<code>goConsole</code>数据库中，因为切换案例中的方法还没有创建。</p>
+<p>让我们继续在数据库包的一个单独的文件中创建<code>createReminder</code>、<code>retrieveReminder</code>和<code>deleteReminder</code>方法。</p>
+<h3 id="inserting-reminder-record">插入提醒记录</h3>
+<p>要开始构建插入提醒记录的第一个函数，在数据库目录中创建一个名为<code>operations.go</code>的文件，并将下面的代码添加到<code>operations.go</code>文件中:</p>
+<pre class="language-go hljs">// ./database/operations.go
+package database
+import (
+   "database/sql"
+   "fmt"
+)
+
+func (db Database) CreateReminder(titleInput, aliasInput, descriptionInput string) (int64,  error) {
+   var err error
+
+   err = db.SqlDb.PingContext(dbContext); if err != nil {
+      return -1, err
+   }
+
+   queryStatement :=  `
+    INSERT INTO reminders(title, description, alias ) VALUES (@Title, @Description, @Alias);
+    select isNull(SCOPE_IDENTITY(), -1);
+   `
+
+   query, err := db.SqlDb.Prepare(queryStatement); if err != nil {
+      return -1, err
+   }
+
+   defer query.Close()
+
+   newRecord := query.QueryRowContext(dbContext,
+      sql.Named("Title", titleInput),
+      sql.Named("Description", descriptionInput),
+      sql.Named("Alias", aliasInput),
+   )
+
+   var newID int64
+   err = newRecord.Scan(&amp;newID); if err != nil {
+      return -1, err
+   }
+
+   return newID, nil
+}
+</pre>
+<p>上面代码块中导出的<code>CreateReminder</code>方法接受提醒的字符串细节。该函数做的第一件事是调用<code>PingContext()</code>方法来验证一个连接是活动的。</p>
+<p>接下来，使用<code>Prepare()</code>方法准备的 SQL 语句被存储在<code>queryStatement</code>变量中。然后通过将<code>dbContext</code>和查询参数传递给<code>QueryRowContext</code>方法来执行 SQL 语句。</p>
+<p>注意方法的参数是如何通过<code>NamedArg()</code>方法使用参数添加到 SQL 语句中的，而不是直接将参数格式化到 SQL 语句中。</p>
+<p>这一过程降低了 SQL 注入病毒攻击的风险。但是，您可以在以后采用数据验证库。</p>
+<h3 id="retrieving-reminder-record">检索提醒记录</h3>
+<p>要检索一个提醒记录，首先在代码块中的现有方法下的<code>operations.go</code>文件中添加导出的<code>RetrieveReminder</code>方法。</p>
+<p><code>RetrieveReminder</code>方法首先检查数据库连接是否处于活动状态，然后执行一个 SQL 查询从数据库中检索一个提醒记录，并将数据打印到控制台:</p>
+<pre class="language-go hljs">// ./database/operations.go
+
+func (db Database) RetrieveReminder() error {
+err := db.SqlDb.PingContext(dbContext); if err != nil {
+   return err
+}
+
+   sqlStatement := fmt.Sprintf("SELECT title, description, alias FROM REMINDERS;")
+
+   data, queryErr := db.SqlDb.QueryContext(dbContext, sqlStatement); if queryErr != nil {
+      return queryErr
+   }
+
+   for data.Next() {
+      var title, description, alias string
+
+      nErr := data.Scan(&amp;title, &amp;description, &amp;alias); if nErr != nil {
+         return nErr
+      }
+
+      fmt.Printf("--&gt; Your Reminder: \n \t Title: %v \n \t Description: %v \n \t Alias: %v \n",
+      title, description, alias,
+         )
+
+      return nil
+   }
+
+   return nil
+}
+</pre>
+<p>上面，使用<code>QueryContext()</code>方法，执行一个<code>SELECT</code> SQL 语句从提醒表中读取<code>title</code>、<code>description</code>和<code>alias</code>值。</p>
+<p>然后，<code>QueryContext()</code>方法在结果集中返回选择的表行，我们可以在<code>for</code>循环中进一步迭代。</p>
+<p><code>for</code>循环中的<code>Scan()</code>方法进一步将被迭代的列的值复制到<code>title</code>、<code>description</code>和<code>alias</code>变量中；之后，它们被格式化成一个字符串并打印到控制台。</p>
+<h3 id="deleting-reminder-record">删除提醒记录</h3>
+<p>要删除一条提醒记录，将下面的<code>deleteReminder</code>方法添加到<code>operations.go</code>文件中现有的<code>CreateReminder</code>和<code>RetrieveReminder</code>方法中:</p>
+<pre class="language-go hljs">// ./database/operations.go
+
+func (db Database) DeleteReminder(alias string) error {
+var err error
+
+err = db.SqlDb.PingContext(dbContext); if err != nil {
+   fmt.Printf("Error checking db connection: %v", err)
+}
+
+queryStatement := `DELETE FROM reminders WHERE alias = @alias;`
+
+_, err = db.SqlDb.ExecContext(dbContext, queryStatement, sql.Named("alias", alias))
+if err != nil {
+   return err
+}
+
+fmt.Printf("Reminder with %v alias deleted", alias)
+
+return nil
+}
+</pre>
+<p>上面的<code>DeleteReminder</code>方法在其签名中接受一个字符串别名值。<code>DELETE</code> SQL 查询语句使用一个<code>WHERE</code>子句来指定删除哪个提醒。</p>
+<p>然后准备查询语句，函数的<code>alias</code>参数被用作 SQL 语句中<code>WHERE</code>子句的条件。</p>
+<p>对于这个场景，<code>ExecContext()</code>方法执行<code>DELETE</code> SQL 语句，因为我们不执行任何从查询返回的行。</p>
+<h2 id="testing-golang-console-application">测试 Golang 控制台应用程序</h2>
+<p>在前三节中，我们实现了三种方法来处理来自连接的<code>goConsole</code>数据库的<code>CREATE</code>、<code>READ</code>和<code>DELETE</code>记录。现在让我们继续测试整个控制台应用程序。</p>
+<p>以下步骤使用控制台应用程序的可用选项引导我们完成测试过程。</p>
+<p>首先，执行下面的命令来运行应用程序。在控制台中键入<code>1</code>,选择打印到控制台的消息中的第一项，以创建提醒。</p>
+<p>应用程序进一步提示我们为将要创建的提醒输入一个<code>title</code>、<code>description</code>和<code>alias</code>值:</p>
+<pre class="language-go hljs">go run ./main.go
+</pre>
+<p>再次执行下面的命令来运行应用程序。这一次，在控制台中键入<code>2</code>,选择第二个选项来检索已保存的提醒:</p>
+<pre class="language-go hljs">go run ./main.go
+</pre>
+<p><img data-attachment-id="75308" data-permalink="https://blog.logrocket.com/using-sql-database-golang/selecting-second-option-retrieving-saved-reminders/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png" data-orig-size="884,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selecting second option retrieving saved reminders" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-300x100.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png" decoding="async" class="aligncenter wp-image-75308 jetpack-lazy-image" src="../Images/b61d7f8993e25f53584f6f1f2f035ebb.png" alt="Selecting The Second Option In The Terminal When Retrieving Saved Reminders" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png 884w, https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-300x100.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-768x255.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75308" data-permalink="https://blog.logrocket.com/using-sql-database-golang/selecting-second-option-retrieving-saved-reminders/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png" data-orig-size="884,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selecting second option retrieving saved reminders" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-300x100.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png" decoding="async" loading="lazy" class="aligncenter wp-image-75308" src="../Images/b61d7f8993e25f53584f6f1f2f035ebb.png" alt="Selecting The Second Option In The Terminal When Retrieving Saved Reminders" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png 884w, https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-300x100.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders-768x255.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Selecting-second-option-retrieving-saved-reminders.png"/></noscript>
+<p>执行下面的命令，运行应用程序进行最终测试。这一次，在控制台中键入<code>3</code>选择最后一个选项来删除保存的提醒。应用程序进一步提示我们指定要删除的提醒的别名:</p>
+<pre class="language-go hljs">go run ./main.go
+</pre>
+<p><img data-attachment-id="75305" data-permalink="https://blog.logrocket.com/using-sql-database-golang/specifying-alias-delete/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png" data-orig-size="824,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Specifying alias delete" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-300x75.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png" decoding="async" class="aligncenter size-full wp-image-75305 jetpack-lazy-image" src="../Images/59988f49ecd9767e0b202ee8ea29e91a.png" alt="Terminal Asks User To Specify Which Alias To Delete" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png 824w, https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-300x75.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-768x193.png 768w" data-lazy-sizes="(max-width: 824px) 100vw, 824px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="75305" data-permalink="https://blog.logrocket.com/using-sql-database-golang/specifying-alias-delete/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png" data-orig-size="824,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Specifying alias delete" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-300x75.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-75305" src="../Images/59988f49ecd9767e0b202ee8ea29e91a.png" alt="Terminal Asks User To Specify Which Alias To Delete" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png 824w, https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-300x75.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete-768x193.png 768w" sizes="(max-width: 824px) 100vw, 824px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/Specifying-alias-delete.png"/></noscript>
+<p>至此，我们可以得出结论，我们构建了一个简化的控制台应用程序，它使用 SQL Server 数据库来处理数据。</p>
+<h2 id="further-considerations">进一步的考虑</h2>
+<p>在本文中，我们重点关注了使用 SQL Server 数据库的各个方面。如果您想利用这里编写的代码来构建更复杂的应用程序，请考虑以下几点。</p>
+<h3 id="using-validation-library">使用验证库</h3>
+<p>在 SQL 查询中使用用户输入之前，请确保使用数据验证库来验证用户输入。这降低了针对连接数据库的 SQL 注入攻击的风险。</p>
+<p>Golang 的数据验证库的例子包括<a href="https://github.com/go-ozzo/ozzo-validation"> go-ozzo </a>和<a href="https://github.com/asaskevich/govalidator"> govalidator </a>。</p>
+<h3 id="using-cli-library">使用 CLI 库</h3>
+<p>其次，使用库来创建 CLI 应用程序。为了避免使教程变得复杂，我们依赖一个 switch 语句来处理应用程序流。然而，您可以通过使用 Golang 的一个<a href="https://blog.logrocket.com/using-cobra-build-cli-accounting-app/"> CLI 库来改进这个流程，比如 Cobra </a>。</p>
+<h3 id="handling-query-timeouts">处理查询超时</h3>
+<p>Golang 已经能够提供对处理超时的支持，超时用于执行带有超时和取消的查询。这意味着，如果客户端取消请求，我们可以取消数据库查询，或者设置超时来取消查询。这些可以通过使用 Golang 的<code>context.Context</code>实例:<br/>来实现</p>
+<pre>​​func retrieveReminder(w http.ResponseWriter, r *http.Request) {
+​​        ctx, cancel := context.WithTimeout(dbContext, 3*time.Second)
+​​        defer cancel()
+​​
+​​        _, err := db.QueryContext(ctx, "SELECT sleep(15)")</pre>
+<p>有了这些，我们就可以防止服务器执行不必要的任务，甚至是花费更长的时间来提供资源，在这种情况下就是提醒。</p>
+<h2>结论</h2>
+<p>在本教程中，我们构建了一个控制台应用程序，它使用 Golang 的原生数据库包和<code>go-mssqldb</code>包来连接 SQL Server 数据库并在其上执行 CRUD 操作。</p>
+<p>教程中构建的控制台应用程序的代码可以在这个<a href="https://github.com/vickywane/golang-mssql-console-app">公共 GitHub </a> <a href="https://github.com/vickywane/golang-mssql-console-app"> r </a> <a href="https://github.com/vickywane/golang-mssql-console-app">资源库</a>中获得。您可以随意克隆存储库，并使用该应用程序作为您自己的 Golang 应用程序的起点。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

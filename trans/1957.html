@@ -1,0 +1,294 @@
+<html>
+<head>
+<title>Securing GraphQL API endpoints using rate limits and depth limits - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用速率限制和深度限制保护 GraphQL API 端点</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/securing-graphql-api-using-rate-limits-and-depth-limits/#0001-01-01">https://blog.logrocket.com/securing-graphql-api-using-rate-limits-and-depth-limits/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果您的项目后端有一个带有各种解析器的 Node.js GraphQL 端点，并且您将它部署在生产环境中，那么您需要通过速率和深度限制来保护您的 GraphQL API 端点。</p>
+<p>如果超过了设置的每次请求限制，速率限制有助于抑制用户，深度限制有助于通过深度限制 GraphQL 查询的复杂性。这些措施有助于您的应用程序防止 API 垃圾邮件和查询攻击。在本文中，我们将讨论为什么以及如何对 API 进行速率限制和深度限制。</p>
+<h2>什么是速率限制？</h2>
+<p>速率限制意味着限制应用程序或用户在给定时间内可以进行的 API 调用的数量。如果超过该限制，则用户或客户端可能被节流，即，客户端可能被禁止在同一时间段内进行更多类似的 API 调用。</p>
+<h2>为什么要限制 API 的速率？</h2>
+<p>您的后端服务器通常会对一个时间框架内可以处理的请求数量有一些限制。很多时候，怀有恶意的用户会用垃圾邮件轰炸您的 API 端点，这会降低您的服务器速度，甚至可能使其崩溃。</p>
+<p>为了保护您的 API 端点和服务器不被淹没，您必须对您的 API 端点进行速率限制，无论它是 REST API 还是 GraphQL 端点。</p>
+<h2>限速方法</h2>
+<p>有多种方法可以限制 API，如下所示。</p>
+<h3>按每个时间段的 IP 地址</h3>
+<p>如果某些 IP 地址在一段时间内超过了 API 请求的数量，您可以限制它们访问您的服务。</p>
+<h3>按用户 pe 时间范围</h3>
+<p>您可以限制应用程序中的某些用户(通过他们在数据库中的唯一标识符)，并在他们超过某个时间范围内的 API 请求数时限制他们对您的服务的访问。</p>
+<h3>按 IP 地址和每个时间段的用户</h3>
+<p>在这种方法中，如果用户超过您根据他们是否使用相同的 IP 地址设置的速率限制，您将对用户进行限制。</p>
+<h3>所有 GraphQL 解析器的统一速率限制</h3>
+<p>当一个服务器上的 GraphQL 解析器(<a href="https://graphql.org/learn/queries/" target="_blank" rel="noopener">突变、查询</a>和订阅)具有相同的速率限制时，比如每个用户每分钟 10 个请求，就要这样做。</p>
+<p>例如，一个 GraphQL 服务器可能在相同的速率限制规则中有<code>signInMutation</code>、<code>getUserQuery</code>和其他这样的解析器，这意味着在<a href="https://www.tutorialspoint.com/graphql/graphql_resolver.htm#:~:text=Resolver%20is%20a%20collection%20of,info" target="_blank" rel="noopener"> GraphQL 解析器</a>中有一个统一的速率限制。</p>
+<h3>每个 GraphQL 解析器的不同速率限制规则</h3>
+<p>有时每个 GraphQL 解析器都有不同的限速规则。例如，与易于处理且耗时较少的旋变器相比，需要大量内存和处理能力的旋变器将具有更严格的速率限制。</p>
+<p>当每个时间段允许的 API 请求越少时，速率限制越严格。</p>
+<h2>存储限速数据</h2>
+<p>要对 API 或 GraphQL 端点进行速率限制，您需要跟踪时间、用户 id、IP 地址和/或其他唯一标识符，并且您还需要存储上次标识符请求端点时的数据，以便计算标识符是否超出了速率限制。</p>
+<p>“标识符”可以是有助于识别客户端的任何唯一字符串，例如数据库中的用户 ID、IP 地址、二者的字符串组合，甚至是设备信息。</p>
+<p>那么，你把所有这些数据存储在哪里呢？</p>
+<p><a href="http://redis.io/topics/quickstart" target="_blank" rel="noopener"> Redis </a>是最适合这些用例的数据库。这是一个缓存数据库，你可以在密钥对中保存少量信息，而且速度极快。</p>
+<p>让我们现在安装 Redis。稍后，您可以将它插入 Node.js GraphQL 服务器设置中，以存储速率限制相关信息。</p>
+<p>如果您正在使用官方文档安装 Redis，请在命令行中使用这些命令👇</p>
+<pre>wget http://download.redis.io/redis-stable.tar.gz
+tar xvzf redis-stable.tar.gz
+cd redis-stable
+make
+sudo cp src/redis-server /usr/local/bin/ # copying build to proper places
+sudo cp src/redis-cli /usr/local/bin/ # copying build to proper places
+</pre>
+<p>个人认为有更简单的安装方式:</p>
+<p>在 Mac 上:</p>
+<pre>brew install redis # to install redis
+redis-server /usr/local/etc/redis.conf # to run redis
+</pre>
+<p>在 Linux 上:</p>
+<pre>sudo apt-get install redis-server # to install redis
+redis-server /usr/local/etc/redis.conf # to run redis
+</pre>
+<p>Redis 服务器启动后，创建一个新用户。在<code>localhost</code>上，运行 Redis 没有任何密码是可以的，但是对于生产来说你不能，因为你不希望你的 Redis 服务器对互联网开放。</p>
+<p>现在让我们设置一个 Redis 密码。运行<code>redis-cli</code>启动 Redis 命令行。这只有在 Redis 安装并运行的情况下才有效。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>然后，在 CLI 中输入以下命令:</p>
+<pre>config set requirepass somerandompassword
+</pre>
+<p>现在<code>exit</code>命令行。您的 Redis 服务器现在有密码保护。</p>
+<h2>在 GraphQL 中使用速率限制</h2>
+<p>这里，我们将利用<a href="https://www.npmjs.com/package/graphql-rate-limit" target="_blank" rel="noopener"> <code>graphql-rate-limit</code> npm 模块</a>。你还需要<code><a href="https://www.npmjs.com/package/ioredis" target="_blank" rel="noopener">ioredis</a></code>。</p>
+<pre>npm i graphql-rate-limit ioredis -s
+</pre>
+<p>在本教程中，我使用<a href="https://github.com/dotansimha/graphql-yoga" target="_blank" rel="noopener"> graphql-yoga </a>服务器作为后端。也可以使用<a href="https://github.com/apollographql/apollo-server" target="_blank" rel="noopener"> Apollo GraphQL </a>。</p>
+<p><code><a href="https://www.npmjs.com/package/graphql-rate-limit" target="_blank" rel="noopener">graphql-rate-limit</a></code>适用于任何 Node.js GraphQL 设置。它所做的就是创建<a href="https://graphql.org/learn/queries/#directives" target="_blank" rel="noopener"> GraphQL 指令</a>用于您的<a href="https://graphql.org/learn/schema/" target="_blank" rel="noopener"> GraphQL 模式</a>。</p>
+<p>这是一个普通的 GraphQL 服务器的样子:</p>
+<pre>import { GraphQLServer } from 'graphql-yoga'
+
+const typeDefs = `
+  type Query {
+    hello(name: String!): String!
+  }
+`
+
+const resolvers = {
+  Query: {
+    hello: (_, { name }) =&gt; `Hello ${name}`
+  }
+}
+
+const server = new GraphQLServer({ typeDefs, resolvers })
+
+server.start(() =&gt; console.log('Server is running on localhost:4000'))
+</pre>
+<p>现在，让我们用这段代码来速率限制<code>welcome</code>查询(解析器)。</p>
+<pre>import { GraphQLServer } from 'graphql-yoga'
+
+import * as Redis from "ioredis"
+import { createRateLimitDirective, RedisStore } from "graphql-rate-limit"
+
+export const redisOptions = {
+  host: process.env.REDIS_HOST || "127.0.0.1",
+  port: parseInt(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || "somerandompassword",
+  retryStrategy: times =&gt; {
+    // reconnect after
+    return Math.min(times * 50, 2000)
+  }
+}
+
+const redisClient = new Redis(redisOptions)
+
+const rateLimitOptions = {
+  identifyContext: (ctx) =&gt; ctx?.request?.ipAddress || ctx?.id,
+  formatError: ({ fieldName }) =&gt; 
+    `Woah there, you are doing way too much ${fieldName}`,
+  store: new RedisStore(redisClient)
+}
+
+const rateLimitDirective = createRateLimitDirective(rateLimitOptions)
+
+const resolvers = {
+  Query: {
+    hello: (_, { name }) =&gt; `Hello ${name}`
+  }
+}
+
+// Schema
+const typeDefs = `
+  directive @rateLimit(
+    max: Int
+    window: String
+    message: String
+    identityArgs: [String]
+    arrayLengthField: String
+  ) on FIELD_DEFINITION
+
+  type Query {
+    hello(name: String!): String! @rateLimit(window: "1s", max: 2)
+  }
+`
+
+const server = new GraphQLServer({ 
+  typeDefs, 
+  resolvers,
+
+  // this enables you to use @rateLimit directive in GraphQL schema.
+  schemaDirectives: {
+    rateLimit: rateLimitDirective
+  }
+})
+
+server.start(() =&gt; console.log('Server is running on localhost:4000'))
+</pre>
+<p>好了，<code>welcome</code>解析器现在是速率受限的。</p>
+<p>如果您在<code><a href="https://localhost:4000" rel="nofollow">https://localhost:4000</a></code>访问<a href="https://github.com/graphql/graphql-playground" target="_blank" rel="noopener"> GraphQL 游乐场</a>，请尝试运行以下查询。</p>
+<pre># Try to spam this query by clicking fast, 
+# you should see an error message after you hit the rate limit.
+query {
+  hello(name: "Kumar Abhirup")
+}
+</pre>
+<figure id="attachment_58931" aria-describedby="caption-attachment-58931" class="wp-caption aligncenter"><img data-attachment-id="58931" data-permalink="https://blog.logrocket.com/securing-graphql-api-using-rate-limits-and-depth-limits/graphql-playground-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg" data-orig-size="730,173" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Graphql playground query" data-image-description="" data-image-caption="&lt;p&gt;Try clicking the white play button rapidly to spam it and you’ll hit the rate limit.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query-300x71.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg" decoding="async" class="size-full wp-image-58931 jetpack-lazy-image" src="../Images/f175d7bfc73312e3ea63f86d62fa6e18.png" alt="Query Running With Play Button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query-300x71.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="58931" data-permalink="https://blog.logrocket.com/securing-graphql-api-using-rate-limits-and-depth-limits/graphql-playground-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg" data-orig-size="730,173" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Graphql playground query" data-image-description="" data-image-caption="&lt;p&gt;Try clicking the white play button rapidly to spam it and you’ll hit the rate limit.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query-300x71.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg" decoding="async" loading="lazy" class="size-full wp-image-58931" src="../Images/f175d7bfc73312e3ea63f86d62fa6e18.png" alt="Query Running With Play Button" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query-300x71.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/graphql-playground-query.jpeg"/></noscript><figcaption id="caption-attachment-58931" class="wp-caption-text">Try clicking the white play button rapidly to spam it and you’ll hit the rate limit.</figcaption></figure>
+<p>达到速率限制后，您应该会看到设置的错误消息:<code>Woah there, you are doing way too much hello</code>。</p>
+<p>现在让我们深入分析代码。</p>
+<h2>GraphQL 中的速率限制选项</h2>
+<pre>const rateLimitOptions = {
+  identifyContext: (ctx) =&gt; ctx?.request?.ipAddress || ctx?.id,
+  formatError: ({ fieldName }) =&gt; 
+    `Woah there, you are doing way too much ${fieldName}`,
+  store: new RedisStore(redisClient)
+}
+
+const rateLimitDirective = createRateLimitDirective(rateLimitOptions)
+</pre>
+<p><code>identifyContext</code>是一个函数，它将返回数据库中所有设备或用户的唯一字符串，或者两者的组合。您可以在这里决定是否要通过 IP 地址、用户 ID 或其他方法进行速率限制。</p>
+<p>在上面的代码片段中，我们尝试将用户 IP 地址设置为惟一标识符，如果没有检索到 IP 地址，它将使用默认的 GraphQL 服务器提供的<code>contextID</code>作为后备值。</p>
+<p><code>formatError</code>是一种允许您格式化用户达到速率限制后看到的错误消息的方法。</p>
+<p><code>store</code>连接到 Redis 实例，在 Redis 服务器中保存必要的限速数据。没有 Redis 存储，此速率限制设置无法运行。请注意，您不必总是使用 Redis 作为存储——您也可以使用<a href="https://docs.mongodb.com/manual/tutorial/getting-started/" target="_blank" rel="noopener"> MongoDB </a>或<a href="https://www.postgresql.org/" target="_blank" rel="noopener"> PostgreSQL </a>,但是这些数据库对于一个简单的限速解决方案来说是多余的。</p>
+<p><code>createRateLimitDirective</code>是一个函数，如果与<code>rateLimitOptions</code>一起提供，它使您能够创建动态速率限制指令，稍后您可以将这些指令连接到您的 GraphQL 服务器，以便在您的模式中使用。</p>
+<p>这是模式。</p>
+<pre>const typeDefs = `
+  directive @rateLimit(
+    max: Int
+    window: String
+    message: String
+    identityArgs: [String]
+    arrayLengthField: String
+  ) on FIELD_DEFINITION
+
+  type Query {
+    hello(name: String!): String! @rateLimit(window: "1s", max: 2)
+  }
+`
+</pre>
+<p><code>directive @rateLimit</code>在模式中创建<code>@rateLimit</code> <a href="https://graphql.org/learn/queries/#directives" target="_blank" rel="noopener">指令</a>，该指令接受一些参数来帮助为每个<a href="https://graphql.org/learn/queries/" target="_blank" rel="noopener">解析器</a>配置速率限制规则。</p>
+<p>一旦 GraphQL 指令设置好并准备好使用，您就可以将<code>@rateLimit(window: <em>"1s"</em>, max: 2)</code>预先固定到任何解析器上。<code>window: <em>"1s"</em>, max: 2</code>表示解析器每秒只能由一个用户、一个 IP 地址或指定的<code>identifyContext</code>运行两次。如果同一查询在该时间段内第三次运行，将出现速率限制错误。</p>
+<p>希望您现在知道 GraphQL 解析器是如何进行速率限制的，这有助于防止查询垃圾邮件淹没您的服务器。</p>
+<p>现在我们已经讨论了 GraphQL 速率限制，让我们看看如何通过深度限制使 GraphQL 端点更加安全。</p>
+<h2>什么是 GraphQL 深度限制？</h2>
+<p>深度限制是指通过深度来限制 GraphQL 查询的复杂性。GraphQL 服务器通常有<a href="https://xuorig.medium.com/the-graphql-dataloader-pattern-visualized-3064a00f319f" target="_blank" rel="noopener">数据加载器</a>来使用关系数据库查询加载和填充数据。</p>
+<p>请看下面的查询:</p>
+<pre>query book {
+  getBook(id: 1) {
+    title
+    author
+    publisher
+    reviews {
+      title
+      body
+      book {
+        title
+        author
+        publisher
+        reviews {
+          title
+        }
+      }
+    }
+  }
+}
+</pre>
+<p>它为被查询的<code>book</code>获取<code>review</code> (s)。每个<code>book</code>都有<code>rviews</code>，每个<code>review</code>都连接到一个<code>book</code>，成为数据加载器查询的一对多关系。</p>
+<p>现在，看看这个 GraphQL 查询。</p>
+<pre>query badMaliciousQuery {
+  getBook(id: 1) {
+    reviews {
+      book {
+        reviews {
+          book {
+            reviews {
+              book {
+                reviews {
+                  book {
+                    reviews {
+                      book {
+                        reviews {
+                          book {
+                            # and so on...
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</pre>
+<p>这个查询有几个层次。它创建了一个巨大的循环，可以持续很长时间，这取决于查询的深度，其中<code>book</code>获取<code>reviews</code>，<code>reviews</code>获取<code>books</code>，以此类推。</p>
+<p>这样的查询字符串会淹没您的 GraphQL 服务器，并可能使其崩溃。想象一下发送一个 10，000 层深度的查询—这将是灾难性的！</p>
+<p>这就是深度限制的由来。它使 GraphQL 服务器能够检测此类查询，并防止它们被处理。</p>
+<blockquote><p>还有另一种方法可以解决这个问题，称为“请求超时”错误，如果解决时间太长，它会阻止解析器执行查询。</p></blockquote>
+<h2>GraphQL API 的深度限制</h2>
+<p>这是一个相当简单的过程。我们可以使用<code><a href="https://www.npmjs.com/package/graphql-depth-limit" target="_blank" rel="noopener">graphql-depth-limit</a></code>来限制 GraphQL 查询的深度。</p>
+<pre>import { GraphQLServer } from 'graphql-yoga'
+import * as depthLimit from 'graphql-depth-limit'
+
+const typeDefs = `
+  type Query {
+    hello(name: String!): String!
+  }
+`
+
+const resolvers = {
+  Query: {
+    hello: (_, { name }) =&gt; `Hello ${name}`
+  }
+}
+
+const server = new GraphQLServer({ 
+  typeDefs, 
+  resolvers,
+
+  // easily set a depth limit on all the incoming graphql queries
+  // here, we set a depth limit of 7
+  validationRules: [depthLimit(7)]
+})
+
+server.start(() =&gt; console.log('Server is running on localhost:4000'))
+</pre>
+<p>我们都准备好了！使用深度限制来限制查询复杂性还有许多其他方法。</p>
+<h2>结论</h2>
+<p>为了防止您的 GraphQL 服务器被 API 请求淹没，必须对 GraphQL 端点进行速率限制和深度限制，这也可以保护您的服务器免受恶意查询攻击，这些攻击可以将您的解析器置于永无止境的请求循环中，特别是当您为实时应用程序部署服务器时。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的 GraphQL 请求</h2><p>虽然 GraphQL 有一些调试请求和响应的特性，但确保 GraphQL 可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的 GraphQL 请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪 Apollo 客户机状态并检查 GraphQL 查询的键值对。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

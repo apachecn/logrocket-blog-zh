@@ -1,0 +1,424 @@
+<html>
+<head>
+<title>Using WebSockets in Flutter - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Flutter - LogRocket 博客中使用 WebSockets</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-websockets-flutter/#0001-01-01">https://blog.logrocket.com/using-websockets-flutter/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如今，许多应用需要实时数据来向用户提供即时反馈，无论是显示一个人实时打字的聊天应用，还是直接从硬件传感器绘制数据的远程应用。</p>
+<p>我们试图用 REST 解决这些问题，但是面临一个复杂的问题:为了获得接近即时的反馈，我们必须每分钟 ping 服务器几次，这在架构上很难实现，并且会使服务器过载。</p>
+<p>但是，如果使用像 Firebase Realtime Database 这样的解决方案，您会注意到，只要一条新记录添加到数据库中，Flutter 应用程序就会接收它作为一个<code>Stream</code>并将数据显示给用户。</p>
+<p>但是 Firebase 是如何实现的呢？事实是，Firebase 等框架依赖于一项非常重要的技术:WebSockets。</p>
+<p>在本文中，我们将探索如何使用我们自己的 WebSockets 来创建向用户显示实时数据的应用程序。</p>
+<h2>什么是 WebSocket API？</h2>
+<p>根据 Mozilla 的说法，WebSocket API 是“一种先进的技术，它可以在用户的浏览器和服务器之间打开双向的交互式通信会话……你可以向服务器发送消息并接收事件驱动的响应，而不必轮询服务器的回复。”</p>
+<p>简而言之，WebSockets 由以下部分组成:</p>
+<ul>
+<li>流式传输信息的服务器</li>
+<li>准备接收新数据流的应用程序中的一个<code>client</code></li>
+<li>用于在<code>client</code>和服务器之间通信的<code>channel</code></li>
+<li><code>Messages</code>在<code>client</code>和服务器之间发送</li>
+</ul>
+<p>与 REST 相反，使用 WebSockets，我们在向服务器发送消息后，不等待来自服务器的响应。我们可以发送一条消息，并从服务器接收几十条消息。</p>
+<p>在某种程度上，你可以把它想象成订阅通知；我们订阅了一个特定的主题，例如，USD-EUR 的兑换值，然后每当 USD-EUR 的兑换值发生变化时，我们都会收到来自服务器的新消息。</p>
+<p>这种实时通信流使 WebSockets 成为股票交易应用程序、聊天应用程序、物联网应用程序和其他必须接收输入数据流的应用程序的理想技术。</p>
+<p>问题是，我们如何在 Flutter 中使用它们？</p>
+<h2>在 Dart 中使用 WebSockets</h2>
+<p>幸运的是，<a href="https://blog.logrocket.com/introduction-to-using-dart-in-flutter/"> Flutter 的语言 Dart </a>为我们提供了一个开箱即用的解决方案来处理 WebSockets: <a href="https://api.dart.dev/stable/2.14.2/dart-io/WebSocket-class.html">的<code>WebSocket</code>类。</a></p>
+<p>如果我们只为一个目标开发应用程序(桌面、网络或移动)，那么我们可以安全地使用<code>WebSocket</code>。</p>
+<p>然而，当我们选择跨平台使用我们的应用时，我们必须意识到<code>WebSocket</code>类依赖于<code>dart:io</code>和<code>dart:html</code>，这意味着我们不能同时为移动和网络编译。</p>
+<p>谢天谢地，Dart 团队创建了<code><a href="https://pub.dev/packages/web_socket_channel">web_socket_channel</a></code> <a href="https://pub.dev/packages/web_socket_channel">，这是一个官方库</a>，它抽象了<code>dart:io</code>和<code>dart:html</code>逻辑，允许我们使用一个类来创建多平台应用程序。</p>
+<p>要使用<code>web_spclet_channel</code>，我们必须遵循三个简单的步骤:</p>
+<ol>
+<li>使用<code>WebSocketChannel</code>创建一个新客户端，并通过<code>connect</code>功能连接到一个通道</li>
+<li>使用<code>stream</code> getter 收听收到的消息</li>
+<li>使用<code>sink</code> getter 向服务器发送消息</li>
+</ol>
+<p>在本文中，我们将使用来自<a href="https://docs.pro.coinbase.com/"> CoinBase Pro API </a>的一个例子，通过 WebSockets 获取加密货币的实时价值。</p>
+<h3>创建新的 Dart 项目</h3>
+<p>让我们通过在命令行上使用以下命令来创建一个全新的 Dart 项目:</p>
+<pre class="language-bash hljs">dart create websocket_example
+</pre>
+<p>这将在<code>websocket_example</code>文件夹中创建一个新的 Dart 专用项目。</p>
+<p>接下来，在您最喜欢的 IDE 中打开项目并添加<code>web_socket_channel</code>依赖项:</p>
+<pre class="language-yaml hljs">dependencies:
+  web_socket_channel: ^2.1.0
+</pre>
+<p>创建好项目后，让我们看看 CoinBase Pro API。</p>
+<p>我们的 WebSocket 客户端必须连接到 URI<code>wss://ws-feed.pro.coinbase.com</code>，才能接收更新。为了监听这些更新，我们必须<code>listen</code>接收任何传入的消息:</p>
+<pre class="language-dart hljs">import 'package:web_socket_channel/web_socket_channel.dart';
+
+void main(List&lt;String&gt; arguments) {
+  /// Create the WebSocket channel
+  final channel = WebSocketChannel.connect(
+    Uri.parse('wss://ws-feed.pro.coinbase.com'),
+  );
+
+  /// Listen for all incoming data
+  channel.stream.listen(
+    (data) {
+      print(data);
+    },
+    onError: (error) =&gt; print(error),
+  );
+
+}
+</pre>
+<p>由于我们想从服务器接收当前值为 BTC-欧元的更新，我们必须使用来自 API 的<code><a href="https://docs.cloud.coinbase.com/exchange/docs/overview#subscribe">subscribe</a></code> <a href="https://docs.cloud.coinbase.com/exchange/docs/overview#subscribe">消息。要向服务器发送消息，我们可以使用新创建的<code>WebSocketChannel</code>中的<code>sink</code>向服务器发送 JSON 消息:</a></p>
+<pre class="language-dart hljs">import 'dart:convert';
+
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+void main(List&lt;String&gt; arguments) async {
+  /// Create the WebSocket channel
+  final channel = WebSocketChannel.connect(
+    Uri.parse('wss://ws-feed.pro.coinbase.com'),
+  );
+
+  channel.sink.add(
+    jsonEncode(
+      {
+        "type": "subscribe",
+        "channels": [
+          {
+            "name": "ticker",
+            "product_ids": [
+              "BTC-EUR",
+            ]
+          }
+        ]
+      },
+    ),
+  );
+
+  /// Listen for all incoming data
+  channel.stream.listen(
+    (data) {
+      print(data);
+    },
+    onError: (error) =&gt; print(error),
+  );
+}
+</pre>
+<p>要查看它的运行情况，我们可以使用<code>dart run bin/web_socket_example.dart</code>命令。希望我们可以看到打印出来自 CoinBase Pro API 的新消息的新日志:</p>
+<pre class="language-json hljs">{"type":"subscriptions","channels":[{"name":"ticker","product_ids":["BTC-EUR"]}]}
+{"type":"ticker","sequence":12764748963,"product_id":"BTC-EUR","price":"36941.64","open_24h":"38285.55","volume_24h":"4722.06983151","low_24h":"34300","high_24h":"38674.98","volume_30d":"43802.53509763","best_bid":"36934.04","best_ask":"36941.64","side":"buy","time":"2021-09-21T08:00:20.424250Z","trade_id":50228771,"last_size":"0.08072577"}
+{"type":"ticker","sequence":12764749180,"product_id":"BTC-EUR","price":"36941.55","open_24h":"38285.55","volume_24h":"4722.08309939","low_24h":"34300","high_24h":"38674.98","volume_30d":"43802.54836551","best_bid":"36933.09","best_ask":"36941.55","side":"buy","time":"2021-09-21T08:00:21.167335Z","trade_id":50228772,"last_size":"0.01326788"}
+</pre>
+<p>一个问题仍然存在:我们可以打开一个渠道，但我们如何关闭它？</p>
+<h3>关闭频道</h3>
+<p>同样的方式我们访问底层<code>sink</code>向服务器发送新数据，我们也可以用它来<code>close</code>一段时间后的连接:</p>
+<pre class="language-dart hljs">void main(List&lt;String&gt; arguments) async {
+  // ...
+
+  /// Wait for 5 seconds
+  await Future.delayed(Duration(seconds: 5));
+
+  /// Close the channel
+  channel.sink.close();
+}
+</pre>
+<p>如果我们重新运行应用程序，我们会看到五秒钟后，它关闭了频道和应用程序。</p>
+<h2>在颤振中显示实时数据</h2>
+<p>既然我们已经创建了一个使用 WebSockets 的简单 Dart 应用程序，<a href="https://blog.logrocket.com/tag/flutter/">我们可以创建一个 Flutter 应用程序</a>来展示我们如何使用 WebSockets。幸运的是，我们之前完成的所有代码都可以在我们的 Flutter 应用程序中重用。该应用程序将:</p>
+<ul>
+<li>显示欧洲货币的值</li>
+<li>显示 BTC-欧洲的价值</li>
+<li>如果用户需要，关闭两个通道</li>
+</ul>
+<p>为此，我们将使用两个不同的套接字通道:一个接收 ETH-EUR 消息，另一个接收 BTC-EUR 消息。</p>
+<p>但是，请记住，CoinBase Pro API 允许我们使用一个通道来接收多个值，这些值可以使用和映射传入的消息，以显示在不同的小部件中。</p>
+<p>我们必须创建适当的<code>CoinbaseRequest</code>和<code>CoinbaseResponse</code>类，并使用<code>json_serializable</code>轻松地序列化和反序列化它们，而不是使用普通的<code>Map</code>来接收和发送消息到服务器:</p>
+<pre class="language-dart hljs">import 'package:json_annotation/json_annotation.dart';
+
+part 'coinbase_request.g.dart';
+
+@JsonSerializable()
+class CoinbaseRequest {
+  final String type;
+  final List&lt;Map&lt;String, dynamic&gt;&gt; channels;
+
+  CoinbaseRequest(this.type, this.channels);
+
+  factory CoinbaseRequest.fromJson(Map&lt;String, dynamic&gt; json) =&gt;
+      _$CoinbaseRequestFromJson(json);
+
+  Map&lt;String, dynamic&gt; toJson() =&gt; _$CoinbaseRequestToJson(this);
+}
+import 'package:json_annotation/json_annotation.dart';
+
+part 'coinbase_response.g.dart';
+
+@JsonSerializable()
+class CoinbaseResponse {
+  final String price;
+  @JsonKey(name: 'product_id')
+  final String productId;
+
+  CoinbaseResponse(this.price, this.productId);
+
+  factory CoinbaseResponse.fromJson(Map&lt;String, dynamic&gt; json) =&gt;
+      _$CoinbaseResponseFromJson(json);
+
+  Map&lt;String, dynamic&gt; toJson() =&gt; _$CoinbaseResponseToJson(this);
+}
+</pre>
+<p>为了隔离我们的 WebSocket 逻辑，让我们创建<code>CoinbaseProvider</code>,它负责:</p>
+<ul>
+<li>通过构造函数创建 WebSocket 通道</li>
+<li>用<code>openBitcoin</code>方法向通道发送消息</li>
+<li>使用<code>bitcoinStream</code>暴露数据的<code>Stream</code></li>
+<li>用<code>closeBitcoin</code>方法关闭 WebSocket 通道</li>
+</ul>
+<p>这同样适用于<code>Ethereum</code>，但是为了让这个例子更易读，我们将只展示<code>BTC-EUR</code>的代码:</p>
+<pre class="language-dart hljs">/// Manages opening and closing the sockets for the
+/// two different sockets: ETH socker and BTC socket
+class CoinbaseProvider {
+  late final WebSocketChannel _btcWebsocket;
+
+  static const _btcProduct = "BTC-EUR";
+
+  CoinbaseProvider()
+      : _btcWebsocket = WebSocketChannel.connect(
+          Uri.parse('wss://ws-feed.pro.coinbase.com'),
+        );
+
+  Stream&lt;CoinbaseResponse&gt; get bitcoinStream =&gt; _btcWebsocket.stream
+      .map&lt;CoinbaseResponse&gt;(
+          (value) =&gt; CoinbaseResponse.fromJson(jsonDecode(value)))
+      .skipWhile((element) =&gt; element.productId != _btcProduct);
+
+  void openBitcoin() {
+    _btcWebsocket.sink.add(
+      jsonEncode(
+        CoinbaseRequest(
+          'subscribe',
+          [
+            {
+              "name": "ticker",
+              "product_ids": [_btcProduct]
+            }
+          ],
+        ).toJson(),
+      ),
+    );
+  }
+
+  void closeBitcoin() {
+    _btcWebsocket.sink.close();
+  }
+</pre>
+<h3>使用<code>StreamBuilder</code>小部件</h3>
+<p>根据我们之前的经验，我们发现 Dart 中的<code>WebSockets</code>公开了一个<code>Stream</code>来接收来自服务器的传入消息，这意味着我们需要一个小部件来接收一个<code>Stream</code>并对其做出反应。</p>
+<p>为此，我们可以使用<code><a href="https://api.flutter.dev/flutter/widgets/StreamBuilder-class.html">StreamBuilder</a></code> <a href="https://api.flutter.dev/flutter/widgets/StreamBuilder-class.html">小部件</a>，它会告诉我们:</p>
+<ul>
+<li>我们正在等待数据</li>
+<li>我们收到了数据</li>
+<li>我们收到一个错误</li>
+<li>流以一个<code>done</code>事件结束</li>
+</ul>
+<p>使用我们的提供者，我们可以创建一个小部件来可视化地显示这些状态，比如一个微调器来指示我们正在等待数据。</p>
+<p><img data-attachment-id="71495" data-permalink="https://blog.logrocket.com/using-websockets-flutter/loading-spinner/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png" data-orig-size="730,299" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Loading spinner" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner-300x123.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png" decoding="async" class="aligncenter size-full wp-image-71495 jetpack-lazy-image" src="../Images/c6e084a99eafab1a389a186af0660781.png" alt="Loading Spinner" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner-300x123.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="71495" data-permalink="https://blog.logrocket.com/using-websockets-flutter/loading-spinner/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png" data-orig-size="730,299" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Loading spinner" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner-300x123.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-71495" src="../Images/c6e084a99eafab1a389a186af0660781.png" alt="Loading Spinner" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner-300x123.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Loading-spinner.png"/></noscript>
+<p>我们可以通过显示欧洲瑞士法郎和 BTC 法郎的当前价格来显示我们收到的数据。</p>
+<p><img data-attachment-id="71497" data-permalink="https://blog.logrocket.com/using-websockets-flutter/displaying-coin-price/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png" data-orig-size="730,238" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Displaying coin price" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png" decoding="async" class="aligncenter size-full wp-image-71497 jetpack-lazy-image" src="../Images/caa4410741ed51c4e943079ae3a89807.png" alt="Displaying Coin Brice, Showing Etherium Price And Bitcoin Price" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price-300x98.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="71497" data-permalink="https://blog.logrocket.com/using-websockets-flutter/displaying-coin-price/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png" data-orig-size="730,238" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Displaying coin price" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-71497" src="../Images/caa4410741ed51c4e943079ae3a89807.png" alt="Displaying Coin Brice, Showing Etherium Price And Bitcoin Price" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price-300x98.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/Displaying-coin-price.png"/></noscript>
+<p>我们可以关闭 WebSockets 并显示“没有更多的数据”</p>
+<p><img data-attachment-id="71499" data-permalink="https://blog.logrocket.com/using-websockets-flutter/no-more-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png" data-orig-size="730,208" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No more data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data-300x85.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png" decoding="async" class="aligncenter size-full wp-image-71499 jetpack-lazy-image" src="../Images/6ad21459ef8610d619fc12bf78fb3f58.png" alt="Showing &quot;No more data&quot;" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data-300x85.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="71499" data-permalink="https://blog.logrocket.com/using-websockets-flutter/no-more-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png" data-orig-size="730,208" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No more data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data-300x85.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-71499" src="../Images/6ad21459ef8610d619fc12bf78fb3f58.png" alt="Showing &quot;No more data&quot;" srcset="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data-300x85.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/No-more-data.png"/></noscript>
+<p>使用<code>StreamBuilder</code> <code>connectionState</code>和<code>data</code>来获取关于每个状态的信息，我们可以复制我们想要显示给用户的所有三个状态:</p>
+<ul>
+<li>当我们还没有收到任何数据时的加载状态</li>
+<li>当前欧洲法郎或 BTC 法郎价格</li>
+<li>关闭 WebSocket 连接后的关闭状态</li>
+</ul>
+<pre class="language-dart hljs">class CoinPrice extends StatelessWidget {
+  final Stream stream;
+  final Color color;
+
+  const CoinPrice({
+    required this.stream,
+    required this.color,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: StreamBuilder(
+        stream: stream,
+        builder: (context, snapshot) {
+          /// We are waiting for incoming data data
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          /// We have an active connection and we have received data
+          if (snapshot.connectionState == ConnectionState.active &amp;&amp;
+              snapshot.hasData) {
+            return Center(
+              child: Text(
+                '${snapshot.data!.productId}: ${snapshot.data!.price}',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          }
+
+          /// When we have closed the connection
+          if (snapshot.connectionState == ConnectionState.done) {
+            return const Center(
+              child: Text(
+                'No more data',
+                style: TextStyle(
+                  color: Colors.red,
+                ),
+              ),
+            );
+          }
+
+          /// For all other situations, we display a simple "No data"
+          /// message
+          return const Center(
+            child: Text('No data'),
+          );
+        },
+      ),
+    );
+  }
+}
+</pre>
+<h3>创建按钮小部件</h3>
+<p>有了接收完整数据流的小部件，我们可以继续创建一个按钮小部件，它向 CoinBase 服务器发送一条消息，以接收关于<code>BTC-EUR</code>当前价格的信息，并创建另一个关闭所有套接字连接的按钮。</p>
+<p>第一个按钮是<code>CoinButton</code>，它可以通过 WebSocket 发送消息，开始接收关于特定硬币的数据。</p>
+<p>我们不是创建两个不同的小部件，每个部件对应一种加密货币，而是创建一个通用的小部件，它接受<code>title</code>、<code>backgroundColor</code>和<code>isOpen</code>来了解我们是否已经在接收该硬币的信息。</p>
+<p>最后，它将接受<code>onTap</code>,允许我们用适当的函数调用<code>CoinbaseProvider</code>:</p>
+<pre class="language-dart hljs">/// Send WebSocket message to receive information
+/// regarding a certain coin
+/// 
+/// Usage:
+/// ```dart
+/// CoinButton(
+///  isSocketOpen: _showBitcoin,
+///  title: "BTC",
+///  backgroundColor: Colors.orange,
+///  onTap: (isSocketOpen) {
+///    if (!isSocketOpen) {
+///      widget.provider.openBitcoin();
+///      setState(() =&gt; _showBitcoin = true);
+///    }
+///  },
+///)
+/// ```
+class CoinButton extends StatelessWidget {
+  final bool isSocketOpen;
+  final String title;
+  final Function(bool) onTap;
+  final Color backgroundColor;
+
+  const CoinButton({
+    required this.isSocketOpen,
+    required this.title,
+    required this.onTap,
+    required this.backgroundColor,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialButton(
+      onPressed: () =&gt; !isSocketOpen ? onTap(isSocketOpen) : null,
+      color: backgroundColor,
+      child: Row(
+        children: [
+          if (!isSocketOpen)
+            const Icon(
+              Icons.close,
+              color: Colors.red,
+            ),
+          if (isSocketOpen)
+            const Icon(
+              Icons.check,
+              color: Colors.green,
+            ),
+          Text(title),
+        ],
+      ),
+    );
+  }
+}
+</pre>
+<p>其次，我们将创建一个接受<code>CoinbaseProvider</code>作为参数的<code>CloseWebSocketsWidget</code>，这样我们就可以访问<code>closeBitcoin</code>和<code>closeEthereum</code>函数:</p>
+<pre class="language-dart hljs">/// Button to close the WebSocket connection
+class CloseSocketsWidget extends StatelessWidget {
+  const CloseSocketsWidget({
+    Key? key,
+    required this.provider,
+
+  }) : super(key: key);
+
+  final CoinbaseProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialButton(
+      color: Colors.red,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const &lt;Widget&gt;[
+          Icon(
+            Icons.warning,
+            color: Colors.white,
+          ),
+          SizedBox(
+            width: 12.0,
+          ),
+          Text(
+            "CLOSE SOCKETS",
+            style: TextStyle(
+              color: Colors.white,
+            ),
+          )
+        ],
+      ),
+      onPressed: () {
+        provider.closeBitcoin();
+        provider.closeEthereum();
+      },
+    );
+  }
+}
+</pre>
+<p>综上所述，我们可以创建一个简单的应用程序，实时显示不同的加密货币价格:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/968bbd578f0beedaaf33311d4230e599.png" alt="" data-lazy-src="https://paper-attachments.dropbox.com/s_06B91234F4DA739615760794546C4B69244C0EAF12F88F677915D9135C2BEBFE_1633796752112_gif-websockets.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropbox.com/s_06B91234F4DA739615760794546C4B69244C0EAF12F88F677915D9135C2BEBFE_1633796752112_gif-websockets.gif"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/968bbd578f0beedaaf33311d4230e599.png" alt="" data-original-src="https://paper-attachments.dropbox.com/s_06B91234F4DA739615760794546C4B69244C0EAF12F88F677915D9135C2BEBFE_1633796752112_gif-websockets.gif"/></noscript>
+<h2>结论</h2>
+<p>有些时候，我们必须向用户显示实时数据，正如我们所看到的，WebSockets 可以让我们在 Flutter 应用程序中轻松完成这一过程，只需四个简单的步骤:</p>
+<ol>
+<li>创建客户端</li>
+<li>将客户端连接到通道</li>
+<li>向服务器发送消息</li>
+<li>监听传入的消息</li>
+</ol>
+<p>这允许我们创建反应式的应用程序，我们的<code>StreamBuilders</code>小部件可以根据当前状态进行更改。我们在等待新的数据吗？我们收到错误或新数据了吗？</p>
+<p>这些问题可以转化为 UI 组件，例如动画显示某人正在聊天中输入内容或更新页面上图形的值。</p>
+<p>现在，问你一个问题！您曾经需要在您的应用程序中向用户显示实时数据吗？如果有，你用的是什么？Firebase？WebSockets？gRPC 服务器端流？</p>
+<p>很好奇能收到你的回信！😁</p>
+<p>要查看完整的代码，你可以查看这个库。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

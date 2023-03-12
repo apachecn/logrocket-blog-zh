@@ -1,0 +1,796 @@
+<html>
+<head>
+<title>Using MobX for large-scale enterprise state management - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 MobX 进行大规模企业状态管理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-mobx-for-large-scale-enterprise-state-management/#0001-01-01">https://blog.logrocket.com/using-mobx-for-large-scale-enterprise-state-management/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当涉及到构建更大的应用程序时，应用程序状态结构良好且定义清晰是至关重要的。在本帖中，我们将讨论如何将<a href="https://mobx.js.org" target="_blank" rel="noopener"> MobX </a>用于大规模应用。我们将重点关注如何构建应用程序状态、定义数据之间的关系、进行网络调用以及在商店中加载数据。</p>
+<p>因为本文关注的是状态管理，所以我们不会在创建 UI/样式组件上花太多时间。</p>
+<h2>先决条件</h2>
+
+<p>准备好了吗？让我们开始吧。</p>
+<h2>在 React 和 MobX 中设置您的企业应用</h2>
+<p>首先，用<a href="https://reactjs.org/docs/create-a-new-react-app.html" target="_blank" rel="noopener"> create-react-app </a>创建一个 TypeScript React app。</p>
+<pre>$ npx create-react-app react-mobx-app --template=typescript
+</pre>
+<p>现在，转到应用程序文件夹并安装以下内容:</p>
+<pre>$ yarn add react-router-dom mobx mobx-react axios
+</pre>
+<p>其中一些需要类型，所以让我们也安装它们。</p>
+<pre>$ yarn add -D @types/react-router-dom 
+</pre>
+<p>让我们删除我们不需要的文件。我们可以删除<em> App.tsx </em>、<em> App.test.tsx </em>、<em> App.css </em>、<em> logo.svg </em>。我们稍后将再次创建必要的文件。</p>
+<p>在我们开始构建应用程序之前，让我们看看我们将要构建的内容和商店结构。我们将构建一个简单的博客应用程序。该应用程序将有三个实体，即用户，帖子和评论。这是它们之间的关系。</p>
+<ul>
+<li>用户(有许多帖子)<ul>
+<li>帖子(有很多评论，属于一个用户)<ul>
+<li>评论(属于一个帖子)</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2>创建实体类型</h2>
+<p>现在我们知道了结构，让我们为它创建类型。我们将把类型放在 src 下一个名为<em> types 的文件夹中。</em></p>
+<p>让我们从在<em>类型</em>下创建<em>用户类型</em>开始。这是它看起来的样子。</p>
+<pre>export default interface IUser {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+}
+</pre>
+<p>然后，<em>类型/帖子</em>:</p>
+<pre>export default interface IPost {
+  id: number;
+  userId: number;
+  title: string;
+  body: string;
+}
+</pre>
+<p>最后，<em>类型/注释</em>:</p>
+<pre>export default interface IComment {
+  id: number;
+  postId: number;
+  name: string;
+  email: string;
+  body: string;
+}
+</pre>
+<h2>应用商店</h2>
+<p>现在我们需要创建模型。这些模型将实现上述类型，并定义其他实体之间的关系。为了定义关系，这些模型需要访问 app store。但是我们还没有创建应用商店。让我们现在就做吧。</p>
+<p>在<em>商店</em>文件夹下<em> src </em>下创建一个名为<em>商店</em>的文件夹。现在，创建一个名为<em> app.ts </em>的文件。这个文件将包含应用程序的所有商店。现在，让我们把它变成一个空类，就像这样:</p>
+<pre>export default class AppStore {}
+</pre>
+<h2>创建模型</h2>
+<p>现在我们有了应用商店，让我们在<em> src </em>下创建一个名为<em> models </em>的文件夹，并开始实现我们的模型。</p>
+<p>首先是用户模型(<em> models/user.ts </em>):</p>
+<pre>import AppStore from "../stores/app";
+import IUser from "../types/user";
+
+export default class User implements IUser {
+
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+
+  constructor(private store: AppStore, user: IUser) {
+    this.id = user.id;
+    this.name = user.name;
+    this.username = user.username;
+    this.email = user.email;
+  }
+}
+</pre>
+<p>我们的用户模型实现了用户类型，构造函数接受两个参数。首先，<code>AppStore</code>用于定义关系，其次，用户类型用于实例化成员变量。</p>
+<p>同样，让我们创建一个帖子模型和一个评论模型。</p>
+<p>下面是我们的 post 模型的代码(<em> models/post.ts </em>):</p>
+<pre>import AppStore from "../stores/app";
+import IPost from "../types/post";
+
+export default class Post implements IPost {
+
+  id: number;
+  userId: number;
+  title: string;
+  body: string;
+
+  constructor(private store: AppStore, post: IPost) {
+    this.id = post.id;
+    this.userId = post.userId;
+    this.title = post.title;
+    this.body = post.body;
+  }
+}
+</pre>
+<p>下面是我们的评论模型(<em> models/comment.ts </em>):</p>
+<pre>import AppStore from "../stores/app";
+import IComment from "../types/comment";
+
+export default class Comment implements IComment {
+
+  id: number;
+  postId: number;
+  name: string;
+  email: string;
+  body: string;
+
+  constructor(private store: AppStore, comment: IComment) {
+    this.id = comment.id;
+    this.postId = comment.postId;
+    this.name = comment.name;
+    this.email = comment.email;
+    this.body = comment.body;
+  }
+}
+</pre>
+<p>但是我们的模型遗漏了一些东西——关系。我们还没有定义它们之间的任何关系，但是我们将在创建商店之后这样做。</p>
+<h2>在 MobX 中创建商店</h2>
+<p>让我们创建商店，从用户商店开始。在<em>商店</em>文件夹中创建一个名为<em> user.ts </em>的文件。粘贴以下代码:</p>
+<pre>import User from "../models/user";
+import IUser from "../types/user";
+import AppStore from "./app";
+
+export default class UserStore {
+
+  byId = new Map&lt;number, User&gt;();
+
+  constructor(private store: AppStore) {}
+
+  load(users: IUser[]) {
+    users.forEach((it) =&gt; this.byId.set(it.id, new User(this.store, it)));
+  }
+
+  get all() {
+    return Array.from(this.byId.values());
+  }
+}
+</pre>
+<p>让我解释一下这里发生了什么。</p>
+<p>首先，我们有一张名为<code>byId</code>的地图。它将存储由<code>id</code>输入的所有用户记录。为什么是地图？因为获取、更新和删除记录更容易。</p>
+<p>构造函数再次接受<code>AppStore</code>，这样它就可以将它传递给模型实例。</p>
+<p>接下来，我们有一个<code>load</code>方法，它接收一个<code>IUser</code>类型的数组，并通过实例化用户模型将其加载到<code>byId</code>地图中。</p>
+<p>最后，我们有一个名为<code>all</code>的 getter 属性。它返回存储中所有可用的用户记录。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>注意，我们的商店是普通的。我们没有把它变成 MobX 商店。</p>
+<p>为此，我们将对我们的商店进行以下更改:</p>
+<ol>
+<li>将 MobX 中的<code>byId</code>成员变量类型从<code>Map</code>更改为<code>observable.map</code>。通过创建属性<code>observable</code>，我们告诉 MobX 观察变化，并在必要时重新呈现组件。在我们的例子中，我们使用的是<code>observable.map</code>，这意味着当从<code>map</code>添加、更新或删除记录时，我们将接收到更新。</li>
+<li><code>load</code>方法将数据加载到存储中。我们必须告诉 MobX，我们正在通过用动作修饰方法来更新可观察对象。</li>
+<li><code>all</code> getter 属性实际上来源于<code>byId</code> observable。我们必须用<code>computed</code>来修饰它，让 MobX 知道这是一个计算属性。</li>
+<li>最后，我们必须调用<code>makeObservable</code>函数，在构造函数中传递这个实例，以使一切正常工作。</li>
+</ol>
+<p>做了上面的改动之后，这就是我们店的样子。</p>
+<pre>import {
+  action,
+  computed,
+  makeObservable,
+  observable,
+  ObservableMap,
+} from "mobx";
+import User from "../models/user";
+import IUser from "../types/user";
+import AppStore from "./app";
+
+export default class UserStore {
+
+  byId = observable.map&lt;number, User&gt;();
+
+  constructor(private store: AppStore) {
+    makeObservable(this);
+  }
+
+  @action load(users: IUser[]) {
+    users.forEach((it) =&gt; this.byId.set(it.id, new User(this.store, it)));
+  }
+
+  @computed get all() {
+    return Array.from(this.byId.values());
+  }
+}
+</pre>
+<p>以同样的方式，让我们创建<code>PostStore</code>和<code>CommentStore</code>。</p>
+<p>对于<em>商店/邮局</em>:</p>
+<pre>import {
+  action,
+  computed,
+  makeObservable,
+  observable,
+  ObservableMap,
+} from "mobx";
+import Post from "../models/post";
+import IPost from "../types/post";
+import AppStore from "./app";
+
+export default class PostStore {
+
+  byId = new observable.map&lt;number, Post&gt;();
+
+  constructor(private store: AppStore) {
+    makeObservable(this);
+  }
+
+  @action load(posts: IPost[]) {
+    posts.forEach((it) =&gt; this.byId.set(it.id, new Post(this.store, it)));
+  }
+
+  @computed get all() {
+    return Array.from(this.byId.values());
+  }
+}
+</pre>
+<p>现在，对于<em>商店/评论. ts </em>:</p>
+<pre>import {
+  action,
+  computed,
+  makeObservable,
+  observable,
+  ObservableMap,
+} from "mobx";
+
+import IComment from "../types/comment";
+import Comment from "../models/comment";
+import AppStore from "./app";
+
+export default class CommentStore {
+
+  byId = new observable.map&lt;number, Comment&gt;();
+
+  constructor(private store: AppStore) {
+    makeObservable(this);
+  }
+
+  @action load(comments: IComment[]) {
+    comments.forEach((it) =&gt; this.byId.set(it.id, new Comment(this.store, it)));
+  }
+
+  @computed get all() {
+    return Array.from(this.byId.values());
+  }
+}
+</pre>
+<p>随着商店的创建，让我们在<code>AppStore</code>中实例化它们，如下所示:</p>
+<pre>import CommentStore from "./comment";
+import PostStore from "./post";
+import UserStore from "./user";
+
+export default class AppStore {
+  user = new UserStore(this);
+  post = new PostStore(this);
+  comment = new CommentStore(this);
+} 
+</pre>
+<p>现在，让我们回到定义模型之间的关系。</p>
+<p><strong>用户模型</strong>:正如我们之前讨论的，用户会有很多帖子。让我们为它编码一个关系。</p>
+<pre>import AppStore from "../stores/app";
+import IUser from "../types/user";
+
+export default class User implements IUser {
+
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+
+  constructor(private store: AppStore, user: IUser) {
+    this.id = user.id;
+    this.name = user.name;
+    this.username = user.username;
+    this.email = user.email;
+  }
+
+  get posts() {
+    return this.store.post.all.filter((it) =&gt; it.userId === this.id);
+  }
+}
+</pre>
+<p>如果您查看我们的 posts 关系，您会注意到它是从<code>post.all</code> computed property 派生的一个 computed property。我们必须用<code>computed</code> decorator 来修饰它，以便 MobX 计算它，并在构造函数中调用<code>makeObservable</code>来告诉 MobX 这个类有<code>observable</code>属性。</p>
+<p>以下是最终版本:</p>
+<pre>import { computed, makeObservable } from "mobx";
+import AppStore from "../stores/app";
+import IUser from "../types/user";
+
+export default class User implements IUser {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+
+  constructor(private store: AppStore, user: IUser) {
+    this.id = user.id;
+    this.name = user.name;
+    this.username = user.username;
+    this.email = user.email;
+
+    makeObservable(this);
+  }
+
+  @computed get posts() {
+    return this.store.post.all.filter((it) =&gt; it.userId === this.id);
+  }
+}
+</pre>
+<p>现在让我们也对其他两个模型进行编码。</p>
+<p><strong>岗位模型</strong>:</p>
+<pre>import { computed, makeObservable } from "mobx";
+import AppStore from "../stores/app";
+import IPost from "../types/post";
+
+export default class Post implements IPost {
+  id: number;
+  userId: number;
+  title: string;
+  body: string;
+
+  constructor(private store: AppStore, post: IPost) {
+    this.id = post.id;
+    this.userId = post.userId;
+    this.title = post.title;
+    this.body = post.body;
+
+    makeObservable(this);
+  }
+
+  @computed get user() {
+    return this.store.user.byId.get(this.userId);
+  }
+
+  @computed get comments() {
+    return this.store.comment.all.filter((it) =&gt; it.postId === this.id);
+  }
+}
+</pre>
+<p><strong>评论模式</strong>:</p>
+<pre>import { computed, makeObservable } from "mobx";
+import AppStore from "../stores/app";
+import IComment from "../types/comment";
+
+export default class Comment implements IComment {
+  id: number;
+  postId: number;
+  name: string;
+  email: string;
+  body: string;
+
+  constructor(private store: AppStore, comment: IComment) {
+    this.id = comment.id;
+    this.postId = comment.postId;
+    this.name = comment.name;
+    this.email = comment.email;
+    this.body = comment.body;
+
+    makeObservable(this);
+  }
+
+  @computed get post() {
+    return this.store.post.byId.get(this.postId);
+  }
+}
+</pre>
+<p>这样，我们就成功地为我们的应用程序创建了整个商店！</p>
+<h2>网络层编码</h2>
+<p>到目前为止，我们已经为我们的应用程序创建了商店，但网络层正在等待。现在让我们编写我们的应用程序网络层，它将负责进行网络调用和加载商店中的数据。</p>
+<p>我们将把网络层和商店完全分开。存储不知道数据是从哪里加载的。</p>
+<p>让我们首先在<em> src/apis </em>文件夹下的<em> app.ts </em>文件中创建一个主<code>AppApi</code>类。它将包含其他资源的网络调用。</p>
+<p>这里是 src/API/app . ts 的代码。</p>
+<pre>import axios from "axios";
+import AppStore from "../stores/app";
+
+export default class AppApi {
+
+  client = axios.create({ baseURL: "https://jsonplaceholder.typicode.com" });
+
+  constructor(store: AppStore) {}
+}
+</pre>
+<p>我们还创建了一个<code>axios</code>客户端成员变量，它将用于进行网络调用。</p>
+<p>我们将使用<a href="https://jsonplaceholder.typicode.com/" target="_blank" rel="noopener"> JSONPlaceholder </a>假 REST API 来获取数据，并为我们的<code>axios</code>客户端将基本 URL 设置为<a href="https://jsonplaceholder.typicode.com" rel="nofollow">https://jsonplaceholder.typicode.com</a>。</p>
+<p><code>AppStore</code>在构造函数中传递给我们。从 API 获取数据后，我们将使用<code>AppStore</code>将数据加载到商店中。</p>
+<p>现在，我们有了我们的<code>AppApi</code>。让我们为您的个人资源编写网络调用。我们从用户开始。首先，在<em> src/apis </em>文件夹下创建一个名为<em> user.ts </em>的文件，并粘贴以下代码:</p>
+<pre>import AppStore from "../stores/app";
+import AppApi from "./app";
+
+export default class UserApi {
+
+  constructor(private api: AppApi, private store: AppStore) {}
+
+  async getAll() {
+    const res = await this.api.client.get(`/users`);
+    this.store.user.load(res.data);
+  }
+
+  async getById(id: number) {
+    const res = await this.api.client.get(`/users/${id}`);
+    this.store.user.load([res.data]);
+  }
+}
+</pre>
+<p>让我们了解一下这里发生了什么。</p>
+<p>首先，我们创建一个<code>UserApi</code>类，将<code>AppApi</code>和<code>AppStore</code>作为构造函数的参数。然后，我们将使用<code>AppApi</code>实例来获取<code>axios</code>客户端并进行网络调用。获得数据后，我们使用<code>AppStore</code>将数据加载到 store 中。</p>
+<p>让我们分别来看看这些方法:</p>
+<p><code>getAll</code>–向<code>/users</code>发送获取请求。响应作为用户对象的数组返回，这些对象使用存储区的 load 方法加载到存储区中。</p>
+<p><code>getById</code>–向<code>/users/$id</code>发送 get 请求以获取单个用户记录。响应作为单个用户对象返回，因此我们在将用户对象传递给存储的 load 方法之前，通过放入方括号将它包装在一个数组中。</p>
+<p>类似地，我们将为另外两个资源 post 和 comment 创建另外两个 API 客户机。</p>
+<p>下面是我们的 post<em>API/post . ts</em>的代码:</p>
+<pre>import AppStore from "../stores/app";
+import AppApi from "./app";
+
+export default class PostApi {
+
+  constructor(private api: AppApi, private store: AppStore) {}
+
+  async getAll() {
+    const res = await this.api.client.get(`/posts`);
+    this.store.post.load(res.data);
+  }
+
+  async getById(id: number) {
+    const res = await this.api.client.get(`/posts/${id}`);
+    this.store.post.load([res.data]);
+  }
+
+  async getByUserId(userId: number) {
+    const res = await this.api.client.get(`/posts?userId=${userId}`);
+    this.store.post.load(res.data);
+  }
+}
+</pre>
+<p>对于注释<em>API/comment . ts</em>:</p>
+<pre>import AppStore from "../stores/app";
+import AppApi from "./app";
+
+export default class CommentApi {
+
+  constructor(private api: AppApi, private store: AppStore) {}
+
+  async getByPostId(postId: number) {
+    const res = await this.api.client.get(`/posts/${postId}/comments`);
+    this.store.comment.load(res.data);
+  }
+}
+</pre>
+<p>注意，我只为必需的 API 调用编写方法。您可以根据需要添加或删除电话。</p>
+<p>现在，我们已经写完了 API 客户端，让我们在<code>AppApi</code>类中注册它们。</p>
+<pre>import axios from "axios";
+import AppStore from "../stores/app";
+import CommentApi from "./comment";
+import PostApi from "./post";
+import UserApi from "./user";
+
+export default class AppApi {
+
+  client = axios.create({ baseURL: "https://jsonplaceholder.typicode.com" });
+
+  user: UserApi;
+  post: PostApi;
+  comment: CommentApi;
+
+  constructor(store: AppStore) {
+    this.user = new UserApi(this, store);
+    this.post = new PostApi(this, store);
+    this.comment = new CommentApi(this, store);
+  }
+}
+</pre>
+<p>我们已经为整个应用程序创建了网络层。</p>
+<h2>使用商店和 API 的应用程序上下文</h2>
+<p>我们为我们的博客应用程序创建了商店和网络层，但必须有一种方法让我们在 React 组件中使用它们和 API。为此，我们将使用 React 上下文为组件提供存储和 API。</p>
+<pre>import React, { useContext } from "react";
+import AppApi from "./apis/app";
+import AppStore from "./stores/app";
+
+interface AppContextType {
+  store: AppStore;
+  api: AppApi;
+}
+
+const AppContext = React.createContext&lt;null | AppContextType&gt;(null);
+
+export const useAppContext = () =&gt; {
+  const context = useContext(AppContext);
+  return context as AppContextType;
+};
+
+export default AppContext;
+</pre>
+<p>这很简单。我们为<code>context</code>创建一个类型，它有两个属性:<code>store</code>和<code>api</code>。</p>
+<p>然后我们创建一个名为<code>AppContext</code>的 React 上下文，为我们的应用程序提供<code>store</code>和<code>api</code>。最后，我们有一个<code>useAppContext</code>定制的 React 钩子来利用组件中的<code>store</code>和<code>api</code>。</p>
+<p>让我们把上面的代码放到<em> src 文件夹</em>下的<em> app-context.ts 文件</em>中。</p>
+<h2>通过 MobX 使用组件</h2>
+<p>因为我们不关注 UI，所以组件很简单。我们将使用基本的 React 概念，如组件挂载回调的 useEffect，从 URL 获取参数的 useParams，我们将把模型实例传递给组件作为显示数据的道具。</p>
+<p>让我们从创建注释组件开始。我们将组件文件放在<em> src/components </em>下，文件名为<em> comment.tsx </em>。</p>
+<pre>import CommentModel from "../models/comment";
+
+const Comment: React.FC&lt;{ comment: CommentModel }&gt; = ({ comment }) =&gt; {
+  return (
+    &lt;div&gt;
+      &lt;strong&gt;
+        {comment.name} • {comment.email}
+      &lt;/strong&gt;
+      &lt;p&gt;{comment.body}&lt;/p&gt;
+      &lt;br /&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default Comment;
+</pre>
+<p>我们的组件缺少了非常重要的东西。我们必须让 MobX 知道，我们的组件将会观察到来自商店的可观察到的变化。</p>
+<p>为此，我们将用来自<code>mobx-react</code>包的<code>observer</code>包装我们的 React 组件。下面是更新后的组件的外观:</p>
+<pre>import { observer } from "mobx-react";
+import CommentModel from "../models/comment";
+
+const Comment: React.FC&lt;{ comment: CommentModel }&gt; = observer(({ comment }) =&gt; {
+  return (
+    &lt;div&gt;
+      &lt;strong&gt;
+        {comment.name} • {comment.email}
+      &lt;/strong&gt;
+      &lt;p&gt;{comment.body}&lt;/p&gt;
+      &lt;br /&gt;
+    &lt;/div&gt;
+  );
+});
+
+export default Comment;
+</pre>
+<p>以及 post 组件(<em> components/post.tsx </em>):</p>
+<pre>import { observer } from "mobx-react";
+import React from "react";
+import { Link } from "react-router-dom";
+import PostModel from "../models/post";
+
+const Post: React.FC&lt;{ post: PostModel; ellipsisBody?: boolean }&gt; = observer(
+  ({ post, ellipsisBody = true }) =&gt; {
+    return (
+      &lt;div&gt;
+        &lt;h2&gt;{post.title}&lt;/h2&gt;
+        &lt;p&gt;
+          {ellipsisBody ? post.body.substr(0, 100) : post.body}
+          {ellipsisBody &amp;&amp; (
+            &lt;span&gt;
+              ...&lt;Link to={`/post/${post.id}`}&gt;read more&lt;/Link&gt;
+            &lt;/span&gt;
+          )}
+        &lt;/p&gt;
+        &lt;p&gt;
+          Written by &lt;Link to={`/user/${post.userId}`}&gt;{post.user?.name}&lt;/Link&gt;
+        &lt;/p&gt;
+      &lt;/div&gt;
+    );
+  }
+);
+
+export default Post;
+</pre>
+<h2>在我们的 React 应用中构建页面</h2>
+<p>我们的 React 应用程序将有三个页面。</p>
+<ol>
+<li>主页–显示帖子列表</li>
+<li>帖子页面–显示收到的帖子内容和评论</li>
+<li>用户页面–显示用户信息和用户撰写的帖子列表</li>
+</ol>
+<h3>主页</h3>
+<p>将主页文件放在 pages/home.tsx 下。</p>
+<pre>import { observer } from "mobx-react";
+import { useEffect, useState } from "react";
+import { useAppContext } from "../app-context";
+import Post from "../components/post";
+
+const HomePage = observer(() =&gt; {
+  const { api, store } = useAppContext();
+  const [loading, setLoading] = useState(false);
+
+  const load = async () =&gt; {
+    try {
+      setLoading(true);
+      await api.post.getAll();
+      await api.user.getAll();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() =&gt; {
+    load();
+  }, []);
+
+  if (loading) {
+    return &lt;div&gt;loading...&lt;/div&gt;;
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Posts&lt;/h1&gt;
+      {store.post.all.map((post) =&gt; (
+        &lt;Post key={post.id} post={post} /&gt;
+      ))}
+    &lt;/div&gt;
+  );
+});
+
+export default HomePage;
+</pre>
+<p>这里，我们使用<code>useAppContext</code>钩子来获取<code>store</code>和<code>api</code>。注意，我们有一个 useState 钩子来存储 API 调用的加载状态。之后我们有一个加载功能，设置加载到<code>true</code>，所有的帖子和用户，设置加载<code>false</code>。</p>
+<p>最后，使用带有空数组的 Effect 作为<code>deps</code>来创建组件挂载效果，并在其中调用<code>load</code>函数。</p>
+<p>让我们编码其他剩余的页面:</p>
+<p><strong>发帖页面</strong> <em> (pages/post.tsx) </em></p>
+<pre>import { observer } from "mobx-react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router";
+import { useAppContext } from "../app-context";
+import Post from "../components/post";
+
+const PostPage = observer(() =&gt; {
+
+  const { api, store } = useAppContext();
+
+  const [loading, setLoading] = useState(false);
+
+  const params = useParams&lt;{ postId: string }&gt;();
+
+  const postId = Number(params.postId);
+
+  const load = async () =&gt; {
+    try {
+      setLoading(true);
+      await api.post.getById(postId);
+      await api.comment.getByPostId(postId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() =&gt; {
+    load();
+  }, []);
+
+  if (loading) {
+    return &lt;div&gt;loading...&lt;/div&gt;;
+  }
+
+  const post = store.post.byId.get(Number(params.postId));
+
+  if (!post) {
+    return &lt;div&gt;Post not found&lt;/div&gt;;
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;Post ellipsisBody={false} post={post} /&gt;
+      &lt;h2&gt;Comments &lt;/h2&gt;
+      {post.comments.map((comment) =&gt; (
+        &lt;Comment key={comment.id} comment={comment} /&gt;
+      ))}
+    &lt;/div&gt;
+  );
+});
+
+export default PostPage;
+</pre>
+<p>我们唯一的区别是:</p>
+<ol>
+<li>我们使用<code>react-router-dom</code>的<code>useParams</code>钩子得到了<code>postId</code></li>
+<li>我们正在加载帖子和帖子的评论</li>
+<li>在渲染中，我们使用在模型中创建的<code>post.comments</code>关系来获取和渲染 post 的所有评论</li>
+</ol>
+<p>最后，让我们编写用户页面代码。</p>
+<pre>import { observer } from "mobx-react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router";
+import { useAppContext } from "../app-context";
+import Post from "../components/post";
+
+const UserPage = observer(() =&gt; {
+  const { api, store } = useAppContext();
+  const [loading, setLoading] = useState(false);
+  const params = useParams&lt;{ userId: string }&gt;();
+  const userId = Number(params.userId);
+
+  const load = async () =&gt; {
+    try {
+      setLoading(true);
+      await api.user.getById(userId);
+      await api.post.getByUserId(userId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() =&gt; {
+    load();
+  }, []);
+
+  if (loading) {
+    return &lt;div&gt;loading...&lt;/div&gt;;
+  }
+
+  const user = store.user.byId.get(userId);
+
+  if (!user) {
+    return &lt;div&gt;User not found&lt;/div&gt;;
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h3&gt;
+        {user.name} • {user.username}
+      &lt;/h3&gt;
+      &lt;p&gt;{user.email}&lt;/p&gt;
+      &lt;h2&gt;Posts&lt;/h2&gt;
+      {user.posts.map((post) =&gt; (
+        &lt;Post key={post.id} post={post} /&gt;
+      ))}
+    &lt;/div&gt;
+  );
+});
+
+export default UserPage;
+</pre>
+<p>这样，我们就成功地完成了整个应用程序！</p>
+<p>现在只剩下一项:根应用程序组件。记住，我们在启动时删除了<em> App.tsx </em>文件。让我们将它添加回<em> src 文件夹</em>下。</p>
+<p><em> app.tsx </em></p>
+<pre>import { BrowserRouter, Route, Switch } from "react-router-dom";
+import AppContext from "./app-context";
+import AppStore from "./stores/app";
+import AppApi from "./apis/app";
+import HomePage from "./pages/home";
+import PostPage from "./pages/post";
+import UserPage from "./pages/user";
+
+const store = new AppStore();
+const api = new AppApi(store);
+
+function App() {
+  return (
+    &lt;AppContext.Provider value={{ store, api }}&gt;
+      &lt;BrowserRouter&gt;
+        &lt;Switch&gt;
+          &lt;Route path="/user/:userId" component={UserPage} /&gt;
+          &lt;Route path="/post/:postId" component={PostPage} /&gt;
+          &lt;Route path="/" component={HomePage} /&gt;
+        &lt;/Switch&gt;
+      &lt;/BrowserRouter&gt;
+    &lt;/AppContext.Provider&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>我们正在实例化商店和 API，并通过 AppContext.Provider 将其提供给我们的应用程序。</p>
+<p>使用来自<code>react-router-dom</code>的<code>BrowserRouter</code>，我们将呈现我们的页面。就是这样。如果您在浏览器中运行并打开该应用程序，您应该会看到该应用程序正在运行。</p>
+<h2>结论</h2>
+<p>在本教程中，我们学习了如何使用 MobX 管理大规模的 React 状态。感谢您的阅读，如果您有任何问题，请联系我！</p>
+<p>你可以在这里或者<a href="https://varunpvp.github.io/react-mobx-app/" target="_blank" rel="noopener">获得整个项目的源代码</a>。</p>
+<blockquote class="embedly-card" data-card-controls="1" data-card-align="center" data-card-theme="light">
+
+<p>此时您不能执行该操作。您已使用另一个标签页或窗口登录。您已在另一个标签页或窗口中注销。重新加载以刷新您的会话。重新加载以刷新您的会话。</p>
+</blockquote>
+<p/>
+<p> </p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用 LogRocket 消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款 React analytics 解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket 告诉您 React 应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS 异常、前端性能指标和用户交互。然后，LogRocket 使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的 React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试 LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+ </article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,1229 @@
+<html>
+<head>
+<title>Handling user authentication with Remix - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Remix - LogRocket 博客处理用户认证</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/handling-user-authentication-remix/#0001-01-01">https://blog.logrocket.com/handling-user-authentication-remix/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Remix 是一个全栈 React 框架，带有支持服务器渲染、数据加载和路由的 API。它使用 Web Fetch API 来实现快速页面加载和几个站点之间的无缝转换，并且可以在任何地方运行。</p>
+<p>今天，我们将在本教程中学习如何在 Remix 中管理用户认证。我们将创建一个报价墙应用程序，其中经过身份验证的用户可以查看和发布报价，而未经身份验证的用户只能查看帖子，不能发帖。</p>
+<h2 id="table-of-contents">目录</h2>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>要阅读本文，您需要具备以下条件:</p>
+<ul>
+<li><a href="https://nodejs.org/" target="_blank" rel="noopener"> Node.js </a> 14 以上</li>
+<li>npm  7 或更高</li>
+<li>有 HTML，CSS，JavaScript，React 的知识</li>
+<li>顺风 CSS 的基础知识</li>
+</ul>
+<h2 id="setting-up-a-quote-wall-app-with-remix">使用 Remix 设置报价墙应用程序</h2>
+<h3 id="creating-a-new-remix-app">创建新的混音应用程序</h3>
+<p>要开始，重要的是选择<strong>只是基本的</strong>、<strong> Remix 应用服务器</strong>，然后在提示时选择<strong>打字稿</strong>。</p>
+<p>让我们用下面的命令搭建一个基本的混音应用程序:</p>
+<pre class="language-bash hljs">npx <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="600312050114054d12050d0918200c0114051314">[email protected]</a> remix-quote-wall
+cd remix-quote-wall
+npm run dev
+</pre>
+<h3 id="setting-up-tailwind">设置顺风</h3>
+<p>要将 Tailwind 添加到我们的混音应用程序中，让我们执行以下操作:</p>
+<ol>
+<li>安装顺风</li>
+</ol>
+<p>通过<code>npm</code>安装<code>tailwindcss</code>、它的对等依赖项和<code>concurrently</code>，然后运行 init 命令生成<code>tailwind.config.js</code>和<code>postcss.config.js</code>:</p>
+<pre class="language-bash hljs">npm install -D tailwindcss postcss autoprefixer concurrently
+npx tailwindcss init -p
+</pre>
+<ol>
+<li>配置您的模板路径</li>
+</ol>
+<p>在<code>tailwind.config.js</code>文件中添加所有模板文件的路径:</p>
+<pre class="language-javascript hljs">//tailwind.config.js
+
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+</pre>
+<ol>
+<li>更新您的<code>package.json</code>脚本</li>
+</ol>
+<p>更新您的<code>package.json</code>文件中的脚本来构建您的开发和生产 CSS:</p>
+<pre class="language-json hljs">...
+{
+  "scripts": {
+    "build": "npm run build:css &amp;&amp; remix build",
+    "build:css": "tailwindcss -m -i ./styles/app.css -o app/styles/app.css",
+    "dev": "concurrently \"npm run dev:css\" \"remix dev\"",
+    "dev:css": "tailwindcss -w -o ./app/styles/app.css",
+  }
+}
+...
+</pre>
+<ol>
+<li>将顺风指令添加到 CSS 中</li>
+</ol>
+<p>创建一个<code>./styles/app.css</code>文件，并为每个顺风层添加<code>@tailwind</code>指令:</p>
+<pre class="language-css hljs">/*app.css*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</pre>
+<ol>
+<li>导入 CSS 文件</li>
+</ol>
+<p>通过添加以下内容，将编译后的<code>./app/styles/app.css</code>文件导入到您的<code>./app/root.jsx</code>文件中:</p>
+<pre class="language-css hljs">...
+import styles from "~/styles/app.css"
+
+export function links() {
+  return [{ rel: "stylesheet", href: styles }]
+        }
+...
+</pre>
+<p>现在，让我们用下面的命令运行我们的开发服务器:</p>
+<pre class="language-bash hljs">npm run dev
+</pre>
+<h3 id="setting-up-rootjsx">设置<code>root.jsx</code></h3>
+<p>让我们通过将<code>app/root.jsx</code>的内容替换为以下内容，向应用程序组件添加一些顺风类:</p>
+<pre class="language-javascript hljs">// app/root.jsx
+
+import {
+    Links,
+    LiveReload,
+    Meta,
+    Outlet
+} from "@remix-run/react";
+import styles from "./styles/app.css"
+
+export function links() {
+    return [{ rel: "stylesheet", href: styles }]
+}
+
+export const meta = () =&gt; ({
+    charset: "utf-8",
+    title: "Quote Wall App",
+    viewport: "width=device-width,initial-scale=1",
+});
+
+export default function App() {
+    return (
+        &lt;html lang="en"&gt;
+            &lt;head&gt;
+                &lt;Meta /&gt;
+                &lt;Links /&gt;
+            &lt;/head&gt;
+            &lt;body className="bg-purple-100 relative px-5"&gt;
+                &lt;div className="mt-20 w-full max-w-screen-lg mx-auto"&gt;
+                    &lt;Outlet /&gt;
+                &lt;/div&gt;
+                &lt;LiveReload /&gt;
+            &lt;/body&gt;
+        &lt;/html&gt;
+    );
+}
+</pre>
+<h3 id="routes">路线</h3>
+<p>之后，让我们建立我们的路线结构。我们将有几条路线:</p>
+<pre>/
+/login
+/new-quote
+</pre>
+<p>先说索引路线(<code>/</code>)。为此，创建一个文件<code>app/routes/index.tsx</code>，并向其中添加以下内容:</p>
+<pre class="language-javascript hljs">export default function Index() {
+
+  return (
+    &lt;div&gt;
+      &lt;div className="grid lg:grid-flow-row grid-cols-1 lg:grid-cols-3"&gt;
+        Hello
+      &lt;/div&gt;
+    &lt;/div&gt;
+  )
+}
+</pre>
+<p>然后，让我们用以下内容更新我们的<code>app/root.tsx</code>文件:</p>
+<pre class="language-javascript hljs">import {
+  Link,
+  Links,
+  LiveReload,
+  Meta,
+  Outlet
+} from "@remix-run/react";
+import styles from "./styles/app.css"
+
+export function links() {
+  return [{ rel: "stylesheet", href: styles }]
+}
+
+export const meta = () =&gt; ({
+  charset: "utf-8",
+  title: "Quote Wall App",
+  viewport: "width=device-width,initial-scale=1",
+});
+
+export default function App() {
+  return (
+    &lt;html lang="en"&gt;
+      &lt;head&gt;
+        &lt;Meta /&gt;
+        &lt;Links /&gt;
+      &lt;/head&gt;
+      &lt;body className="bg-purple-100 relative px-5"&gt;
+        &lt;div className="mt-20 w-full max-w-screen-lg mx-auto"&gt;
+          &lt;Outlet /&gt;
+        &lt;/div&gt;
+        &lt;LiveReload /&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  );
+}
+</pre>
+<p>我们的应用程序正在成形！随着我们的进展，我们将创建缺失的路线。</p>
+<h3 id="the-navigation-component">导航组件</h3>
+<p>让我们用导航段更新我们的<code>app/routes/index.jsx</code>文件，如下所示:</p>
+<pre class="language-javascript hljs">import { Link } from "@remix-run/react";
+
+export default function Index() {
+
+    return (
+      &lt;div&gt;
+        &lt;nav className="bg-gradient-to-br from-purple-400 via-purple-500 to-purple-500 w-full fixed top-0 left-0 px-5"&gt;
+          &lt;div
+            className="w-full max-w-screen-lg mx-auto flex justify-between content-center py-3 "&gt;
+            &lt;Link className="text-white text-3xl font-bold" to={"/"}&gt;Quote Wall&lt;/Link&gt;
+            &lt;div className="flex flex-col md:flex-row items-center justify-between gap-x-4 text-blue-50"&gt;
+
+              &lt;Link to={"login"}&gt;Login&lt;/Link&gt;
+              &lt;Link to={"login"}&gt;Register&lt;/Link&gt;
+
+              &lt;Link to={"new-quote"}&gt;Add A Quote&lt;/Link&gt;
+              &lt;Link to={"logout"}&gt;Logout&lt;/Link&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+
+        &lt;/nav&gt;
+      &lt;/div&gt;
+    )
+}
+</pre>
+<h3 id="a-quote-segment">报价段</h3>
+<p>由于我们不会在多个文件中使用我们的报价组件，我们将把它添加到<code>app/routes/index.jsx</code>文件中。</p>
+<p>让我们用报价段更新我们的<code>app/routes/index.jsx</code>文件，如下所示:</p>
+<pre class="language-javascript hljs">...
+
+export default function Index() {
+
+    return (
+        &lt;div&gt;
+          &lt;nav&gt;...&lt;/nav&gt;
+            &lt;div className="grid lg:grid-flow-row grid-cols-1 lg:grid-cols-3"&gt;
+                &lt;figure className="m-4 py-10 px-4 shadow-md shadow-sky-100"&gt;
+                    &lt;blockquote cite="https://wisdomman.com" className="py-3"&gt;
+                        &lt;p className="text-gray-800  text-xl"&gt;
+                            A stitch in Time saves Nine.
+                        &lt;/p&gt;
+                    &lt;/blockquote&gt;
+                    &lt;figcaption&gt;
+                        &lt;cite className="text-gray-600 text-md mb-4 text-right"&gt;
+                            - Unknown
+                        &lt;/cite&gt;
+                    &lt;/figcaption&gt;
+                &lt;/figure&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+</pre>
+<p>让我们使用虚拟数据给我们的程序添加一些额外的引用。</p>
+<p>我们需要编写一个 loader 函数来帮助加载和提供数据。将以下内容添加到我们的<code>app/routes/index.jsx</code>文件中:</p>
+<pre class="language-javascript hljs">// app/routes/index.jsx
+import { Link, useLoaderData } from "@remix-run/react";
+import { json } from "@remix-run/node";
+
+export const loader = async () =&gt; {
+
+    return json({
+        quotes: [
+            {
+                quote: 'Light at the end of the tunnel, dey don cut am.',
+                by: 'Brain Jotter'
+            },
+            {
+                quote: 'Promised to stand by you, we don sit down.',
+                by: 'Brain Jotter'
+            },
+            {
+                quote: 'Polythecnic wey dey in Italy, Napoli.',
+                by: 'Comrade with wisdom and Understanding'
+            }
+        ]
+    })
+};
+...
+</pre>
+<p>在这里，我们从<code>'@remix-run/react</code>钩子导入<code>useLoaderData</code>，这样我们就可以从 loader 函数中访问所提供的数据。同样，我们<code>import { json } from ‘@remix-run/node</code>以 JSON 格式返回数据。</p>
+<p>现在，让我们用引号填充页面。有了提供的数据，让我们用<code>map</code>函数在页面上填充它:</p>
+<pre class="language-javascript hljs">// app/routes/index.jsx
+...
+export default function Index() {
+  const { quotes } = useLoaderData();
+
+  return (
+    &lt;div&gt;
+      &lt;nav&gt;...&lt;/nav&gt;
+      &lt;div className="grid lg:grid-flow-row grid-cols-1 lg:grid-cols-3"&gt;
+        {
+          quotes.map((q, i) =&gt; {
+            const { quote, by } = q;
+            return (
+              &lt;figure key={i} className="m-4 py-10 px-4 shadow-md shadow-sky-100"&gt;
+                &lt;blockquote cite="https://wisdomman.com" className="py-3"&gt;
+                  &lt;p className="text-gray-800  text-xl"&gt;
+                    {quote}
+                  &lt;/p&gt;
+                &lt;/blockquote&gt;
+                &lt;figcaption&gt;
+                  &lt;cite className="text-gray-600 text-md mb-4 text-right"&gt;
+                    - {by}
+                  &lt;/cite&gt;
+                &lt;/figcaption&gt;
+              &lt;/figure&gt;
+            )
+          })
+        }
+      &lt;/div&gt;
+    &lt;/div&gt;
+  )
+}
+</pre>
+<h2 id="setting-up-the-database">设置数据库</h2>
+<p>几乎所有现实世界的应用程序都需要数据持久性。我们希望将我们的报价保存到数据库中，以便其他人可以阅读它们，并可能提交他们自己的报价。</p>
+<h3 id="setting-up-prisma">设置 Prisma</h3>
+<p>在本文中，我们将使用我们自己的 SQLite 数据库。它基本上是一个数据库，位于你电脑上的一个文件中，功能非常强大，最棒的是它得到了 Prisma 的支持。如果您不确定使用哪个数据库，这是一个很好的起点。</p>
+<p>首先，我们必须安装以下软件包:</p>
+<ul>
+<li>用于在开发过程中与我们的数据库和模式进行交互</li>
+<li>用于在运行时查询我们的数据库</li>
+</ul>
+<p>安装 Prisma 软件包:</p>
+<pre class="language-bash hljs">npm install --save-dev prisma
+npm install @prisma/client
+</pre>
+<p>现在我们可以用 SQLite 初始化 Prisma:</p>
+<pre class="language-bash hljs">npx prisma init --datasource-provider sqlite</pre>
+<p>以下是您将获得的内容:</p>
+<pre>✔ Your Prisma schema was created at prisma/schema.prisma
+  You can now open it in your favorite editor.
+
+warn You already have a .gitignore. Don't forget to exclude .env to not commit any secret.
+
+Next steps:
+1. Set the DATABASE_URL in the .env file to point to your existing database. If your database has no tables yet, read https://pris.ly/d/getting-started
+2. Run prisma db pull to turn your database schema into a Prisma schema.
+3. Run prisma generate to generate the Prisma Client. You can then start querying your database.
+
+More information in our documentation:
+<blockquote class="embedly-card" data-card-controls="1" data-card-align="center" data-card-theme="light"><p>开始</p></blockquote>
+</pre>
+<p>运行上面的命令后，我们应该会注意到像<code>prisma/schema.prisma</code>这样的新文件和文件夹。</p>
+<p>我们的<code>prisma/schema.prisma</code>应该是这样的:</p>
+<pre class="language-prisma hljs">// prisma/schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+</pre>
+<p>现在已经安装并设置好了 Prisma，让我们开始建模我们的应用程序。</p>
+<p>用以下内容更新<code>prisma/schema.prisma</code>:</p>
+<pre class="language-prisma hljs">// prisma/schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Quote {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  by        String
+  quote     String
+}
+</pre>
+<p>现在，让我们运行以下命令:</p>
+<pre class="language-bash hljs">npx prisma db push
+</pre>
+<p>该命令的输出如下所示:</p>
+<pre>Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+SQLite database dev.db created at file:./dev.db
+
+🚀  Your database is now in sync with your schema. Done in 158ms
+
+✔ Generated Prisma Client (3.14.0 | library) to ./node_modules/@prisma/client in
+ 1.44s
+</pre>
+<p>首先创建我们的数据库<code>prisma/dev.db</code>，然后对数据库进行所有必要的修改，以反映我们在(<code>prisma/schema.prisma</code>)文件中指定的模式。最后，它构建了 Prisma 的 TypeScript 类型，这样当我们使用它的 API 连接数据库时，我们将获得非常棒的自动完成和类型检查。</p>
+<p>接下来，让我们添加那个<code>prisma/dev.db</code>和。<code>env</code>到我们的<code>.gitignore</code>，所以我们不会将它们提交到我们的 GitHub 库:</p>
+<pre>node_modules
+.output
+.cache
+
+/.cache
+/build/
+/public/build
+/api/index.js
+
+`
+</pre>
+<p>如果您的数据库变得混乱，您可以删除<code>prisma/dev.db</code>文件并再次运行<code>npx prisma db push</code>命令。</p>
+<h2 id="connecting-to-the-database">连接到数据库</h2>
+<p>这就是我们将应用程序与数据库连接的方式。我们将在<code>prisma/seed.ts file</code>的顶部添加以下内容，我们将在以后的工作中创建它:</p>
+<pre class="language-typescript hljs">import { PrismaClient } from "@prisma/client";
+const db = new PrismaClient();
+</pre>
+<p>虽然这工作得很好，但我们不希望每次在开发过程中进行服务器端修改时都必须关闭并重启服务器。因此，<code>@remix-run/serve</code>从头开始重新构建代码。</p>
+<p>这种策略的问题是，每次我们修改代码时，我们都会创建一个新的数据库连接，并且很快就会用完连接。对于访问数据库的应用程序，这是一个普遍的问题。因此，Prisma 发出警告:</p>
+<blockquote><p>警告:10 个 Prisma 客户端已经在运行</p></blockquote>
+<p>为了避免这个开发时间问题，我们需要做一些额外的工作。</p>
+<p>创建一个新文件<code>app/utils/db.server.ts</code>并将以下代码粘贴到其中:</p>
+<pre class="language-typescript hljs">import { PrismaClient } from "@prisma/client";
+
+let db: PrismaClient;
+
+declare global {
+  var __db: PrismaClient | undefined;
+}
+
+// this is needed because in development we don't want to restart
+// the server with every change, but we want to make sure we don't
+// create a new connection to the DB with every change either.
+if (process.env.NODE_ENV === "production") {
+  db = new PrismaClient();
+} else {
+  if (!global.__db) {
+    global.__db = new PrismaClient();
+  }
+  db = global.__db;
+}
+
+export { db };
+</pre>
+<p>文件命名惯例是我想指出的一点。文件名的<code>.server</code>部分告诉 Remix 这段代码不应该在浏览器中显示。这不是必需的，因为 Remix 在保持服务器代码在客户端之外方面做得非常好。</p>
+<p>然而，因为一些仅服务器的依赖关系可能很难进行树抖动，所以在文件名后附加<code>.server</code>告诉编译器在为浏览器绑定时忽略这个模块及其导入。对于编译器来说，<code>.server</code>是一种屏障。</p>
+<p>让我们创建一个名为<code>prisma/seed.ts</code>的新文件，并粘贴以下代码片段:</p>
+<pre class="language-typescript hljs">import { PrismaClient } from "@prisma/client";
+
+const db = new PrismaClient();
+
+async function seed() {
+    await Promise.all(
+        getQuotes().map((quote) =&gt; {
+            return db.quote.create({ data: quote })
+        })
+    )
+}
+seed();
+
+function getQuotes() {
+    return [
+        {
+            quote: 'The greatest glory in living lies not in never falling, but in rising every time we fall.',
+            by: 'Nelson Mandela'
+        },
+        {
+            quote: 'The way to get started is to quit talking and begin doing.',
+            by: 'Walt Disney'
+        },
+        {
+            quote: "Your time is limited, so don't waste it living someone else's life. Don't be trapped by dogma – which is living with the results of other people's thinking.",
+            by: 'Steve Jobs'
+        },
+        {
+            quote: "If life were predictable it would cease to be life, and be without flavor.",
+            by: 'Eleanor Roosevelt'
+        },
+        {
+            quote: "If you look at what you have in life, you'll always have more. If you look at what you don't have in life, you'll never have enough.",
+            by: 'Oprah Winfrey'
+        },
+        {
+            quote: "If you set your goals ridiculously high and it's a failure, you will fail above everyone else's success.",
+            by: 'James Cameron'
+        },
+        {
+            quote: "Life is what happens when you're busy making other plans.",
+            by: 'John Lennon'
+        }
+    ]
+}
+</pre>
+<p>欢迎您向此列表贡献新的报价。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>我们现在必须运行这个程序，以便在我们的数据库中植入虚假报价。</p>
+<p>安装<code>esbuild-register</code>作为开发依赖项，以便运行种子文件:</p>
+<pre class="language-bash hljs">npm install --save-dev esbuild-register
+</pre>
+<p>现在我们可以用下面的命令运行我们的<code>seed.ts</code>文件:</p>
+<pre class="language-bash hljs">node --require esbuild-register prisma/seed.ts
+</pre>
+<p>虚假报价现在已经被植入我们的数据库。<br/>我们不需要在每次重置数据库时都运行上面的命令，所以我们将把它放到我们的<code>package.json</code>文件中:</p>
+<pre class="language-json hljs">// ...
+  "prisma": {
+    "seed": "node --require esbuild-register prisma/seed.ts"
+  },
+  "scripts": {
+// ...
+</pre>
+<p>现在，每当我们重置数据库时，Prisma 也会调用我们的种子文件。</p>
+<h2 id="fetching-quotes-from-the-database-using-the-remix-loader">使用 Remix loader 从数据库中获取报价</h2>
+<p>我们的目标是将报价列表放在<code>/</code>路线上</p>
+<p>一个<code>loader</code>用于将数据加载到一个再混合路由模块中。这本质上是一个您导出的返回响应的<code>async</code>函数，并通过组件上的<code>useLoaderData</code>钩子来访问。</p>
+<p>让我们对<code>app/route/index.tsx</code>做一些修改:</p>
+<pre class="language-typescript hljs">...
+import { db } from "~/utils/db.server";
+
+
+export const loader = async () =&gt; {
+
+  return json({
+    quotes: await db.quote.findMany()
+  })
+};
+
+export default function Index() {
+  const { quotes } = useLoaderData();
+
+  return (
+    &lt;div&gt;
+      &lt;nav&gt;&lt;/nav&gt;
+      &lt;div className="grid lg:grid-flow-row grid-cols-1 lg:grid-cols-3"&gt;
+        {
+          quotes.map((q, i) =&gt; {
+            const { id, quote, by } = q;
+            return (
+              &lt;figure key={id} className="m-4 py-10 px-4 shadow-md shadow-sky-100"&gt;
+                &lt;blockquote  className="py-3"&gt;
+                  &lt;p className="text-gray-800  text-xl"&gt;
+                    {quote}
+                  &lt;/p&gt;
+                &lt;/blockquote&gt;
+                &lt;figcaption&gt;
+                  &lt;cite className="text-gray-600 text-md mb-4 text-right"&gt;
+                    - {by}
+                  &lt;/cite&gt;
+                &lt;/figcaption&gt;
+              &lt;/figure&gt;
+            )
+          })
+        }
+      &lt;/div&gt;
+    &lt;/div&gt;
+  )
+}
+</pre>
+<p>运行<code>npm run dev</code>,你会看到:</p>
+<p><img data-attachment-id="121960" data-permalink="https://blog.logrocket.com/handling-user-authentication-remix/attachment/quote-wall/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png" data-orig-size="730,368" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Quote wall" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png" decoding="async" class="aligncenter size-full wp-image-121960 jetpack-lazy-image" src="../Images/ddb7a58ca0581be134d5dd66e824b920.png" alt="Quote Wall" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-300x151.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121960" data-permalink="https://blog.logrocket.com/handling-user-authentication-remix/attachment/quote-wall/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png" data-orig-size="730,368" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Quote wall" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-121960" src="../Images/ddb7a58ca0581be134d5dd66e824b920.png" alt="Quote Wall" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-300x151.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall.png"/></noscript>
+<h2 id="creating-new-quotes">创建新报价</h2>
+<p>既然我们已经能够从数据库存储中显示新的报价，那么让我们构建一种向数据库添加新报价的方法，好吗？</p>
+<p>创建<code>app/routes/new-quote.tsx</code>文件，并将以下内容添加到文件中:</p>
+<pre class="language-typescript hljs">const inputClassName = `w-full rounded border border-gray-500 px-2 py-1 text-lg text-purple-900 outline-purple-300 `;
+export default function NewQuoteRoute() {
+    return (
+      &lt;div className="flex justify-center items-center content-center"&gt;
+            &lt;div className="lg:m-10 my-10 md:w-2/3 lg:w-1/2 bg-gradient-to-br from-purple-500 via-purple-400 to-purple-300  font-bold px-5 py-6 rounded-md"&gt;
+                &lt;form method="post"&gt;
+                    &lt;label className="text-lg leading-7 text-white"&gt;
+                        Quote Master (Quote By):
+                        &lt;input
+                            type="text"
+                            className={inputClassName}
+                            name="by"
+                            required
+                        /&gt;
+                    &lt;/label&gt;
+                    &lt;label className="text-lg leading-7 text-white"&gt;
+                        Quote Content:
+                        &lt;textarea required className={`${inputClassName} resize-none `} id="" cols={30} rows={10} name="quote"&gt;&lt;/textarea&gt;
+                    &lt;/label&gt;
+                    &lt;button className="my-4 py-3 px-10 text-purple-500 font-bold border-4 hover:scale-105 border-purple-500 rounded-lg bg-white" type="submit"&gt;Add&lt;/button&gt;
+                &lt;/form&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+</pre>
+<p>下面是表单页面的外观:</p>
+<p><img data-attachment-id="121962" data-permalink="https://blog.logrocket.com/handling-user-authentication-remix/attachment/quote-wall-fields/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png" data-orig-size="730,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Quote wall fields" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields-300x148.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png" decoding="async" class="aligncenter size-full wp-image-121962 jetpack-lazy-image" src="../Images/76db58d8bf1362a8a6833e2a15c88810.png" alt="Quote Wall Fields" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields-300x148.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121962" data-permalink="https://blog.logrocket.com/handling-user-authentication-remix/attachment/quote-wall-fields/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png" data-orig-size="730,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Quote wall fields" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields-300x148.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-121962" src="../Images/76db58d8bf1362a8a6833e2a15c88810.png" alt="Quote Wall Fields" srcset="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields-300x148.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/quote-wall-fields.png"/></noscript>
+<p>让我们用下面的内容更新<code>app/routes/new-quote.tsx</code>文件，以便提交数据。</p>
+<pre class="language-typescript hljs">import { redirect } from "@remix-run/node";
+import { db } from "~/utils/db.server";
+
+export const action = async ({ request }) =&gt; {
+
+    const form = await request.formData();
+    const by = form.get('by');
+    const quote = form.get('quote');
+
+    if (
+        typeof by !== "string" || by === "" ||
+        typeof quote !== "string" || quote === ""
+    ) {
+        redirect('/new-quote')
+        throw new Error(`Form not submitted correctly.`);
+    }
+    const fields = { by, quote };
+
+    await db.quote.create({ data: fields });
+    return redirect('/');
+}
+...
+</pre>
+<p>对于<code>POST</code>、<code>PATCH</code>、<code>PUT</code>和<code>DELETE</code> HTTP 方法调用 action 方法，用于编辑或变更数据。request 属性为我们提供了对表单数据的访问，这样我们就可以验证它并将请求提交给服务器。</p>
+<p>我们现在可以添加报价，这将把我们带到主页，主页将显示我们添加的新报价。</p>
+<p>注意我们是如何在不使用任何 React 钩子的情况下处理表单提交的。</p>
+<h2 id="remix-auth-vs-bcrypt">身份验证选项:Remix Auth vs. bcrypt</h2>
+<p><a href="https://github.com/sergiodxa/remix-auth" target="_blank" rel="noopener"> Remix Auth </a>是一款面向 Remix.run 应用的一体化开源认证解决方案。它的灵感来自 Passport.js，但是基于<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API" target="_blank" rel="noopener"> Web Fetch API </a>，并且只需要很少的设置就可以实现完整的服务器端认证和完整的 TypeScript 支持。</p>
+<p>Remix Auth 支持基于社交策略的身份验证，并允许实现定制的身份验证策略。</p>
+<p>对于需要执行复杂身份验证策略的开发人员来说，Remix Auth 通常是一个不错的选择，比如使用 Google、LinkedIn、Twitter 或其他社交平台登录。你可以在这里找到由 remix-auth 社区<a href="https://github.com/sergiodxa/remix-auth/discussions/111" target="_blank" rel="noopener">建立的可用策略列表。</a></p>
+<p><a href="https://www.npmjs.com/package/bcrypt" target="_blank" rel="noopener"> bcrypt </a>是一个 JavaScript 库，用于散列和比较密码。bcrypt 不支持基于社交策略的身份验证，但如果您正在考虑基于电子邮件或用户名和密码的简单登录或注册策略，它会很有用。</p>
+<p>bcrypt v5.0.0 有一个环绕错误，它会截断超过 255 个字符的密码，从而导致密码严重弱化。不过这个 bug 在 v5.0.1 中修复了，更加安全。因此，仅推荐 bcrypt 5 . 0 . 1 及更高版本。</p>
+<h2 id="username-password-authentication">用户名/密码验证</h2>
+<p>让我们看看如何处理身份验证来限制未注册用户发帖。</p>
+<p>在本文中，我们将实现传统的用户名/密码认证策略。</p>
+<p>我们将使用<code><a href="https://npm.im/bcryptjs" target="_blank" rel="noopener">bcryptjs</a></code>来散列我们的密码，因此没有人能够合理地强行进入一个帐户。</p>
+<p>我们将安装 bcrypt 库及其类型定义，如下所示:</p>
+<pre class="language-bash hljs">npm install bcryptjs
+npm install --save-dev @types/bcryptjs
+</pre>
+<p>我们必须用用户模型更新<code>prisma/schema.prisma</code>文件，它应该是这样的:</p>
+<pre>generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id           String   @id @default(uuid())
+  createAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  username     String   @unique
+  passwordHash String
+  quotes       Quote[]
+}
+model Quote {
+  id        String   @id @default(uuid())
+  userId    String
+  addedBy   User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  by        String
+  quote     String
+}
+</pre>
+<p>接下来，我们将通过运行以下命令使用该模式重置数据库:</p>
+<pre class="language-bash hljs">npx prisma db push
+</pre>
+<p>运行这个命令会提示你重置数据库，点击<strong> Y </strong>确认。</p>
+<p>接下来，我们将更新<code>prisma/seed.ts</code>文件中的种子函数，如下所示:</p>
+<pre class="language-typescript hljs">...
+async function seed() {
+    // WisdomMan is a default user with the password   'twixrox'
+    const wisdomMan = await db.user.create({
+        data: {
+          username: "WisdomMan",
+          // this is a hashed version of "twixrox"
+          passwordHash:
+            "$2b$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u",
+        },
+      });
+    await Promise.all(
+        getQuotes().map((quote) =&gt; {
+            const data = {userId:wisdomMan.id, ...quote}
+            return db.quote.create({ data })
+        })
+    )
+}
+seed();
+...
+</pre>
+<p>这里，我们植入一个用户名为“WisdomMan”的用户，密码为“twixrox”。“此外，我们在数据库中植入了我们所有的虚拟报价。</p>
+<p>我们必须使用以下代码再次运行 seed:</p>
+<pre class="language-bash hljs">npx prisma db seed
+</pre>
+<h2 id="form-validation-with-action">用<code>action</code>进行表单验证</h2>
+<p>让我们通过为我们的登录和注册表单添加一个包含以下验证逻辑的<code>app/routes/login.tsx</code>文件来创建一个<code>/login</code>路由:</p>
+<pre class="language-typescript hljs">import { json } from "@remix-run/node";
+
+function validateUsername(username: unknown) {
+    if (typeof username !== "string" || username.length &lt; 3) {
+        return `Usernames must be at least 3 characters long`;
+    }
+}
+function validatePassword(password: unknown) {
+    if (typeof password !== "string" || password.length &lt; 6) {
+        return `Passwords must be at least 6 characters long`;
+    }
+}
+function validateUrl(url: any) {
+    console.log(url);
+    let urls = ["/"];
+    if (urls.includes(url)) {
+        return url;
+    }
+    return "/";
+}
+const badRequest = (data: any) =&gt;
+    json(data, { status: 400 }
+);
+</pre>
+<p>这里，我们为用户名、密码和 url 编写了一些自定义验证逻辑。</p>
+<p>接下来，我们将使用以下 JSX 模板更新<code>app/routes/login.tsx</code>文件:</p>
+<pre class="language-typescript hljs">import type {
+  ActionFunction,
+  LinksFunction,
+} from "@remix-run/node";
+import {
+  useActionData,
+  Link,
+  useSearchParams,
+} from "@remix-run/react";
+import { db } from "~/utils/db.server";
+...
+
+const inputClassName = `w-full rounded border border-gray-500 px-2 py-1 text-lg text-purple-900 outline-purple-300 `;
+export default function LoginRoute() {
+    const actionData = useActionData();
+    const [searchParams] = useSearchParams();
+    return (
+        &lt;div className="flex justify-center items-center content-center text-white"&gt;
+            &lt;div className="lg:m-10 my-10 md:w-2/3 lg:w-1/2 bg-gradient-to-br from-purple-500 via-purple-400 to-purple-300  font-bold px-5 py-6 rounded-md"&gt;
+                &lt;form method="post"&gt;
+                    &lt;h1 className="text-center text-2xl text-white"&gt;Login&lt;/h1&gt;
+                    &lt;input
+                        type="hidden"
+                        name="redirectTo"
+                        value={
+                            searchParams.get("redirectTo") ?? undefined
+                        }
+                    /&gt;
+                    &lt;fieldset className="text-center "&gt;
+                        &lt;legend className="sr-only"&gt;
+                            Login or Register?
+                        &lt;/legend&gt;
+                        &lt;label&gt;
+                            &lt;input
+                                type="radio"
+                                name="loginType"
+                                value="login"
+                                defaultChecked={
+                                    !actionData?.fields?.loginType ||
+                                    actionData?.fields?.loginType === "login"
+                                }
+                            /&gt;{" "}
+                            Login
+                        &lt;/label&gt;
+                        &lt;label&gt;
+                            &lt;input
+                                type="radio"
+                                name="loginType"
+                                value="register"
+                                defaultChecked={
+                                    actionData?.fields?.loginType ===
+                                    "register"
+                                }
+                            /&gt;{" "}
+                            Register
+                        &lt;/label&gt;
+                    &lt;/fieldset&gt;
+                    &lt;label className="text-lg leading-7 text-white"&gt;
+                        Username:
+                        &lt;input
+                            type="text"
+                            className={inputClassName}
+                            name="username"
+                            required
+                            minLength={3}
+                            defaultValue={actionData?.fields?.username}
+                            aria-invalid={Boolean(
+                                actionData?.fieldErrors?.username
+                            )}
+                            aria-errormessage={
+                                actionData?.fieldErrors?.username
+                                    ? "username-error"
+                                    : undefined
+                            }
+                        /&gt;
+                        {actionData?.fieldErrors?.username ? (
+                            &lt;p
+                                className="text-red-500"
+                                role="alert"
+                                id="username-error"
+                            &gt;
+                                {actionData.fieldErrors.username}
+                            &lt;/p&gt;
+                        ) : null}
+                    &lt;/label&gt;
+                    &lt;label className="text-lg leading-7 text-white"&gt;
+                        Password
+                        &lt;input
+                            name="password"
+                            className={inputClassName}
+                            required
+                            defaultValue={actionData?.fields?.password}
+                            type="password"
+                            aria-invalid={
+                                Boolean(
+                                    actionData?.fieldErrors?.password
+                                ) || undefined
+                            }
+                            aria-errormessage={
+                                actionData?.fieldErrors?.password
+                                    ? "password-error"
+                                    : undefined
+                            }
+                        /&gt;
+                        {actionData?.fieldErrors?.password ? (
+                            &lt;p
+                                className="text-red-500"
+                                role="alert"
+                                id="password-error"
+                            &gt;
+                                {actionData.fieldErrors.password}
+                            &lt;/p&gt;
+                        ) : null}
+                    &lt;/label&gt;
+                    &lt;div id="form-error-message"&gt;
+                        {actionData?.formError ? (
+                            &lt;p
+                                className="text-red-500"
+                                role="alert"
+                            &gt;
+                                {actionData.formError}
+                            &lt;/p&gt;
+                        ) : null}
+                    &lt;/div&gt;
+                    &lt;button className="my-4 py-2 px-7 text-purple-500 font-bold border-2 hover:scale-105 border-purple-500 rounded-lg bg-white" type="submit"&gt;Login&lt;/button&gt;
+                &lt;/form&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+</pre>
+<p>这里，我们使用<code>useSearchParams</code>来获取<code>redirectTo</code>查询参数，并将其放入一个隐藏输入中。这样，我们的<code>action</code>可以知道将用户重定向到哪里。我们将使用它将用户重定向到登录和注册页面。我们在 JSX 中添加了一些条件，以便在出现错误时在表单中显示错误消息。</p>
+<h2 id="creating-session-helpers">创建会话助手</h2>
+<p>在创建我们的会话助手之前，让我们将会话秘密添加到我们的<code>.env</code>文件中，如下所示:</p>
+<pre>SESSION_SECRET=secret
+</pre>
+<p>让我们创建一个名为<code>app/utils/session.server.ts</code>的文件，并添加以下会话助手函数:</p>
+<pre class="language-typescript hljs">import bcrypt from "bcryptjs";
+import {
+    createCookieSessionStorage,
+    redirect,
+} from "@remix-run/node";
+import { db } from "./db.server";
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+    throw new Error("SESSION_SECRET must be set");
+}
+const storage = createCookieSessionStorage({
+    cookie: {
+        name: "RJ_session",
+        // normally you want this to be `secure: true`
+        // but that doesn't work on localhost for Safari
+        // https://web.dev/when-to-use-local-https/
+        secure: process.env.NODE_ENV === "production",
+        secrets: [sessionSecret],
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+        httpOnly: true,
+    },
+});
+export async function createUserSession(
+    userId: string,
+    redirectTo: string
+) {
+    const session = await storage.getSession();
+    session.set("userId", userId);
+    return redirect(redirectTo, {
+        headers: {
+            "Set-Cookie": await storage.commitSession(session),
+        },
+    });
+}
+function getUserSession(request: Request) {
+    return storage.getSession(request.headers.get("Cookie"));
+}
+</pre>
+<p>这里，我们使用<code>createCookieSessionStorage</code>方法创建会话存储。<code>createUserSession</code>函数获取存储的会话，将其设置为我们唯一的用户 ID，并将 cookie 设置为请求头。<code>getUser</code>函数从请求头中检索用户 cookie。</p>
+<p>接下来，我们将添加助手函数，通过用户的唯一 ID 来检索用户。</p>
+<p>将以下内容添加到<code>app/utils/session.server.ts</code>文件中:</p>
+<pre class="language-typescript hljs">...
+
+export async function getUserId(request: Request) {
+  const session = await getUserSession(request);
+  const userId = session.get("userId");
+  if (!userId || typeof userId !== "string") return null;
+  return userId;
+}
+
+export async function getUser(request: Request) {
+  const userId = await getUserId(request);
+  if (typeof userId !== "string") {
+    return null;
+  }
+  try {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true },
+    });
+    return user;
+  } catch {
+    throw logout(request);
+  }
+}
+</pre>
+<p>这里，<code>getUserId</code>函数从现有会话中检索用户 id，而<code>getUser</code>函数使用检索到的用户 ID 在数据库中查询具有匹配 ID 的用户。我们将继续实现注销会话助手。</p>
+<p>接下来，我们将创建一个助手函数来防止未经验证的用户创建报价。</p>
+<p>将以下内容添加到<code>app/utils/session.server.ts</code>文件中:</p>
+<pre class="language-typescript hljs">export async function requireUserId(
+  request: Request,
+  redirectTo: string = new URL(request.url).pathname
+) {
+  const session = await getUserSession(request);
+  const userId = session.get("userId");
+  if (!userId || typeof userId !== "string") {
+    const searchParams = new URLSearchParams([
+      ["redirectTo", redirectTo],
+    ]);
+    throw redirect(`/login?${searchParams}`);
+  }
+  return userId;
+}
+</pre>
+<p>通过以下实施，未登录的用户在尝试创建报价时将被重定向到登录路径。</p>
+<p>接下来，登录、注册和注销助手函数。</p>
+<p>将以下内容添加到<code>app/utils/session.server.ts</code>文件中:</p>
+<pre class="language-typescript hljs">...
+type LoginForm = {
+  username: string;
+  password: string;
+};
+
+export async function register({
+  username,
+  password,
+}: LoginForm) {
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await db.user.create({
+    data: { username, passwordHash },
+  });
+  return { id: user.id, username };
+}
+
+export async function login({
+  username,
+  password,
+}: LoginForm) {
+  const user = await db.user.findUnique({
+    where: { username },
+  });
+  if (!user) return null;
+  const isCorrectPassword = await bcrypt.compare(
+    password,
+    user.passwordHash
+  );
+  if (!isCorrectPassword) return null;
+  return { id: user.id, username };
+}
+
+export async function logout(request: Request) {
+  const session = await getUserSession(request);
+  return redirect("/login", {
+    headers: {
+      "Set-Cookie": await storage.destroySession(session),
+    },
+  });
+}
+</pre>
+<p>在我们将密码存储在数据库中之前，<code>register</code>函数使用<code>bcrypt.hash</code>散列密码，然后返回用户 ID 和用户名。<code>login</code>函数通过用户名查询数据库。如果找到了，使用<code>bcrypt.compare</code>方法将密码与 passwordhash 进行比较，然后返回用户 id 和用户名。<code>logout</code>功能破坏现有的用户会话，并重定向到登录路由。</p>
+<h2 id="processing-login-and-register-form-submissions">处理登录和注册表单提交</h2>
+<p>您应该对如何处理表单提交有一定的了解，因为我们已经在创建新报价部分做了同样的事情。</p>
+<p>类似地，我们将创建一个接受请求对象的操作方法，用于修改或变更服务器上的数据。</p>
+<p>现在，让我们用以下内容更新<code>app/routes/login.tsx</code>文件:</p>
+<pre class="language-typescript hljs">import { createUserSession, login, register } from "~/utils/session.server";
+...
+export const action: ActionFunction = async ({ request }) =&gt; {
+    const form = await request.formData();
+    const loginType = form.get("loginType");
+    const username = form.get("username");
+    const password = form.get("password");
+    const redirectTo = validateUrl(
+        form.get("redirectTo") || "/"
+    );
+    if (
+        typeof loginType !== "string" ||
+        typeof username !== "string" ||
+        typeof password !== "string" ||
+        typeof redirectTo !== "string"
+    ) {
+        return badRequest({
+            formError: `Form not submitted correctly.`,
+        });
+    }
+    const fields = { loginType, username, password };
+    const fieldErrors = {
+        username: validateUsername(username),
+        password: validatePassword(password),
+    };
+    if (Object.values(fieldErrors).some(Boolean))
+        return badRequest({ fieldErrors, fields });
+    switch (loginType) {
+        case "login": {
+            const user = await login({ username, password });
+            console.log({ user });
+            if (!user) {
+                return badRequest({
+                    fields,
+                    formError: `Username/Password combination is incorrect`,
+                });
+            }
+            return createUserSession(user.id, redirectTo);
+        }
+        case "register": {
+            const userExists = await db.user.findFirst({
+                where: { username },
+            });
+            if (userExists) {
+                return badRequest({
+                    fields,
+                    formError: `User with username ${username} already exists`,
+                });
+            }
+            const user = await register({ username, password });
+            if (!user) {
+                return badRequest({
+                    fields,
+                    formError: `Something went wrong trying to create a new user.`,
+                });
+            }
+            return createUserSession(user.id, redirectTo);
+        }
+        default: {
+            return badRequest({
+                fields,
+                formError: `Login type invalid`,
+            });
+        }
+    }
+};
+</pre>
+<p>这里，我们使用<code>switch</code>语句为登录和注册两种情况编写了一个控制流。对于登录流，如果没有用户，将返回字段和一个<code>formError</code>。如果有用户，我们将创建他们的会话并重定向到<code>/quotes</code>。对于注册流，我们检查用户是否存在。如果没有用户，我们将在会话旁边创建一个用户，并重定向到<code>/</code>。</p>
+<h2 id="making-a-logout-feature">创建注销功能</h2>
+<p>让我们创建一个名为<code>app/routes/logout.tsx</code>的文件，并添加以下内容:</p>
+<pre class="language-typescript hljs">import type { ActionFunction, LoaderFunction } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
+import { logout } from "~/utils/session.server";
+export const action: ActionFunction = async ({ request }) =&gt; {
+  return logout(request);
+};
+export const loader: LoaderFunction = async () =&gt; {
+  return redirect("/");
+};
+</pre>
+<p>用以下内容更新<code>app/routes/index.tsx</code>文件:</p>
+<pre class="language-typescript hljs">...
+import { getUser } from "~/utils/session.server";
+
+export const loader = async ({ request }) =&gt; {
+  const user = await getUser(request);
+  return json({
+    quotes: await db.quote.findMany(),
+    user
+  })
+};
+export default function Index() {
+  const { quotes, user } = useLoaderData();
+  return (
+    &lt;div&gt;
+      &lt;nav className="bg-gradient-to-br from-purple-400 via-purple-500 to-purple-500 w-full fixed top-0 left-0 px-5"&gt;
+        &lt;div
+          className="w-full max-w-screen-lg mx-auto flex justify-between content-center py-3 "&gt;
+          &lt;Link className="text-white text-3xl font-bold" to={"/"}&gt;Quote Wall&lt;/Link&gt;
+          &lt;div className="flex flex-row items-center justify-between gap-x-4 text-blue-50"&gt;
+            {
+              user ? (
+                &lt;&gt;
+                  &lt;Link to={"new-quote"}&gt;Add A Quote&lt;/Link&gt;
+
+                  &lt;form action="/logout" method="post"&gt;
+                    &lt;button type="submit" className="button"&gt;
+                      Logout
+                    &lt;/button&gt;
+                  &lt;/form&gt;
+                &lt;/&gt;) : (
+                &lt;&gt;
+                  &lt;Link to={"login"}&gt;Login&lt;/Link&gt;
+                  &lt;Link to={"login"}&gt;Register&lt;/Link&gt;
+                &lt;/&gt;
+              )
+            }
+
+          &lt;/div&gt;
+        &lt;/div &gt;
+      &lt;/nav &gt;
+      &lt;div className="grid lg:grid-flow-row grid-cols-1 lg:grid-cols-3"&gt;
+        ...
+      &lt;/div&gt;
+    &lt;/div &gt;
+  )
+}
+</pre>
+<p>现在我们已经完成了所有的认证逻辑，我们需要更新<code>routes/new-quote</code>,这样只有通过认证的用户才能创建新的报价。</p>
+<p>用以下内容更新<code>app/routes/new-quote.tsx</code>文件:</p>
+<pre class="language-typescript hljs">import { redirect, json } from "@remix-run/node";
+import { db } from "~/utils/db.server";
+import { requireUserId, getUser } from "~/utils/session.server";
+import { Link, useLoaderData } from "@remix-run/react";
+
+export const action = async ({ request }) =&gt; {
+  const userId = await requireUserId(request);
+  const form = await request.formData();
+  const by = form.get("by");
+  const quote = form.get("quote");
+  if (
+    typeof by !== "string" ||
+    by === "" ||
+    typeof quote !== "string" ||
+    quote === ""
+  ) {
+    redirect("/new-quote");
+    throw new Error(`Form not submitted correctly.`);
+  }
+  const fields = { by, quote };
+  await db.quote.create({
+    data: { ...fields, userId: userId },
+  });
+  return redirect("/");
+};
+export const loader = async ({ request }) =&gt; {
+  const user = await getUser(request);
+  return json({
+    user,
+  });
+};
+</pre>
+<p>接下来，我们将按如下方式更新我们的 TSX 模板:</p>
+<pre class="language-typescript hljs">...
+
+const inputClassName = `w-full rounded border border-gray-500 px-2 py-1 text-lg text-purple-900 outline-purple-300 `;
+export default function NewQuoteRoute() {
+    const { user } = useLoaderData();
+  return (
+    &lt;&gt;
+      &lt;nav className="bg-gradient-to-br from-purple-400 via-purple-500 to-purple-500 w-full fixed top-0 left-0 px-5"&gt;
+        &lt;div className="w-full max-w-screen-lg mx-auto flex justify-between content-center py-3 "&gt;
+          &lt;Link className="text-white text-3xl font-bold" to={"/"}&gt;
+            Quote Wall
+          &lt;/Link&gt;
+          &lt;div className="flex flex-row items-center justify-between gap-x-4 text-blue-50"&gt;
+            {user ? (
+              &lt;&gt;
+                &lt;Link to={"new-quote"}&gt;Add A Quote&lt;/Link&gt;
+                &lt;form action="/logout" method="post"&gt;
+                  &lt;button type="submit" className="button"&gt;
+                    Logout
+                  &lt;/button&gt;
+                &lt;/form&gt;
+              &lt;/&gt;
+            ) : (
+              &lt;&gt;
+                &lt;Link to={"login"}&gt;Login&lt;/Link&gt;
+                &lt;Link to={"register"}&gt;Register&lt;/Link&gt;
+              &lt;/&gt;
+            )}
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/nav&gt;
+      &lt;div className="flex justify-center items-center content-center"&gt;
+        &lt;div className="lg:m-10 my-10 md:w-2/3 lg:w-1/2 bg-gradient-to-br from-purple-500 via-purple-400 to-purple-300  font-bold px-5 py-6 rounded-md"&gt;
+          &lt;form method="post"&gt;
+            &lt;label className="text-lg leading-7 text-white"&gt;
+              Quote Master (Quote By):
+              &lt;input
+                type="text"
+                className={inputClassName}
+                name="by"
+                required
+              /&gt;
+            &lt;/label&gt;
+            &lt;label className="text-lg leading-7 text-white"&gt;
+              Quote Content:
+              &lt;textarea
+                required
+                className={`${inputClassName} resize-none `}
+                id=""
+                cols={30}
+                rows={10}
+                name="quote"
+              &gt;&lt;/textarea&gt;
+            &lt;/label&gt;
+            &lt;button
+              className="my-4 py-3 px-10 text-purple-500 font-bold border-4 hover:scale-105 border-purple-500 rounded-lg bg-white"
+              type="submit"
+            &gt;
+              Add
+            &lt;/button&gt;
+          &lt;/form&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/&gt;
+  );
+}
+</pre>
+<p>现在，只有经过认证的用户可以在我们的应用程序中创建新报价，而未经认证的用户在尝试创建新报价时将被重定向到<code>/login</code>路线。我们可以通过使用以下命令启动开发服务器来检查项目的最终版本:</p>
+<pre class="language-bash hljs">npm run dev
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>我们终于来到了本教程的结尾。我们已经了解了如何在<a href="https://blog.logrocket.com/remix-guide-newly-open-sourced-react-framework/" target="_blank" rel="noopener"> Remix </a>应用上实现认证，并且我们已经成功构建了一个支持用户认证的全栈报价墙应用。有很多方法可以改进这一点，我迫不及待地想看看你用 Remix 接下来会做什么。感谢阅读。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

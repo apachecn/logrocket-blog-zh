@@ -1,0 +1,219 @@
+<html>
+<head>
+<title>Parsing HTML in Node.js with Cheerio - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Cheerio - LogRocket Blog 解析 Node.js 中的 HTML</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/parsing-html-nodejs-cheerio/#0001-01-01">https://blog.logrocket.com/parsing-html-nodejs-cheerio/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>传统上，Node.js 不允许解析和操作标记，因为它在浏览器之外执行代码。在本文中，我们将探索 Cheerio，一个专门为此目的设计的开源 JavaScript 库。</p>
+<p>Cheerio 提供了一个灵活而精简的 jQuery 实现，但它是为服务器设计的。使用 Cheerio 操作和呈现标记的速度非常快，因为它使用简洁而简单的标记(类似于 jQuery)。除了解析 HTML，Cheerio 在处理 XML 文档方面也表现出色。</p>
+<h3>目标</h3>
+<p>本教程假设没有 Cheerio 的先验知识，将涵盖以下领域:</p>
+<ul>
+<li>在 Node.js 项目中安装 Cheerio</li>
+<li>理解 Cheerio(加载、选择器、DOM 操作和呈现)</li>
+<li>构建一个示例应用程序(FeatRocket ),用于抓取日志火箭特色文章，并将它们记录到控制台</li>
+</ul>
+<h3>先决条件</h3>
+<p>要完成本教程，您需要:</p>
+<ul>
+<li>基本熟悉 HTML、CSS 和<a href="https://en.wikipedia.org/wiki/Document_Object_Model"> DOM </a></li>
+<li>熟悉 npm 和 Node.js</li>
+<li>熟悉使用命令行和文本编辑器</li>
+</ul>
+<h2>建立啦啦队</h2>
+<p>Cheerio 可以用于任何 ES6+、TypeScript 和 Node.js 项目，但是对于本文，我们将重点讨论 Node.js。</p>
+<p>首先，我们需要运行<code>npm init -y</code>命令，这会生成一个新的<code>package.json</code>文件，其内容如下:</p>
+<pre class="prettyprint">{
+  "name": "cheerio-sample",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+</pre>
+<p>完成后，让我们继续进行<a href="https://github.com/cheeriojs/cheerio">安装 Cheerio </a>:</p>
+<pre class="prettyprint">npm install cheerio
+</pre>
+<p>检验安装是否成功的一种方法是检查<code> package.json</code>文件。您应该会看到添加了一个名为<code>dependencies</code>的新条目，如下所示:</p>
+<pre class="prettyprint">...
+"dependencies": {
+    "cheerio": "^1.0.0-rc.10"
+  }
+</pre>
+<h2>了解 cheerios 加载</h2>
+<h3>使用 Cheerio 的第一步是加载我们想要解析或操作的 HTML/XML 文件。我们必须这样做，因为我们正在使用 Node.js，它不能直接访问我们的应用程序标记，除非它是以某种方式下载的。</h3>
+<p>加载可以用<code>cheerio.load()</code>方法来实现，这需要一个重要的参数——您想要加载的 HTML/XML 文档。</p>
+<p>下面是一个例子:</p>
+<p>类似于 web 浏览器，使用<code>cheerio.load()</code>方法将自动分别包含<code>&lt;html&gt;</code>、<code>&lt;head&gt;</code>和<code>&lt;body&gt;</code>标签，如果它们还没有出现在我们的标记中的话。</p>
+<pre class="prettyprint">const cheerio = require("cheerio");
+const markup = `&lt;ul id="js-frameworks"&gt;
+                    &lt;li class="vue"&gt;Vue.js ⚡&lt;/li&gt;
+                    &lt;li class="react"&gt;React&lt;/li&gt;
+                    &lt;li class="svelte"&gt;Svelte&lt;/li&gt;
+                    &lt;li class="angular"&gt;Angular&lt;/li&gt;
+                &lt;/ul&gt;`;
+/* Note - variable name is declared as '$' to bring the familiarity of JQuery to cheerio */
+const $ = cheerio.load(markup);
+</pre>
+<p>您可以通过将<code>.load()</code>方法的第三个参数设置为<code>false</code>来禁用此功能:</p>
+<p>在处理 XML 文档而不是 HTML 的情况下，这可能很方便。</p>
+<pre class="prettyprint">const $ = cheerio.load(markup, null, false);
+</pre>
+<p>选择器</p>
+<h3>我们使用选择器来告诉 Cheerio 我们想要处理什么元素。如前所述，Cheerio 中的选择器实现类似于 jQuery，也遵循 CSS 样式，但有一些补充。</h3>
+<p>Cheerio 中一些最常用的选择器包括:</p>
+<p><code>$("*")</code> —星号符号<code>(*)</code>用作通配符选择器，它将选择所提供标记上的每个元素</p>
+<ul>
+<li><code>$("div")</code> —标签选择器:选择提供的标签的每个实例。在这种情况下，它将选择<code>&lt;div&gt;</code>标签的每个实例</li>
+<li><code>$(".foo")</code> —类:选择应用了<code>foo</code>类的每个元素</li>
+<li><code>$("#bar")</code> — Id:选择具有唯一<code>bar </code> id 的每个元素</li>
+<li><code>$(":focus")</code> —选择当前具有焦点的元素</li>
+<li><code>$("input[type='text']")</code> —属性:选择任意输入类型为<code>text</code>的输入元素</li>
+<li><code>$('.bar, '#foo)</code> —在具有 foo 类的元素下选择所有具有类栏的子元素</li>
+<li>事件和 DOM 操作</li>
+</ul>
+<h3>类似于<a href="https://blog.logrocket.com/the-history-and-legacy-of-jquery/"> JQuery </a>，Cheerio 附带了一系列与 DOM 相关的方法，用于访问和操作 HTML 元素及其属性。</h3>
+<p>一些最常用的方法包括:</p>
+<p><code>.text()</code> —设置或返回所选元素的<code>innerText</code>内容。以我们之前的标记为例，我们可以用下面的代码获取带有类<code>vue</code>的元素的文本内容:<code><br/> $(".vue").text();<br/> // output =&gt; Vue.js ⚡</code></p>
+<ul>
+<li><code>.html()</code> —设置或返回所选元素的<code>innerHTML</code>内容</li>
+<li><code>.append()</code> —将插入所提供的内容，作为每个所选元素的最后一个子元素</li>
+<li><code>.prepend()</code> —与 append 不同，这将把提供的内容作为每个选定元素的第一个子元素插入</li>
+<li><code>.addClass()</code>和<code>.removeClass()</code> —将删除或添加提供给所有匹配元素的类</li>
+<li><code>.hasClass()</code> —如果所选元素具有提供的类名，则返回布尔值(真/假)</li>
+<li><code>.toggleClass()</code> —将检查所选元素中是否存在提供的类。如果存在，所提供的类将被移除，否则它将被添加到所选元素类列表中</li>
+<li>翻译</li>
+</ul>
+<h3>一旦完成了对标记的解析和操作，就可以使用以下命令访问它的根内容:</h3>
+<p>默认情况下，当您在 Cheerio 中解析 HTML 内容时，一些标签将是打开的，如果您正在处理 XML 内容，XML 文件将以这种方式无效。</p>
+<pre class="prettyprint">$.root().html();
+</pre>
+<p>要呈现有效的 XML 文档，可以使用 Cheerio 的 XML 实用函数:</p>
+<p>建筑特征</p>
+<pre class="prettyprint">// Loading XML content
+const $ = cheerio.load(
+  '&lt;media:thumbnail url="http://www.foo.com/keyframe.jpg" width="75" height="50" time="12:05:01.123"/&gt;'
+);
+
+// Rendering xml content
+$.xml();
+// Output =&gt; &lt;media:thumbnail url="http://www.foo.com/keyframe.jpg" width="75" height="50" time="12:05:01.123"/&gt;
+</pre>
+<h2>现在我们已经对 Cheerio 的工作原理有了基本的了解，让我们继续构建一个示例项目。</h2>
+<p>我们将构建 FeatRocket，这是一个 CLI 应用程序，它将抓取 LogRocket 博客上的所有特色文章，并将它们记录到我们的控制台。</p>
+<p>以下是我们实现这一目标的方法:</p>
+<p>了解 LogRocket 博客结构</p>
+<ol>
+<li>下载网页标记</li>
+<li>将下载的标记加载到新的 Cheerio 实例中</li>
+<li>定位并过滤出需要的内容</li>
+<li>将结果记录到控制台</li>
+<li>了解网站结构</li>
+</ol>
+<h3>网页抓取的第一步是了解网站的内容是如何排列的，即你要访问的元素被赋予了什么属性(<code>class</code>、<code>id</code>、<code>href</code>，等等。</h3>
+<p><img data-attachment-id="59527" data-permalink="https://blog.logrocket.com/parsing-html-nodejs-cheerio/scraping-website-content-cheerio/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png" data-orig-size="730,405" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Scraping website content with Cheerio" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png" decoding="async" class="size-full wp-image-59527 aligncenter jetpack-lazy-image" src="../Images/bdbe15014dee2664fb341c5852c49f28.png" alt="Scraping Website Content with Cheerio" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio-300x166.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png"/></p>
+<p>在我们的例子中，我们可以注意到我们的目标内容排列如下:</p><noscript><img data-lazy-fallback="1" data-attachment-id="59527" data-permalink="https://blog.logrocket.com/parsing-html-nodejs-cheerio/scraping-website-content-cheerio/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png" data-orig-size="730,405" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Scraping website content with Cheerio" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png" decoding="async" loading="lazy" class="size-full wp-image-59527 aligncenter" src="../Images/bdbe15014dee2664fb341c5852c49f28.png" alt="Scraping Website Content with Cheerio" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio-300x166.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/scraping-website-content-cheerio.png"/></noscript>
+<p>其中类别为<code>listfeaturedtag </code>的<code>div</code>是我们所有目标文章的包装，类别为<code>col.. padlr10</code>的<code>div</code>是每篇特色文章的卡片。</p>
+<pre class="prettyprint">&lt;div class="listfeaturedtag"&gt;
+    &lt;!-- first article --&gt;
+    &lt;div class="col.. padlr10"&gt;&lt;/div&gt;
+    ...
+    &lt;!-- second article --&gt;
+    &lt;div class="col.. padlr10"&gt;&lt;/div&gt;
+    ...
+&lt;/div&gt;
+</pre>
+<p>下载网页标记</p>
+<h3>我们现在了解了网站结构以及我们的目标内容。接下来创建一个新文件<code>scrapper.js</code>，然后继续安装<a href="https://blog.logrocket.com/5-ways-to-make-http-requests-in-node-js/">Axios</a>——我们将使用 Axios 下载网站内容。</h3>
+<p>我们可以通过以下方式获取网站源代码:</p>
+<pre class="prettyprint">npm install axios
+</pre>
+<p>将上面的代码粘贴到新创建的<code>scrapper.js</code>文件中，并运行它，如下所示:</p>
+<pre class="prettyprint">const axios = require("axios");
+
+axios
+  .get("https://blog.logrocket.com/")
+  .then((response) =&gt; {
+    console.log(response)
+  })
+  .catch((err) =&gt; console.log("Fetch error " + err));
+</pre>
+<p>您会注意到网站的整个 HTML 内容都记录在控制台中。</p>
+<pre class="prettyprint">node scrapper.js
+</pre>
+<p>将加价加载到 Cheerio 中</p>
+<h3>下一步是将下载的标记加载到新的 Cheerio 中:</h3>
+<p>过滤出结果</p>
+<pre class="prettyprint">const axios = require("axios");
+const cheerio = require("cheerio");
+axios
+  .get("https://blog.logrocket.com/")
+  .then((response) =&gt; {
+    const $ = cheerio.load(response.data);
+  })
+  .catch((err) =&gt; console.log("Fetch error " + err));
+</pre>
+<h3>接下来，我们希望只过滤掉需要的内容。我们已经知道了目标对象的属性。<code>listfeaturedtag </code>和<code>.padlr10</code>。我们只需遍历其中的每一个并将它们记录到控制台，这样我们的完整代码将如下所示:</h3>
+<p>现在，如果我们运行<code>node scrapper.js</code>，您应该会在控制台中看到如下所示的输出:</p>
+<pre class="prettyprint">const axios = require("axios");
+const cheerio = require("cheerio");
+
+axios
+  .get("https://blog.logrocket.com/")
+  .then((response) =&gt; {
+    const $ = cheerio.load(response.data);
+
+    const featuredArticles = $(".listfeaturedtag .padlr10");
+
+    for (let i = 0; i &lt; featuredArticles.length; i++) {
+      let postTitleWrapper = $(featuredArticles[i]).find(".card-title")[0],
+        postTitle = $(postTitleWrapper).text();
+
+      let authorWrapper = $(featuredArticles[i]).find(".post-name a")[0],
+        author = $(authorWrapper).text();
+
+      let postDescWrapper = $(featuredArticles[i]).find(".card-text")[0],
+        postDesc = $(postDescWrapper).text();
+
+      let postLinkWrapper = $(featuredArticles[i]).find(".card-title &gt; a")[0],
+        postLink = $(postLinkWrapper).attr("href");
+
+      // console.log("\n++++++");
+      console.log(`${postTitle} by [${author}]`);
+      console.log(`${postDesc}`);
+      console.log("\n" + `Read More - ${postLink}`);
+      console.log("\n----\n\n");
+    }
+  })
+  .catch((err) =&gt; console.log("Fetch error " + err));
+</pre>
+<p><img data-attachment-id="59528" data-permalink="https://blog.logrocket.com/parsing-html-nodejs-cheerio/node-scrapperjs-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png" data-orig-size="1018,750" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node scrapper.js output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png" decoding="async" class="size-full wp-image-59528 aligncenter jetpack-lazy-image" src="../Images/177483d47d0d6faec05f71cbae1d562f.png" alt="Node Scrapper.js Output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png 1018w, https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-300x221.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-768x566.png 768w" data-lazy-sizes="(max-width: 1018px) 100vw, 1018px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png"/></p>
+<p id="gdcalert3">结论</p><noscript><img data-lazy-fallback="1" data-attachment-id="59528" data-permalink="https://blog.logrocket.com/parsing-html-nodejs-cheerio/node-scrapperjs-output/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png" data-orig-size="1018,750" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node scrapper.js output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png" decoding="async" loading="lazy" class="size-full wp-image-59528 aligncenter" src="../Images/177483d47d0d6faec05f71cbae1d562f.png" alt="Node Scrapper.js Output" srcset="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png 1018w, https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-300x221.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output-768x566.png 768w" sizes="(max-width: 1018px) 100vw, 1018px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/07/node-scrapperjs-output.png"/></noscript>
+<h2>Cheerio 是在服务器端操作和抓取标记内容的优秀框架，而且它是轻量级的，实现了熟悉的语法。</h2>
+<p>本教程提供了如何在实际项目中开始使用 Cheerio 的深入指导。</p>
+<p>为了进一步参考，你也可以在<a href="https://github.com/AsaoluElijah/cheerio-tutorial"> GitHub </a>上查看 FeatRocket 源代码。</p>
+<p>感谢阅读！</p>
+<p>更多来自 LogRocket 的精彩文章:</p><div class="code-block code-block-54">
+<hr/>
+<h3>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h3>
+
+<hr/></div>
+<div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</h2><p>. </p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 检测您的应用程序以记录基线性能计时，例如页面加载时间、第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

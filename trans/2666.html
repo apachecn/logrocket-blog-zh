@@ -1,0 +1,147 @@
+<html>
+<head>
+<title>API mock testing with Nock for Node.js apps - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 Nock 对 Node.js 应用程序进行 API 模拟测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/api-mock-testing-with-nock-node-js/#0001-01-01">https://blog.logrocket.com/api-mock-testing-with-nock-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当测试应用程序的单个单元时，我们的测试必须是独立的。这有助于提高我们测试的速度，并减少运行测试所需的依赖项的数量。</p>
+<p>然而，应用程序的某些部分依赖于来自外部系统的数据来运行，例如数据库、文件系统或外部 API。为了测试这些部件，我们使用了一个<code>mock</code>对象。</p>
+<h3>什么是<code>mock</code>？</h3>
+<p>一个<code>mock</code>是一个方法或对象，它以受控的方式模仿外部系统的行为。模拟是以模拟外部系统行为的方式创建的——它们以与外部系统相同的方式被调用和响应。流行的模仿库的例子包括:</p>
+
+<p>在本指南中，我们将学习如何使用 Nock 在一个简单的 Node.js 应用程序中执行 API 模拟测试。</p>
+<h3>Nock 是什么？</h3>
+<p>Nock 是一个用于<a href="https://blog.logrocket.com/tag/node" target="_blank" rel="noopener"> Node.js </a>的 HTTP 服务器模拟和期望库。Nock 的工作方式是覆盖<code>http.request</code>和<code>http.ClientRequest</code>函数，拦截对指定 URL 的所有请求，并返回模拟真实 URL 将返回的数据的指定响应。</p>
+<p>使用 Nock 作为模拟服务器，我们可以很容易地在模块上执行测试，这些模块<a href="https://blog.logrocket.com/how-to-test-code-that-depends-on-external-apis-in-node-js/" target="_blank" rel="noopener">像 URL 一样向外部对象</a>发出 HTTP 请求，而不实际向 URL 发出任何请求。这使得我们的测试过程更快、更有效。</p>
+<h2>Nock 安装和配置</h2>
+<p>使用以下命令安装 Nock。</p>
+<pre class="language-bash hljs">$ npm install --save-dev nock</pre>
+<p>一个简单的 Nock 模仿对象看起来像这样:</p>
+<pre class="language-javascript hljs">import nock from "nock";
+const scope = nock("https://api.weatherapi.com/v1")
+     .get(``)
+     .reply(200, {
+       data: {
+         id: 1,
+         title: "The weather is nice",
+         completed: true
+       }
+     });</pre>
+<p>这个模仿对象拦截对指定 URL 的<code>GET</code>请求——我们以<code><a href="https://api.weatherapi.com/v1" rel="nofollow">https://api.weatherapi.com/v1</a></code>为例——并回复状态<code>200</code>和一组值。</p>
+<h2>用 Nock 模拟测试</h2>
+<p>假设我们想测试一个向 URL 发出 HTTP 请求并返回 URL 提供的数据的函数。</p>
+<pre class="language-javascript hljs">const getData = async () =&gt; {
+   const res = await axios.get('https://api.example.com');
+
+   const data = res.data;
+   return data;
+}
+</pre>
+<p>对<code>getData()</code>函数的简单 Jest 测试如下所示:</p>
+<pre class="language-javascript hljs">describe('expectedData', () =&gt; {
+
+   it("checks if API returns expected data", async () =&gt; {
+       nock('https://api.example.com')
+           .get('/')
+           .reply(200, {
+               data: {
+                   id: 1,
+                   title: "The weather is nice",
+                   completed: true
+               }
+           });
+       const results = await getData();
+       expect(results.data.title).toEqual("The weather is nice");
+   });
+});</pre>
+<p>每当测试运行时，它用 Nock 创建模拟服务器，并调用<code>getData()</code>函数。然后，模拟服务器拦截由<code>getData()</code>函数向<code>'https://api.example.com'</code> URL 发出的 HTTP 请求，并向其发送指定的回复。</p>
+<p>然后，测试框架检查由<code>getData()</code>函数返回的数据是否与模拟服务器提供给它的数据相匹配。我们的测试是完全隔离的，因为我们没有对示例 URL 发出真正的 HTTP 请求，而是用 Nock 拦截请求并返回指定的数据集。</p>
+<h2>在 Nock 中指定请求</h2>
+<p>Nock 允许我们模拟对所有 HTTP 动词(<code>GET</code>、<code>PUT</code>、<code>POST</code>、<code>PATCH</code>、<code>DELETE</code>等)的请求。)并且还支持在 HTTP 或 HTTPS 上进行的调用。</p>
+<p>通过 HTTP 发出的一个简单的<code>POST</code>请求如下所示:</p>
+<pre class="language-json hljs">scope = nock('http://api.example.com')
+                .post('/users', {
+                  username: 'user',
+                  email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d2a7a1b7a092b5bfb3bbbefcb1bdbf">[email protected]</a>'
+                })
+                .reply(201);
+</pre>
+<p>在上面的代码片段中，我们创建了一个<code>mock</code>对象，它拦截对指定主机名(<code><a href="http://api.example.com/" rel="nofollow">http://api.example.com/</a></code>)的<code>POST</code>请求，请求体为<code>{ username: 'user', email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a4d1d7c1d6e4c3c9c5cdc88ac7cbc9">[email protected]</a>'}</code>，并返回一个<code>201</code>状态代码。</p>
+<p>Nock 还使得向我们的请求添加查询参数变得非常容易:</p>
+<pre class="language-json hljs">scope = nock('http://api.example.com')
+                .get('/users')
+                .query({username: 'sugar', email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2c5f594b4d5e6c4b414d4540024f4341">[email protected]</a>'})
+                .reply(200);
+</pre>
+<p>Nock 将拦截一个带有指定查询的 HTTP 请求，并返回一个状态代码<code>200</code>。</p>
+<h2>指定请求和响应头</h2>
+<p>Nock 使得附加请求和响应头变得很容易。如果您想测试 HTTP 请求或响应中是否存在特定的头，这很有用。</p>
+<p>可以像这样添加简单的请求头:</p>
+<pre class="language-json hljs">const scope = nock('http://api.example.com', {
+  reqheaders: {
+    authorization: 'Basic Auth',
+    'Content-Type': 'application/json'
+  },
+})
+  .get('')
+  .reply(200)</pre>
+<p>在上面的代码片段中，我们向一个简单的返回<code>200</code>状态代码的<code>GET</code>请求添加了<code>authorization</code>和<code>Content-Type</code>头。Nock 将拦截对添加了请求头的指定 URL 的 HTTP 调用，并返回<code>200</code>状态代码。</p>
+<p>您还可以在回复中添加预期的邮件头。</p>
+<pre class="language-json hljs">const scope = nock('http://api.example.com')
+  .get('')
+  .reply(200, { license: 'MIT' })</pre>
+<p>这个代码示例在拦截到对<code><a href="http://api.example.com" rel="nofollow">http://api.example.com</a></code>的<code>GET</code>请求时，返回一个状态代码<code>200</code>和一个报头<code>{ license: 'MIT' } </code>。</p>
+<h2>指定自定义回复</h2>
+<p>Nock 为创建自定义回复提供支持。您可以像这样指定回复正文:</p>
+<pre class="language-json hljs">scope = nock('http://api.example.com')
+                .get('/users')
+                .reply(200, {
+              data:{
+                    id: 1,
+                    username: 'user',
+                    email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90e5e3f5e2d0f7fdf1f9fcbef3fffd">[email protected]</a>'
+                  }
+                });
+</pre>
+<p>这个 Nock 对象在拦截到对<code><a href="http://api.example.com/users" rel="nofollow">http://api.example.com/users</a></code>的<code>GET</code>请求时，返回一个状态码<code>200</code>和一个主体(<code>data:{id: 1, username: 'user', email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="88fdfbedfac8efe5e9e1e4a6ebe7e5">[email protected]</a>'}</code>)。</p>
+<p>您可以从模拟服务器返回错误回复。</p>
+<pre class="language-json hljs">scope = nock('http://api.example.com')
+                .get('/users')
+                .replyWithError({
+              message: 'The server is down, ERROR'
+                });
+</pre>
+<h2>请求链接</h2>
+<p>您还会遇到这样的场景，您需要模拟依赖于先前请求的响应的 HTTP 请求。Nock 使得向模拟服务器添加链接行为变得非常容易。</p>
+<pre class="language-json hljs">const scope = nock('http://api.example.com')
+  .delete('/users/1')
+  .reply(200)
+  .get('/users/1')
+  .reply(404)
+  .post(‘users’, , {
+    username: 'user',
+    email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="99eceafcebd9fcf4f8f0f5b7faf6f4">[email protected]</a>',
+  })
+  .reply(200, ‘user created’)
+  .get('/users')
+  .reply(200, {
+    _id: '1',
+    username: 'user',
+    email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="760305130436131b171f1a5815191b">[email protected]</a>',
+  })</pre>
+<p>这个模拟对象包含四个不同的请求；只有当链上的请求完成时，链下的请求才会开始。</p>
+<h2>结论</h2>
+<p>在本文中，我们学习了如何使用 Nock 在 Node.js 应用程序中执行 API 模拟测试。Nock 是一个令人惊奇的库，它允许你测试我们的模块和函数，这些模块和函数独立地发出 HTTP 请求。</p>
+<p>使用 Nock mocking 服务器也有助于提高我们的工程团队的效率，从而改进我们的软件开发过程。访问 Nock GitHub 页面,了解更多使用 Nock 进行更好的 API 模拟测试的惊人方法。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

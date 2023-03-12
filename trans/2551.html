@@ -1,0 +1,174 @@
+<html>
+<head>
+<title>Logging and error management best practices in SSR apps - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>SSR 应用程序中的日志记录和错误管理最佳实践</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/logging-error-management-best-practices-ssr-apps/#0001-01-01">https://blog.logrocket.com/logging-error-management-best-practices-ssr-apps/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>服务器端渲染(SSR)是一种应用程序在将网站发送到客户端由您的 JavaScript bundle 处理之前，在服务器中预加载网站的能力。水合是指 JS 接管服务器发送的静态 HTML，将其转化为动态 DOM，然后可以对客户端数据变化做出反应的过程。</p>
+<p>SSR 为 web 应用程序添加了一个全新的层，尽管它有许多好处，但它可能会给开发人员带来问题。SSR 意味着一些工作是在服务器上完成的，这可能是 bug 的来源；因此，这些错误需要像在任何正常的 web 应用程序中一样得到适当的处理。</p>
+<p>因为有多种工具可以帮助开发人员构建 SSR web 应用程序，所以在本文中，我们将重点关注优雅地处理错误的最佳实践。我还将在<a href="https://blog.logrocket.com/tag/nextjs/" target="_blank" rel="noopener"> Next.js </a>或<a href="https://blog.logrocket.com/tag/nuxtjs/" target="_blank" rel="noopener"> Nuxt.js </a>中展示一些例子，展示如何做到这一点。</p>
+<h2>处理 SSR 应用程序中错误的最佳实践</h2>
+<p>一个优雅地处理错误的应用程序将以可控的方式支持已知或未知的错误流，这将有助于用户和开发人员知道出错了，而不会完全阻止应用程序的进程。</p>
+<p>SSR 应用程序既有客户端又有服务器端，因此我们需要知道在客户端和服务器端做什么，以便拥有一个完整的端到端错误处理系统。</p>
+<h3>在客户端处理 SSR 错误</h3>
+<p>正如我们所知，我们的客户端将主要处理前端。以下是你可以在 SSR 应用前端优雅地处理错误的方法列表。</p>
+<h4><code>Try…catch</code>街区</h4>
+<p>块有助于捕捉异步调用中的错误。这些错误在<code>catch</code>块中输出，可以用来通知用户潜在的错误，甚至通过错误服务发送出去:</p>
+<pre class="language-javascript hljs">const handleSignUp = async (email) =&gt; {
+  try {
+    await backend.emailVerificationLink(email)
+  } catch(error) {
+    console.error(error) // you may also 
+    setHasErrors(true)
+  }
+}
+</pre>
+<h4>网络错误拦截器</h4>
+<p>如果您使用的是像<a href="https://blog.logrocket.com/axios-or-fetch-api/" target="_blank" rel="noopener"> Axios </a>这样的 HTTP 客户端，您可以使用拦截器轻松处理应用程序中的错误，拦截器将根据从请求或响应中收到的错误执行特定的操作:</p>
+<pre class="language-javascript hljs">axios.interceptors.request.use(function (config) {
+    // Do something before request is sent
+    return config;
+  }, function (error) {
+    // Do something with request error
+    return Promise.reject(error);
+  });
+
+// Add a response interceptor
+axios.interceptors.response.use(function (response) {
+    // Do something with response data
+    return response;
+  }, function (error) {
+    // Do something with response error
+    return Promise.reject(error);
+  });
+</pre>
+<h4>处理客户端错误的更多工具</h4>
+<p>借助 react 中的<a href="https://blog.logrocket.com/error-handling-react-error-boundary/" target="_blank" rel="noopener"> react-error-boundary </a>等工具，客户端错误处理变得很容易。它提供了一个包装器，您可以在组件周围使用该包装器来优雅地处理在该上下文中发生的任何错误:</p>
+<pre class="language-javascript hljs">function ErrorFallback({error, resetErrorBoundary}) {
+  return (
+    &lt;div role="alert"&gt;
+      &lt;p&gt;Something went wrong:&lt;/p&gt;
+      &lt;pre&gt;{error.message}&lt;/pre&gt;
+    &lt;/div&gt;
+  )
+}
+
+const ui = (
+  &lt;ErrorBoundary
+    FallbackComponent={ErrorFallback}
+    onReset={() =&gt; // reset the state of your app so the error doesn't happen again }}
+  &gt;
+    &lt;ComponentThatMayError /&gt;
+  &lt;/ErrorBoundary&gt;
+)
+</pre>
+<p>Vue.js 还提供了一个<code>errorCaptured</code>钩子，每当它的层次结构中的任何组件捕捉到错误时，这个钩子就会像魔咒一样工作。这些错误将被传送到一个全局错误处理程序，您可以在其上附加一个记录器:</p>
+<pre class="language-ts hljs">// in component.vue
+errorCaptured(err, instance, info) {
+  // handle inside component (/!\ caution component state still editable)
+}
+
+// in main.ts
+Vue.config.errorHandler = function (err, vm, info) {
+  // handle error
+  // `info` is a Vue-specific error info, e.g. which lifecycle hook
+  // the error was found in. Only available in 2.2.0+
+}
+</pre>
+<div class="blog-plug cro21">
+<h2>LogRocket :处理客户端错误的终极解决方案</h2>
+<p>虽然使用像 react-error-boundary 这样的选项会显示错误，但它不会让您深入了解问题发生的原因。如果您对自动处理客户端错误、监控和跟踪 Redux 状态、跟踪缓慢的网络请求和组件加载时间感兴趣，请尝试 LogRocket 。【T2<img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript><a class="signup" href="https://www2.logrocket.com/react-performance-monitoring" target="_blank" rel="noopener noreferrer"><img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a></p>
+<p>LogRocket 就像是网络应用程序的 DVR，记录 React 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用程序的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p>
+<p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p>现代化您调试 React 应用的方式— <a class="signup" href="https://www2.logrocket.com/react-performance-monitoring" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p>
+</div>
+<h3>在服务器端处理 SSR 错误</h3>
+<h4>捕获数据提取中的错误</h4>
+<p>早期返回模式是指尽可能早地返回值，以帮助结束一个函数并获得一个结果。</p>
+<p>例如，在接下来的代码中，您可以这样编写您的<code>getInitialProps</code>函数:</p>
+<pre class="language-javascript hljs">import Error from "next/error"
+
+function Page({ stars, statusCode}) {  
+  if (statusCode !== 200) {
+    &lt;Error statusCode={statusCode} /&gt;
+  } 
+  return &lt;div&gt;Next stars: {stars}&lt;/div&gt;
+}
+
+Page.getInitialProps = async (ctx) =&gt; {
+  try{
+    const res = await fetch('https://api.github.com/repos/vercel/next.js')
+    const json = await res.json()
+
+    if (res.status &gt;= 400) {
+      return { stars: json.stargazers_count, statusCode: res.status }
+    }
+    return { stars: json.stargazers_count, statusCode: 200 }    
+  } catch(error) {
+    return {stars: null, statusCode: 503}
+  }
+}
+</pre>
+<p>如果结果正确，这将确保您能够正确渲染<code>Page</code>。如果在请求过程中出现错误，它将被优雅地处理，并使用 Next 的<code>Error</code>组件显示给用户。</p>
+<p>在 Nuxt 中，有<code>fetch</code>和<code>asyncData</code>钩子，它们能够自己处理错误。这些钩子都用来获取数据，然而，<a href="https://nuxtjs.org/docs/features/data-fetching" target="_blank" rel="noopener">它们并不以相似的方式处理进程</a>。</p>
+<figure id="attachment_85544" aria-describedby="caption-attachment-85544" class="wp-caption aligncenter"><img data-attachment-id="85544" data-permalink="https://blog.logrocket.com/logging-error-management-best-practices-ssr-apps/nuxt-lifecycle-hooks/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png" data-orig-size="730,190" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Nuxt-lifecycle-hooks" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks-300x78.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png" decoding="async" class="wp-image-85544 size-full jetpack-lazy-image" src="../Images/236386a6baf32665f4eb4c361ad195cf.png" alt="Diagram showing lifecycle of Nuxt hook" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks-300x78.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="85544" data-permalink="https://blog.logrocket.com/logging-error-management-best-practices-ssr-apps/nuxt-lifecycle-hooks/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png" data-orig-size="730,190" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Nuxt-lifecycle-hooks" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks-300x78.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png" decoding="async" loading="lazy" class="wp-image-85544 size-full" src="../Images/236386a6baf32665f4eb4c361ad195cf.png" alt="Diagram showing lifecycle of Nuxt hook" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks-300x78.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/Nuxt-lifecycle-hooks.png"/></noscript><figcaption id="caption-attachment-85544" class="wp-caption-text">Source: <a href="https://nuxtjs.org/docs/concepts/nuxt-lifecycle/" target="_blank" rel="noopener">Nuxt docs</a></figcaption></figure>
+<p>在应用程序的获取点处理错误无疑是 SSR 应用程序中最重要的错误管理任务之一。</p>
+<h4>错误状态代码</h4>
+<p>有很多<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status" target="_blank" rel="noopener">可识别的 HTTP 错误码</a>。通常，您可能希望向用户显示的代码是客户端错误(400-500)。否则，仍然应该捕获并记录每个错误代码。</p>
+<p>如果您的 SSR 应用程序使用服务器或 API 中间件，您也需要返回适当的错误，因为它们正好作为应用程序的后端。</p>
+<h4>重定向至错误页面</h4>
+<p>万一错误导致页面混乱(加载或未找到)，您总是希望有一个后备页面或组件来帮助向用户描述错误，并隐藏可能无法帮助用户修复错误的任何不必要的技术细节。</p>
+<p>Next 已经提供了一个静态的 404 页面，当用户试图访问一个不存在的页面时，就会弹出这个页面。但是，您可能需要一个自定义的 404 页面，以防您需要添加信息，或者满足您的品牌需求。</p>
+<p>这是通过创建一个<code>pages/404.js</code>文件来完成的，如果需要的话，该文件能够在构建时获取数据。请注意，您可以对表示服务器错误的状态代码 500 执行相同的操作:</p>
+<pre class="language-javascript hljs">// pages/404.js
+export default function Custom404() {
+  return &lt;h1&gt;404 - Page Not Found&lt;/h1&gt;
+}
+
+// pages/500.js
+export default function Custom500() {
+  return &lt;h1&gt;500 - Server-side error occurred&lt;/h1&gt;
+}
+</pre>
+<p>如果你需要一个不同的错误描述页面，你可以求助于更多的<a href="https://nextjs.org/docs/advanced-features/custom-error-page#more-advanced-error-page-customizing" target="_blank" rel="noopener">高级错误页面定制</a>，它使用 Next 的<code>error</code>组件。您可以通过定制<code>pages/_error.js</code>来覆盖它</p>
+<p>在 Nuxt 中，你被赋予了一个在<code>layouts/error.vue</code>文件中定义的特殊布局。这个布局基本上是一个 Vue 组件，能够捕捉错误及其状态代码。这为开发人员提供了极大的灵活性:</p>
+<pre class="language-html hljs">&lt;!-- layouts/error.vue --&gt;
+&lt;template&gt;
+  &lt;div&gt;
+    &lt;h1 v-if="error.statusCode === 404"&gt;Page not found&lt;/h1&gt;
+    &lt;h1 v-else&gt;An error occurred&lt;/h1&gt;
+    &lt;NuxtLink to="/"&gt;Home page&lt;/NuxtLink&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  export default {
+    props: ['error'],
+    layout: 'error' // you can set a custom layout for the error page
+  }
+&lt;/script&gt;
+</pre>
+<h4>处理和记录一切</h4>
+<p>因为您处于 SSR 环境中，所以涉及的不仅仅是用户界面。有时你会在<a href="https://nuxtjs.org/docs/configuration-glossary/configuration-servermiddleware/" target="_blank" rel="noopener"> Nuxt </a>或<a href="https://nextjs.org/docs/api-routes/api-middlewares" target="_blank" rel="noopener"> Next.js </a>中处理中间件和<code>serverMiddlewares</code>，它们可能会在渲染之前、之中或之后对你的页面执行一些工作。这些应该会返回适当的错误，因为它们是代码的一部分。</p>
+<p>在某些 SSR 网站中，服务器或 API 中间件充当成熟的后端。它们可以像 Express 服务器一样处理 API 调用。这些可以很容易地连接到您的日志引擎，<a href="https://expressjs.com/en/guide/error-handling.html" target="_blank" rel="noopener">处理 API 请求错误，就像在节点</a>中一样。</p>
+<p>从头到尾处理您的错误将使您能够钻透错误，并找到它们的起源和根本原因。</p>
+<h2>报告和记录提示</h2>
+<p>一旦您的应用程序到达用户手中，通过日志引擎处理和提取日志将会对您有所帮助。如果你设置正确，这些日志将包含你应用程序上几乎所有互动的信息。</p>
+<p>因为您可以实时分析它们，所以您还能够找出错误、异常或任何其他可能来自应用程序使用的问题。</p>
+<p>今天，有太多的日志分析和管理工具。例如，您可以在这里看到 Next 是如何与 Sentry 一起使用来捕捉和处理错误的。</p>
+<p>大多数现有的日志管理工具都与 LogRocket 无缝集成，在错误报告期间为您提供详细的会话信息。</p>
+<h2>包扎</h2>
+<p>错误处理是开发中最重要的部分之一。优雅地做到这一点需要开发人员有一个良好的计划，并对错误如何在他们的 web 应用程序中流动有一个坚实的理解。</p>
+<p>SSR 应用程序不亚于 web 应用程序，只是多了一个服务器步骤。这些服务器的增加增加了在你的应用程序中拥有一个优雅的端到端错误处理过程所需的工作。然而，现代框架让我们能够按照简单的步骤毫不费力地处理错误。</p>
+<p>通常，在客户端，您可以将异步调用封装在<code>try…catch</code>块中，以阻止浏览器试图自己处理错误。这样，您将把它转换成可以理解的东西，并让它流向用户和您的日志引擎。在服务器端，您可以使用传统的代码捕捉并返回错误，这样您的客户端就可以很容易地理解哪里出错了。</p><div class="code-block code-block-30">
+<div class="blog-plug inline-plug next-plug"><h2><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank"> LogRocket </a>:全面了解生产 Next.js 应用</h2><p>调试下一个应用程序可能会很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪状态、自动显示 JavaScript 错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript></a><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你的 Next.js 应用上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用程序的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p><p>让您调试 Next.js 应用的方式现代化— <a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

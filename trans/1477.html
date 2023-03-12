@@ -1,0 +1,631 @@
+<html>
+<head>
+<title>Build your own styled-components library - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>构建你自己的风格组件库</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-your-own-styled-components-library/#0001-01-01">https://blog.logrocket.com/build-your-own-styled-components-library/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>风格化组件的出现引起了轰动，改变了我们对如何创建内联风格的 React 组件的看法。</p>
+<p>在本教程中，我们将演示如何构建自己的样式组件。这样做，您将发现样式化组件和标记模板文字是如何工作的。</p>
+<p>我们将讨论以下内容:</p>
+
+<p>这个实现的完整源代码可以在<a href="https://github.com/philipszdavido/styled-components/" target="_blank" rel="noopener"> GitHub </a>上找到。</p>
+<h2 id="whatarestyledcomponents">什么是样式组件？</h2>
+<p>styled-组件旨在消除组件和样式之间的映射，因此当您定义样式时，您实际上只是构建一个附加了样式的常规 React 组件。</p>
+<p>您可以编写一个快速的内联样式的组件，如下所示:</p>
+<pre>js
+const Button = styled.button`
+    background-color: green;
+</pre>
+<p>这将创建一个背景颜色设置为蓝色的按钮组件(React 组件)。Button 是一个常规的 React 组件，它将呈现一个 HTML 按钮。反勾号中的样式代码将应用于 HTML 按钮。</p>
+<p>我们可以这样使用它:</p>
+<pre>js
+&lt;Button&gt;Click Me&lt;/Button&gt;
+</pre>
+<p>所以这和写这个是一样的:</p>
+<pre>js
+class Button extends Component {
+    render() {
+        return (
+            &lt;button style={{
+                background-color: blue
+            }}&gt;{this.props.children}&lt;/button&gt;
+        )
+    }
+}
+</pre>
+<p>样式化组件的特点是一组常规的 HTML 标签，我们可以用它们来创建样式化的 React 组件版本。例如:</p>
+<ul>
+<li><code>styled.button</code>创建一个 React 组件来呈现一个<code>button</code>元素</li>
+<li><code>styled.div</code>创建一个 React 组件来呈现一个<code>div</code>元素</li>
+<li><code>styled.a</code>创建一个 React 组件来呈现锚<code>a</code>元素，依此类推</li>
+</ul>
+<h2 id="taggedtemplateliterals">什么是标记模板文字？</h2>
+<p>样式化组件使用 JavaScript 中的<code>[Tagged Template Literal]()</code>特性来样式化组件。带标签的模板文字让您对文字的解析有更多的控制。它允许你用一个函数解析模板文字。</p>
+<p>带标记的模板文字语法如下:</p>
+<pre>js
+taggedFunction`string here`
+</pre>
+<p><code>taggedFunction</code>是一个函数，反斜线包含一个字符串。<code>taggedFunction</code>看起来是这样的:</p>
+<pre>js
+function taggedFunction(strings) {
+    // ...
+}
+</pre>
+<p>反斜线中的字符串将被传递给数组中的<code>strings</code>参数中的<code>taggedFunction</code>函数。值可以包含在模板文字、反勾号字符串中。</p>
+<pre>js
+const val = 90
+taggedFunction`string here ${val}`
+</pre>
+<p><code>val</code>是模板文本中的一个值。JavaScript 将把字符串传递给<code>taggedFunction</code>，后跟文本中的值。</p>
+<pre>js
+function taggedFunction(strings, val1) {
+    // ...
+}
+</pre>
+<p><code>strings</code> param 是一个包含模板文本中的字符串的数组。<code>val1</code>参数将保存<code>val</code>值。</p>
+<p>如果我们的标记模板文字有两个值…</p>
+<pre>js
+const val = 90
+const val2 = 900
+taggedFunction`string here ${val} string2 ${val2}`
+</pre>
+<p>…那么我们的<code>taggedFunction</code>将是这样的:</p>
+<pre>js
+function taggedFunction(strings, val1, val2) {
+    // ...
+}
+</pre>
+<ul>
+<li><code>strings</code>:将包含字符串。</li>
+<li><code>val1</code>:会按住<code>${val}</code>，90。</li>
+<li><code>val2</code>:会按住<code>${val2}</code>，900。</li>
+</ul>
+<p>我们可以不为这些值定义参数，而是将它们放在一个数组中，如下所示:</p>
+<pre>js
+function taggedFunction(strings, ...vals) {
+    // ...
+}
+</pre>
+<p><code>vals</code>将是一个数组，它将保存模板文本中的所有值。</p>
+<p>有了这个…</p>
+<pre>js
+const val = 90
+const val2 = 900
+taggedFunction`string here ${val} string2 ${val2}`
+</pre>
+<p>…<code>taggedFunction</code>将收到以下内容。</p>
+<p><code>strings</code>:</p>
+<pre>[ "string here ", " string2 ", "" ]
+</pre>
+<p><code>vals</code>:</p>
+<pre>[ 90, 900 ]
+</pre>
+<p>请注意，JavaScript 在值出现的地方断开字符串。</p>
+<pre>string here ${val} string2 ${val2}
+</pre>
+<p>以上将在点<code>${val}</code>和<code>${val2}</code>处断裂。</p>
+<pre>string here ${val} string2 ${val2}
+["string here ", "string2 ", ""]
+</pre>
+<p>现在我们可以很容易地使用插值将它们与值连接起来，并且我们知道我们将在<code>strings</code>参数中接收 CSS 代码。</p>
+<pre>js
+styled.button`
+    background-color: blue;
+`
+</pre>
+<p>所以<code>taggedFunction</code>或<code>styled.button</code>后面的函数将接收到这个:</p>
+<p><code>strings</code>:</p>
+<pre>[`
+    background-color: blue;
+`]
+</pre>
+<p>如果 CSS 代码包含这样的值…</p>
+<pre>js
+const mainColor = "blue";
+styled.button`
+    background-color: ${mainColor};
+`
+</pre>
+<p>被标记的函数将收到以下内容。</p>
+<p><code>strings</code>:</p>
+<pre>[`
+    background-color: `, `;`]
+</pre>
+<p><code>vals</code>:</p>
+<pre>[ "blue" ]</pre>
+<h2 id="importantnotesaboutstyledcomponents">样式组件如何工作</h2>
+<p>我们从<code>styled-components</code>导入<code>styled</code>对象:</p>
+<pre>js
+import styled from "styled-components"
+</pre>
+<p>我们在<code>styled</code>对象中使用 HTML 标签来创建内嵌样式的组件。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<pre>js
+styled.button
+styled.div
+</pre>
+<p>所以我们知道<code>styled</code>对象包含 HTML 标签作为属性，它们有函数作为它们的值，所以<code>styled</code>看起来像这样:</p>
+<pre>js
+const styled = {
+    button: function(strings, ...vals) {},
+    div: function(strings, ...vals) {},
+    ...
+}
+</pre>
+<p><code>function(strings, ...vals) {}</code>是被标记的函数，它将接收<code>strings</code>参数中的 CSS 样式代码和<code>vals</code>参数中的值。</p>
+<pre>js
+const Button = styled.button
+const Div = styled.div
+</pre>
+<p>上面将返回一个 React 组件。<code>Button</code>和<code>Div</code>是 React 组件，将分别呈现一个按钮和一个 div。</p>
+<h2 id="thestyledpart">如何构建自己的风格化组件</h2>
+<p>既然我们已经了解了标记模板文字和样式组件是如何工作的，那么让我们构建自己的样式组件库。</p>
+<p>按照以下步骤在您的计算机中搭建 Node.js 项目:</p>
+<pre>mkdir styled-c
+cd styled-c
+npm init -y
+touch index.js</pre>
+<p>我们所有的代码都在<code>index.js</code>文件中。我们将模仿样式组件的风格。</p>
+<p>首先，将从<code>react</code>导入<code>Component</code>。</p>
+<pre>js
+// index.js
+import React, { Component } from 'react';</pre>
+<p>接下来，创建一个<code>styled</code>对象和一个数组来保存 HTML 标签名。</p>
+<pre>js
+const tags = [
+    "button",
+    "div"
+]
+const styled = {}
+</pre>
+<p>我们将使用 HTML 标记名作为属性动态填充样式化的对象，并让它调用<code>genComponentStyle</code>函数:</p>
+<pre>js
+const tags = [
+    "button",
+    "div"
+]
+const styled = {}
+tags.forEach(tag =&gt; {
+    styled[tag] = genComponentStyle(tag)
+})
+</pre>
+<p><code>tag</code>是标签数组中 HTML 标签的名称。</p>
+<p>使用上面的代码，样式化的对象将标签数组中的 HTML 标签作为属性。它们的值应该是一个函数——带标签的函数，它将接收模板文本和其中的值。每个标签都会调用<code>genComponentStyle</code>函数。<code>genComponentStyle</code>在<code>tag</code>名称上提供了一个闭包，它必须返回一个 React 组件。</p>
+<p>要实现<code>genComponentStyle</code>功能:</p>
+<pre>js
+function genComponentStyle(tag) {
+    return function(strings, ...vals) {
+        return class extends Component {
+            constructor(props) {
+                super(props)
+                this.style = {}
+            }
+            componentWillMount() {
+                this.style = computeStyle(this.props, strings, vals)
+            }
+            componentWillUpdate(props) {
+                this.style = computeStyle(props, strings, vals)
+            }
+            render() {
+                return (
+                    createElement(tag, { style: this.style, ...this.props }, [...this.props.children])
+                )
+            }
+        }        
+    }
+}
+</pre>
+<p><code>genComponentStyle</code>函数返回一个带标签的函数。这个函数被分配给<code>styled</code>对象中的 HTML 标签属性，并接收模板文本和 HTML 标签上调用的值。它返回一个 React 组件。</p>
+<p>因为函数将接收反斜杠中的 CSS 代码，所以它必须解析字符串并从中生成一个<code>style</code>对象。</p>
+<p>我们需要转换这个:</p>
+<pre>`
+    color: white;
+    background-color: blue;
+    padding: 20px;
+`
+</pre>
+<p>对此:</p>
+<pre>js
+{
+    "color": "white",
+    "background-color": "blue",
+    "padding": "20px"
+}
+</pre>
+<p>这样做是因为我们通过将样式放在一个对象中并将其传递给一个<code>style</code>道具来样式化一个 React 组件。</p>
+<pre>js
+<button>Click Me</button>
+</pre>
+<p><code>computeStyle</code>函数就是这么做的。它根据<code>strings</code>和<code>vals</code>参数计算样式，并将其设置为<code>this.style</code>。然后，组件使用<code>createElement</code>函数呈现<code>tag</code>中的元素。</p>
+<pre>js
+createElement(
+    tag,
+    { style: this.style, ...this.props }, [...this.props.children])
+</pre>
+<p>第一个参数是要创建的 HTML 元素。第二个参数是道具——正如您将看到的，我们有一个值为<code>this.style</code>的<code>style</code>属性。这将把<code>style</code>属性添加到 HTML 元素中，有效地用反勾号字符串计算的样式对元素进行样式化。第三个参数设置要在组件标记之间呈现的子组件。</p>
+<p>组件有两个生命周期挂钩:<code>componentWillMount</code>和<code>componentWillUpdate</code>。<br/> <code>componentWillMount</code>被称为初始装上的构件；它计算样式并将其分配给<code>this.style</code>。这样做是为了在元素装载到 DOM 之前计算内联样式。</p>
+<p>内联样式也在<code>componentWillUpdate</code>上计算。这样做是为了在组件重新呈现时刷新元素的内联样式，这导致元素在发生变化时更新其样式。</p>
+<p><code>computeStyle</code>的实现如下:</p>
+<pre>js
+function computeStyle(props, strings, vals) {
+    strings = evalInterpolation(props, strings, vals)
+    const style = {}
+    strings.split(";").forEach((str)=&gt; {
+        let [prop, val] = str.trim().split(":")
+        if(prop !== undefined &amp;&amp; val !== undefined) {
+            prop = prop.trim()
+            val = val.trim()
+            style[prop] = val
+        }
+    });
+    return style
+}
+</pre>
+<p><code>computeStyle</code>接受<code>props</code>参数中的组件属性、<code>strings</code>参数中的模板文字以及<code>vals</code>属性中的值。它根据传递给函数的反斜线计算样式。<code>evalInterpolation</code>函数评估模板文本中的值，并返回评估后的字符串。</p>
+<p><code>computeStyle</code>从<code>;</code>出现的任何地方分割字符串。这样做是为了我们可以得到字符串中的每个 CSS 选择器，因为 CSS 选择器被<code>;</code>除了。然后，循环遍历它以获取每个选择器。它将选择器从<code>:</code>中分离出来，以获得选择器属性和属性值。</p>
+<p>我们将属性及其值分别赋给<code>prop</code>和<code>val</code>。然后，我们把它们组装成一个物体<code>style</code>。完成后，返回的对象<code>style</code>带有 CSS 选择器在对象中的属性和值。</p>
+<p><code>evalInterpolation</code>的实现如下:</p>
+<pre>js
+function evalInterpolation(props, strings, vals) {
+    let resultStr = ""
+    for (var i = 0; i &lt; strings.length; i++) {
+        var str = strings[i];
+        var val
+        if(vals) {
+            val = vals[i]
+            if(val !== undefined) {
+                if(typeof val === "function") {
+                    val = val(props)
+                }
+                str += val
+            }
+        }
+        resultStr += str
+    }
+    return resultStr
+}
+</pre>
+<p>该函数通过遍历字符串数组并将其与相同的值索引连接起来，对字符串值进行插值。如果这个值是一个函数，它将被 props 调用，结果将与当前字符串连接。</p>
+<p>这使得在模板文本中使用函数成为可能:</p>
+<pre>js
+const Button = styled.button`
+    background-color: ${(props) =&gt; props.theme.bgColor};
+    padding: ${props =&gt; props.small ? '2px 4px' : '6px 14px'};
+`
+</pre>
+<p>该函数必须始终接受<code>Component</code>道具作为参数。</p>
+<p>这样，我们的代码就完成了。</p>
+<pre>js
+// index.js
+import React, { createElement, Component } from 'react';
+const tags = [
+    "button",
+    "div"
+]
+function evalInterpolation(props, strings, vals) {
+    let resultStr = ""
+    for (var i = 0; i &lt; strings.length; i++) { var str = strings[i]; var val if(vals) { val = vals[i] if(val !== undefined) { if(typeof val === "function") { val = val(props) } str += val } } resultStr += str } return resultStr } function computeStyle(props, strings, vals) { strings = evalInterpolation(props, strings, vals) const style = {} strings.split(";").forEach((str)=&gt; {
+        let [prop, val] = str.trim().split(":")
+        if(prop !== undefined &amp;&amp; val !== undefined) {
+            prop = prop.trim()
+            val = val.trim()
+            style[prop] = val
+        }
+    });
+    return style
+}
+function genComponentStyle(tag) {
+    return function(strings, ...vals) {
+        return class extends Component {
+            constructor(props) {
+                super(props)
+                this.style = {}
+            }
+            componentWillMount() {
+                this.style = computeStyle(this.props, strings, vals)
+            }
+            componentWillUpdate(props) {
+                this.style = computeStyle(props, strings, vals)
+            }
+            render() {
+                return (
+                    createElement(tag, { style: this.style, ...this.props }, [ ...this.props.children ])
+                )
+            }
+        }        
+    }
+}
+const styled = {}
+tags.forEach(tag =&gt; {
+    styled[tag] = genComponentStyle(tag)
+})
+export default styled
+
+</pre>
+<p>要创建样式化的按钮组件:</p>
+<pre>js
+// test.js
+import styled from "./"
+const Button = styled.button`
+    padding: 6px 12px;
+    background: palevioletred;
+    color: white;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 16px;
+    margin: 2px;
+`
+&lt;button&gt;Button&lt;/button&gt;
+</pre>
+<p><img data-attachment-id="32214" data-permalink="https://blog.logrocket.com/build-your-own-styled-components-library/styled-components-button-component/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png" data-orig-size="720,144" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Styled button component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png" decoding="async" class="aligncenter size-full wp-image-32214 jetpack-lazy-image" src="../Images/75345665b28f40e4dcd9e84572af655a.png" alt="Styled Button Component" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component-300x60.png 300w" data-lazy-sizes="(max-width: 720px) 100vw, 720px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32214" data-permalink="https://blog.logrocket.com/build-your-own-styled-components-library/styled-components-button-component/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png" data-orig-size="720,144" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Styled button component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component-300x60.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-32214" src="../Images/75345665b28f40e4dcd9e84572af655a.png" alt="Styled Button Component" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component-300x60.png 300w" sizes="(max-width: 720px) 100vw, 720px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-components-button-component.png"/></noscript>
+<p>要在 React 应用程序中使用样式化的按钮组件:</p>
+<pre>js
+// App.js
+import React from 'react';
+import "./App.css"
+import styled from "./"
+const Div = styled.div`
+    border: 2px solid palevioletred;
+    border-radius: 3px;
+    padding: 20px;
+`
+const Button = styled.button`
+    padding: 6px 12px;
+    background: palevioletred;
+    color: white;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 16px;
+    margin: 2px;
+`
+class App extends React.Component {
+    render() {
+        return (
+          &lt;div&gt;
+            &lt;button&gt;Button1&lt;/button&gt; 
+            &lt;button&gt;Button2&lt;/button&gt; 
+            &lt;button&gt;Button3&lt;/button&gt;
+          &lt;/div&gt;
+) } } export default App
+</pre>
+<p><img data-attachment-id="32217" data-permalink="https://blog.logrocket.com/build-your-own-styled-components-library/styled-button-component-react-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png" data-orig-size="720,213" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Styled button component in a React app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png" decoding="async" class="aligncenter size-full wp-image-32217 jetpack-lazy-image" src="../Images/ca1f1d3dba06bc4607cfbfab3dc56903.png" alt="Styled Button Component in a React App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app-300x89.png 300w" data-lazy-sizes="(max-width: 720px) 100vw, 720px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="32217" data-permalink="https://blog.logrocket.com/build-your-own-styled-components-library/styled-button-component-react-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png" data-orig-size="720,213" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Styled button component in a React app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-32217" src="../Images/ca1f1d3dba06bc4607cfbfab3dc56903.png" alt="Styled Button Component in a React App" srcset="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png 720w, https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app-300x89.png 300w" sizes="(max-width: 720px) 100vw, 720px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/01/styled-button-component-react-app.png"/></noscript>
+<p>恭喜你！您已经构建了自己版本的样式化组件。</p>
+<p>我们的样式组件只支持<code>button</code>和<code>div</code>标签。以下是添加其他 HTML 元素的方法:</p>
+<pre>js
+const tags = [
+    "button",
+    "div",
+    "a",
+    "input",
+    "select"
+]
+
+</pre>
+<h2 id="addingthemingcapabilities">向样式化组件添加主题化功能</h2>
+<p>styled-components 导出一个用于主题化 styled-components 的<code>ThemeProvider</code>组件。</p>
+<p>为了给你的样式化组件添加主题功能，将一个包含你的主题的对象传递给<code>ThemeProvide``r</code>中的<code>theme</code>属性。然后，你想要主题化的样式组件将被放置在<code>ThemeProvider</code>标签之间。您引用了样式化组件 CSS 中的<code>props.theme</code>属性。</p>
+<p>要添加<code>ThemeProvider</code>组件，使用<code>createContext</code>创建一个<code>Context</code>，并使用<code>Provider</code>组件将主题道具中的主题传递到样式化组件树中。</p>
+<pre>js
+import React, { createElement, Component, useContext } from 'react';
+const ThemeContext = React.createContext()
+...
+function ThemeProvider(props) {
+    const outerTheme = props.theme
+    const innerTheme = useContext(ThemeContext)
+    const theme = { ... outerTheme, ... innerTheme }
+    return (
+        
+            
+                {props.children}
+            
+        
+    )
+}
+...
+export {
+    ThemeProvider
+}
+</pre>
+<p>我们进口了<code>useContext</code>挂钩。然后，我们使用<code>React.createContext()</code>创建了一个上下文(<code>ThemeContext</code>)。</p>
+<p>我们的<code>ThemeProvider</code>是一个函数组件。因为它将接受道具中的主题对象，所以我们从道具对象中引用主题，并将其存储在一个<code>outerTheme</code>变量中。然后，我们使用<code>useContext</code>钩子消费我们在<code>ThemeContext</code>中的内在主题。在我们的<code>Context</code>中没有初始主题，但是我们消耗了它，所以如果我们决定在<code>ThemeContext</code>中添加一个内部主题，我们的代码不会中断。</p>
+<p>接下来，我们将<code>innerTheme</code>和<code>outerTheme</code>合并成一个<code>theme</code>。然后，我们呈现<code>ThemeProvider</code>组件的子组件。这个子道具被包裹在<code>ThemeContext</code>中的<code>ThemeContext.Provider</code>组件之间。我们通过值属性将<code>theme</code>传递给<code>ThemeContext.Provider</code>。这将使主题对其子组件可用。</p>
+<p>我们通过这个<code>{ ThemeProvider }</code>导出要导入的<code>ThemeProvider</code>。</p>
+<p>现在让我们修改为每个样式化组件返回的组件，这样它将使用主题上下文(如果提供的话)。</p>
+<pre>js
+...
+function genComponentStyle(tag) {
+    return function(strings, ...vals) {
+        return class extends Component {
+            static contextType = ThemeContext
+            constructor(props, context) {
+                super(props, context)
+                this.style = {}
+            }
+            componentWillMount() {
+                if(this.context)
+                    this.props = { ...this.props, theme: this.context}
+                this.style = computeStyle(this.props, strings, vals)
+            }
+            componentWillUpdate(props) {
+                if(this.context)
+                    props = { ...props, theme: this.context}
+                this.style = computeStyle(props, strings, vals)
+            }
+            render() {
+                let props = this.props
+                if(this.context) {
+                    props = { ...this.props, theme: this.context }
+                    this.style = computeStyle(props, strings, vals)
+                }
+                return (
+                    createElement(tag, { style: this.style, ...props }, [...props.children])
+                )
+            }
+        }        
+    }
+}
+...
+</pre>
+<p>首先，我们将静态变量<code>contextType</code>设置为<code>ThemeContext</code>。这将使主题对象传递到组件中的<code>ThemeProvider</code>可用。主题会传给<code>this.context</code>。</p>
+<p>所以我们修改了<code>componentWillMount</code>和<code>componentWillUpdate</code>中的代码，渲染以检查<code>this.context</code>，并将其中的主题对象合并到一个带有<code>props</code>的<code>theme</code>属性中。这使得传递给 styled-components 的 props 对象中的<code>theme</code>属性可用。</p>
+<p>就是这样——我们已经为我们的样式化组件版本添加了主题化功能。</p>
+<p>下面是为样式化组件添加主题化功能的完整代码:</p>
+<pre>import React, { createElement, Component, useContext } from 'react';
+const ThemeContext = React.createContext()
+const tags = [
+    "button",
+    "div"
+]
+function evalInterpolation(props, strings, vals) {
+    let resultStr = ""
+    for (var i = 0; i &lt; strings.length; i++) {
+        var str = strings[i];
+        var val
+        if(vals) {
+            val = vals[i]
+            if(val !== undefined) {
+                if(typeof val === "function") {
+                    val = val(props)
+                }
+                str += val
+            }
+        }
+        resultStr += str
+    }
+    return resultStr
+}
+function computeStyle(props, strings, vals) {
+    strings = evalInterpolation(props, strings, vals)
+    const style = {}
+    strings.split(";").forEach((str)=&gt; {
+        let [prop, val] = str.trim().split(":")
+        if(prop !== undefined &amp;&amp; val !== undefined) {
+            prop = prop.trim()
+            val = val.trim()
+            style[prop] = val
+        }
+    });
+    return style
+}
+function genComponentStyle(tag) {
+    return function(strings, ...vals) {
+        return class extends Component {
+            static contextType = ThemeContext
+            constructor(props, context) {
+                super(props, context)
+                this.style = {}
+            }
+            componentWillMount() {
+                if(this.context)
+                    this.props = { ...this.props, theme: this.context}
+                this.style = computeStyle(this.props, strings, vals)
+            }
+            componentWillUpdate(props) {
+                if(this.context)
+                    props = { ...props, theme: this.context}
+                this.style = computeStyle(props, strings, vals)
+            }
+            render() {
+                let props = this.props
+                if(this.context) {
+                    props = { ...this.props, theme: this.context }
+                    this.style = computeStyle(props, strings, vals)
+                }
+                return (
+                    createElement(tag, { style: this.style, ...props }, [...props.children])
+                )
+            }
+        }        
+    }
+}
+function ThemeProvider(props) {
+    const outerTheme = props.theme
+    const innerTheme = useContext(ThemeContext)
+    const theme = { ... outerTheme, ... innerTheme}
+    return (
+        &lt;React.Fragment&gt;
+            &lt;ThemeContext.Provider value={theme}&gt;
+                {props.children}
+            &lt;/ThemeContext.Provider&gt;
+        &lt;/React.Fragment&gt;
+    )
+}
+export {
+    ThemeProvider
+}
+const styled = {}
+tags.forEach(tag =&gt; {
+    styled[tag] = genComponentStyle(tag)
+})
+export default styled
+</pre>
+<p>要对一组样式化组件进行主题化:</p>
+<pre>import React from 'react';
+import styled, { ThemeProvider } from "./styled.js"
+const Div = styled.div`
+    border-radius: 3px;
+    border: 2px solid ${props =&gt; props.theme.bgColor};
+    padding: 20px;
+`
+const Button = styled.button`
+    padding: 6px 12px;
+    background: ${(props) =&gt; props.theme.bgColor};
+    color: white;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 16px;
+    margin: 2px;
+`
+export default class ThemeStyled extends React.Component {
+    constructor() {
+        super()
+        this.state = {
+            theme: {
+                bgColor: "violet"
+            }
+        }
+    }
+    setTheme(bgColor) {
+        this.setState({...this.state.theme, theme: { bgColor }})
+    }
+    render() {
+        return (
+            &lt;ThemeProvider theme={this.state.theme}&gt;
+                &lt;Div&gt;
+                    &lt;Button onClick={()=&gt; this.setTheme("red")}&gt;Set Theme(Red)&lt;/Button&gt;
+                    &lt;Button onClick={()=&gt; this.setTheme("green")}&gt;Set Theme(Green)&lt;/Button&gt;
+                    &lt;Button onClick={()=&gt; this.setTheme("violet")}&gt;Set Theme Default&lt;/Button&gt;
+                &lt;/Div&gt;
+            &lt;/ThemeProvider&gt;
+        )
+    }
+}
+</pre>
+<p>我们维护一个主题状态，将<code>bgColor</code>属性设置为 violet。我们有一个<code>Div</code>和<code>Button</code>样式的组件。我们有由<code>theme</code>对象中的<code>bgColor</code>设置的<code>Div</code>组件的边框颜色。另外，<code>Button</code>组件的背景颜色由<code>theme.bgColor</code>设置。<br/>我们渲染一个<code>Div</code>和三个<code>Button</code>:<code>"S``et Theme(Red``)"</code>、<code>"S``et Theme(Green``)"</code>、<code>"S``et Theme(Default``)"</code>。</p>
+<p>当单击这些按钮中的任何一个时，它们都会改变状态对象的<code>bgColor</code>属性。<code>"Set Theme(Red)"</code>将<code>bgColor</code>更改为红色，这将<code>Div</code>边框颜色以及按钮的背景颜色更改为红色。同样，<code>"Set Theme(Green)"</code>和<code>"Set Theme(Default)"</code>按钮将分别把主题颜色改为绿色和紫色(默认颜色)。</p>
+<h2 id="approachstyledcomponentswithconfidence">满怀信心地接近风格化组件</h2>
+<p>如您所见，理解样式化组件的工作方式实际上非常容易。您甚至可以创建自己的样式组件。</p>
+<p>关于样式化组件的大部分混淆源于标记模板文字特性。但是现在您也理解了带标签的模板文字是如何工作的了。</p>
+<p>有了关于螺母和螺栓如何工作的更完整的图片，您应该能够充满信心和相对轻松地使用样式化的组件——甚至创建自己的组件。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试 JavaScript 错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的 JavaScript 前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket 记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的 JavaScript 代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

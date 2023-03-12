@@ -1,0 +1,171 @@
+<html>
+<head>
+<title>Understanding $nextTick in Vue.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>理解 Vue.js - LogRocket 博客中的$nextTick</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-nexttick-in-vue-js/#0001-01-01">https://blog.logrocket.com/understanding-nexttick-in-vue-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>一个前端开发人员(假设他的名字是 Eric)走进一个 Vue 酒吧。</p>
+<p>埃里克点了他最喜欢的鸡尾酒:Nuxt。酒保正在努力。然后他开始咆哮。</p>
+<p>他开始讲述了他是如何在 Vue 3 文档中的实例方法下发现<code>$nextTick</code>的，并被震惊了。埃里克使用 Vue 已经有一段时间了，他习惯于将<code>$watch</code>和<code>$emit</code>作为实例方法来编写。那么<code>$nextTick</code>是干什么用的呢？<a href="https://vuejs.org/v2/api/#Vue-nextTick"> Vue 文档</a>说它“将回调推迟到下一个 DOM 更新周期之后执行。”</p>
+<p>但是埃里克不相信。</p>
+<p>他继续讲述他是如何尝试这样的事情的:</p>
+<pre>this.loadingAnimation = true
+this.startVeryLongCalculation()
+this.completeVeryLongCalculation()
+this.loadingAnimation = false</pre>
+<p>但是浏览器什么也没显示。他转向堆栈溢出，有人推荐使用<code>$nextTick</code>。这个人说，“它推迟了回调，”但至少他们包括一个代码片段。Eric 修改了他的代码，如下所示:</p>
+<pre>this.loadingAnimation = true
+this.$nextTick(() =&gt; this.startVeryLongCalculation())
+this.endVeryLongCalculation()
+this.loadingAnimation = false</pre>
+<p>它工作了。为什么？</p>
+<p>在本文中，如果您处于与 Eric 相似的情况，您将会理解<code>nextTick</code>是如何工作的，并通过一个真实的用例来验证。</p>
+<h2>先决条件</h2>
+<p>你应该具备以下基本知识。如果没有，请查看以下主题:</p>
+<ul>
+<li>事件循环</li>
+<li>回调函数</li>
+<li>微任务、队列和时间表</li>
+<li>异步更新队列</li>
+</ul>
+<h2><code>nextTick</code>是做什么的？</h2>
+<p><code>nextTick</code>接受一个被延迟到下一个<a href="https://blog.logrocket.com/advanced-data-fetching-techniques-in-vue/"> DOM 更新周期</a>的回调函数。这只是一种简单的说法，“嘿，如果你想在 DOM 更新后执行一个函数(这种情况很少发生)，我希望你使用<code>nextTick</code>而不是<code>setTimeout</code>”:</p>
+<pre>Vue.nextTick(() =&gt; {}) // syntax</pre>
+<p>我们很快就会谈到<code>setTimeout</code>对<code>nextTick</code>的争论。让我们用这个例子来想象一下<code>nextTick</code>的行为:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    {{ currentTime }}
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+export default {
+  name: 'getCurrentTime',
+  data() {
+    return {
+      currentTime: ''
+    }
+  },
+  mounted() {
+    this.currentTime = 3;
+
+    this.$nextTick(() =&gt; {
+        let date = new Date()
+        this.currentTime = date.getFullYear()
+    });
+  }
+}
+&lt;/script&gt;</pre>
+<blockquote><p><strong>注意</strong> : <code>this.$nextTick</code>与全局 API 方法<code>vue.nextTick</code>相同，只是回调函数的<code>this</code>自动绑定到调用它的实例。</p></blockquote>
+<p>在 JSFiddle 或您的计算机上运行这个代码片段。它将显示<code>2021</code>。并不是说去掉<code>nextTick</code>就不会得到同样的结果。但是，您应该理解 Vue 根据数据中的内容对 DOM 进行修改。</p>
+<p>在上面的代码片段中，Vue 将 DOM 更新为<code>3</code>，然后调用回调，将 DOM 更新为<code>2021</code>，最后将控制权交给浏览器，浏览器显示<code>2021</code>。</p>
+<p>到目前为止，我们已经研究了<code>nextTick</code>在回调队列中插入回调函数并在适当的时候执行该函数的部分。</p>
+<p>你只需要知道这些。</p>
+<p>但是您可能会感兴趣地知道，<code>nextTick</code>中的回调被用作事件循环中的微任务。<code>nextTick</code>的<a href="https://github.com/vuejs/vue/blob/dev/src/core/util/next-tick.js">源代码</a>明确声明“<code>nextTick</code>行为利用微任务队列，该队列可以通过本机<code>Promise.then</code>或<code>MutationObserver</code>访问。”</p>
+<h3><code>setTimeout</code>对<code>nextTick</code></h3>
+<p>另一种在 DOM 更新后执行函数的方法是使用 JavaScript <code>setTimeout()</code>函数。</p>
+<p>让我们在上面的代码示例中用<code>setTimeout</code>替换<code>nextTick</code>:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    {{ currentTime }}
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+export default {
+  name: 'getCurrentTime',
+  data() {
+    return {
+      currentTime: ''
+    }
+  },
+  mounted() {
+    this.currentTime = 3;
+
+    setTimeout(() =&gt; {
+      let date = new Date()
+      this.currentTime = date.getFullYear()
+    }, 0);
+  }
+}
+&lt;/script&gt;</pre>
+<p>在您的本地服务器或<a href="https://jsfiddle.net/grubkpdh/">这个 JSFiddle </a>上运行这个代码片段。你会先看到<code>3</code>，再看到<code>2021</code>。这种情况发生得很快，所以如果一开始没有看到这种现象，您可能需要刷新浏览器。</p>
+<p>在上面的代码片段中，Vue 将 DOM 更新为<code>3</code>，并给予浏览器控制权。然后浏览器显示<code>3</code>，调用回调，将 DOM 更新为<code>2021</code>，最后将控制权交给浏览器，浏览器现在显示<code>2021</code>。</p>
+<p>在<code>Promise</code>和<code>MutationObserver</code>不可用的情况下，<code>nextTick</code>实现使用<code>setTimeout</code>作为浏览器(即 6–10 和 Opera Mini 浏览器)上最后的后备方法。对于不支持<code>Promise</code>和<code>MutationObserver</code>的浏览器(IE 10)，它甚至更喜欢<code>setImmediate</code>。</p>
+<p>唯一没有所有这三种方法并且不得不依靠<code>setTimeout</code>的浏览器是 Opera Mini 浏览器。</p>
+<h2>何时使用<code>nextTick</code></h2>
+<p>很少有情况会让你拿出大枪。其中一些案例是:</p>
+<ul>
+<li>当你想使用<code>setTimeout</code></li>
+<li>当您想非常确定 DOM 反映了您的数据时</li>
+<li>当您在尝试执行异步操作时遇到类似<code>Uncaught (in promise) DOMException</code>的错误时。记住，Vue 异步更新 DOM</li>
+</ul>
+<p>让我们用 Vue 3 来看最后一个例子:</p>
+<pre>&lt;div id="app"&gt;
+  &lt;div ref="listScroll" class="scrolledList"&gt;
+    &lt;ul ref="scrolledHeight"&gt;
+      &lt;li v-for="month in months"&gt;
+        {{month}}
+      &lt;/li&gt;               
+    &lt;/ul&gt;
+  &lt;/div&gt;
+
+  &lt;input type="text" placeholder="Add Month" v-model="month"&gt;
+  &lt;button @click="addMessage" @keyup.enter="addMessage"&gt; Add Month&lt;/button&gt;
+&lt;/div&gt;
+
+&lt;script src="https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="364043537658534e42">[email protected]</a>"&gt; 
+  Vue.createApp({
+    data() {
+      return {
+        month: '',
+        months: ['Jan', 'Feb', 'Apr', 'May', 'June', 'July', 'Aug']
+      }
+    },
+    mounted() {
+      this.updateScrollNextTick()
+    },
+    methods: {
+      addMessage() {
+        if(this.month == ''){
+          return
+        }
+
+        this.months.push(this.month)
+        this.month = ''
+        this.updateScrollNextTick()
+      },
+      updateScrollNextTick () {
+        let scrolledHeight = this.$refs.scrolledHeight.clientHeight
+
+        this.$nextTick(() =&gt; {
+          this.$refs.listScroll.scrollTo({
+            behavior: 'smooth',
+            top: scrolledHeight
+          })
+        })
+      }
+    },
+  })
+  .mount("#app")
+&lt;/script&gt;</pre>
+<p>在您的本地机器或<a href="https://codepen.io/ammezie/pen/OJpOvQE"> CodePen </a>上运行这个程序。您应该得到这样的结果:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/e5a84dedac1c02b38870461f5cb8e294.png" alt="nextTick illustration" data-lazy-src="https://paper-attachments.dropbox.com/s_7BE06B839F7A0C240D28636A53F55C5574868C49DC1DC6DAB4C59E332290F96E_1622402669432_s_CF0C55740D4B833F7D63AF581E9CCC31BC22B1400D4BD0CFC2973806444C6A65_1622248711983_snip.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropbox.com/s_7BE06B839F7A0C240D28636A53F55C5574868C49DC1DC6DAB4C59E332290F96E_1622402669432_s_CF0C55740D4B833F7D63AF581E9CCC31BC22B1400D4BD0CFC2973806444C6A65_1622248711983_snip.gif"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="aligncenter" src="../Images/e5a84dedac1c02b38870461f5cb8e294.png" alt="nextTick illustration" data-original-src="https://paper-attachments.dropbox.com/s_7BE06B839F7A0C240D28636A53F55C5574868C49DC1DC6DAB4C59E332290F96E_1622402669432_s_CF0C55740D4B833F7D63AF581E9CCC31BC22B1400D4BD0CFC2973806444C6A65_1622248711983_snip.gif"/></noscript>
+<p>在上面的代码片段中，当一个新项目被添加到列表中时，我们希望获得平滑的向下滚动效果。浏览代码并尝试通过删除<code>nextTick</code>来修改它，你将会失去平滑滚动的效果。你也可以试着用<code>setTimeout</code>代替<code>nextTick</code>。</p>
+<h2>结论</h2>
+<p>在本文中，我们探索了<code>nextTick</code>是如何工作的。我们进一步理解了它与普通 JavaScript <code>setTimeout</code>的不同之处，并涵盖了实际的用例。</p>
+<p>前面提到的实例方法很少需要，所以如果你最近不得不使用它，请在这篇文章下发表评论并分享你的经验。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的 Vue 应用</h2><p>调试 Vue.js 应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的 Vue 突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Vue 应用程序中发生的一切，包括网络请求、JavaScript 错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex 插件将 Vuex 突变记录到 LogRocket 控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试 Vue 应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

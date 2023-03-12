@@ -1,0 +1,414 @@
+<html>
+<head>
+<title>Build a blockchain random number generator - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>建立一个区块链随机数生成器- LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-random-number-generator-blockchain/#0001-01-01">https://blog.logrocket.com/build-random-number-generator-blockchain/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>区块链的结构依赖于决定论。在区块链生态系统中，每个网络的状态都是公开的；完全透明。如果你知道状态和输入，你就可以计算输出。决定论与共识有关，这是区块链的进步能够被证实的原因。没有这种决定论，对区块链进步的独立验证将是不可能的，因为区块链将不再是分散的。</p>
+<p>对于大多数用例来说，随机数只有在实际使用时才能知道。这意味着区块链的基础——透明和共识——使得随机数的产生变得非常困难。</p>
+<p>在本文中，我们将介绍如何克服为区块链生成随机数的限制。我们将通过如何建立和测试一个利用随机数的赌场赌博游戏的可靠性合同。我们还将讨论一些防止区块链赌博游戏中滥用的策略。</p>
+<p><strong> <em>注意，</em></strong><a href="https://ethereum.org/en/upgrades/merge/" target="_blank" rel="noopener">合并后的</a><em>EVM 本身可能有随机性的来源；然而，即使实现了 EIP 4499，<a href="https://eips.ethereum.org/EIPS/eip-4399#security-considerations" target="_blank" rel="noopener">随机性仍然远非完美</a> </em></p>
+<p><strong> <em>提前跳跃:</em> </strong></p>
+
+<h2 id="use-cases-for-randomness">随机性的用例</h2>
+<p>对于某些目的，例如统计采样，使用<a href="https://en.wikipedia.org/wiki/Pseudorandomness" target="_blank" rel="noopener">伪随机数</a>就足够了——伪随机数看起来是随机的，但实际上是由确定性过程生成的。然而，在一些用例中，可以预测的看似随机的数字根本不够好。</p>
+<p>让我们看一些例子。</p>
+<h3 id="nfts">WindowsNT 文件系统（NTFileSystem 的缩写）</h3>
+<p>许多 NFT 项目，比如<a href="https://www.optipunks.com" target="_blank" rel="noopener">光学朋克</a>、<a href="https://www.optimisticbunnies.com" target="_blank" rel="noopener">乐观兔子</a>和<a href="https://optimistic.loogies.io" target="_blank" rel="noopener">乐观强盗</a>，在制造时会随机分配属性给他们的 NFT。由于一些属性比其他属性更有价值，铸币者必须知道铸币的结果，直到铸币之后。</p>
+<h3 id="games">比赛</h3>
+<p>许多游戏依赖于随机性，要么是为了做决定，要么是为了产生对玩家隐藏的信息。如果没有随机性，区块链游戏将局限于所有信息为所有玩家所知的游戏，如国际象棋或跳棋。</p>
+<h2 id="the-commit-reveal-protocol">提交/揭示协议</h2>
+<p>那么，我们如何在完全透明的区块链上生成随机数呢？记住，“区块链上没有秘密”。</p>
+<p>答案就在最后三个字里，“在区块链上”。为了生成随机数，我们将使用一个秘密数字，交互的一方有，另一方没有。但是，我们会确保秘密号码不在区块链上。</p>
+<p>提交/揭示协议允许两个或更多的人使用<a href="https://en.wikipedia.org/wiki/Cryptographic_hash_function" target="_blank" rel="noopener">加密散列函数</a>来达到相互同意的随机值。让我们来看看它是如何工作的:</p>
+<ol>
+<li>A 方生成一个随机数，<code>randomA</code></li>
+<li>A 端发送一个带有该号码散列的消息<code>hash(randomA)</code>。这个<br/>将值<code>randomA</code>提交给 A 方，因为虽然没有人能猜出<code>randomA</code>的值，但是一旦 A 方提供了它，每个人都可以检查它的值是否正确</li>
+<li>B 侧发送具有另一个随机数的消息，<code>randomB</code></li>
+<li>A 方在第三条消息中显示了<code>randomA</code>的值</li>
+<li>双方都接受随机数是两个值的<code>randomA ^ randomB</code>、<a href="https://en.wikipedia.org/wiki/Exclusive_or" target="_blank" rel="noopener">、【异或】、</a></li>
+</ol>
+<p>这里 XOR 的优势在于，它是由双方平等确定的，因此任何一方都不能选择一个有利的“随机”值。</p>
+<h2 id="betting-game-tutorial">赌场赌博游戏教程</h2>
+<p>为了了解如何在实际的区块链游戏中使用随机数生成器，我们将回顾赌场赌博游戏 Casino.sol 的代码。Casino.sol 是用 Solidity 编写的，使用了 commit/reveal 方案；可以在<a href="https://github.com/qbzzt/qbzzt.github.io/tree/master/LogRocket/20220615-random" target="_blank" rel="noopener"> GitHub </a>上访问。</p>
+<h3 id="setting-up-the-contract">建立合同</h3>
+<p>让我们浏览一下 Casino.sol 赌博游戏的代码；就在这个<a href="https://github.com/qbzzt/qbzzt.github.io/blob/master/LogRocket/20220615-random/contracts/Casino.sol"> GitHub </a>文件里。</p>
+<p>首先，我们指定许可和可靠性版本:</p>
+<pre class="language-javascript hljs">//SPDX-License-Identifier: Unlicense
+pragma solidity ^0.8.0;
+</pre>
+<p>接下来，我们定义一个名为<code>Casino</code>的契约。<a href="https://blog.logrocket.com/writing-smart-contracts-solidity/" target="_blank" rel="noopener">可靠性契约</a>有点类似于其他编程语言中的对象。</p>
+<pre class="language-javascript hljs">contract Casino {
+</pre>
+<p>现在，我们创建一个<a href="https://docs.soliditylang.org/en/v0.8.14/structure-of-a-contract.html#struct-types" target="_blank" rel="noopener">结构</a>，<code>ProposedBet</code>，在这里我们将存储有关建议赌注的信息:</p>
+<pre class="language-javascript hljs"> struct ProposedBet {
+   address sideA;
+   uint value;
+   uint placedAt;
+   bool accepted;  
+ }    // struct ProposedBet
+</pre>
+<p>这个结构不包括承诺，即<code>hash(randomA)</code>值，因为该值被用作定位<code>ProposedBet</code>的键。但是，它包含以下字段:</p>
+<table>
+<thead>
+<tr>
+<th>田</th>
+<th>类型</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sideA</code></td>
+<td>地址</td>
+<td>提议下注的<a href="https://docs.soliditylang.org/en/v0.8.14/types.html#address" target="_blank" rel="noopener">地址</a></td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td>整数</td>
+<td>赌注的大小在魏，最小的乙醚面额</td>
+</tr>
+<tr>
+<td><code>placedAt</code></td>
+<td>整数</td>
+<td>提案的<a href="https://en.wikipedia.org/wiki/Unix_time" target="_blank" rel="noopener">时间戳</a></td>
+</tr>
+<tr>
+<td><code>accepted</code></td>
+<td>Boolean</td>
+<td>建议是否已被接受</td>
+</tr>
+</tbody>
+</table>
+<p><strong> <em>注意，</em> </strong>本例中没有使用<code>placedAt</code> <em>字段，但是我将在本文后面解释为什么跟踪这些信息很重要</em></p>
+<p>接下来，我们创建一个<code>AcceptedBet</code>结构来存储赌注被接受后的额外信息。</p>
+<p>这里一个有趣的区别是,<code>sideB</code>直接为我们提供了<code>randomB</code>,而不是散列。</p>
+<pre class="language-javascript hljs"> struct AcceptedBet {
+   address sideB;
+   uint acceptedAt;
+   uint randomB;
+ }   // struct AcceptedBet
+</pre>
+<p>下面是存储建议和接受的赌注的<a href="https://docs.soliditylang.org/en/v0.8.14/types.html#mapping-types" target="_blank" rel="noopener">映射</a>:</p>
+<pre class="language-javascript hljs"> // Proposed bets, keyed by the commitment value
+ mapping(uint =&gt; ProposedBet) public proposedBet;
+ // Accepted bets, also keyed by commitment value
+ mapping(uint =&gt; AcceptedBet) public acceptedBet;
+</pre>
+<p>接下来，我们设置一个事件，<code>BetProposed</code>。<a href="https://docs.soliditylang.org/en/v0.8.14/abi-spec.html#events" target="_blank" rel="noopener">事件</a>是 Solidity smart contracts 中用于向外界发送消息的标准机制。这个事件告诉世界，一个用户(在这个例子中是<code>sideA</code>)正在提议一个赌注，赌注是多少。</p>
+<pre class="language-javascript hljs"> event BetProposed (
+   uint indexed _commitment,
+   uint value
+ );
+</pre>
+<p>现在，我们设置另一个事件，<code>BetAccepted</code>。这一事件告诉全世界(特别是提议打赌的<code>sideA</code>)，是时候揭晓<code>randomA</code>了。没有办法只从区块链向特定用户发送消息。</p>
+<pre class="language-javascript hljs"> event BetAccepted (
+   uint indexed _commitment,
+   address indexed _sideA
+ );
+</pre>
+<p>接下来，我们创建一个事件<code>BetSettled</code>。该事件在赌注结算时发出。</p>
+<pre>event BetSettled (
+   uint indexed _commitment,
+   address winner,
+   address loser,
+   uint value   
+ );</pre>
+<p>现在，我们创建一个<code>proposeBet</code>函数。承诺是该函数的唯一参数。</p>
+<p>其他一切(赌注的价值和<code>sideA</code>的身份)都是交易的一部分。</p>
+<p>注意这个函数是<code>payable</code>。这意味着它可以接受乙醚付款。</p>
+<pre class="language-javascript hljs"> // Called by sideA to start the process
+ function proposeBet(uint _commitment) external payable {
+</pre>
+<p>大多数外部调用的函数，比如这里显示的<code>proposedBet</code>，都是从一堆<code><a href="https://docs.soliditylang.org/en/latest/control-structures.html#error-handling-assert-require-revert-and-exceptions" target="_blank" rel="noopener">require</a></code>语句开始的。</p>
+<pre>require(proposedBet[_commitment].value == 0,
+     "there is already a bet on that commitment");
+   require(msg.value &gt; 0,
+     "you need to actually bet something");</pre>
+<p>当我们编写一个智能契约时，我们必须假设有人试图恶意调用这个函数。这种假设将促使我们采取保护措施。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>在上面的代码中，我们有两个条件:</p>
+<ol>
+<li>如果已经有一个关于承诺的赌注，拒绝这个。否则，人们可能会试图用它来覆盖现有的赌注，这将导致投入的金额永远卡在合同中</li>
+<li>如果赌注是 0 魏，拒绝</li>
+</ol>
+<p>如果这两个条件都不满足，我们将信息写入<code>proposedBet</code>。</p>
+<p>由于以太坊存储的工作方式，我们不需要创建一个新的结构，填充它，然后将它分配给映射。相反，每个承诺值都有一个结构，用零填充——我们只需要修改它。</p>
+<pre class="language-javascript hljs">   proposedBet[_commitment].sideA = msg.sender;
+   proposedBet[_commitment].value = msg.value;
+   proposedBet[_commitment].placedAt = block.timestamp;
+   // accepted is false by default
+</pre>
+<p>现在，我们向全世界宣布提议的赌注和金额:</p>
+<pre class="language-javascript hljs">   emit BetProposed(_commitment, msg.value);
+ }  // function proposeBet
+</pre>
+<p>我们需要两个参数来知道用户正在接受什么:承诺和用户的随机值。</p>
+<pre class="language-javascript hljs"> // Called by sideB to continue
+ function acceptBet(uint _commitment, uint _random) external payable {
+</pre>
+<p>在下面的代码中，我们在接受赌注之前检查了三个潜在的问题:</p>
+<ol>
+<li>如果赌注已经被某人接受，就不能再被接受</li>
+<li>如果<code>sideA</code>的地址是零，这意味着实际上没有人下注</li>
+<li><code>sideB</code>需要下注与<code>sideA</code>相同的金额</li>
+</ol>
+<pre class="language-javascript hljs">   require(!proposedBet[_commitment].accepted,
+     "Bet has already been accepted");
+   require(proposedBet[_commitment].sideA != address(0),
+     "Nobody made that bet");
+   require(msg.value == proposedBet[_commitment].value,
+     "Need to bet the same amount as sideA");
+</pre>
+<p>如果所有的要求都满足了，我们创建新的<code>AcceptedBet</code>，在<code>proposedBet</code>中标记它已经被接受，然后发出一个<code>BetAccepted</code>消息。</p>
+<pre class="language-javascript hljs">   acceptedBet[_commitment].sideB = msg.sender;
+   acceptedBet[_commitment].acceptedAt = block.timestamp;
+   acceptedBet[_commitment].randomB = _random;
+   proposedBet[_commitment].accepted = true;
+   emit BetAccepted(_commitment, proposedBet[_commitment].sideA);
+ }   // function acceptBet
+</pre>
+<p>下一个函数是伟大的<code>reveal</code>！</p>
+<p><code>sideA</code>显示<code>randomA</code>，我们可以看到谁赢了:</p>
+<pre class="language-javascript hljs"> // Called by sideA to reveal their random value and conclude the bet
+ function reveal(uint _random) external {
+</pre>
+<p>我们不需要承诺本身作为参数，因为我们可以从<code>randomA</code>中导出它。</p>
+<pre class="language-javascript hljs">   uint _commitment = uint256(keccak256(abi.encodePacked(_random)));
+</pre>
+<p>为了降低意外将 ETH 发送到它将被阻塞的地址的风险，Solidity 只允许我们将它发送到类型为<code><a href="https://docs.soliditylang.org/en/latest/types.html#address" target="_blank" rel="noopener">address payable</a></code>的地址。</p>
+<pre class="language-javascript hljs">   address payable _sideA = payable(msg.sender);
+   address payable _sideB = payable(acceptedBet[_commitment].sideB);
+</pre>
+<p>约定的随机值是两个随机值的异或，如下所述:</p>
+<pre class="language-javascript hljs">   uint _agreedRandom = _random ^ acceptedBet[_commitment].randomB;
+</pre>
+<p>我们将在合同中的多个地方使用赌注的值，因此为了简洁和可读性，我们将创建另一个变量<code>_value</code>来保存它。</p>
+<pre class="language-javascript hljs">   uint _value = proposedBet[_commitment].value;
+</pre>
+<p>在两种情况下,<code>proposedBet[_commitment].sideA == msg.sender</code>不等于承诺。</p>
+<ol>
+<li>用户没有下注</li>
+<li>作为<code>_random</code>提供的值不正确。在这种情况下，<code>_commitment</code>将是一个不同的值，因此该位置的建议下注将没有正确的值给<code>sideA</code>。</li>
+</ol>
+<pre class="language-javascript hljs">   require(proposedBet[_commitment].sideA == msg.sender,
+     "Not a bet you placed or wrong value");
+</pre>
+<pre class="language-javascript hljs">   require(proposedBet[_commitment].accepted,
+     "Bet has not been accepted yet");
+</pre>
+<p>上述<code>proposedBet[_commitment].accepted</code>功能只有在赌注被接受后才有意义。</p>
+<p>接下来，我们使用该值的最低有效位来决定获胜者:</p>
+<pre class="language-javascript hljs">   // Pay and emit an event
+   if (_agreedRandom % 2 == 0) {
+</pre>
+<p>在这里，我们把赌注给了赢家，并发出一条消息告诉全世界赌注已经定了。</p>
+<pre class="language-javascript hljs">     // sideA wins
+     _sideA.transfer(2*_value);
+     emit BetSettled(_commitment, _sideA, _sideB, _value);
+   } else {
+     // sideB wins
+     _sideB.transfer(2*_value);
+     emit BetSettled(_commitment, _sideB, _sideA, _value);     
+   }
+</pre>
+<p>现在，我们将删除不再需要的 bet 存储。</p>
+<p>任何人都可以回顾区块链，看看当时的承诺和赌注的揭示价值。删除此数据的目的是收集气体退款，用于清理不再需要的存储。</p>
+<pre class="language-javascript hljs">   // Cleanup
+   delete proposedBet[_commitment];
+   delete acceptedBet[_commitment];
+</pre>
+<p>最后，我们有了函数和契约的结尾:</p>
+<pre class="language-javascript hljs"> }  // function reveal
+}   // contract Casino
+</pre>
+<h3 id="transacting-with-a-rollup">带有汇总的事务处理</h3>
+<p>在撰写本文时，以太坊上最经济的交易方式是<a href="https://ethereum.org/en/layer-2/" target="_blank" rel="noopener">使用汇总</a>。</p>
+<p>基本上，汇总是一个将所有事务写入以太坊的区块链，但是在其他更便宜的地方运行处理。记住，任何人都可以验证区块链状态，因为以太坊是不受审查的。</p>
+<p>然后，状态根被发送到第 1 层，并且有保证(或者是<a href="https://ethereum.org/en/developers/docs/scaling/zk-rollups/" target="_blank" rel="noopener">数学</a>或者是<a href="https://ethereum.org/en/developers/docs/scaling/optimistic-rollups/" target="_blank" rel="noopener">经济</a>)它是正确的值。通过使用状态根，可以证明状态的任何部分——例如，证明某物的所有权。</p>
+<p>这种机制意味着处理(可以在 rollup 或第 2 层上完成)非常便宜，而交易数据(必须存储在以太坊或第 1 层上)相比之下非常昂贵。举个例子，在我使用的<a href="https://www.optimism.io" target="_blank" rel="noopener"> rollup </a>中，1 层气体是 2 层气体成本的 20000 倍。你可以<a href="https://public-grafana.optimism.io/d/9hkhMxn7z/public-dashboard?orgId=1&amp;refresh=5m" target="_blank" rel="noopener">点击这里查看当前第一层和第二层天然气价格的比率</a>。</p>
+<p>为此，<code>reveal</code>只取<code>randomA</code>。</p>
+<p>我可以编写 Casino.sol 游戏来获得承诺的值，然后它可以区分不正确的值和不存在的赌注。但是，在汇总时，这将显著增加事务的成本。</p>
+<h3 id="testing-the-contract">测试合同</h3>
+<p><a href="https://github.com/qbzzt/qbzzt.github.io/blob/master/LogRocket/20220615-random/test/casino-test.js" target="_blank" rel="noopener"> casino-test.js </a>是测试 Casino.sol 契约的 JavaScript 代码。这是重复的，所以我只解释有趣的部分。</p>
+<p>ethers 包<code><a href="https://docs.ethers.io/v5/api/utils/hashing/#utils-keccak256" target="_blank" rel="noopener">ethers.utils.keccak256</a></code>上的散列函数接受一个包含十六进制数的字符串。如果该数字更小，则不会转换为 256 位，因此例如<code>0x01</code>、<code>0x0001</code>和<code>0x000001</code>都散列为不同的值。为了创建一个与 Solidity 上生成的散列完全相同的散列，我们需要一个 64 个字符的数字，即使它是<code>0x00..00</code>。这里使用散列函数是确保我们生成的值是 32 字节的简单方法。</p>
+<pre class="language-javascript hljs">const valA = ethers.utils.keccak256(0xBAD060A7)
+</pre>
+<p>我们想要检查两种可能的结果:一个<code>sideA</code>获胜和一个<code>sideB</code>获胜。</p>
+<p>如果<code>sideB</code>发送的值与<code>sideA</code>散列的值相同，则结果为零(任何数字 xor 本身为零)，因此<code>sideB</code>输了。</p>
+<pre class="language-javascript hljs">const hashA = ethers.utils.keccak256(valA)
+const valBwin = ethers.utils.keccak256(0x600D60A7)
+const valBlose = ethers.utils.keccak256(0xBAD060A7)
+</pre>
+<p>当使用安全帽 EVM 进行本地测试时，恢复原因作为堆栈跟踪中的一个<code><a href="https://nodejs.org/api/buffer.html" target="_blank" rel="noopener">Buffer</a></code>对象提供。当连接到实际的区块链时，我们在<code>reason</code>字段中得到它。</p>
+<p>这个函数让我们在剩余的代码中忽略这个差异。</p>
+<pre class="language-javascript hljs">// Chai's expect(&lt;operation&gt;).to.be.revertedWith behaves
+// strangely, so I'm implementing that functionality myself
+// with try/catch
+const interpretErr = err =&gt; {
+ if (err.reason)
+   return err.reason
+ else
+   return err.stackTrace[0].message.value.toString('ascii')
+}
+</pre>
+<p>下面是使用<a href="https://www.chaijs.com/" target="_blank" rel="noopener">柴测试库</a>的标准方法。我们用一段代码和一些语句来表示应该发生的动作。</p>
+<pre class="language-javascript hljs">describe("Casino", async () =&gt; {
+ it("Not allow you to propose a zero Wei bet", async () =&gt; {
+</pre>
+<p>下面是<a href="https://docs.ethers.io/v5/api/contract/contract-factory/#ContractFactory--creating" target="_blank" rel="noopener">创建契约</a>的新实例的标准 Ethers 机制:</p>
+<pre class="language-javascript hljs">   f = await ethers.getContractFactory("Casino")
+   c = await f.deploy()
+</pre>
+<p>默认情况下，交易的<code>value</code>(附加金额)为零。</p>
+<pre class="language-javascript hljs">   try {
+     tx = await c.proposeBet(hashA)
+</pre>
+<p>函数调用<code>tx.wait()</code>返回一个<code>Promise</code>对象。表达式<code>await &lt;Promise&gt;</code>暂停直到承诺被解决，然后要么继续(如果承诺被成功解决)要么抛出一个错误(如果承诺以错误结束)。</p>
+<pre class="language-javascript hljs">     rcpt = await tx.wait()
+</pre>
+<p>如果没有错误，则意味着接受了零魏赌注。这意味着代码没有通过测试。</p>
+<pre class="language-javascript hljs">     // If we get here, it's a fail
+     expect("this").to.equal("fail")
+</pre>
+<p>在这里，我们捕获错误，并验证该错误是否与我们预期的 Casino.sol 合同中的错误相匹配。</p>
+<p>如果我们使用安全帽 EVM 运行，我们得到的缓冲区包括一些其他字符，所以最简单的方法就是<code>match</code>确保我们看到的是错误字符串，而不是检查是否相等。</p>
+<pre class="language-javascript hljs">   } catch(err) {
+     expect(interpretErr(err)).to
+       .match(/you need to actually bet something/)       
+   }
+ })   // it "Not allow you to bet zero Wei"
+</pre>
+<p>其他错误情况，比如这个，非常相似:</p>
+<pre class="language-javascript hljs"> it("Not allow you to accept a bet that doesn't exist", async () =&gt; {
+   .
+   .
+   .
+ })   // it "Not allow you to accept a bet that doesn't exist"
+</pre>
+<p>为了改变合同交互的默认行为(例如，将付款附加到交易中)，<a href="https://docs.ethers.io/v5/api/contract/contract/#Contract-functionsCall" target="_blank" rel="noopener">我们添加了一个覆盖散列作为额外的参数</a>。在这种情况下，我们发送 10Wei 来测试这种下注是否被接受:</p>
+<pre class="language-javascript hljs"> it("Allow you to propose and accept bets", async () =&gt; {
+   f = await ethers.getContractFactory("Casino")
+   c = await f.deploy()
+   tx = await c.proposeBet(hashA, {value: 10})
+</pre>
+<p>如果交易成功，当<code>tx.wait()</code>的承诺被解决时，我们得到收据。</p>
+<p>此外，该回执包含所有发出的事件。在这种情况下，我们期望有一个事件:<code>BetProposed</code>。</p>
+<p>当然，在产品级代码中，我们还会检查发出的参数是否正确。</p>
+<pre class="language-javascript hljs">   rcpt = await tx.wait()
+   expect(rcpt.events[0].event).to.equal("BetProposed")
+   tx = await c.acceptBet(hashA, valBwin, {value: 10})
+   rcpt = await tx.wait()
+   expect(rcpt.events[0].event).to.equal("BetAccepted")     
+ })   // it "Allow you to accept a bet"   
+</pre>
+<p>有时我们需要一些成功的操作来达到我们想要测试的失败，例如尝试接受一个已经被接受的赌注:</p>
+<pre class="language-javascript hljs"> it("Not allow you to accept an already accepted bet", async () =&gt; {
+   f = await ethers.getContractFactory("Casino")
+   c = await f.deploy()
+   tx = await c.proposeBet(hashA, {value: 10})
+   rcpt = await tx.wait()
+   expect(rcpt.events[0].event).to.equal("BetProposed")
+   tx = await c.acceptBet(hashA, valBwin, {value: 10})
+   rcpt = await tx.wait()
+   expect(rcpt.events[0].event).to.equal("BetAccepted")
+</pre>
+<p>在本例中，如果赌注已经被接受，交易将恢复，但它仍将停留在区块链上。这意味着如果<code>sideA</code>过早透露，其他任何人都可以接受带有赢值的赌注。</p>
+<pre class="language-javascript hljs">   try {
+     tx = await c.acceptBet(hashA, valBwin, {value: 10})
+     rcpt = await tx.wait()  
+     expect("this").to.equal("fail")     
+   } catch (err) {
+       expect(interpretErr(err)).to
+         .match(/Bet has already been accepted/)
+   }         
+ })   // it "Not allow you to accept an already accepted bet"
+</pre>
+<pre class="language-javascript hljs"> it("Not allow you to accept with the wrong amount", async () =&gt; {
+     .
+     .
+     .
+ })   // it "Not allow you to accept with the wrong amount"  
+ it("Not allow you to reveal with wrong value", async () =&gt; {
+     .
+     .
+     .
+ })   // it "Not allow you to accept an already accepted bet"
+ it("Not allow you to reveal before bet is accepted", async () =&gt; {
+     .
+     .
+     .
+ })   // it "Not allow you to reveal before bet is accepted" 
+</pre>
+<p>到目前为止，我们对所有事情都使用一个地址。然而，要检查两个用户之间的赌注，我们需要有两个用户地址。</p>
+<p>我们将使用 Hardhat 的<code><a href="https://hardhat.org/guides/waffle-testing.html#setting-up" target="_blank" rel="noopener">ethers.getSigners()</a></code>来获取签名者的数组；所有的地址都来自同一个助记符。然后，我们将使用<code><a href="https://docs.ethers.io/v5/api/contract/contract/#Contract-connect" target="_blank" rel="noopener">Contract.connect</a></code>方法来获得一个契约对象，该对象通过其中一个签名者。</p>
+<pre class="language-javascript hljs"> it("Work all the way through (B wins)", async () =&gt; {
+   signer = await ethers.getSigners()
+   f = await ethers.getContractFactory("Casino")
+   cA = await f.deploy()
+   cB = cA.connect(signer[1])
+</pre>
+<p>在这个系统中，以太既被用作赌博的资产，又被用作支付交易的货币。因此，<code>sideA</code>余额的变化部分是为<code>reveal</code>交易付款的结果。</p>
+<p>为了了解赌注是如何改变平衡的，我们看一下<code>sideB</code>。</p>
+<p>我们检查一下<code>preBalanceB</code>:</p>
+<pre class="language-javascript hljs">   .
+   .
+   .
+   // A sends the transaction, so the change due to the
+   // bet will only be clearly visible in B
+   preBalanceB = await ethers.provider.getBalance(signer[1].address)   
+</pre>
+<p>并将其与<code>postBalanceB</code>进行比较:</p>
+<pre class="language-javascript hljs">   tx = await cA.reveal(valA)
+   rcpt = await tx.wait()
+   expect(rcpt.events[0].event).to.equal("BetSettled")
+   postBalanceB = await ethers.provider.getBalance(signer[1].address)       
+   deltaB = postBalanceB.sub(preBalanceB)
+   expect(deltaB.toNumber()).to.equal(2e10)  
+ })   // it "Work all the way through (B wins)"
+ it("Work all the way through (A wins)", async () =&gt; {
+     .
+     .
+     .
+     .
+   expect(deltaB.toNumber()).to.equal(0)
+ })   // it "Work all the way through (A wins)"
+})     // describe("Casino")
+</pre>
+<h2 id="preventing-abuse-in-the-betting-game">防止赌博游戏中的滥用</h2>
+<p>当你写一个智能合同时，你应该考虑恶意用户可能会如何试图滥用它，然后实施策略来阻止这些行为。</p>
+<h3 id="protecting-from-a-never-reveal">保护不被泄露</h3>
+<p>由于合同中没有规定<code>sideA</code>必须透露随机数，所以心怀恶意的输了的<code>sideA</code>可以避免发布<code>reveal</code>交易，并阻止<code>sideB</code>收取赌注。</p>
+<p>幸运的是，这个问题有一个简单的解决方案:保留一个<code>sideB</code>接受赌注的时间戳。如果从时间戳开始已经过了预定的时间长度，并且<code>sideA</code>没有用有效的<code>reveal</code>来响应，则让<code>sideB</code>发出<code>forfeit</code>交易来收取赌注。</p>
+<p>这就是跟踪函数被调用的时间的原因，前面创建了<code>placedAt</code>字段。</p>
+<h3 id="protecting-from-frontrunning">防止抢跑</h3>
+<p>以太坊交易不会立即执行。相反，它们被放入一个名为 mempool 的实体中，挖掘者(或合并后的块提议者)可以选择将哪些事务放入它们提交的块中。</p>
+<p>通常，所选择的交易是同意支付最多汽油的交易，因此提供最多利润。</p>
+<p>一旦<code>sideA</code>在内存池中看到<code>sideB</code>的<code>acceptBet</code>事务，并且随机值会导致<code>sideA</code>丢失，<code>sideA</code>就可以发出不同的<code>acceptBet</code>事务(可能来自不同的地址)。</p>
+<p>如果<code>sideA</code>的<code>acceptBet</code>事务给了矿工更多的汽油，我们可以期待矿工首先执行他们的事务。这样，<code>sideA</code>就可以退出赌局，而不是输掉。</p>
+<p>这种被称为<a href="https://consensys.github.io/smart-contract-best-practices/attacks/frontrunning/" target="_blank" rel="noopener">前置</a>的策略，是由以太坊的去中心化结构和<code>sideB</code>提交<code>acceptBet</code>交易后<code>sideA</code>和<code>sideB</code>之间的信息不对称而成为可能的。</p>
+<p>我们无法解决权力下放的问题；内存池必须是可用的，至少对矿工(以及合并后的利益相关者)而言，网络必须是不受审查的。</p>
+<p>然而，我们可以通过消除不对称性来防止抢跑。</p>
+<p>当<code>sideB</code>提交<code>acceptBet</code>交易时，<code>sideA</code>已经知道<code>randomA</code>和<code>randomB</code>，因此可以看到谁赢了。然而，<code>sideB</code>在<code>reveal</code>之前毫无头绪。</p>
+<p>如果<code>sideB</code>的<code>acceptBet</code>只公开了<code>hash(randomB)</code>，那么<code>sideA</code>也不知道谁赢了，使得前端运行交易没有用。然后，一旦<code>sideB</code>接受赌注是区块链的一部分，<code>sideA</code>和<code>sideB</code>都可以发布揭露交易。</p>
+<p>一旦一方发出<code>reveal</code>信号，另一方就知道谁赢了，但是如果我们加上<code>forfeit</code>交易，除了交易本身的小额费用之外，拒绝透露没有任何好处。</p>
+<p>需要注意的一个潜在问题是<code>sideB</code>可能会做出与<code>sideA</code>完全相同的承诺。然后，当<code>sideA</code>显示时，<code>sideB</code>也能显示同样的数字。一个数与其自身的异或始终为零。然而，由于这个特定游戏的编写方式，在这个场景中<code>sideB</code>将简单地确保<code>sideA</code>获胜。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们逐行回顾了一个赌场赌博游戏的可靠性合同，以演示如何为区块链构建一个随机数生成器。在确定性机器上创建随机数并不简单，但是通过将任务交给用户，我们成功地实现了一个非常好的解决方案。</p>
+<p>我们还回顾了防止区块链博彩游戏中滥用或敌对行为的几种策略。</p>
+<p>只要双方都对随机的结果感兴趣，我们就可以确信结果。</p><div class="code-block code-block-26">
+<div class="blog-plug inline-plug blockchain-plug"><h2>加入像 Bitso 和 Coinsquare 这样的组织，他们使用 LogRocket 主动监控他们的 Web3 应用</h2><p>影响用户在您的应用中激活和交易的能力的客户端问题会极大地影响您的底线。如果您对监控 UX 问题、自动显示 JavaScript 错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a target="_blank" href="https://lp.logrocket.com/blg/web3-signup">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/web3-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/></noscript></a><a href="https://lp.logrocket.com/blg/web3-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的 DVR，记录你的网络应用或网站上发生的一切。您可以汇总和报告关键的前端性能指标，重放用户会话和应用程序状态，记录网络请求，并自动显示所有错误，而不是猜测问题发生的原因。</p><p>现代化您调试 web 和移动应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/web3-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

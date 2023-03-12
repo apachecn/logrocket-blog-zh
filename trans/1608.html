@@ -1,0 +1,622 @@
+<html>
+<head>
+<title>Django Channels and WebSockets - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Django 频道和 WebSockets - LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/django-channels-and-websockets/#0001-01-01">https://blog.logrocket.com/django-channels-and-websockets/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在 Django 于 2005 年首次发布后的十多年里，页面大多是静态的，AJAX 只在有限的用例中使用，事情相对来说并不复杂。在过去的五年中，实时 web 应用程序不断发展，趋向于更多的客户端-服务器和点对点交互。这种类型的通信可以通过<a href="https://blog.logrocket.com/websockets-tutorial-how-to-go-real-time-with-node-and-react-8e4693fbf843/"> WebSockets </a>实现，这是一种新的协议，它提供全双工通信，并在客户端和服务器之间保持持久、开放的连接。</p>
+<p>Django Channels 以类似于传统 HTTP 视图的方式促进了 Django 中 WebSockets 的支持。它包装了 Django 的原生异步视图支持，让 Django 项目不仅可以处理 HTTP，还可以处理需要长时间运行连接的协议，比如 WebSockets、MQTT、chatbots 等。</p>
+<p>在本教程中，我们将向您展示如何使用 Django 通道创建实时应用程序。为了用一个真实的例子来演示，我们将创建一个双人井字游戏，如下图所示。你可以在我的<a href="https://github.com/krazygaurav/Django-channels-Tic-Tac-Toe"> GitHub 库</a>中访问完整的源代码。</p>
+<p><img data-attachment-id="35066" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/gif-7/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif" data-orig-size="730,352" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="example-gif-two-player-game" data-image-description="" data-image-caption="&lt;p&gt;introductory gif&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif-300x145.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif" decoding="async" class="wp-image-35066 size-full jetpack-lazy-image" src="../Images/d7ccf5d59bb3e73d324792339b955a19.png" alt="Example Gif Two Player Game" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="35066" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/gif-7/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif" data-orig-size="730,352" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="example-gif-two-player-game" data-image-description="" data-image-caption="&lt;p&gt;introductory gif&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif-300x145.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif" decoding="async" loading="lazy" class="wp-image-35066 size-full" src="../Images/d7ccf5d59bb3e73d324792339b955a19.png" alt="Example Gif Two Player Game" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/Gif.gif"/></noscript>
+<h2>配置 Django 项目</h2>
+<p>按照下面列出的步骤来配置 Django 项目。</p>
+<p>首先，安装 Django 和通道。您还必须安装<code>channels_redis</code>，以便 channels 知道如何与 Redis 接口。</p>
+<p>运行以下命令:</p>
+<pre>pip install django==3.1
+pip install channels==3.0
+pip install channels_redis==3.2
+</pre>
+<p>你应该用 pip3 for Linux/mac 而不是 pip，用 python3 代替 python。我在本指南中使用了<code>django==3.1</code>和<code>channels==3.0</code>、<code>channels_redis==3.2.0</code>。</p>
+<p>启动 Django 项目:</p>
+<pre>django-admin startproject tic_tac_toe
+</pre>
+<p>接下来，创建一个名为<code>game</code>的应用程序:</p>
+<pre>python manage.py startapp game
+</pre>
+<p>在您的<code>settings.py</code>内的<code>INSTALLED_APPS</code>中添加<code>channels</code>和<code>game</code>:</p>
+<pre>## settings.py
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'channels',
+    'game'
+]
+</pre>
+<p>运行<code>migrate</code>以应用未应用的迁移:</p>
+<pre><code>python manage.py migrate
+</code></pre>
+<p>另外，在您的<code>settings.py</code>中添加<code>STATICFILES_DIRS</code>:</p>
+<pre>## settings.py
+import os
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
+</pre>
+<p>现在是时候为 Django 项目创建必要的文件了。在整个指南中，您可以参考以下目录结构:</p>
+<pre>├── db.sqlite3
+├── game
+│   ├── consumers.py
+│   ├── routing.py
+│   ├── templates
+│   │   ├── base.html
+│   │   ├── game.html
+│   │   └── index.html
+│   └── views.py
+├── manage.py
+├── requirements.txt
+├── static
+│   ├── css
+│   │   └── main.css
+│   └── js
+│       └── game.js
+└── tic_tac_toe
+    ├── __init__.py
+    ├── asgi.py
+    ├── settings.py
+    ├── urls.py
+    └── wsgi.py
+</pre>
+<h2>集成 Django 通道库</h2>
+<p>现在让我们将通道集成到 Django 项目中。</p>
+<p>Django &gt;2 没有内置的 ASGI 支持，所以您需要使用 Channel 的后备方案。</p>
+<p>如下图所示更新<code>asgi.py</code>:</p>
+<pre>## tic_tac_toe/asgi.py
+import os
+
+import django
+from channels.http import AsgiHandler
+from channels.routing import ProtocolTypeRouter
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tic_tac_toe.settings')
+django.setup()
+
+application = ProtocolTypeRouter({
+  "http": AsgiHandler(),
+  ## IMPORTANT::Just HTTP for now. (We can add other protocols later.)
+})
+</pre>
+<p>更新<code>settings.py</code>,并通过以下更改将 Django 应用程序从 WSGI 更改为 ASGI。这将使通道指向根路由配置。</p>
+<pre>## settings.py
+# WSGI_APPLICATION = 'tic_tac_toe.wsgi.application'
+# Channels
+ASGI_APPLICATION = "tic_tac_toe.asgi.application"
+</pre>
+<p>接下来，启用<a href="https://channels.readthedocs.io/en/stable/tutorial/part_2.html#enable-a-channel-layer">通道层</a>，这允许多个消费者实例相互对话。</p>
+<p>请注意，您可以将 Redis 作为后备存储。要启用 Redis，您可以使用方法 1(如果您想要 Redis Cloud)或方法 2(对于本地 Redis)。在本指南中，我使用了方法 3 — <code>In-memory channel layer</code> —这有助于测试和本地开发。</p>
+<p>要启用通道层，在<code>settings.py</code>中添加以下<code>CHANNEL_LAYERS</code>:</p>
+<pre>## settings.py
+CHANNEL_LAYERS = {
+    'default': {
+        ### Method 1: Via redis lab
+        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        # 'CONFIG': {
+        #     "hosts": [
+        #       'redis://h:&lt;password&gt;;@&lt;redis Endpoint&gt;:&lt;port&gt;' 
+        #     ],
+        # },
+
+        ### Method 2: Via local Redis
+        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        # 'CONFIG': {
+        #      "hosts": [('127.0.0.1', 6379)],
+        # },
+
+        ### Method 3: Via In-memory channel layer
+        ## Using this method.
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    },
+}
+</pre>
+<p>请确保 channels development server 正常工作。运行以下命令:</p>
+<pre>python manage.py runserver</pre>
+<h2>设计索引页面</h2>
+<p>让我们从构建索引页面开始，这里要求用户输入房间代码和字符选择(X 或 O)。</p>
+<p>在<code>game/views.py</code>中创建基于功能的视图:</p>
+<pre># game/views.py
+from django.shortcuts import render, redirect
+
+def index(request):
+    if request.method == "POST":
+        room_code = request.POST.get("room_code")
+        char_choice = request.POST.get("character_choice")
+        return redirect(
+            '/play/%s?&amp;choice=%s' 
+            %(room_code, char_choice)
+        )
+    return render(request, "index.html", {})
+</pre>
+<p>接下来，在<code>tic_tac_toe/urls.py</code>中为索引视图创建路线:</p>
+<pre>## urls.py
+from django.urls import path
+from game.views import index
+
+urlpatterns = [
+    ## ... Other URLS
+    path('', index),
+]
+</pre>
+<p>现在，在<code>game/templates/base.html</code>中创建基础模板(如果已经创建，请忽略)。此模板将被其他模板视图继承。</p>
+<pre>{% comment %} base.html {% endcomment %}
+{% load static %}
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Tic Tac Toe&lt;/title&gt;
+     &lt;link rel='stylesheet' href='{% static "/css/main.css" %}'&gt;
+&lt;/head&gt;
+&lt;body&gt;
+{% block content %}
+{% endblock content %}
+&lt;script src = "{% static 'js/game.js' %}"&gt;&lt;/script&gt;
+{% block javascript %}
+{% endblock javascript %}
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>为<code>game/templates/index.html</code>中的索引视图创建视图模板:</p>
+<pre>{% comment %} index.html {% endcomment %}
+
+{% extends 'base.html' %}
+{% block content %}
+&lt;div class="wrapper"&gt;
+  &lt;h1&gt;Welcome to Tic Tac Toe Game&lt;/h1&gt;
+  &lt;form method="POST"&gt;
+    {% csrf_token %}
+    &lt;div class='form-control'&gt;
+      &lt;label for="room"&gt;Room id&lt;/label&gt;
+      &lt;input id="room" type="text" name="room_code" required /&gt;
+    &lt;/div&gt;
+    &lt;div class='form-control'&gt;
+      &lt;label for="character_choice"&gt;Your character&lt;/label&gt;
+      &lt;select for="character_choice" name = "character_choice"&gt;
+      &lt;option value="X"&gt;X&lt;/option&gt;
+      &lt;option value="O"&gt;O&lt;/option&gt;
+      &lt;/select&gt;
+    &lt;/div&gt;
+    &lt;input type="submit" class="button" value="Start Game" /&gt;
+&lt;/div&gt;
+&lt;/form&gt;
+{% endblock content %}
+</pre>
+<p>启动 Django 开发服务器并导航到<a href="http://127.0.0.1:8000" rel="nofollow"> http://127.0.0.1:8000 </a>以检查索引页面是否工作正常:</p>
+<p><img data-attachment-id="35022" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/django-development-server-index-page-visual/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png" data-orig-size="487,342" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="django-development-server-index-page-visual" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual--300x211.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png" decoding="async" class="wp-image-35022 size-full jetpack-lazy-image" src="../Images/a0bed9c3a2d4a7d22c5b2a6fb0c0ab1a.png" alt="Django Development Server Index Page Visual" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png 487w, https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual--300x211.png 300w" data-lazy-sizes="(max-width: 487px) 100vw, 487px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="35022" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/django-development-server-index-page-visual/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png" data-orig-size="487,342" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="django-development-server-index-page-visual" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual--300x211.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png" decoding="async" loading="lazy" class="wp-image-35022 size-full" src="../Images/a0bed9c3a2d4a7d22c5b2a6fb0c0ab1a.png" alt="Django Development Server Index Page Visual" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png 487w, https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual--300x211.png 300w" sizes="(max-width: 487px) 100vw, 487px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/django-development-server-index-page-visual-.png"/></noscript>
+<h2>设计游戏页面</h2>
+<p>既然索引页面已经完成，让我们来构建游戏页面。</p>
+<p>从创建<code>game/views.py</code>开始:</p>
+<pre>## game/views.py
+from django.shortcuts import render, redirect
+from django.http import Http404
+
+def game(request, room_code):
+    choice = request.GET.get("choice")
+    if choice not in ['X', 'O']:
+        raise Http404("Choice does not exists")
+    context = {
+        "char_choice": choice, 
+        "room_code": room_code
+    }
+    return render(request, "game.html", context)
+</pre>
+<p>添加上面视图的 URL 路由:</p>
+<pre>## urls.py
+from django.urls import path
+from game.views import game
+
+urlpatterns = [
+    ## other url routes
+    path('play/&lt;room_code&gt;', game),
+]
+</pre>
+<p>既然后端已经完成，让我们创建游戏板的前端。下面是<code>game/templates/game.html</code> Django 模板:</p>
+<pre>{% extends 'base.html' %}
+{% comment %} game.html {% endcomment %}
+{% load static %}
+
+{% block content %}
+&lt;div class="wrapper"&gt;
+    &lt;div class="head"&gt;
+        &lt;h1&gt;TIC TAC TOE&lt;/h1&gt;
+        &lt;h3&gt;Welcome to room_{{room_code}}&lt;/h3&gt;
+    &lt;/div&gt;
+    &lt;div id = "game_board" room_code = {{room_code}} char_choice = {{char_choice}}&gt;
+        &lt;div class="square" data-index = '0'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '1'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '2'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '3'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '4'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '5'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '6'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '7'&gt;&lt;/div&gt;
+        &lt;div class="square" data-index = '8'&gt;&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div id = "alert_move"&gt;Your turn. Place your move &lt;strong&gt;{{char_choice}}&lt;/strong&gt;&lt;/div&gt;
+&lt;/div&gt;
+{% endblock content %}
+</pre>
+<p>为了使网格和索引页面看起来更好，添加 CSS，如下所示:</p>
+<pre>/* static/css/main.css */
+body {
+    /* width: 100%; */
+    height: 90vh;
+    background: #f1f1f1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#game_board {
+    display: grid;
+    grid-gap: 0.5em;
+    grid-template-columns: repeat(3, 1fr);
+    width: 16em;
+    height: auto;
+    margin: 0.5em 0;
+}
+.square{
+    background: #2f76c7;
+    width: 5em;
+    height: 5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 0.5em;
+    font-weight: 500;
+    color: white;
+    box-shadow: 0.025em 0.125em 0.25em rgba(0, 0, 0, 0.25);
+}
+.head{
+    width: 16em;
+    text-align: center; 
+}
+.wrapper h1, h3 {
+    color: #0a2c1a;
+}
+label {
+    font-size: 20px;
+    color: #0a2c1a;
+}
+input, select{
+    margin-bottom: 10px;
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #125a33;
+    font-size: 14px;
+    background-color: #71d19e;
+    color: white;
+}
+.button{
+    color: white;
+    white-space: nowrap;
+    background-color: #31d47d;
+    padding: 10px 20px;
+    border: 0;
+    border-radius: 2px;
+    transition: all 150ms ease-out;
+}
+</pre>
+<p>当您运行开发服务器时，您将看到游戏板，如下所示:</p>
+<p><img data-attachment-id="35024" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/development-server-game-board-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png" data-orig-size="394,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="development-server-game-board-display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display-279x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png" decoding="async" class="wp-image-35024 size-full jetpack-lazy-image" src="../Images/888b64907e10286038216aea427ed144.png" alt="Development Server Game Board Display" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png 394w, https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display-279x300.png 279w" data-lazy-sizes="(max-width: 394px) 100vw, 394px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="35024" data-permalink="https://blog.logrocket.com/django-channels-and-websockets/development-server-game-board-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png" data-orig-size="394,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="development-server-game-board-display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display-279x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png" decoding="async" loading="lazy" class="wp-image-35024 size-full" src="../Images/888b64907e10286038216aea427ed144.png" alt="Development Server Game Board Display" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png 394w, https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display-279x300.png 279w" sizes="(max-width: 394px) 100vw, 394px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/development-server-game-board-display.png"/></noscript>
+<h2>向 Django 应用程序添加 WebSockets</h2>
+<p>现在页面已经创建好了，让我们给它添加 WebSockets。</p>
+<p>在<code>game/consumers.py</code>中输入以下代码:</p>
+<pre>## game/consumers.py
+import json
+from channels.generic.websocket import AsyncJsonWebsocketConsumer
+
+class TicTacToeConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        self.room_name = self.scope['url_route'\]['kwargs']['room_code']
+        self.room_group_name = 'room_%s' % self.room_name
+
+        # Join room group
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        print("Disconnected")
+        # Leave room group
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    async def receive(self, text_data):
+        """
+        Receive message from WebSocket.
+        Get the event and send the appropriate event
+        """
+        response = json.loads(text_data)
+        event = response.get("event", None)
+        message = response.get("message", None)
+        if event == 'MOVE':
+            # Send message to room group
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'send_message',
+                'message': message,
+                "event": "MOVE"
+            })
+
+        if event == 'START':
+            # Send message to room group
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'send_message',
+                'message': message,
+                'event': "START"
+            })
+
+        if event == 'END':
+            # Send message to room group
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'send_message',
+                'message': message,
+                'event': "END"
+            })
+
+    async def send_message(self, res):
+        """ Receive message from room group """
+        # Send message to WebSocket
+        await self.send(text_data=json.dumps({
+            "payload": res,
+        }))
+</pre>
+<p>为游戏应用程序创建一个路由配置，该配置具有到消费者的路由。创建一个新文件<code>game/routing.py</code>并粘贴以下代码:</p>
+<pre>## game/routing.py
+from django.conf.urls import url
+from game.consumers import TicTacToeConsumer
+
+websocket_urlpatterns = [
+    url(r'^ws/play/(?P&lt;room_code&gt;\w+)/$', TicTacToeConsumer.as_asgi()),
+]
+</pre>
+<p>下一步是将根路由配置指向<code>game.routing</code>模块。更新<code>tic_tac_toe/asgi.py</code>如下:</p>
+<pre>## tic_tac_toe/asgi.py
+import os
+
+from django.core.asgi import get_asgi_application
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+import game.routing
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tic_tac_toe.settings')
+
+# application = get_asgi_application()
+application = ProtocolTypeRouter({
+    "http": get_asgi_application(),
+    "websocket": AuthMiddlewareStack(
+        URLRouter(
+            game.routing.websocket_urlpatterns
+        )
+    ),
+})
+</pre>
+<p>让我们通过创建 JavaScript 来构建代码的最后一部分，JavaScript 是与服务器异步对话的客户端。将以下代码放入<code>static/js/game.js</code>:</p>
+<pre>// static/js/game.js
+
+var roomCode = document.getElementById("game_board").getAttribute("room_code");
+var char_choice = document.getElementById("game_board").getAttribute("char_choice");
+
+var connectionString = 'ws://' + window.location.host + '/ws/play/' + roomCode + '/';
+var gameSocket = new WebSocket(connectionString);
+// Game board for maintaing the state of the game
+var gameBoard = [
+    -1, -1, -1,
+    -1, -1, -1,
+    -1, -1, -1,
+];
+// Winning indexes.
+winIndices = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6]
+]
+let moveCount = 0; //Number of moves done
+let myturn = true; // Boolean variable to get the turn of the player.
+
+// Add the click event listener on every block.
+let elementArray = document.getElementsByClassName('square');
+for (var i = 0; i &lt; elementArray.length; i++){
+    elementArray[i].addEventListener("click", event=&gt;{
+        const index = event.path[0].getAttribute('data-index');
+        if(gameBoard[index] == -1){
+            if(!myturn){
+                alert("Wait for other to place the move")
+            }
+            else{
+                myturn = false;
+                document.getElementById("alert_move").style.display = 'none'; // Hide
+                make_move(index, char_choice);
+            }
+        }
+    })
+}
+
+// Make a move
+function make_move(index, player){
+    index = parseInt(index);
+    let data = {
+        "event": "MOVE",
+        "message": {
+            "index": index,
+            "player": player
+        }
+    }
+
+    if(gameBoard[index] == -1){
+        // if the valid move, update the gameboard
+        // state and send the move to the server.
+        moveCount++;
+        if(player == 'X')
+            gameBoard[index] = 1;
+        else if(player == 'O')
+            gameBoard[index] = 0;
+        else{
+            alert("Invalid character choice");
+            return false;
+        }
+        gameSocket.send(JSON.stringify(data))
+    } 
+    // place the move in the game box.
+    elementArray[index].innerHTML = player;
+    // check for the winner
+    const win = checkWinner();
+    if(myturn){
+        // if player winner, send the END event.
+        if(win){
+            data = {
+                "event": "END",
+                "message": `${player} is a winner. Play again?`
+            }
+            gameSocket.send(JSON.stringify(data))
+        }
+        else if(!win &amp;&amp; moveCount == 9){
+            data = {
+                "event": "END",
+                "message": "It's a draw. Play again?"
+            }
+            gameSocket.send(JSON.stringify(data))
+        }
+    }
+}
+
+// function to reset the game.
+function reset(){
+    gameBoard = [
+        -1, -1, -1,
+        -1, -1, -1,
+        -1, -1, -1,
+    ]; 
+    moveCount = 0;
+    myturn = true;
+    document.getElementById("alert_move").style.display = 'inline';        
+    for (var i = 0; i &lt; elementArray.length; i++){
+        elementArray[i].innerHTML = "";
+    }
+}
+
+// check if their is winning move
+const check = (winIndex) =&gt; {
+    if (
+      gameBoard[winIndex[0]] !== -1 &amp;&amp;
+      gameBoard[winIndex[0]] === gameBoard[winIndex[1]] &amp;&amp;
+      gameBoard[winIndex[0]] === gameBoard[winIndex[2]]
+    )   return true;
+    return false;
+};
+
+// function to check if player is winner.
+function checkWinner(){
+    let win = false;
+    if (moveCount &gt;= 5) {
+      winIndices.forEach((w) =&gt; {
+        if (check(w)) {
+          win = true;
+          windex = w;
+        }
+      });
+    }
+    return win;
+}
+
+// Main function which handles the connection
+// of websocket.
+function connect() {
+    gameSocket.onopen = function open() {
+        console.log('WebSockets connection created.');
+        // on websocket open, send the START event.
+        gameSocket.send(JSON.stringify({
+            "event": "START",
+            "message": ""
+        }));
+    };
+
+    gameSocket.onclose = function (e) {
+        console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+        setTimeout(function () {
+            connect();
+        }, 1000);
+    };
+    // Sending the info about the room
+    gameSocket.onmessage = function (e) {
+        // On getting the message from the server
+        // Do the appropriate steps on each event.
+        let data = JSON.parse(e.data);
+        data = data["payload"];
+        let message = data['message'];
+        let event = data["event"];
+        switch (event) {
+            case "START":
+                reset();
+                break;
+            case "END":
+                alert(message);
+                reset();
+                break;
+            case "MOVE":
+                if(message["player"] != char_choice){
+                    make_move(message["index"], message["player"])
+                    myturn = true;
+                    document.getElementById("alert_move").style.display = 'inline';       
+                }
+                break;
+            default:
+                console.log("No event")
+        }
+    };
+
+    if (gameSocket.readyState == WebSocket.OPEN) {
+        gameSocket.onopen();
+    }
+}
+
+//call the connect function at the start.
+connect();
+</pre>
+<p>现在我们终于完成了编码，准备好玩我们的井字游戏了！</p>
+<h2>结论</h2>
+<p>我们在本教程中讨论了很多主题:Django 通道、WebSockets 和一些前端。我们的游戏到目前为止只有最基本的功能。欢迎您使用新的基础知识进行试验，并为其添加更多功能。您可以做的其他练习包括:</p>
+<ul>
+<li>添加用户验证</li>
+<li>显示在线用户</li>
+<li>向数据库添加游戏数据</li>
+<li>通过添加 Redis 而不是内存通道层使应用程序可伸缩</li>
+<li>添加人工智能</li>
+</ul>
+<p>查看我的<a href="https://github.com/krazygaurav/Django-channels-Tic-Tac-Toe"> GitHub 库</a>，获取本例中使用的完整源代码。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

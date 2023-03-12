@@ -1,0 +1,445 @@
+<html>
+<head>
+<title>Implementing a repository pattern in Flutter - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Flutter - LogRocket 博客中实现存储库模式</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implementing-repository-pattern-flutter/#0001-01-01">https://blog.logrocket.com/implementing-repository-pattern-flutter/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>颤振开发人员使用各种设计模式来编写干净和可维护的代码库。他们经常在单独的 Dart 文件中编写可重用的小部件实现，将主应用程序屏幕分成不同的文件，并将大的孤立的小部件分解成私有的方法/类。</p>
+<p>但是我们也可以在我们的 Flutter 应用中使用通用软件设计模式来提高代码库的质量。例如，像 MVC(模型-视图-控制器)架构、存储库模式、服务模型模式和数据传输对象(DTO)这样的设计概念也可以帮助我们编写可管理的代码库。存储库模式尤其促使我们通过额外的抽象层将数据访问逻辑(数据库层接口)从业务逻辑中分离出来。</p>
+<p>几乎所有的 Flutter apps 都使用数据源进行数据持久化和检索。存储库模式有助于所有 Flutter 开发人员学习如何以更好、更易管理的方式组织他们的代码。在本教程中，我将解释如何在你的 Flutter 应用程序中实现一个存储库模式。</p>
+
+<h2 id="what-is-the-repository-pattern">什么是存储库模式？</h2>
+<p>存储库模式是一种软件设计模式，它通过引入一个称为存储库的集中式组件，将数据访问逻辑与业务逻辑分离。看下图。<img data-attachment-id="91750" data-permalink="https://blog.logrocket.com/implementing-repository-pattern-flutter/attachment/repository-pattern-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png" data-orig-size="730,286" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Diagram of repository pattern" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png" decoding="async" class="aligncenter size-full wp-image-91750 jetpack-lazy-image" src="../Images/42b501261eed5b6e62fe726ab4876e8e.png" alt="Diagram Of Repository Pattern" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram-300x118.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="91750" data-permalink="https://blog.logrocket.com/implementing-repository-pattern-flutter/attachment/repository-pattern-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png" data-orig-size="730,286" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Diagram of repository pattern" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-91750" src="../Images/42b501261eed5b6e62fe726ab4876e8e.png" alt="Diagram Of Repository Pattern" srcset="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram-300x118.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/02/repository-pattern-diagram.png"/></noscript>As you can see in the above diagram, the generic repository pattern consists of three inter-connected components:
+<ol>
+<li>客户端—指发起数据请求的组件，如控制器或服务</li>
+<li>存储库—通过特定的 API 以域友好的格式提供数据，不允许客户端直接访问数据源中的数据</li>
+<li>数据源—根据特定于数据层的格式提供数据记录；数据源可以是 RESTful API、SQLite 连接或 MongoDB 连接</li>
+</ol>
+<p>假设我们要构建一个名为<code>BookRepository</code>的存储库。<code>BookRepository</code>可以公开一个方法来列出给定数据库中的所有书名。然后，在任何需要检索<code>books</code>的地方，都可以访问<code>BookRepository</code>，而不是编写重复的代码从数据源中查找书籍。</p>
+<p>存储库模式为我们提供了以下主要好处:</p>
+<ul>
+<li>它提供了一种从集中位置访问数据的方法，以防止与数据访问相关的代码重复</li>
+<li>代码库变得更加单元可测试，因为数据层从业务逻辑中分离出来</li>
+<li>我们可以轻松地切换数据源，而不需要进行耗时的代码更改</li>
+</ul>
+<h2 id="flutter-repository-pattern-tutorial">颤振存储库模式教程</h2>
+<p>现在我们知道了存储库模式背后的理论背景，让我们在我们的 Flutter 应用程序中实现一个。</p>
+<p>与任何其他设计模式原则一样，关于如何在现实世界的应用程序中实现存储库模式，确实没有严格的规则——这种模式教给你一个通用的设计概念来解耦数据访问逻辑。然而，大多数开发人员建议从存储库中公开 CRUD(创建、读取、更新和删除)操作。此外，作为最佳实践，我们将为每个业务实体创建一个存储库。</p>
+<p>让我们用基于 CRUD 的存储库模式实现一个简单的书店应用程序。注意，我们将使用一个虚拟数据层(一个模拟数据库提供者)作为我们的数据提供者基础设施，只关注存储库模式的实现。您可以用这个虚拟数据层模块替换任何数据层 API，比如 SQLite、Firebase 或其他 RESTful API。</p>
+<h2 id="setting-up-the-environment">设置环境</h2>
+<p>您可以通过创建一个新的 Flutter 应用程序来尝试这个示例应用程序，或者您可以在您现有的 Flutter 项目中使用这些设计原则。如果您计划开始一个新项目，请输入以下命令来创建书店应用程序。</p>
+<pre class="language-bash hljs">flutter create repo_bookstore
+</pre>
+<p>使用以下命令运行应用程序以启动它。您可以在 Chrome、mobile 或桌面 window 上测试这个示例，因为 Flutter 是一个通用的应用程序开发框架。</p>
+<pre class="language-bash hljs">cd repo_bookstore
+flutter run
+</pre>
+<h2 id="defining-models-and-setting-up-the-repository">定义模型和建立存储库</h2>
+<p>存储库不公开内部数据源的结构或数据格式——它们通过模型公开数据，也称为 dto。</p>
+<p>书店应用程序会显示一些关于书籍的细节，所以我们需要创建一个书籍模型。将以下代码添加到<code>./lib/models/book.dart</code></p>
+<pre class="language-dart hljs">class Book {
+  final int id;
+  final String title;
+  final int year;
+
+  Book(this.id, this.title, this.year);
+
+  Book.fromMap(Map&lt;String, dynamic&gt; data) :
+    id = data['id'],
+    title = data['title'],
+    year = data['year'];
+
+  Map&lt;String, dynamic&gt; toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'year': year
+    };
+  }
+}
+</pre>
+<p>上面的代码用几个属性和方法为<code>Book</code>业务实体定义了一个模型。我们计划用<a href="https://blog.logrocket.com/dart-flutter-data-structures-comprehensive-guide/" target="_blank" rel="noopener"> Dart Maps </a>构建一个虚拟数据库访问层，所以在这里，我们创建了<code>fromMap</code>和<code>toMap</code>辅助函数用于类型转换。</p>
+<p>现在我们需要创建一个虚拟数据访问层。这个模块将使用一个简单的 Dart 类模拟一个数据提供者，如 RESTful API 或数据库连接。将以下代码添加到<code>lib/db/virtual_db.dart</code>。</p>
+<pre class="language-dart hljs">import 'dart:math';
+
+class VirtualDB {
+  List&lt;Map&lt;String, dynamic&gt;&gt; _items = [];
+  static final VirtualDB _db = VirtualDB._privateConstructor();
+
+  VirtualDB._privateConstructor();
+
+  factory VirtualDB() {
+    return _db;
+  }
+
+  Future&lt;void&gt; insert(Map&lt;String, dynamic&gt; item) async {
+    item['id'] = Random().nextInt(1000);
+    _items.add(item);
+  }
+
+  Future&lt;void&gt; remove(int id) async {
+    _items.removeWhere((item) =&gt; item['id'] == id);
+  }
+
+  Future&lt;void&gt; update(Map&lt;String, dynamic&gt; updatedItem) async {
+    int i = _items.indexWhere((item) =&gt; item['id'] == updatedItem['id']);
+    _items[i] = updatedItem;
+  }
+
+  Future&lt;List&lt;Map&lt;String, dynamic&gt;&gt;&gt; list() async {
+    await Future.delayed(Duration(milliseconds: 800));
+    return _items;
+  }
+
+  Future&lt;Map&lt;String, dynamic&gt;?&gt; findOne(int id) async {
+    return _items.firstWhere((item) =&gt; item['id'] == id);
+  }
+}
+</pre>
+<p>上面的 singleton 类实现了几个函数来添加、编辑、删除和检索基于键值的数据记录。您可能已经注意到，我们让所有操作都是异步的，以模拟真实的数据层连接。此外，列表操作通过<code>Future.delayed</code>功能模拟数据读取延迟。</p>
+<h2 id="creating-the-book-repository">创建图书仓库</h2>
+<p>存储库模式促使我们通过存储库类消费数据层连接——因此，我们需要为<code>Book</code>业务实体创建一个存储库类。</p>
+<p>但是，首先，我们需要创建基本存储库接口作为一个良好的实践。然后，我们可以通过实现相同的接口来编写多个具体的存储库。例如，您可以为各种数据源创建图书仓库实现——基于 SQLite 的图书仓库、完整的图书仓库等。—使用此基本接口。</p>
+<p>将以下代码添加到<code>lib/repositories/book_interface.dart</code>:</p>
+<pre class="language-dart hljs">import 'package:repo_bookstore/models/book.dart';
+
+abstract class IBookRepository {
+  Future&lt;List&lt;Book&gt;&gt; getAll();
+  Future&lt;Book?&gt; getOne(int id);
+  Future&lt;void&gt; insert(Book book);
+  Future&lt;void&gt; update(Book book);
+  Future&lt;void&gt; delete(int id);
+}
+</pre>
+<p>现在，让我们使用上面的接口定义为图书仓库创建一个具体的实现。将以下代码添加到<code>lib/repositories/book.dart</code>:</p>
+<pre class="language-dart hljs">import 'package:repo_bookstore/db/virtual_db.dart';
+import 'package:repo_bookstore/repositories/book_interface.dart';
+import 'package:repo_bookstore/models/book.dart';
+
+class BookRepository implements IBookRepository {
+
+  final VirtualDB _db;
+
+  BookRepository(this._db);
+
+  @override
+  Future&lt;List&lt;Book&gt;&gt; getAll() async {
+    var items = await _db.list();
+    return items.map((item) =&gt; Book.fromMap(item)).toList();
+  }
+
+  @override
+  Future&lt;Book?&gt; getOne(int id) async {
+    var item = await _db.findOne(id);
+    return item != null ? Book.fromMap(item) : null;
+  }
+
+  @override
+  Future&lt;void&gt; insert(Book book) async {
+    await _db.insert(book.toMap());
+  }
+
+  @override
+  Future&lt;void&gt; update(Book book) async {
+    await _db.update(book.toMap());
+  }
+
+  @override
+  Future&lt;void&gt; delete(int id) async {
+    await _db.remove(id);
+  }
+}
+</pre>
+<p>上面的代码片段通过覆盖所有抽象方法，经由先前的图书储存库接口定义来实现图书储存库。</p>
+<p>注意，在这个层次上，我们只使用业务实体来公开功能。例如，我们可以通过发送一个<code>Book</code>实例将一本新书插入我们的虚拟数据库。在这一级，我们在数据访问层之上添加了一个抽象层，因此在接下来的步骤中，我们不需要考虑虚拟数据库层。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>此外，这个存储库层是我们直接访问数据库层的最高层。</p>
+<h2 id="using-the-repository-from-the-flutter-application-frontend">使用 Flutter 应用程序前端的存储库</h2>
+<p>我们的图书仓库现在可以使用了。让我们继续为书店应用程序创建一个前端。</p>
+<p>我们通常不在视图中添加数据处理逻辑(Flutter 小部件),以保持 UI 逻辑与主要业务逻辑的分离。因此，我们可以创建一个控制器/服务来从小部件级别操作数据。</p>
+<p>让我们假设我们需要实现一个添加、显示和删除书籍的前端。然后，我们需要通过控制器公开所需的功能。</p>
+<p>将以下代码添加到<code>lib/controllers/home.dart</code>中，为主页创建一个控制器。</p>
+<pre class="language-dart hljs">import 'package:repo_bookstore/db/virtual_db.dart';
+import 'package:repo_bookstore/repositories/book.dart';
+import 'package:repo_bookstore/models/book.dart';
+
+class HomeController {
+  BookRepository _bookRepo = BookRepository(VirtualDB());
+
+  Future&lt;List&lt;Book&gt;&gt; getAllBooks() {
+    return _bookRepo.getAll();
+  }
+
+  Future&lt;void&gt; addBook(Book book) {
+    return _bookRepo.insert(book);
+  }
+
+  Future&lt;void&gt; removeBook(int id) {
+    return _bookRepo.delete(id);
+  }
+}
+</pre>
+<p>我们的控制器类已经准备好了；它通过包装图书仓库 API 来公开列出、添加和删除图书的功能。</p>
+<p>现在，我们可以为书店应用程序构建前端。用下面的 Dart 代码替换现有的<code>lib/main.dart</code>文件的代码。</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:repo_bookstore/controllers/home.dart';
+import 'package:repo_bookstore/models/book.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+          appBar: AppBar(
+            title: const Text('Repo Book Store'),
+          ),
+          body: HomePage()),
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  final HomeController _homeController = HomeController();
+
+  @override
+  _HomePageState createState() =&gt; _HomePageState();
+}
+
+class _HomePageState extends State&lt;HomePage&gt; {
+  void _refreshList() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(children: [
+      _Form(widget._homeController, _refreshList),
+      _BookTable(widget._homeController, _refreshList)
+    ]);
+  }
+}
+
+class _Form extends StatefulWidget {
+  final HomeController _homeController;
+  final VoidCallback _refreshList;
+
+  _Form(this._homeController, this._refreshList);
+
+  @override
+  _FormState createState() =&gt; _FormState();
+}
+
+class _FormState extends State&lt;_Form&gt; {
+  final GlobalKey&lt;FormState&gt; _formKey = GlobalKey&lt;FormState&gt;();
+  final TextEditingController _titleFieldController = TextEditingController();
+  final TextEditingController _yearFieldController = TextEditingController();
+
+  @override
+  void dispose() {
+    _titleFieldController.dispose();
+    _yearFieldController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Container(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: &lt;Widget&gt;[
+            TextFormField(
+              controller: _titleFieldController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+              ),
+              validator: (String? value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter book title';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _yearFieldController,
+              decoration: const InputDecoration(
+                labelText: 'Year',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d]')),
+              ],
+              validator: (String? value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter released year';
+                }
+                return null;
+              },
+            ),
+            Container(
+                margin: const EdgeInsets.only(top: 10.0),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      await widget._homeController.addBook(Book(
+                          0,
+                          _titleFieldController.text,
+                          int.parse(_yearFieldController.text)));
+                      _titleFieldController.clear();
+                      _yearFieldController.clear();
+                      widget._refreshList();
+                    }
+                  },
+                  child: Text('Add book'),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BookTable extends StatelessWidget {
+  final HomeController _homeController;
+  final VoidCallback _refreshList;
+
+  _BookTable(this._homeController, this._refreshList);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder&lt;List&lt;Book&gt;&gt;(
+        future: _homeController.getAllBooks(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: Text('Loading..'));
+          } else {
+            return DataTable(
+                columns: _createBookTableColumns(),
+                rows: _createBookTableRows(snapshot.data ?? []));
+          }
+        });
+  }
+
+  List&lt;DataColumn&gt; _createBookTableColumns() {
+    return [
+      const DataColumn(label: Text('ID')),
+      const DataColumn(label: Text('Book')),
+      const DataColumn(label: Text('Action')),
+    ];
+  }
+
+  List&lt;DataRow&gt; _createBookTableRows(List&lt;Book&gt; books) {
+    return books
+        .map((book) =&gt; DataRow(cells: [
+              DataCell(Text('#' + book.id.toString())),
+              DataCell(Text('${book.title} (${book.year.toString()})')),
+              DataCell(IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () async {
+                  await _homeController.removeBook(book.id);
+                  _refreshList();
+                },
+              )),
+            ]))
+        .toList();
+  }
+}
+</pre>
+<p>上面的 UI 代码实现了一个带有表单和数据表的多组件单页应用程序。表单组件允许用户添加新书，而<a href="https://blog.logrocket.com/flutter-datatable-widget-guide-displaying-data/" target="_blank" rel="noopener">数据表组件</a>显示所有书籍信息。此外，用户可以通过点击垃圾桶图标从商店中删除一本书。</p>
+<p>这里，我们通过使用基于回调的状态管理方法将整个 UI 添加到一个 Dart 文件中。这主要是因为我们只有一个应用程序屏幕。然而，当你开发具有多个屏幕的大规模 Flutter 应用时，使用多个 Dart 文件并选择灵活的状态管理方法总是好的(Flutter 团队推荐<a href="https://docs.flutter.dev/development/data-and-backend/state-mgmt/options#provider" target="_blank" rel="noopener"> Provider </a>)。</p>
+<p>请注意关于上述 UI 源代码的以下要点:</p>
+<ul>
+<li>它不直接访问图书存储库或数据库层，而是通过<code>HomeController</code>实例访问存储的图书</li>
+<li>我们使用<code>FutureBuilder</code>类通过异步数据检索有条件地呈现 UI。<code>FutureBuilder</code>类提供了一种高效的方法来显示另一个小部件，直到异步操作完成；在我们的例子中，我们显示一个文本标签，直到我们从存储库中收到所有的书</li>
+<li><strong> Add book </strong>按钮通过用从文本编辑控制器获得的数据创建图书 DTO 的新实例，将一本新书插入虚拟数据库</li>
+</ul>
+<p>检查您的应用程序，添加新书，并尝试删除现有书籍，如下所示。</p>
+<p><img data-attachment-id="91752" data-permalink="https://blog.logrocket.com/implementing-repository-pattern-flutter/attachment/bookstore-app-gif/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif" data-orig-size="720,839" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding and removing books Repo Book Store" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif-257x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif" decoding="async" class="aligncenter size-full wp-image-91752 jetpack-lazy-image" src="../Images/41870ea75fc337582b0842519ccc73eb.png" alt="Adding And Removing Books Repo Book Store" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="91752" data-permalink="https://blog.logrocket.com/implementing-repository-pattern-flutter/attachment/bookstore-app-gif/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif" data-orig-size="720,839" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding and removing books Repo Book Store" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif-257x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-91752" src="../Images/41870ea75fc337582b0842519ccc73eb.png" alt="Adding And Removing Books Repo Book Store" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/02/bookstore-app-gif.gif"/></noscript>The bookstore app supports adding, listing, and removing book entities via the book repository instance. Similarly, you can add another screen to update a selected book by using the <code>getOne</code> and <code>update</code> repository functions. The pattern is the same  —  you need to expose necessary repository functions via the controller to the stateful widget.
+<p>完整的源代码可以在<a href="https://github.com/codezri/flutter-repo-bookstore" target="_blank" rel="noopener"> my GitHub repository </a>获得。</p>
+<h2 id="how-to-write-unit-tests-for-the-repository-pattern">如何为存储库模式编写单元测试</h2>
+<p>您可以为您的 Flutter 应用程序的不同元素实现单元测试，比如小部件、控制器、模型、服务和存储库。可以使用以下策略对基于存储库的颤振代码库进行单元测试:</p>
+<ul>
+<li>实现一个模拟存储库类，并测试控制器/服务逻辑</li>
+<li>实现一个模拟数据库类并测试存储库逻辑</li>
+</ul>
+<p>您不需要自己实现模拟类——<a href="https://pub.dev/packages/mockito" target="_blank" rel="noopener">mock ITO 包</a>帮助您快速自动地生成它们。如果需要用模拟数据库类测试存储库，可以将模拟数据库实例传递给存储库，如下所示。</p>
+<pre class="language-dart hljs">final mockDB = MockDB();
+final bookRepo = BookRepository(mockDB);
+// tests ...
+</pre>
+<h2 id="a-guide-to-creating-multiple-repositories">创建多个存储库的指南</h2>
+<p>我们的书店应用程序只有一个业务对象和一个存储库。但是，正如我们前面提到的，如果您使用大规模的 Flutter 应用程序，您可能必须与许多业务实体合作。我们如何为许多业务对象创建多个存储库？</p>
+<p>假设我们还需要在自己做的书店 app 中管理电子书。现在我们有两个业务实体:<code>Book</code>和<code>e``-books</code>。</p>
+<p>我们可以用一些具有 Dart 泛型语法的附加类来组织我们的代码，如下面的步骤所示。</p>
+<p>首先，我们需要定义我们的模型:</p>
+<pre class="language-dart hljs">abstract class BaseEntity {
+  // common structure
+}
+class Book extends BaseEntity {
+  // book implementation 
+}
+class EBook extends BaseEntity {
+  // e-book implementation
+}
+</pre>
+<p>接下来，为基本存储库定义创建一个通用接口。</p>
+<pre class="language-dart hljs">abstract class IRepository&lt;T&gt; {
+  Future&lt;List&lt;T&gt;&gt; getAll();
+  Future&lt;void&gt; insert(T item);
+  // other methods....
+}
+</pre>
+<p>现在，根据项目的架构需求，您可以编写多个具体的存储库或者一个通用的具体存储库。然而，添加一个通用存储库实现是避免所有场景中代码重复的好方法。看下面这个<code>EntityRepository</code>类。</p>
+<pre class="language-dart hljs">class EntityRepository&lt;T extends BaseEntity&gt; implements IRepository&lt;T&gt; {
+
+  @override
+  Future&lt;List&lt;BaseEntity&gt;&gt; getAll() async {
+    // implementation
+  }
+
+  @override
+  Future&lt;void&gt; insert(T item) async {
+    // implementation
+  }
+}
+</pre>
+<p>注意，在这里，我们只接受带有<code>T extends BaseEntity</code>定义的泛型的<code>BaseEntity</code>类型。最后，您可以将上面的<code>EntityRepository</code>与不同的子类一起使用，如下所示。</p>
+<pre class="language-dart hljs">var bookRepo = EntityRepository&lt;Book&gt;();
+var eBookRepo = EntityRepository&lt;EBook&gt;();
+bookRepo.insert(Book());
+eBookRepo.insert(EBook());
+</pre>
+<p>你可以从<a href="https://dartpad.dev/?id=162da61e6d92bbe209735e8e8ffb1474" target="_blank" rel="noopener"> my DartPad </a>在线检查并运行这个例子。</p>
+<h2 id="dao-vs-repository-vs-service-patterns">DAO、存储库和服务模式</h2>
+<p>存储库模式看起来有点类似于数据访问对象(DAO)——不要与分散自治组织(DAO)相混淆——和服务模式，但是有几个明显的区别，如下表所示。</p>
+
+<h2 id="conclusion">结论</h2>
+<p>我们学习了如何通过一个示例应用程序来实现 Flutter 应用程序的存储库设计模式。Flutter 应用程序开发团队使用各种设计模式来组织代码和管理应用程序状态。例如，他们经常使用各种状态管理包，如<a href="https://pub.dev/packages/redux" target="_blank" rel="noopener"> Redux </a>、<a href="https://pub.dev/packages/riverpod" target="_blank" rel="noopener"> Riverpod </a>或<a href="https://pub.dev/packages/provider" target="_blank" rel="noopener"> Provider </a>。他们也可以用 MVC 模式、可重用组件、继承和可重用通用函数来组织代码库。</p>
+<p>存储库概念还提供了一种通过创建另一个抽象层来组织代码的方法。如果您需要处理业务实体，您可以像创建控制器一样，通过包装一个存储库实例(或多个)来创建一个服务类。</p>
+<p>我们还可以通过创建带有存储库的 DAO 来隐藏数据持久层的复杂性，但不要过度设计带有许多类的中小型应用程序，因为这些复杂的设计模式主要是为了处理大规模应用程序的复杂性而存在的。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

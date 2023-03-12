@@ -1,0 +1,267 @@
+<html>
+<head>
+<title>Building Svelte micro frontends with Podium - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用讲台构建苗条的微前端</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-svelte-micro-frontends-podium/#0001-01-01">https://blog.logrocket.com/building-svelte-micro-frontends-podium/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>微前端是一个应用程序，是更大架构的一部分，而不是一个独立的应用程序。基本上，这是一个由更小的应用程序(或微前端)组成的复合应用程序，每个微前端可以由单独的团队拥有、开发和维护。</p>
+<p>这种方法通常用于复杂的应用程序，如 Ikea 和 Upwork 的网站以及 Spotify 的桌面应用程序，这些应用程序往往会变得太大，变得太乱，难以维护。</p>
+<p>在本教程中，我们将创建两个不同的基本苗条应用程序，并使用 Podium 将各个片段编译成一个应用程序，以了解微前端。</p>
+<p>对于本教程，请确保您对 Svelte 和 Node.js 有基本的了解。</p>
+<h2 id="creating-the-svelte-applications">创建苗条的应用程序</h2>
+<p>为了<a href="https://blog.logrocket.com/how-to-build-a-simple-svelte-js-app/" target="_blank" rel="noopener">开始创建 Svelte 应用程序</a>，我们必须首先创建一个名为<code>svelte-app-one</code>的新文件夹，并在里面运行以下命令来克隆 Svelte 的 GitHub 模板:</p>
+<pre class="language-javascript hljs">npx degit sveltejs/template
+</pre>
+<p>要创建第二个应用程序，在另一个名为<code>svelte-app-two</code>的文件夹中重复相同的过程。</p>
+<p>接下来，让我们对这些应用做一些小的改动。由于这两个应用程序将被合并，并且每个应用程序都有自己的<code>body</code>元素，我们必须通过向它们添加唯一的 id 来区分这两个 body 元素。</p>
+<p>对于第一个应用程序，导航到<code>public/index.html</code>，在 body 标签中添加一个 div，并给它一个惟一的 ID:</p>
+<pre class="language-html hljs">&lt;body&gt;
+        &lt;div id="svelte-app-one"&gt;&lt;/div&gt;
+&lt;/body&gt;
+</pre>
+<p>接下来，导航到文件夹的<code>src/main.js</code>文件，并确保<code>querySelector</code>函数指向您刚刚添加的 ID:</p>
+<pre class="language-javascript hljs">import App from './App.svelte';
+
+const app = new App({
+        target: document.querySelector( '#svelte-app-one' )
+});
+
+export default app;
+</pre>
+<p>对<code>public/index.html</code>中的第二个应用程序重复相同的过程:</p>
+<pre class="language-html hljs">&lt;body&gt;
+        &lt;div id="svelte-app-two"&gt;&lt;/div&gt;
+&lt;/body&gt;
+</pre>
+<p>然后又在<code>src/main.js</code>:</p>
+<pre class="language-javascript hljs">import App from './App.svelte';
+
+const app = new App({
+        target: document.querySelector("#svelte-app-two")
+});
+
+export default app;
+</pre>
+<h3 id="displaying-a-message-in-the-svelte-apps">在苗条的应用程序中显示消息</h3>
+<p>在这两个应用程序中，我们将显示非常简单的信息，并继续<a href="https://podium-lib.io/" target="_blank" rel="noopener">将它们与讲台</a>结合在一起。对于 app one，导航到<code>App.svelte</code>，添加一个带有简单消息的标题标签，并赋予它一些样式:</p>
+<pre class="language-html hljs">&lt;script&gt;
+&lt;/script&gt;
+
+&lt;main&gt;
+        &lt;h1&gt;This is the first app!&lt;/h1&gt;
+&lt;/main&gt;
+
+&lt;style&gt;
+        main {
+                text-align: center;
+                padding: 1em;
+                max-width: 300px;
+                margin: 0 auto;
+                padding: 20px 5px;
+        }
+        h1 {
+                color: #000;
+                font-size: 5em;
+                font-weight: 150;
+        }
+&lt;/style&gt;
+</pre>
+<p>接下来，对第二个应用程序进行同样的操作:</p>
+<pre class="language-html hljs">&lt;script&gt;
+&lt;/script&gt;
+
+&lt;main&gt;
+        &lt;h1&gt;This is the second app!&lt;/h1&gt;
+&lt;/main&gt;
+
+&lt;style&gt;
+        main {
+                text-align: center;
+                padding: 1em;
+                max-width: 300px;
+                margin: 0 auto;
+                padding: 20px 5px;
+                background-color: #000;
+                color:#fff;
+        }
+        h1 {
+                color: #fff;
+                font-size: 5em;
+                font-weight: 150;
+        }
+&lt;/style&gt;
+</pre>
+<h2 id="preparing-the-svelte-apps-for-podium">为讲台准备苗条的应用程序</h2>
+<p>为了让 Podium 将这两个应用程序结合在一起，它需要知道应用程序的 HTML、CSS 和 JavaScript 文件的位置。这可以通过一个<code>manifest.json</code>文件和<a href="https://www.npmjs.com/package/@podium/podlet" target="_blank" rel="noopener">一个叫做 podlet </a>的工具来生成这个<code>manifest.json</code>文件来实现。</p>
+<p>我们可以用下面的命令在<code>svelte-app-one</code>文件夹中安装 podlet 的包:</p>
+<pre class="language-javascript hljs">npm install express @podium/podlet
+</pre>
+<p>接下来，我们将使用 podlet 工具使两个应用程序的 CSS、JavaScript 和 HTML 文件对 Podium 可用。在<code>svelte-app-one</code>的根文件夹中，创建一个名为<code>podlet.js</code>的文件，并添加以下代码:</p>
+<pre class="language-javascript hljs">const express = require("express");
+const Podlet = require("@podium/podlet");
+const fs = require("fs");
+
+const app = express();
+
+const podlet = new Podlet({
+  name: "svelte-app-one", 
+  version: "0.1.0",
+  pathname: "/", 
+  manifest: "/manifest.json", 
+  development: true, 
+});
+
+
+podlet.css({ value: "http://localhost:3100/css/global.css" });
+app.use("/css", express.static("public/css/"));
+
+let buildfiles = fs.readdirSync('public/build');
+buildfiles.forEach((element, index) =&gt; {
+  if(element.indexOf('.css') !== -1 &amp;&amp; element.indexOf('.css.map') === -1){
+    podlet.css({ value: "http://localhost:3100/build/" + element });
+  }else if(element.indexOf('.js') !== -1 &amp;&amp; element.indexOf('.js.map') === -1) {
+    podlet.js({ value: "http://localhost:3100/build/" + element, defer: true });
+  }
+});
+app.use("/build", express.static("public/build/"));
+
+
+
+app.use(podlet.middleware());
+
+app.get(podlet.content(), (req, res) =&gt; {
+  res.status(200).podiumSend('&lt;div id="svelte-app-one"&gt;&lt;/div&gt;');
+});
+
+app.get(podlet.manifest(), (req, res) =&gt; {
+  res.status(200).send(podlet);
+});
+
+app.listen(3100);
+</pre>
+<p>这里，我们首先导入 podlet 和文件系统包，并创建一个 podlet 实例，给它一个名称、版本和路径。我们还指定它将创建的清单文件。</p>
+<p>接下来，我们将应用程序中的 JavaScript 和 CSS 文件添加到我们的 podlet 中(这些文件在我们的<code>public/build</code>文件夹中)，我们使用<code>readdirSync</code>函数访问<code>public/build</code>文件夹，并使用<code>foreach</code>语句遍历它。</p>
+<p>使用一个<code>if</code>语句，我们指定每个具有<code>.css</code>扩展名的文件都应该使用<code>podlet.css</code>函数添加到 podlet 中。</p>
+<p>然后，使用一个<code>else if</code>语句，我们指定每个具有<code>.js</code>扩展名的文件都应该使用<code>podlet.js</code>函数添加到 podlet 中。</p>
+<p>对于生产，应将本地主机 URL 更改为托管文件的 URL。</p>
+<p>接下来，我们可以使用<code>express.static</code>创建指向这些文件的静态链接，使这些文件公开可用。为了让我们的应用程序中的路由工作，为了让 podlet 正确运行，我们必须使用<code>middleware</code>函数安装中间件。</p>
+<p>指定了 CSS 和 JavaScript 文件后，我们可以使用<code>podiumSend</code>函数将 podlet 指向我们的 HTML——我们之前在 body 标签中添加的 div。</p>
+<p>现在我们的 podlet 知道了我们的 CSS、JavaScript 和 HTML 文件的位置，我们可以使用<code>manifest</code>函数为 Podium 创建一个<code>manifest.json</code>文件，并指定我们的应用程序应该服务的端口。</p>
+<p>最后，我们将按照完全相同的过程为我们的第二个苗条应用程序创建一个 podlet。</p>
+<pre class="language-javascript hljs">const express = require("express");
+const Podlet = require("@podium/podlet");
+const fs = require("fs");
+
+const app = express();
+
+const podlet = new Podlet({
+  name: "svelte-app-two", 
+  version: "0.1.0",
+  pathname: "/", 
+  manifest: "/manifest.json", 
+  development: true, 
+});
+
+
+podlet.css({ value: "http://localhost:3101/css/global.css" });
+app.use("/css", express.static("public/css/"));
+
+let buildfiles = fs.readdirSync('public/build');
+buildfiles.forEach((element, index) =&gt; {
+  if(element.indexOf('.css') !== -1 &amp;&amp; element.indexOf('.css.map') === -1){
+    podlet.css({ value: "http://localhost:3101/build/" + element });
+  }else if(element.indexOf('.js') !== -1 &amp;&amp; element.indexOf('.js.map') === -1) {
+    podlet.js({ value: "http://localhost:3101/build/" + element, defer: true });
+  }
+});
+app.use("/build", express.static("public/build/"));
+
+
+
+app.use(podlet.middleware());
+
+app.get(podlet.content(), (req, res) =&gt; {
+  res.status(200).podiumSend('&lt;div id="svelte-app-two"&gt;&lt;/div&gt;');
+});
+
+app.get(podlet.manifest(), (req, res) =&gt; {
+  res.status(200).send(podlet);
+});
+
+app.listen(3101);
+</pre>
+<h2 id="combining-the-two-svelte-apps-using-podium">使用 Podium 结合两个苗条的应用程序</h2>
+<p>要开始组合这两个<a href="https://blog.logrocket.com/whats-new-svelte-summer-2021" target="_blank" rel="noopener">苗条应用</a>，让我们首先创建一个名为<code>podium-merger</code>的文件夹，并在其中运行以下命令来创建一个<code>package.json</code>文件:</p>
+<pre class="language-javascript hljs">npm init
+</pre>
+<p>接下来，导航到该文件夹并创建一个名为<code>layout.js</code>的文件。在这个文件中，我们将评估我们之前创建的两个 podlet，获取这些 podlet 中指定的 HTML、CSS 和 JavaScript 文件，并将它们组合成一个应用程序。</p>
+<p>在 Podium 中，我们可以按照我们希望的方式排列我们正在组合的应用程序。这种排列称为布局:</p>
+<pre class="language-javascript hljs">const express = require("express");
+const app = express();
+
+const Layout = require("@podium/layout");
+
+const layout = new Layout({
+  name: "podiumLayout",
+  pathname: "/",
+});
+
+const svelteAppOne = layout.client.register({
+  name: "svelte-app-one",
+  uri: "http://localhost:3100/manifest.json",
+});
+const svelteAppTwo = layout.client.register({
+  name: "svelte-app-two",
+  uri: "http://localhost:3101/manifest.json",
+});
+
+app.use(layout.middleware());
+
+app.get("/", async (req, res) =&gt; {
+  const podiumLayout = res.locals.podium;
+
+  const data = await Promise.all([
+    svelteAppOne.fetch(podiumLayout),
+    svelteAppTwo.fetch(podiumLayout),
+  ]);
+
+  podiumLayout.podlets = data;
+  podiumLayout.view.title = "Composite App";
+
+  res.podiumSend(`&lt;div&gt;
+    ${data[0]}
+    ${data[1]}
+  &lt;/div&gt;
+  `);
+});
+
+
+app.listen(3000);
+</pre>
+<p>让我们分解代码:首先，我们导入<code>layout</code>包并创建它的一个实例，给它一个名称和一个路径。</p>
+<p>接下来，我们使用<code>client.register</code>函数将我们的苗条应用程序注册到布局中。注意我们是如何将布局指向<code>manifest.json</code>文件的。这就是它如何找到要组合的 CSS、HTML 和 JavaScript 文件。</p>
+<p>然后，我们从我们的布局包中安装<code>middleware</code>功能，以确保我们的应用程序中的所有路线都能正常工作。</p>
+<p>接下来，我们指定当我们的应用程序的根 URL 被访问时，应该返回讲台布局。然后，我们使用<code>fetch</code>函数从两个应用程序中获取数据，并将数据保存在名为<code>data</code>的常量中，并使用<code>podiumLayout.podlets = data;</code>将数据绑定到我们的布局。</p>
+<p>通过使用<code>podiumSend</code>函数，我们在 div 标签中指定应用程序的显示排列。请注意，<code>data[0]</code>是来自我们第一个应用的数据，<code>data[1]</code>是来自我们第二个应用的数据。</p>
+<p>最后，我们指定为我们的应用提供服务的端口。</p>
+<h2 id="conclusion">结论</h2>
+<p>这是我们最后的应用程序:</p>
+<p><img data-attachment-id="88126" data-permalink="https://blog.logrocket.com/building-svelte-micro-frontends-podium/building-svelte-micro-frontends-podium-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png" data-orig-size="730,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Micro frontend application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png" decoding="async" class="aligncenter size-full wp-image-88126 jetpack-lazy-image" src="../Images/a40eaa198158ded7ff514b3a6a556451.png" alt="Micro Frontend Application" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium-300x145.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="88126" data-permalink="https://blog.logrocket.com/building-svelte-micro-frontends-podium/building-svelte-micro-frontends-podium-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png" data-orig-size="730,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Micro frontend application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-88126" src="../Images/a40eaa198158ded7ff514b3a6a556451.png" alt="Micro Frontend Application" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium-300x145.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/building-svelte-micro-frontends-podium.png"/></noscript>
+<p>微前端帮助你用你的前端实现微服务为你的后端所做的事情，这给你一个在大型组织中简化开发过程的机会。</p>
+<p>有了微前端，你可以让小团队独立开发特定的功能，从而消除进度上的阻力和瓶颈。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,466 @@
+<html>
+<head>
+<title>Next.js and Firebase DB full-stack app tutorial | LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Next.js 和 Firebase DB 全栈 app 教程| LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/nextjs-cloud-firestore-full-stack-app-tutorial/#0001-01-01">https://blog.logrocket.com/nextjs-cloud-firestore-full-stack-app-tutorial/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本教程于 2022 年 3 月 8 日更新，包含了 Firebase 的云 Firestore 的最新信息。</em></p>
+<p>建立数据库从未如此简单。过去需要几个小时的事情现在可以在几分钟内完成。特别是，有了 Firebase 最新的 NoSQL 数据库，开发人员只需点击几下鼠标就可以建立并运行一个数据库。像 Firestore 的实时数据库一样，Cloud Firestore 是免费的，允许开发人员在全球范围内为移动和网络应用程序存储、编辑和同步数据。结合 web 或移动客户端，开发人员可以快速轻松地创建完整的 web 解决方案。</p>
+<p>在本教程中，我们将演示如何使用 Next.js 和 Cloud Firestore 创建全栈应用。我们将回顾如何建立一个 Firestore 数据库。然后，我们将构建一个 Next.js 应用程序，我们将创建页面和 API 路由来创建、编辑、获取和删除新数据库中的条目。</p>
+<h2 id="choosing-between-firebases-realtime-db-and-cloud-firestore">在 Firebase 的实时数据库和云 Firestore 之间进行选择</h2>
+<p>Firebase 现在提供两种数据库解决方案:云 Firestore 和实时数据库。理论上，他们看起来很相似。这两个都是 NoSQL 数据库，带有客户端 SDK、实时更新和免费层。你可能想知道这两者之间是否有很大的区别。</p>
+<p>选择哪一个在很大程度上取决于你的需求。如果你需要一个轻量级的数据库，有简单的查询，并且知道你的数据会经常被访问，那么就用实时数据库。</p>
+<p>另一方面，如果您需要更高级的查询功能以及更多的数据结构，那么 Cloud Firestore 可能是更好的选择。</p>
+<h2 id="setting-up-cloud-firestore">设置云风暴</h2>
+<p>我们将从建立 Firebase 项目开始。前往<a href="https://console.firebase.google.com/" target="_blank" rel="noopener"> Firebase 站点</a>点击<strong>创建项目</strong>。Firebase 提供了各种各样的服务，但是对于本文，我们将重点关注云 Firestore。</p>
+<p>在侧边栏的构建选项卡下，点击<strong> Firestore 数据库</strong>，然后点击<strong>创建数据库</strong>。出现提示时，在生产模式选项中选择<strong>开始</strong>，并选择离您最近的位置。这对于减少数据延迟非常重要。</p>
+<p>现在，数据库已经建立。下一步是创建凭证，我们将用它在 Next.js 应用程序中初始化和访问数据库。</p>
+<p>点按边栏顶部“项目概述”旁边的齿轮图标，然后导航到“项目设置”。接下来，转到 Service accounts 选项卡并单击<strong> Generate new private key </strong>以生成 JSON 文件，我们将在同一页面上显示的示例代码中使用该文件。</p>
+<h2 id="setting-up-the-nextjs-app">设置 Next.js 应用程序</h2>
+<p>现在，我们将创建 Next.js 应用程序并配置数据库连接。开始使用 Next.js 最简单的方法是使用以下命令在指定的文件夹中创建一个 Next.js 项目:</p>
+<pre class="language-bash hljs">npx create-next-app demo-app
+</pre>
+<p>转到控制台上的<code>demo-app</code>目录，运行<code>npm run dev</code>来启动开发服务器。当你在浏览器中访问<code>localhost:3000</code>时，你应该会看到一个欢迎页面。</p>
+<h2 id="connecting-to-the-database">连接到数据库</h2>
+<p>接下来，让我们创建一个与数据库通信的实用函数。首先，我们将安装<code>firebase-admin</code>作为一个依赖项。我们还将使用<code>axios</code>和<code>dashify</code>库，所以让我们也安装它们。</p>
+<pre class="language-bash hljs">npm i firebase-admin axios dashify
+</pre>
+<p>现在，创建相对于项目根目录的<code>utils/db/index.js</code>。</p>
+<p>接下来，我们将把在上一步中下载的 JSON 文件复制并粘贴到<code>utils/db</code>文件夹中，并将其重命名为<code>serviceAccountKey.json</code>。</p>
+<p><em>提示:</em>确保也将这个文件路径添加到您的<code>.gitignore</code>中。您的<code>serviceAccountKey.json</code>文件包含不应该意外提交给 Github 的密钥。</p>
+<p>将以下代码块复制并粘贴到<code>utils/db/index.js</code>:</p>
+<pre class="language-javascript hljs">import admin from 'firebase-admin';
+import serviceAccount from './serviceAccountKey.json';
+
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  } catch (error) {
+    console.log('Firebase admin initialization error', error.stack);
+  }
+}
+export default admin.firestore();
+</pre>
+<h2 id="creating-the-endpoints">创建端点</h2>
+<p>Next.js 有一个非常方便的 API routes 解决方案，它有助于在<code>/pages/api</code>文件夹下创建 API 端点。让我们创建<code>/pages/api/entry/[id].js</code>和<code>/pages/api/entry/index.js</code>。第一个端点捕获请求中发送的<code>id</code>,并使其在函数中可用。我们稍后会谈到这一点。我们将有四种不同的请求方法:<code>POST</code>、<code>GET</code>、<code>PUT</code>和<code>DELETE</code>。</p>
+<ul>
+<li><code>POST</code>用于添加新的数据库条目</li>
+<li><code>PUT</code>用于更新现有的数据库条目</li>
+<li><code>GET</code>用于获取现有的数据库条目</li>
+<li><code>DELETE</code>用于删除现有的数据库条目</li>
+</ul>
+<p>让我们从<code>POST</code>方法开始，我们将向<code>entries</code>集合添加一个新条目。以发送到该端点的以下请求为例:</p>
+<pre class="language-javascript hljs">axios.post('/api/entry', { title: Foo Bar, slug: foo-bar, body: lorem ipsum });
+</pre>
+<p>这是<code>/pages/api/entry/index.js</code>的内容:</p>
+<pre class="language-javascript hljs">import db from '../../../utils/db';
+
+export default async (req, res) =&gt; {
+  try {
+    const { slug } = req.body;
+    const entries = await db.collection('entries').get();
+    const entriesData = entries.docs.map(entry =&gt; entry.data());
+
+    if (entriesData.some(entry =&gt; entry.slug === slug)) {
+      res.status(400).end();
+    } else {
+      const { id } = await db.collection('entries').add({
+        ...req.body,
+        created: new Date().toISOString(),
+      });
+      res.status(200).json({ id });
+    }
+  } catch (e) {
+    res.status(400).end();
+  }
+}
+</pre>
+<p>在这段代码中，我们从<code>/utils/db</code>导入了<code>db</code>对象，以便使用它来建立与数据库的通信。Firestore 有集合，每个集合有多个文档。</p>
+<p>文档再次包含字段或集合，就像 JSON 结构一样。在上面的函数中，我们将从<code>/api/entry/index.js</code>导出，我们将使用<code>slug</code>键的值来检查是否已经有另一个条目具有相同的<code>slug</code>值。如果是这样，我们将用一个<code>400</code>状态码结束请求。您可以指定另一个状态代码，或者传递一个消息显示在 UI 上。为了简单起见，我们只结束请求，不发送任何数据。</p>
+<p>接下来，我们将指定集合的名称和要添加的数据。如果该集合不存在，它将自动以指定的名称创建，并以随机的<code>id</code>添加一个文档。这个文档包含我们传递的数据。</p>
+<p>在验证了<code>slug</code>是惟一的之后，我们将向<code>db</code>发出另一个请求来添加请求体，这是一个包含<code>title</code>、<code>slug</code>和<code>body</code>的对象:</p>
+<pre class="language-json hljs">// Example data
+{
+  title: 'Foo bar',
+  slug: 'foo-bar', // This is auto generated on the client side
+  body: 'Lorem ipsum',
+}
+</pre>
+<p>我们将把这个对象扩展到另一个对象中，并添加带有当前时间戳的键作为值。现在是时候创建<code>PUT</code>、<code>GET</code>和<code>DELETE</code>端点了。这些将在<code>/api/entry/[id].js</code>处理。</p>
+<p>以下是这些请求的示例:</p>
+<pre class="language-javascript hljs">await axios.get(`/api/entry/${id}`);
+await axios.delete(`/api/entry/${id}`);
+await axios.put(`/api/entry/${id}`, {
+  slug: 'foo-bar',
+  title: 'Foo Bar',
+  body: 'Lorem ipsum'
+});
+</pre>
+<p>您会注意到<code>id</code>变量是如何在端点路径中使用的。因为我们在文件名<code>id</code>中使用了方括号，所以它在<code>req.query</code>中可用。</p>
+<p>我们将检查<code>req</code>对象的<code>method</code>键来确定请求类型。如果是一个<code>PUT</code>方法，我们将通过<code>id</code>在<code>entries</code>集合中找到文档，然后用一个对象更新它。</p>
+<p>我们还将添加另一个名为<code>updated</code>的带有当前时间戳的键。这样，我们可以显示条目何时更新。当然，这只是一个可选特性的演示。如果是一个<code>GET</code>方法，我们将通过<code>id</code>找到文档，然后返回<code>doc.data()</code>作为响应。如果是<code>DELETE</code>方法，我们会通过<code>id</code>找到文件，然后删除文件。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>这是<code>/pages/api/entry/[id].js</code>的内容:</p>
+<pre class="language-javascript hljs">import db from '../../../utils/db';
+
+export default async (req, res) =&gt; {
+  const { id } = req.query;
+
+  try {
+    if (req.method === 'PUT') {
+      await db.collection('entries').doc(id).update({
+        ...req.body,
+        updated: new Date().toISOString(),
+      });
+    } else if (req.method === 'GET') {
+      const doc = await db.collection('entries').doc(id).get();
+      if (!doc.exists) {
+        res.status(404).end();
+      } else {
+        res.status(200).json(doc.data());
+      }
+    } else if (req.method === 'DELETE') {
+      await db.collection('entries').doc(id).delete();
+    }
+    res.status(200).end();
+  } catch (e) {
+    res.status(400).end();
+  }
+}
+</pre>
+<p>到目前为止，所有这些端点都用于控制单个条目。然而，我们还需要一个端点来获取条目和列出条目。为此，我们将再创建一个端点:<code>/api/entries.js</code>。</p>
+<p>首先，我们将获取<code>entries</code>集合中的所有文档，同时用<code>created</code>键对它们进行排序，这是我们在为<code>POST</code>方法实现端点时添加的。然后，我们将对返回值进行映射，并返回一个新的对象数组，我们将在该数组中分布条目数据，并添加文档<code>id</code>。</p>
+<p>我们将需要这个<code>id</code>，以便与<code>GET</code>、<code>DELETE</code>和<code>PUT</code>方法一起使用。这是<code>/pages/api/entries.js</code>的内容:</p>
+<pre class="language-javascript hljs">import db from '../../utils/db';
+
+export default async (req, res) =&gt; {
+  try {
+    const entries = await db.collection('entries').orderBy('created').get();
+    const entriesData = entries.docs.map(entry =&gt; ({
+      id: entry.id,
+      ...entry.data()
+    }));
+    res.status(200).json({ entriesData });
+  } catch (e) {
+    res.status(400).end();
+  }
+}
+</pre>
+<p>我们将按如下方式使用该端点:</p>
+<pre class="language-javascript hljs">await axios.get('/api/entries');
+</pre>
+<p>既然我们已经完成了端点的创建，我们将继续实现页面。</p>
+<h2 id="creating-the-routes-in-nextjs">在 Next.js 中创建路径</h2>
+<p>在最简单的形式中，我们需要一条<code>/admin</code>和一条<code>/posts</code>路线。当然，这些都是随意起的名字。在<code>/admin</code>路线中，我们需要能够发布一个条目并列出所有条目，以便我们可以选择和编辑一个条目。在<code>/posts</code>路线中，我们需要能够列出所有条目，还可以导航到特定条目。</p>
+<p>下面是<code>/pages</code>文件夹的最终结构:</p>
+<pre class="language-javascript hljs">|-- api
+|-- admin
+    |-- post.js
+    |-- edit
+        |-- index.js
+        |-- [id].js
+|-- posts
+    |-- index.js
+    |-- [slug].js
+</pre>
+<p>同样，我们将在<code>/admin/edit</code>和<code>/posts</code>路线下分别用方括号将<code>id</code>和<code>slug</code>括起来。这些动态路由让我们可以使用相同的页面模板来创建不同内容的不同路由。</p>
+<h3 id="admin-routes"><code>/admin</code>路线</h3>
+<p>先说<code>/admin</code>路线。注意，为了安全起见，我们没有将<code>/admin</code>路由放在认证之后。在实际应用中，这显然是必需的。</p>
+<h4 id="admin-postjs"><code>/admin/post.js</code></h4>
+<p>这里，我们有一个状态变量，它是一个保存了<code>title</code>和<code>body</code>属性的对象。在设置了<code>title</code>和<code>body</code>对象后，我们可以将这些值作为一个条目发送。</p>
+<p><code>onSubmit</code>函数将对<code>/api/entry</code>进行<code>POST</code>调用，同时调用一个包含<code>title</code>、<code>body</code>和<code>slug</code>的对象。<code>slug</code>由<code>title</code>变量通过<code>dashify</code>包生成。</p>
+<pre class="language-javascript hljs">import { useState } from 'react';
+import dashify from 'dashify';
+import axios from 'axios';
+
+const Post = () =&gt; {
+  const [content, setContent] = useState({
+    title: undefined,
+    body: undefined,
+  })
+  const onChange = (e) =&gt; {
+    const { value, name } = e.target;
+    setContent(prevState =&gt; ({ ...prevState, [name]: value }));
+  }
+  const onSubmit = async () =&gt; {
+    const { title, body } = content;
+    await axios.post('/api/entry', { title, slug: dashify(title), body });
+  }
+  return (
+    &lt;div&gt;
+      &lt;label htmlFor="title"&gt;Title&lt;/label&gt;
+      &lt;input
+        type="text"
+        name="title"
+        value={content.title}
+        onChange={onChange}
+      /&gt;
+      &lt;label htmlFor="body"&gt;Body&lt;/label&gt;
+      &lt;textarea
+        name="body"
+        value={content.body}
+        onChange={onChange}
+      /&gt;
+      &lt;button onClick={onSubmit}&gt;POST&lt;/button&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default Post;
+</pre>
+<h4 id="admin-edit-indexjs"><code>/admin/edit/index.js</code></h4>
+<p>在编辑页面上，我们将通过从<code>/api/entries</code>端点获取条目来列出所有条目。<br/>然后，我们将使用<code>id</code>键链接到该特定条目，该条目将由<code>admin/edit/[id].js</code>进行匹配。</p>
+<pre class="language-javascript hljs">import { useEffect, useState } from 'react';
+import Link from 'next/link'
+import axios from 'axios';
+
+const List = () =&gt; {
+  const [entries, setEntries] = useState([]);
+  useEffect(async () =&gt; {
+    const res = await axios.get('/api/entries');
+    setEntries(res.data.entriesData);
+  }, []);
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Entries&lt;/h1&gt;
+      {entries.map(entry =&gt; (
+        &lt;div key={entry.id}&gt;
+          &lt;Link href={`/admin/edit/${entry.id}`}&gt;
+            &lt;a&gt;{entry.title}&lt;/a&gt;
+          &lt;/Link&gt;
+          &lt;br/&gt;
+        &lt;/div&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};
+
+export default List;
+</pre>
+<h4 id="admin-edit-idjs"><code>/admin/edit/[id].js</code></h4>
+<p>这里，我们将使用带有<code>GET</code>方法的<code>/api/entry/[id].js</code>端点，以便通过<code>id</code>获取特定条目的数据。</p>
+<p>然后，我们将使用从数据库获取的数据填充页面的<code>title</code>和<code>body</code>字段。<br/>我们将使用<code>onSubmit</code>和<code>onDelete</code>方法向<code>/api/entry/[id].js</code>发送请求，并分别使用<code>PUT</code>和<code>DELETE</code>方法更新和删除条目。</p>
+<pre class="language-javascript hljs">import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router'
+import dashify from 'dashify';
+import axios from 'axios';
+
+const EditEntry = () =&gt; {
+  const router = useRouter()
+  const [content, setContent] = useState({
+    title: undefined,
+    body: undefined,
+  })
+
+  useEffect(async () =&gt; {
+    const { id } = router.query;
+    if (id) {
+      const res = await axios.get(`/api/entry/${id}`);
+      const { title, body } = res.data;
+      setContent({
+        title,
+        body
+      })
+    }
+  }, [router])
+
+  const onChange = (e) =&gt; {
+    const { value, name } = e.target;
+    setContent(prevState =&gt; ({ ...prevState, [name]: value }));
+  }
+
+  const onSubmit = async (e) =&gt; {
+    const { id } = router.query
+    const { title, body } = content;
+    console.log(id, title, body);
+    await axios.put(`/api/entry/${id}`, {
+      slug: dashify(title),
+      title,
+      body,
+    });
+  }
+
+  const onDelete = async () =&gt; {
+    const { id } = router.query;
+    await axios.delete(`/api/entry/${id}`);
+    router.back();
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;label htmlFor="title"&gt;Title&lt;/label&gt;
+      &lt;input
+        type="text"
+        name="title"
+        value={content.title}
+        onChange={onChange}
+      /&gt;
+      &lt;label htmlFor="body"&gt;Body&lt;/label&gt;
+      &lt;textarea
+        name="body"
+        value={content.body}
+        onChange={onChange}
+      /&gt;
+      &lt;button
+        type="button"
+        onClick={onSubmit}
+      &gt;
+        Submit
+      &lt;/button&gt;
+      &lt;button
+        type="button"
+        onClick={onDelete}
+      &gt;
+        Delete
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default EditEntry;
+</pre>
+<p>这些<code>/admin</code>路由都不是服务器端呈现的，因为它们不应该是公共的，因此可以在客户端呈现。</p>
+<h3 id="posts-routes"><code>/posts</code>路线</h3>
+<p><code>/posts</code>路线是公共的，因此它们可以在服务器端呈现以提高性能和获得更好的 SEO 结果。</p>
+<h4 id="posts-indexjs"><code>/posts/index.js</code></h4>
+<p>这一页是我们列出所有条目的地方。我们将导出<code>getStaticProps</code>，这是一个 Next.js 特定的函数。通过导出它，我们告诉 Next.js 在构建时在服务器端呈现该页面。<code>getStaticProps</code>函数中的一切都是服务器端呈现的，不会向客户端公开。同样，如果在<code>getStaticProps</code>中使用，那么发送给客户端的代码中不包含该函数之外的所有导入和定义。</p>
+<p>当在服务器上生成这个页面时，我们首先需要获取条目，以便能够列出它们。因此，我们将导入我们的<code>db</code>对象，然后向数据库发出请求。</p>
+<p>获得条目后，我们需要使它们在组件中可用。从<code>getStaticProps</code>返回的对象成为组件中可用的<code>props</code>。它应该总是返回一个带有<code>props</code>键的对象，我们将在这里传递获取的数据:</p>
+<pre class="language-javascript hljs">return {
+  props: {
+    entriesData
+  }
+}
+</pre>
+<p>这种方法适用于真正静态的页面。然而，在我们的例子中，当我们发布一个新条目时，我们需要触发一个构建，以便用来自新条目的数据重新生成页面。或者，我们可以在<code>request-time</code>服务器端呈现页面，但这种方法成本高且速度慢。Next.js 对此有解决方案:<a href="https://nextjs.org/docs/basic-features/data-fetching#incremental-static-regeneration" target="_blank" rel="noopener">增量静态再生</a>。</p>
+<p>通过添加以秒为单位的超时值的<code>revalidate</code>键，我们将告诉 Next.js 在请求时重新生成页面。因此，第一个访问该页面的人将获得现有页面，这是在部署应用程序时构建的。第一个请求触发一个新的构建，因此下一个访问该页面的人将得到新生成的页面。</p>
+<p>持续时间决定了服务器应该等待多长时间，以根据请求触发另一次重新生成。例如，如果 duration 值设置为 600，相当于 10 分钟，那么对该页面的第一个请求将触发重新生成。10 分钟内即将到来的请求不会触发另一次重新生成，它们将在第一次请求后得到最后生成的页面。一旦 10 分钟的持续时间到期，第一个请求就会触发另一个重新生成，依此类推。</p>
+<p>这里，我们还将使用由 Next.js 提供的用于客户端路由转换的<code>&lt;Link/&gt;</code>组件。我们将把<code>/posts/${entry.slug}</code>传递给<code>href</code>道具，以便<code>/posts/[slug].js</code>可以匹配它。</p>
+<pre class="language-javascript hljs">import Link from 'next/link'
+import db from '../../utils/db';
+
+const Posts = (props) =&gt; {
+  const { entriesData } = props;
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Posts&lt;/h1&gt;
+      {entriesData.map(entry =&gt; (
+        &lt;div key={entry.id}&gt;
+          &lt;Link href={`/posts/${entry.slug}`}&gt;
+            &lt;a&gt;{entry.title}&lt;/a&gt;
+          &lt;/Link&gt;
+          &lt;br /&gt;
+        &lt;/div&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};
+
+export const getStaticProps = async () =&gt; {
+  const entries = await db.collection('entries').orderBy('created', 'desc').get();
+  const entriesData = entries.docs.map(entry =&gt; ({
+    id: entry.id,
+    ...entry.data()
+  }));
+  return {
+    props: { entriesData },
+    revalidate: 10
+  }
+}
+
+export default Posts;
+</pre>
+<h4 id="posts-slugjs"><code>/posts/[slug].js</code></h4>
+<p>在<code>getStaticProps</code>中，我们将从<code>*context*.params</code>中捕获<code>slug</code>，并使用它来过滤<code>entries</code>集合，以找到与特定的<code>slug</code>值匹配的文档。然后，我们将返回该条目的数据作为道具。如果输入的 slug 不存在，那么我们将返回一个空的<code>props</code>对象，因为无论如何我们都必须返回一个带有<code>props</code>键的对象。</p>
+<p>这里的新东西是使用了<code>getStaticPaths</code>。当一个页面有动态路由和<code>getStaticProps</code>时，那么它也需要使用<code>getStaticPaths</code>，在这里我们定义了一个将在构建时生成的路径列表。</p>
+<p>在<code>getStaticPaths</code>中，我们获取所有的条目。通过使用每个条目的<code>slug</code>值，我们创建了一个具有以下结构的对象数组:</p>
+<pre class="language-javascript hljs">params: {
+  slug: ...
+}
+</pre>
+<p>因为我们在带方括号的文件名中使用了<code>slug</code>，所以我们也需要在<code>params</code>对象中使用<code>slug</code>的键名。</p>
+<p>我们将生成的数组被传递给由<code>getStaticPaths</code>返回的对象的<code>paths</code>键。<br/>除了<code>paths</code>键，我们还有<code>fallback:true</code>键-值对。</p>
+<p>必须设置该<code>fallback</code>键。如果它被设置为<code>false</code>，那么 Next.js 将为所有在构建时没有生成的路径返回一个 404 页面。如果我们添加一个新条目，那么我们必须再次运行构建来生成这些路径。然而，将<code>fallback</code>设置为<code>true</code>会在后台触发静态生成。</p>
+<p>为了检测<code>fallback</code>设置并显示相应的加载页面，可以使用路由器对象。<code>router.isFallback</code>在生成过程中变成<code>true</code>，一旦路径生成，就变成<code>false</code>。</p>
+<p>下面，看看如何使用<code>router.isFallback</code>返回一个<code>loading…</code>文本。如果访问的路径与数据库中的<code>slug</code>不匹配，那么<code>getStaticProps</code>返回一个空的<code>props</code>对象，这导致<code>not found</code>文本被显示。</p>
+<pre class="language-javascript hljs">import { useRouter } from 'next/router'
+import db from '../../utils/db';
+
+const Post = (props) =&gt; {
+  const { entry } = props;
+  const router = useRouter()
+  if (router.isFallback) {
+    return (
+      &lt;div&gt;loading&lt;/div&gt;
+    )
+  } else {
+    if (entry) {
+      return (
+        &lt;div&gt;
+          &lt;h1&gt;{entry.title}&lt;/h1&gt;
+          &lt;h4&gt;{entry.created}&lt;/h4&gt;
+          &lt;p&gt;{entry.body}&lt;/p&gt;
+        &lt;/div&gt;
+      );
+    } else {
+      return (
+        &lt;div&gt;not found&lt;/div&gt;
+      )
+    }
+  }
+};
+
+export const getStaticPaths = async () =&gt; {
+  const entries = await db.collection("entries").get()
+  const paths = entries.docs.map(entry =&gt; ({
+    params: {
+      slug: entry.data().slug
+    }
+  }));
+  return {
+    paths,
+    fallback: true
+  }
+}
+
+export const getStaticProps = async (context) =&gt; {
+  const { slug } = context.params;
+  const res = await db.collection("entries").where("slug", "==", slug).get()
+  const entry = res.docs.map(entry =&gt; entry.data());
+  if (entry.length) {
+    return {
+      props: {
+        entry: entry[0]
+      }
+    }
+  } else {
+    return {
+      props: {}
+    }
+  }
+}
+
+export default Post;
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们展示了如何使用 Next.js 和 Cloud Firestore 构建一个全栈应用。我们介绍了如何设置 Firebase 的云 Firestore，以及如何通过 Next.js 应用程序与这个数据库通信。</p>
+<p>我们讨论了如何创建 API 端点并在各种组件中使用这些端点。我们还演示了用于静态页面生成的动态路由和服务器端呈现，并解释了如何动态重新生成现有或不存在的静态页面。</p>
+<p>有关 Firebase 的云 Firestore 的更多信息，请参见<a href="https://firebase.google.com/docs/firestore" target="_blank" rel="noopener">官方文档</a>。</p><div class="code-block code-block-30">
+<div class="blog-plug inline-plug next-plug"><h2><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank"> LogRocket </a>:全面了解生产 Next.js 应用</h2><p>调试下一个应用程序可能会很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪状态、自动显示 JavaScript 错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript></a><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你的 Next.js 应用上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用程序的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p><p>让您调试 Next.js 应用的方式现代化— <a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

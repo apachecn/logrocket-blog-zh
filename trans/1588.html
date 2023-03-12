@@ -1,0 +1,609 @@
+<html>
+<head>
+<title>Mirage JS tutorial: Mocking APIs in React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Mirage JS 教程:在 React - LogRocket 博客中模仿 API</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/mirage-js-tutorial-mocking-apis-in-react/#0001-01-01">https://blog.logrocket.com/mirage-js-tutorial-mocking-apis-in-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>通常，当构建与后端接口的应用程序时，您必须等待来自后端的活动数据可用才能继续开发。这可能导致生产率降低和周转时间变慢。模拟 API 使您能够构建应用程序的前端，而不必依赖来自后端的数据。</p>
+<p>在这个<a href="https://miragejs.com/"> Mirage JS </a>教程中，我们将向您展示如何构建一个模拟 API。我们将详细介绍以下内容:</p>
+
+<p>要学习本教程，您应该具备:</p>
+<ul>
+<li><a href="https://blog.logrocket.com/es6-keyed-collections-maps-and-sets/"> JavaScript/ES6 的知识</a></li>
+<li>使用<a href="https://reactjs.org/"> React </a>的体验</li>
+<li><a href="https://nodejs.org/">节点</a> <a href="https://nodejs.org/">。js </a> v10 或更高</li>
+<li>npm v5.2 或更高版本</li>
+<li>代码编辑器和终端的选择</li>
+<li>什么是幻影 JS？</li></ul>
+<h2 id="whatismiragejs"><a href="https://miragejs.com/"> Mirage JS </a>是一个 JavaScript 库，它允许您模拟可用于构建、测试和共享全栈 JavaScript 应用程序的 API。幻影 JS 的独特之处在于它能够重现动态场景。其他模拟 API 服务器，如<a href="https://github.com/typicode/json-server"> JSON 服务器</a>和<a href="https://github.com/mswjs/msw"> MSW </a>，本质上是相当静态的。</h2>
+<p>Mirage JS 通过拦截您的 JavaScript 应用程序发出的网络请求来工作。它允许您模拟响应，这使您能够开发和测试您的应用程序，就像您正在与一个活动的服务器交互一样。</p>
+<p>Mirage JS 的其他显著特性包括:</p>
+<p>处理<a href="https://blog.logrocket.com/5-ways-to-make-http-requests-in-node-js/"> HTTP 请求的路由</a></p>
+<ul>
+<li>用于存储数据和处理关系的数据库和模型</li>
+<li>用于序列化数据的工厂和设备</li>
+<li>用于格式化 HTTP 响应的序列化程序</li>
+<li>Mirage JS 示例</li>
+</ul>
+<h2 id="miragejsexample">为了展示如何使用 Mirage JS 模拟 API，我们将使用<a href="https://create-react-app.dev/docs/getting-started/"> Create React App </a>创建一个 notes 应用程序，这允许我们引导我们的项目，而不用担心手动配置 React 应用程序的复杂性。</h2>
+<p>打开一个终端并运行下面的命令来创建一个新的 React 应用程序:</p>
+<p>命令成功执行后，它会初始化一个名为<code>notes</code>的 React 应用程序。通过运行以下命令导航到根目录:</p>
+<pre>npx create-react-app notes
+</pre>
+<p>进入根目录后，运行以下命令:</p>
+<pre>cd notes
+</pre>
+<p>这个命令启动 React 应用程序的开发服务器。</p>
+<pre>npm start
+</pre>
+<p>设置 Mirage JS</p>
+<h2 id="settingupmiragejs">在我们开始模拟应用程序所需的 API 之前，运行以下命令将 Mirage JS 添加到项目中:</h2>
+<p>成功安装 Mirage JS 库后，导航到<code>src</code>目录并创建一个名为<code>server.js</code>的文件:</p>
+<pre># Using npm
+npm install --save-dev miragejs
+
+# Using Yarn
+yarn add --dev miragejs
+</pre>
+<p>在您选择的编辑器中打开<code>server.js</code>文件，并粘贴以下代码:</p>
+<pre>cd src
+touch server.js
+</pre>
+<p><code>createServer</code>函数负责创建一个新的模拟服务器实例。转到根目录中的<code>index.js</code>文件，将其重构为如下所示的代码:</p>
+<pre>import { createServer } from 'miragejs';
+export function makeServer() {
+  let server = createServer();
+  return server;
+}
+</pre>
+<p>在重构后的<code>index.js</code>文件中，我们导入了在<code>server.js</code>文件中创建的<code>makeServer</code>函数并运行它:<code>makeServer({ environment: 'development' })</code>注意一个<code>{ environment: 'development' }</code>参数被传递给了<code>makeServer</code>函数；这允许我们在开发环境中运行种子，我们将在后面讨论。</p>
+<pre>import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './components/App';
+import { makeServer } from './server';
+
+if (process.env.NODE_ENV === 'development') {
+  makeServer({ environment: 'development' });
+} 
+ReactDOM.render(
+  &lt;React.StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/React.StrictMode&gt;,
+  document.getElementById('root')
+);
+</pre>
+<p>保存和播种数据</p>
+<h2 id="persistingandseedingdata">我们希望我们的应用程序像一个真正的服务器一样存储数据，并加载一些现有的数据(种子)。我们将使用名为<code>Model</code>的 Mirage JS 数据层，在其“内存”数据库中为我们的应用程序创建一个 notes 集合。</h2>
+<p>打开<code>server.js</code>文件，用以下代码替换现有代码:</p>
+<p><code>createServer</code>功能中的<code>environment</code>选项允许我们在<code>development</code>和<code>test</code>之间进行选择。如果环境设置为<code>development</code>，Mirage JS 将加载种子并将其所有响应记录到控制台。我们已经通过<code>makeServer</code>默认参数<code>{ environment = 'test' } = {}</code>将环境设置为默认测试，以便在每次需要运行测试时运行一个没有种子的服务器的新实例。我们还在<code>createServer</code>函数的<code>models</code>属性中定义了一个名为<code>notes</code>的集合。</p>
+<pre>import { createServer, Model } from 'miragejs';
+export function makeServer({ environment = 'test' } = {}) {
+  let server = createServer({
+    environment,
+    models: {
+      notes: Model,
+    },
+    seeds(server) {
+      server.create('note', {
+        title: 'Nulla sit amet',
+        body:
+          'Praesent congue erat at massa. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Pellentesque commodo eros a enim. Nunc interdum lacus sit amet orci.',
+      });
+      server.create('note', {
+        title: 'Curabitur suscipit suscipit',
+        body:
+          'Fusce risus nisl, viverra et, tempor et, pretium in, sapien. Suspendisse pulvinar, augue ac venenatis condimentum, sem libero volutpat nibh, nec pellentesque velit pede quis nunc. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Praesent nec nisl a purus blandit viverra.',
+      });
+      server.create('note', {
+        title: 'Donec id justo',
+        body:
+          'Nulla neque dolor, sagittis eget, iaculis quis, molestie non, velit. Curabitur suscipit suscipit tellus. Praesent ac sem eget est egestas volutpat. Pellentesque posuere.',
+      });
+    }
+  return server;
+}
+</pre>
+<p>如前所述，种子使我们能够创建初始数据。<code>server.create</code>函数允许我们在我们定义的<code>notes</code>模型中创建新的笔记记录。id 会自动分配给创建的种子。</p>
+<p>创建路线</p>
+<h2 id="creatingroutes">既然我们已经成功设置了一个带有数据库和初始种子的 Mirage JS 服务器，下一步就是创建路由。我们的 notes 应用程序需要以下路径:</h2>
+<p>获取<code>/api/notes</code>以获取所有笔记记录</p>
+<ul>
+<li>获取<code>/api/notes/:id</code>以获取单个笔记记录</li>
+<li>POST <code>/api/notes</code>创建新的笔记记录</li>
+<li>修补<code>/api/notes/:id</code>以更新现有的注释记录</li>
+<li>删除<code>/api/notes/:id</code>以删除现有的注释记录</li>
+<li>打开<code>server.js</code>文件，用以下代码替换现有代码:</li>
+</ul>
+<p>这个<code>routes</code>钩子是我们的应用程序将被定义的路径。<code>this.namespace = 'api/notes'</code>允许我们定义 API 名称空间，这样我们就不必在应用程序的所有路径中重复使用，例如<code>/api/notes/:id</code>。<code>this.get</code>、<code>this.post</code>、<code>this.patch</code>和<code>this.delete</code>允许我们模拟各种网络请求。<code>schema</code>参数用于从我们之前创建的<code>notes</code>模型中访问数据，而<code>request</code>参数用于从我们的应用程序中获取数据。</p>
+<pre>import { createServer, Model } from 'miragejs';
+export function makeServer({ environment = 'test' } = {}) {
+  let server = createServer({
+    environment,
+    models: {
+      notes: Model,
+    },
+    seeds(server) {
+      server.create('note', {
+        title: 'Nulla sit amet',
+        body:
+          'Praesent congue erat at massa. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Pellentesque commodo eros a enim. Nunc interdum lacus sit amet orci.',
+      });
+      server.create('note', {
+        title: 'Curabitur suscipit suscipit',
+        body:
+          'Fusce risus nisl, viverra et, tempor et, pretium in, sapien. Suspendisse pulvinar, augue ac venenatis condimentum, sem libero volutpat nibh, nec pellentesque velit pede quis nunc. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Praesent nec nisl a purus blandit viverra.',
+      });
+      server.create('note', {
+        title: 'Donec id justo',
+        body:
+          'Nulla neque dolor, sagittis eget, iaculis quis, molestie non, velit. Curabitur suscipit suscipit tellus. Praesent ac sem eget est egestas volutpat. Pellentesque posuere.',
+      });
+    },
+    routes() {
+      this.namespace = 'api/notes';
+      this.get('/', (schema, request) =&gt; {
+        return schema.notes.all();
+      });
+      this.get('/:id', (schema, request) =&gt; {
+        let id = request.params.id;
+        return schema.notes.find(id);
+      });
+      this.post('/', (schema, request) =&gt; {
+        let attrs = JSON.parse(request.requestBody);
+        return schema.notes.create(attrs);
+      });
+      this.patch('/:id', (schema, request) =&gt; {
+        let newAttrs = JSON.parse(request.requestBody);
+        let id = request.params.id;
+        let note = schema.notes.find(id);
+        return note.update(newAttrs);
+      });
+      this.delete('/:id', (schema, request) =&gt; {
+        let id = request.params.id;
+        return schema.notes.find(id).destroy();
+      });
+    },
+  });
+  return server;
+}
+</pre>
+<p>设置前端</p>
+<h2 id="settingupthefrontend">至此，我们已经完成了对服务器的模拟，并创建了模拟 API。下一步是构建一个前端来访问我们创建的模拟 API。</h2>
+<p>打开终端并导航到根目录。粘贴下面的代码来安装我们将用来在 React 应用程序中显示图标和 toast 消息的库:</p>
+<p>在<code>src</code>目录下创建一个名为<code>components</code>的文件夹。这个文件夹将存放我们将在应用程序中使用的组件。</p>
+<pre>npm install react-icons react-toastify
+</pre>
+<p>打开<code>index.css</code>文件并粘贴以下代码:</p>
+<p>这个文件包含我们将在应用程序中使用的样式。</p>
+<pre>*,
+*::before,
+*::after {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+html {
+font-size: 62.5%;
+scroll-behavior: smooth;
+}
+body {
+font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+sans-serif;
+background-color: #202124;
+font-size: 1.6rem;
+color: #e8eaed;
+}
+.container {
+padding: 2rem;
+max-width: 100rem;
+margin: 0 auto;
+}
+.header {
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 2rem 0;
+}
+.btn {
+background-color: #41331c;
+padding: 1rem 2rem;
+color: #e8eaed;
+font-size: 1.6rem;
+border: 1px solid #41331c;
+border-radius: 8px;
+cursor: pointer;
+font-weight: 700;
+display: flex;
+justify-content: center;
+align-items: center;
+transition: all 0.5s;
+}
+.btn:hover,
+.toolbox__btn:hover {
+background-color: #b38b4d;
+}
+.btn__icon {
+margin-left: 5px;
+}
+.notes-container {
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+flex-wrap: wrap;
+}
+.notes-item {
+margin: 1rem;
+padding: 1.5rem;
+border: 1px solid #5f6368;
+border-radius: 8px;
+color: #e8eaed;
+width: 100%;
+min-height: 6rem;
+cursor: pointer;
+}
+.notes-item h2 {
+margin-bottom: 1rem;
+}
+.notes-item p {
+line-height: 2.5rem;
+font-size: 1.4rem;
+}
+.toolbox {
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 5px 0;
+margin-top: 1rem;
+}
+.toolbox__btn {
+padding: 5px;
+border-radius: 50%;
+background-color: transparent;
+border: 0;
+cursor: pointer;
+}
+.showModal {
+display: block;
+}
+.hideModal {
+display: none;
+}
+.modal {
+position: fixed;
+z-index: 1;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+overflow: auto;
+background-color: #202124;
+padding: 4rem;
+}
+.go-back-container {
+width: 50%;
+}
+.go-back {
+background-color: transparent;
+font-size: 1.6rem;
+display: flex;
+justify-content: center;
+align-items: center;
+transition: all 0.5s;
+color: #e8eaed;
+border: 0;
+cursor: pointer;
+font-weight: 700;
+padding: 1rem 0;
+}
+.go-back span {
+margin-left: 1rem;
+}
+.modal-form {
+background-color: transparent;
+width: 100%;
+margin: 2rem auto;
+}
+.modal-form-input {
+display: block;
+margin: 2rem 0;
+padding: 1rem;
+font-size: 1.8rem;
+border: 2px solid #5f6368;
+color: #e8eaed;
+background-color: #202124;
+width: 100%;
+border-radius: 8px;
+}
+@media (min-width: 768px) {
+.modal-form {
+width: 50%;
+}
+.notes-item {
+max-width: 30rem;
+}
+}</pre>
+<p>导航到我们创建的<code>components</code>目录，并创建一个名为<code>NoteItem.js</code>的文件。打开文件并粘贴下面的代码:</p>
+<p>该文件是我们将在笔记列表中使用的单个笔记项的 react 组件。导航回<code>components</code>目录并创建另一个名为<code>NotesList.js</code>的文件，这个文件将包含一个<code>NoteItems.js</code>组件的列表。打开文件并粘贴下面的代码</p>
+<pre>import React from 'react';
+import { FaRegEdit, FaRegTrashAlt } from 'react-icons/fa';
+const NotesItem = ({ note, getNote, deleteNote }) =&gt; {
+  return (
+    &lt;div className="notes-item" onClick={() =&gt; getNote(note.id)}&gt;
+      &lt;h2 className="notes-item__title"&gt;{note.title}&lt;/h2&gt;
+      &lt;p&gt;{note.body}&lt;/p&gt;
+      &lt;div className="toolbox"&gt;
+        &lt;button className="toolbox__btn" onClick={() =&gt; getNote(note.id)}&gt;
+          &lt;FaRegEdit color="#e8eaed" size={18} /&gt;
+        &lt;/button&gt;
+        &lt;button className="toolbox__btn" onClick={() =&gt; deleteNote(note.id)}&gt;
+          &lt;FaRegTrashAlt color="#e8eaed" size={18} /&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+};
+export default NotesItem;
+</pre>
+<p>我们现在有了一个用于注释项的组件和另一个用于注释项列表的组件，现在在<code>components</code>目录中创建一个<code>Form.js</code>文件，用于添加和更新注释。创建文件后，将下面的代码粘贴到创建的文件中</p>
+<pre>import React from 'react';
+import NotesItem from './NotesItem';
+const NotesList = ({ notes, getNote, setToggle, deleteNote }) =&gt; {
+  return (
+    &lt;div className="notes-container"&gt;
+      {notes &amp;&amp;
+        notes.map((note) =&gt; (
+          &lt;NotesItem
+            key={note.id}
+            note={note}
+            getNote={getNote}
+            toggleModal={setToggle}
+            deleteNote={deleteNote}
+          /&gt;
+        ))}
+    &lt;/div&gt;
+  );
+};
+export default NotesList;
+</pre>
+<p>将<code>App.js</code>文件移动到<code>components</code>目录，并用以下代码替换其中的代码:</p>
+<pre>import React, { useEffect } from 'react';
+import { FaArrowCircleLeft } from 'react-icons/fa';
+const Form = ({
+  showModal,
+  toggleModal,
+  note,
+  addNote,
+  updateNote,
+  inputs,
+  setInputs,
+}) =&gt; {
+  useEffect(() =&gt; {
+    if (note) {
+      setInputs({ title: note.title, body: note.body });
+    }
+  }, [note, setInputs]);
+  const handleSubmit = (event) =&gt; {
+    event.preventDefault();
+    const { title, body } = inputs;
+    if (!note.id) {
+      addNote(title, body);
+      return;
+    }
+    updateNote(note.id, title, body);
+  };
+  const handleChange = (event) =&gt; {
+    event.persist();
+    setInputs((inputs) =&gt; ({
+      ...inputs,
+      [event.target.name]: event.target.value,
+    }));
+  };
+  return (
+    &lt;div className={`modal ${showModal ? 'showModal' : 'hideModal'}`}&gt;
+      &lt;div className="go-back-container"&gt;
+        &lt;button className="go-back" onClick={() =&gt; toggleModal(false)}&gt;
+          &lt;FaArrowCircleLeft
+            size={32}
+            color="#41331c"
+            onClick={() =&gt; toggleModal(false)}
+          /&gt;
+          &lt;span&gt;Go Back&lt;/span&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+      &lt;form className="modal-form" onSubmit={handleSubmit}&gt;
+        &lt;input
+          type="text"
+          className="modal-form-input"
+          value={inputs.title}
+          onChange={handleChange}
+          placeholder="Title"
+          name="title"
+          required
+        /&gt;
+        &lt;textarea
+          rows="10"
+          className="modal-form-input"
+          value={inputs.body}
+          placeholder="Start typing ...."
+          onChange={handleChange}
+          name="body"
+          required
+        /&gt;
+        &lt;button type="submit" className="btn" onClick={handleSubmit}&gt;
+          {note.id ? 'Update Note' : 'Add Note'}
+        &lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/div&gt;
+  );
+};
+export default Form;
+</pre>
+<p><code>App.js</code>文件集合了我们创建的所有组件。我们还定义了向我们创建的模拟路由发出<code>fetch</code>请求的函数。</p>
+<pre>import React, { useEffect, useState } from 'react';
+import { IoAdd } from 'react-icons/io5';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import NotesList from './NotesList';
+import Form from './Form';
+const App = () =&gt; {
+  const [notes, setNotes] = useState([]);
+  const [note, setNote] = useState({});
+  const [inputs, setInputs] = useState({ title: '', body: '' });
+  const [toggle, setToggle] = useState(false);
+
+  useEffect(() =&gt; {
+    getNotes();
+  }, []);
+
+  const getNotes = () =&gt; {
+    fetch('/api/notes')
+      .then((res) =&gt; res.json())
+      .then((data) =&gt; setNotes(data.notes))
+      .catch((error) =&gt; console.log('Error fetching notes', error));
+  };
+  const getNote = (id) =&gt; {
+    fetch(`/api/notes/${id}`)
+      .then((res) =&gt; res.json())
+      .then((data) =&gt; {
+        setNote(data.notes);
+        setToggle(true);
+      })
+      .catch((error) =&gt; console.log('Note not found', error));
+  };
+  const addNote = (title, body) =&gt; {
+    if (!title || !body) {
+      toast.error('Please fill all the required input fields');
+      return;
+    }
+    fetch('/api/notes', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: title,
+        body: body,
+      }),
+    })
+      .then((res) =&gt; {
+        console.log(res.json());
+        getNotes();
+        setToggle(false);
+        setInputs({ title: '', body: '' });
+        toast.success('Note added successfully');
+      })
+      .catch((error) =&gt; {
+        console.log('Error adding note.', error);
+        toast.error('Error adding note.');
+      });
+  };
+
+  const updateNote = (id, title, body) =&gt; {
+    if (!title || !body) {
+      toast.error('Please fill all the required input fields');
+      return;
+    }
+    fetch(`/api/notes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: title,
+        body: body,
+      }),
+    })
+      .then((res) =&gt; {
+        getNotes();
+        setToggle(false);
+        toast.success('Note updated successfully.');
+      })
+      .catch((error) =&gt; {
+        console.log('Note not found', error);
+        toast.error('Error updating note.');
+      });
+  };
+
+  const deleteNote = (id) =&gt; {
+    fetch(`/api/notes/${id}`, { method: 'DELETE' })
+      .then((res) =&gt; {
+        getNotes();
+        toast.success('Note deleted successfully');
+      })
+      .catch((error) =&gt; {
+        console.log('Note not found', error);
+        toast.error('Error deleting note.');
+      });
+  };
+
+  const handleAdd = () =&gt; {
+    setInputs({ title: '', body: '' });
+    setNote([]);
+    setToggle(true);
+  };
+
+  return (
+    &lt;div className="container"&gt;
+      &lt;header className="header"&gt;
+        &lt;h1 className="header__title"&gt;Notes&lt;/h1&gt;
+        &lt;button className="btn" onClick={handleAdd}&gt;
+          Add Note &lt;IoAdd className="btn__icon" size="24" /&gt;
+        &lt;/button&gt;
+      &lt;/header&gt;
+      &lt;NotesList
+        notes={notes}
+        getNote={getNote}
+        setToggle={setToggle}
+        deleteNote={deleteNote}
+      /&gt;
+      &lt;Form
+        showModal={toggle}
+        note={note}
+        toggleModal={setToggle}
+        addNote={addNote}
+        updateNote={updateNote}
+        inputs={inputs}
+        setInputs={setInputs}
+      /&gt;
+      &lt;ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar={true}
+        newestOnTop={false}
+        closeOnClick
+      /&gt;
+    &lt;/div&gt;
+  );
+};
+export default App;
+</pre>
+<p>保存文件并在浏览器中打开应用程序。您应该会看到类似这样的内容:</p>
+<p><img data-attachment-id="34626" data-permalink="https://blog.logrocket.com/mirage-js-tutorial-mocking-apis-in-react/app-js-file-open-browser-visual/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png" data-orig-size="730,284" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="App.js. file open browser visual" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual-300x117.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png" decoding="async" class="aligncenter wp-image-34626 size-full jetpack-lazy-image" src="../Images/637ce3d6f32f823b59a44d0f813844cb.png" alt="App.js. file open browser visual" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual-300x117.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png"/></p>
+<p>显示的初始注释来自于<code>server.js</code>文件中的种子。您可以添加、修改和删除注释。</p><noscript><img data-lazy-fallback="1" data-attachment-id="34626" data-permalink="https://blog.logrocket.com/mirage-js-tutorial-mocking-apis-in-react/app-js-file-open-browser-visual/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png" data-orig-size="730,284" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="App.js. file open browser visual" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual-300x117.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png" decoding="async" loading="lazy" class="aligncenter wp-image-34626 size-full" src="../Images/637ce3d6f32f823b59a44d0f813844cb.png" alt="App.js. file open browser visual" srcset="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual-300x117.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/02/App.js.-file-open-browser-visual.png"/></noscript>
+<p>结论</p>
+<h2 id="conclusion">在本 Mirage JS 教程中，我们介绍了如何使用 Mirage JS 模拟 API，并从前端应用程序中的 API 获取数据。关于幻影 JS 的更多信息，请查看官方文档。</h2>
+<p>我们在本教程中构建的应用程序的存储库可以在<a href="https://github.com/sa-ma/notes-app"> GitHub </a>上获得。你还可以看到一个应用程序的<a href="https://notes-app-one.vercel.app/">工作版本。</a></p>
+<p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产 React 应用</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">调试 React 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪 Redux 状态、自动显示 JavaScript 错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</h2><p>. </p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的 web 和移动产品体验。这对你来说意味着什么？</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p>LogRocket Redux 中间件包为您的用户会话增加了一层额外的可见性。LogRocket 记录 Redux 存储中的所有操作和状态。</p>
+<p vwo-el-id="28675660750">现代化您调试 React 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+<p vwo-el-id="28675661060">Modernize how you debug your React apps —
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">start monitoring for free</a>.
+</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

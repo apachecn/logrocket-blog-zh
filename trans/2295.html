@@ -1,0 +1,251 @@
+<html>
+<head>
+<title>Benchmarking in Golang: Improving function performance - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Golang 中的基准测试:提高功能性能</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/benchmarking-golang-improve-function-performance/#0001-01-01">https://blog.logrocket.com/benchmarking-golang-improve-function-performance/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>基准是一种函数，它多次执行一个代码段，并将每个输出与标准进行比较，评估代码的整体性能水平。Golang 在<code>testing</code>包和<code>go</code>工具中包含了用于编写基准的内置工具，因此您可以在不安装任何依赖项的情况下编写有用的基准。</p>
+<p>在本教程中，我们将介绍一些在 Go 中运行一致和准确的基准测试的最佳实践，包括编写基准测试函数和解释结果的基础知识。</p>
+<p>按照这个教程，你需要一个关于 Go 语法的基础知识和一个在你的电脑上的 Go 安装。我们开始吧！</p>
+<h2>为基准设定合适的条件</h2>
+<p>要使基准测试有用，每次执行的结果必须一致且相似，否则，将很难衡量被测试代码的真实性能。</p>
+<p>运行基准测试的机器的状态会极大地影响基准测试的结果。电源管理、后台进程和热量管理的影响会影响测试结果，使其不准确和不稳定。</p>
+<p>因此，我们需要尽可能减少对环境的影响。如果可能的话，您应该使用一台物理机器或者一台远程服务器来执行您的基准测试，在那里没有其他东西在运行。</p>
+<p>但是，如果您无法访问保留的机器，那么您应该在运行基准测试之前关闭尽可能多的程序，最大限度地减少其他进程对基准测试结果的影响。</p>
+<p>此外，为了确保更稳定的结果，您应该在记录测量值之前运行几次基准测试，确保系统充分预热。</p>
+<p>最后，将被基准测试的代码与程序的其余部分隔离开来是至关重要的，例如，通过模仿网络请求。</p>
+<h2>用 Golang 写标杆</h2>
+<p>让我们通过编写一个简单的基准来演示 Go 中基准测试的基本原理。我们将确定以下函数的性能，该函数计算 1 到整数之间的所有质数:</p>
+<pre class="language-go hljs">// main.go
+func primeNumbers(max int) []int {
+    var primes []int
+
+    for i := 2; i &lt; max; i++ {
+        isPrime := true
+
+        for j := 2; j &lt;= int(math.Sqrt(float64(i))); j++ {
+            if i%j == 0 {
+                isPrime = false
+                break
+            }
+        }
+
+        if isPrime {
+            primes = append(primes, i)
+        }
+    }
+
+    return primes
+}
+</pre>
+<p>上面的函数通过检查一个数是否能被 2 和它的平方根之间的数整除来确定这个数是否是质数。让我们在<code>main_test.go</code>中为这个函数编写一个基准:</p>
+<pre class="language-go hljs">package main
+
+import (
+    "testing"
+)
+
+var num = 1000
+
+func BenchmarkPrimeNumbers(b *testing.B) {
+    for i := 0; i &lt; b.N; i++ {
+        primeNumbers(num)
+    }
+}
+</pre>
+<p>像 Go 中的<a href="https://blog.logrocket.com/a-deep-dive-into-unit-testing-in-go/">单元测试一样，基准函数被放在一个<code>_test.go</code>文件</a>中，每个基准函数都应该有一个<code>func BenchmarkXxx(*testing.B)</code>作为签名，由<code>testing.B</code>类型管理基准函数的计时。</p>
+<p><code>b.N</code>指定迭代次数；该值不是固定的，而是动态分配的，确保基准在默认情况下至少运行一秒钟。</p>
+<p>在上面的<code>BenchmarkPrimeNumbers()</code>函数中，<code>primeNumbers()</code>函数将被执行<code>b.N</code>次，直到开发者对基准的稳定性感到满意。</p>
+<h2>在 Go 中运行基准测试</h2>
+<p>为了在 Go 中运行基准测试，我们将把<code>-bench</code>标志附加到<code>go test</code>命令上。<code>-bench</code>的参数是一个正则表达式，它指定应该运行哪些基准，这在您想要运行基准函数的子集时很有帮助。</p>
+<p>要运行所有基准，请使用<code>-bench=.</code>，如下所示:</p>
+<pre class="language-bash hljs">$ go test -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/ayoisaiah/random
+cpu: Intel(R) Core(TM) i7-7560U CPU @ 2.40GHz
+BenchmarkPrimeNumbers-4            14588             82798 ns/op
+PASS
+ok      github.com/ayoisaiah/random     2.091s
+</pre>
+<p><code>goos</code>、<code>goarch</code>、<code>pkg</code>和<code>cpu</code>分别描述了操作系统、架构、封装和 CPU 规格。<code>BenchmarkPrimeNumbers-4</code>表示运行的基准函数的名称。<code>-4</code>后缀表示用于运行基准测试的 CPU 数量，由<code>GOMAXPROCS</code>指定。</p>
+<p>在函数名的右边，有两个值，<code>14588</code>和<code>82798 ns/op</code>。前者表示循环执行的总次数，而后者是每次迭代完成所用的平均时间，以纳秒/操作表示。</p>
+<p>在我的笔记本电脑上，<code>primeNumbers(1000)</code>函数运行了 14588 次，每次调用平均需要 82798 纳秒才能完成。为了验证基准测试产生了一致的结果，您可以通过向<code>-count</code>标志传递一个数字来多次运行它:</p>
+<pre class="language-bash hljs">$ go test -bench=. -count 5
+goos: linux
+goarch: amd64
+pkg: github.com/ayoisaiah/random
+cpu: Intel(R) Core(TM) i7-7560U CPU @ 2.40GHz
+BenchmarkPrimeNumbers-4            14485             82484 ns/op
+BenchmarkPrimeNumbers-4            14557             82456 ns/op
+BenchmarkPrimeNumbers-4            14520             82702 ns/op
+BenchmarkPrimeNumbers-4            14407             87850 ns/op
+BenchmarkPrimeNumbers-4            14446             82525 ns/op
+PASS
+ok      github.com/ayoisaiah/random     10.259s
+</pre>
+<h2>跳过单元测试</h2>
+<p>如果测试文件中存在任何单元测试函数，那么当您运行基准测试时，这些函数也会被执行，从而导致整个过程花费更长时间或者基准测试失败。</p>
+<p>为了避免在测试文件中执行任何测试函数，向<code>-run</code>标志传递一个正则表达式:</p>
+<pre class="language-bash hljs">$ go test -bench=. -count 5 -run=^#
+</pre>
+<p><code>-run</code>标志用于指定应该执行哪些单元测试。通过使用<code>^#</code>作为<code>-run</code>的参数，我们有效地过滤掉了所有的单元测试功能。</p>
+<h2>各种输入的基准测试</h2>
+<p>在对您的代码进行基准测试时，测试一个函数在有各种输入时的行为是非常重要的。我们将利用通常用于在 Go 中编写单元测试的表驱动测试模式来指定各种输入。接下来，我们将使用<a href="https://pkg.go.dev/testing#B.Run"> <code>b.Run() method</code> </a>为每个输入创建一个子基准:</p>
+<pre class="language-go hljs">var table = []struct {
+    input int
+}{
+    {input: 100},
+    {input: 1000},
+    {input: 74382},
+    {input: 382399},
+}
+
+func BenchmarkPrimeNumbers(b *testing.B) {
+    for _, v := range table {
+        b.Run(fmt.Sprintf("input_size_%d", v.input), func(b *testing.B) {
+            for i := 0; i &lt; b.N; i++ {
+                primeNumbers(v.input)
+            }
+        })
+    }
+}
+</pre>
+<p>当您运行基准测试时，结果将以如下所示的格式显示。请注意每个子基准的名称是如何附加到主基准函数名称上的；<a href="https://go.dev/blog/subtests">认为给每个子基准</a>一个不同的名称来反映被测试的输入是最佳实践:</p>
+<pre class="language-go hljs">$ go test -bench=.
+BenchmarkPrimeNumbers/input_size_100-4            288234              4071 ns/op
+BenchmarkPrimeNumbers/input_size_1000-4            14337             82603 ns/op
+BenchmarkPrimeNumbers/input_size_74382-4              43          27331405 ns/op
+BenchmarkPrimeNumbers/input_size_382399-4              5         242932020 ns/op
+</pre>
+<p>对于较大的输入值，函数需要更多的时间来计算结果，并且完成的迭代次数较少。</p>
+<h2>调整最小时间</h2>
+<p>之前的基准测试只运行了五次，样本量太小，不可信。为了获得更准确的结果，我们可以使用<code>-benchtime</code>标志增加基准测试运行的最短时间:</p>
+<pre class="language-bash hljs">$ go test -bench=. -benchtime=10s
+BenchmarkPrimeNumbers/input_size_100-4           3010218              4073 ns/op
+BenchmarkPrimeNumbers/input_size_1000-4           143540             86319 ns/op
+BenchmarkPrimeNumbers/input_size_74382-4             451          26289573 ns/op
+BenchmarkPrimeNumbers/input_size_382399-4             43         240926221 ns/op
+PASS
+ok      github.com/ayoisaiah/random     54.723s
+</pre>
+<p><code>-benchtime</code>的参数设置基准函数运行的最短时间。在这种情况下，我们将其设置为 10 秒。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>控制基准运行时间的另一种方法是为每个基准指定期望的迭代次数。为此，我们将以<code>Nx</code>到<code>-benchtime</code>的形式传递一个输入，用<code>N</code>作为所需的数字:</p>
+<pre class="language-bash hljs">$ go test -bench=. -benchtime=100x
+BenchmarkPrimeNumbers/input_size_100-4               100              4905 ns/op
+BenchmarkPrimeNumbers/input_size_1000-4              100             87004 ns/op
+BenchmarkPrimeNumbers/input_size_74382-4             100          24832746 ns/op
+BenchmarkPrimeNumbers/input_size_382399-4            100         241834688 ns/op
+PASS
+ok      github.com/ayoisaiah/random     26.953s
+</pre>
+<h2>显示内存分配统计信息</h2>
+<p>Go 运行时还跟踪被测试代码的内存分配，帮助您确定代码的一部分是否可以更有效地使用内存。</p>
+<p>要在基准输出中包含内存分配统计信息，请在运行基准时添加<code>-benchmem</code>标志:</p>
+<pre class="language-bash hljs">$ go test -bench=. -benchtime=10s -benchmem
+BenchmarkPrimeNumbers/input_size_100-4           3034203              4170 ns/op             504 B/op          6 allocs/op
+BenchmarkPrimeNumbers/input_size_1000-4           138378             83258 ns/op            4088 B/op          9 allocs/op
+BenchmarkPrimeNumbers/input_size_74382-4             422          26562731 ns/op          287992 B/op         19 allocs/op
+BenchmarkPrimeNumbers/input_size_382399-4             46         255095050 ns/op         1418496 B/op         25 allocs/op
+PASS
+ok      github.com/ayoisaiah/random     55.121s
+</pre>
+<p>在上面的输出中，第四列和第五列分别表示每个操作分配的平均字节数和每个操作的分配数。</p>
+<h2>让您的代码更快</h2>
+<p>如果您已经确定正在进行基准测试的功能没有达到可接受的性能阈值，那么下一步就是找到一种方法来加快操作速度。</p>
+<p>根据所讨论的操作，有几种不同的方法可以做到这一点。首先，您可以尝试使用更有效的算法来获得想要的结果。或者，您可以同时执行计算的不同部分。</p>
+<p>在我们的示例中，<code>primeNumbers()</code>函数的性能对于小数字来说是可以接受的，但是，随着输入的增长，它会表现出指数行为。为了提高其性能，我们可以将实现改为更快的算法，如厄拉多塞的<a href="https://brilliant.org/wiki/sieve-of-eratosthenes/">筛子:</a></p>
+<pre class="language-go hljs">// main.go
+func sieveOfEratosthenes(max int) []int {
+    b := make([]bool, max)
+
+    var primes []int
+
+    for i := 2; i &lt; max; i++ {
+        if b[i] {
+            continue
+        }
+
+        primes = append(primes, i)
+
+        for k := i * i; k &lt; max; k += i {
+            b[k] = true
+        }
+    }
+
+    return primes
+}
+</pre>
+<p>新函数的基准与<code>BenchmarkPrimeNumbers</code>函数相同，但是，调用了<code>sieveOfEratosthenes()</code>函数:</p>
+<pre class="language-go hljs">// main_test.go
+func BenchmarkSieveOfErastosthenes(b *testing.B) {
+    for _, v := range table {
+        b.Run(fmt.Sprintf("input_size_%d", v.input), func(b *testing.B) {
+            for i := 0; i &lt; b.N; i++ {
+                sieveOfEratosthenes(v.input)
+            }
+        })
+    }
+}
+</pre>
+<p>运行基准测试后，我们会收到以下结果:</p>
+<pre class="language-bash hljs">$ go test -bench=Sieve
+BenchmarkSieveOfErastosthenes/input_size_100-4           1538118               764.0 ns/op
+BenchmarkSieveOfErastosthenes/input_size_1000-4           204426              5378 ns/op
+BenchmarkSieveOfErastosthenes/input_size_74382-4            2492            421640 ns/op
+BenchmarkSieveOfErastosthenes/input_size_382399-4            506           2305954 ns/op
+PASS
+ok      github.com/ayoisaiah/random     5.646s
+</pre>
+<p>乍一看，我们可以看到厄拉多塞算法的筛子比以前的算法性能好得多。然而，我们可以使用像<code><a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat">benchstat</a></code>这样的工具来帮助我们计算和比较基准统计数据，而不是目测结果来比较运行之间的性能。</p>
+<h2 id="comparingbenchmarkresults">比较基准测试结果</h2>
+<p>为了将我们的基准测试的两个实现的输出与<code>benchstat</code>进行比较，让我们从将每个实现存储在一个文件中开始。首先，运行旧的<code>primeNumbers()</code>函数实现的基准，并将其输出保存到一个名为<code>old.txt</code>的文件中:</p>
+<pre class="language-bash hljs">$ go test -bench=Prime -count 5 | tee old.txt
+</pre>
+<p><code>tee</code>命令将命令的输出发送到指定的文件，并打印到标准输出。现在，我们可以用<code>benchstat</code>查看基准测试的结果。首先，让我们确保它已经安装:</p>
+<pre class="language-bash hljs">$ go install golang.org/x/perf/cmd/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8ae8efe4e9e2f9feebfecae6ebfeeff9fe">[email protected]</a>
+</pre>
+<p>然后，运行下面的命令:</p>
+<pre class="language-bash hljs">$ benchstat old.txt
+name                              time/op
+PrimeNumbers/input_size_100-4     3.87µs ± 1%
+PrimeNumbers/input_size_1000-4    79.1µs ± 1%
+PrimeNumbers/input_size_74382-4   24.6ms ± 1%
+PrimeNumbers/input_size_382399-4   233ms ± 2%
+</pre>
+<p><code>benchstat</code>显示样本的平均时间差以及百分比变化。在我的例子中，<code>±</code>的变化在 1%到 2%之间，这是理想的。</p>
+<p>任何大于百分之五的数据都表明一些样本不可靠。在这种情况下，您应该重新运行基准测试，尽可能保持您的环境稳定以增加可靠性。</p>
+<p>接下来，将对<code>BenchmarkPrimeNumbers()</code>中的<code>primeNumbers()</code>的调用改为<code>sieveOfEratosthenes()</code>，并再次运行基准测试命令，这一次将输出通过管道传输到一个<code>new.txt</code>文件:</p>
+<pre class="language-bash hljs">$ go test -bench=Prime -count 5 | tee new.txt
+</pre>
+<p>基准运行结束后，使用<code>benchstat</code>比较结果:</p>
+<pre class="language-bash hljs">$ benchstat old.txt new.txt
+name                              old time/op  new time/op  delta
+PrimeNumbers/input<em>size</em>100-4     3.90µs ± 1%  0.76µs ± 2%  -80.48%  (p=0.008 n=5+5)
+PrimeNumbers/input<em>size</em>1000-4    79.4µs ± 1%   5.5µs ± 1%  -93.11%  (p=0.008 n=5+5)
+PrimeNumbers/input<em>size</em>74382-4   25.0ms ± 1%   0.4ms ± 1%  -98.47%  (p=0.008 n=5+5)
+PrimeNumbers/input<em>size</em>382399-4   236ms ± 1%     2ms ± 0%  -99.13%  (p=0.008 n=5+5)</pre>
+<p><code>delta</code>列报告性能的百分比变化、P 值以及被认为有效的样本数<code>n</code>。如果您看到一个<code>n</code>值低于采集的样本数，这可能意味着在收集样本时您的环境不够稳定。查看<a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat"> benchstat 文档</a>以了解您可用的其他选项。</p>
+<h2>结论</h2>
+<p>基准测试是测量代码不同部分性能的有用工具。它允许我们在对系统进行更改后，识别潜在的优化、性能改进或回归的机会。</p>
+<p>Go 提供的用于基准测试的工具简单易用且可靠。在本文中，我们仅仅触及了这些包的皮毛。感谢您的阅读，祝您编码愉快！</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

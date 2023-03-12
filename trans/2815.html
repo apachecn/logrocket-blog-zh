@@ -1,0 +1,148 @@
+<html>
+<head>
+<title>Deploying a decoupled monorepo project on Heroku - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在 Heroku - LogRocket 博客上部署解耦的 monorepo 项目</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deploying-decoupled-monorepo-project-heroku/#0001-01-01">https://blog.logrocket.com/deploying-decoupled-monorepo-project-heroku/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>什么是单向回购？</h2>
+<p>monolith 的目标是为整个项目提供一个单一的代码库，而一个解耦的项目意味着功能不相互依赖。</p>
+<p>当一个代码库被设置为 monorepo 时，很容易看到整个项目是如何构造的，特别是如果有多个项目，比如多个前端或几个微服务。</p>
+<p>此外，在每个项目之间共享代码变得很容易。例如，如果有多个前端，它们可能很容易共享 UI 组件，因为整个代码库位于同一个 repo 中。因此，使用 monorepos 使管理您的项目更容易，并提供更好的开发体验。</p>
+<h2>构建解耦的 monorepo 项目</h2>
+<p>当一个项目是分离的，并且每个功能有几个代码库时，最好的做法是为每个系统有单独的<code>package.json</code>文件，这样它们可以很容易地被移动，并且如果必要的话可以集成到另一个项目中。</p>
+<p>虽然有可能将单个<code>package.json</code>作为包的真实来源，但是这种方法不可伸缩，并且可能很快变得混乱。然而，拥有单个<code>package.json</code>文件也可以实现依赖共享。</p>
+<p>有一些工具可以管理和利用这样的 monorepo 项目，例如<a href="https://lerna.js.org/" target="_blank" rel="noopener"> Lerna </a>，这是一个在单个存储库中管理多个项目的工具。Lerna 可以帮助开发者在根目录下拥有通用的依赖关系，并为每个项目管理特定文件夹下的特定依赖关系。这使得依赖项管理更加容易，因为共享的依赖项是从一个文件中控制的。</p>
+<h2>将 monorepo 部署到 Heroku</h2>
+<p>在本文中，我们将向 Heroku 部署一个基本的 monorepo，它有一个客户端和一个服务器应用程序。</p>
+<p>我们将在两个应用程序上使用 TypeScript，并通过项目根目录中的一个<code>package.json</code>文件来控制每个应用程序的构建过程。这个文件是 Heroku 检测到的，它包含控制属于客户端和服务器应用程序的单独的<code>package.json</code>文件的脚本。</p>
+<p>目标是编译 TypeScript 代码并构建客户端应用程序，用 TypeScript 编译服务器应用程序，然后使其服务于客户端应用程序的分发。我们还将实现一个简单的 REST API 端点来演示开发和生产中客户机和服务器之间的连接。</p>
+<h2>使用 Vite 构建客户端应用程序</h2>
+<p>创建一个文件夹，然后在该文件夹中运行<code>npm init -y</code>来生成一个<code>package.json</code>文件。接下来，为客户机和服务器创建两个单独的文件夹。对于客户端应用程序，让我们使用<a href="https://vitejs.dev/" target="_blank" rel="noopener"> Vite </a>，它是一个支持 React、Vue 和 Svelte 的构建工具。</p>
+<p><a href="https://blog.logrocket.com/getting-started-with-vite/" target="_blank" rel="noopener"> Vite </a>为你的代码提供开发服务，并将其捆绑用于生产。它使用 ESLint，并支持热模块替换，这有助于您在开发时看到代码中的变化，而不会丢失应用程序的状态。</p>
+<p>要用 Vite 创建一个前端应用程序，使用下面的命令，其中<code>client</code>是项目和文件夹的名称:</p>
+<pre class="language-typescript hljs">npm init vite client
+</pre>
+<p>运行该命令后，将提示您选择一个框架。我选择 React 和<a href="https://blog.logrocket.com/using-typescript-with-react-tutorial-examples/" target="_blank" rel="noopener"> react-ts </a>作为变体，它作为后续提示出现。</p>
+<p>现在我们的项目文件夹有一个<code>package.json</code>文件和一个<code>client</code>文件夹。在继续下一步之前，进入<code>client</code>文件夹并运行<code>npm install</code>来安装所有的包。</p>
+<p>我们需要在<code>vite.config.ts</code>文件中配置代理设置。如果我们想向服务器应用程序发出请求，我们可以将代理设置配置为<code>localhost:8080</code>，其中<code>8080</code>是我们将要使用的端口号。</p>
+<p>这样，我们可以在客户端应用程序中向<code>/api/test</code>发出请求，例如，这个请求将被发送到<code>localhost:8080/api/test</code>。这仅用于开发，因为这两个应用程序将在生产中由同一来源提供服务。</p>
+<p>更新<code>vite.config.ts</code>文件，使其包含<code>server</code>对象，如下所示:</p>
+<pre class="language-typescript hljs">export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8080'
+    }
+  }
+})
+</pre>
+<h2>构建服务器应用程序</h2>
+<p>现在让我们创建一个服务器文件夹来存储服务器的文件。在其中，运行<code>npm init -y</code>来生成一个<code>package.json</code>文件。</p>
+<p>因为我们使用了 React with TypeScript，所以将 TypeScript 用于服务器应用程序也是一个很好的实践。</p>
+<p>在<code>server</code>文件夹中，运行<code>npx tsc --init</code>为 TypeScript 生成一个配置文件。默认情况下，生成的文件带有几个选项集，但是我们将添加额外的参数来定制它以满足我们的需要。</p>
+<p>配置文件在<code>./dist</code>文件夹中生成编译后的<code>.ts</code>文件，通过将<code>rootDir</code>键设置为<code>./src</code>，我们保证了<code>./src</code>的内容在编译时会直接出现在<code>./dist</code>的下面。</p>
+<pre class="language-typescript hljs">{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "exclude":[
+    "./node_modules"
+  ]
+}
+</pre>
+<p>接下来，让我们安装所需的依赖项。我们需要<code>typescript</code>、<code>@types/node</code>、<code>@types/express</code>和<code>ts-node-dev</code>作为开发依赖项，以及<code>express</code>作为依赖项，这是我们将用来服务客户端应用程序和创建端点的框架。</p>
+<pre class="language-typescript hljs">npm instal --save-dev typescript ts-node-dev @types/node @types/express
+npm install --save express
+</pre>
+<p><a href="https://www.npmjs.com/package/ts-node-dev" target="_blank" rel="noopener"> ts-node-dev </a>是一个用于观察用 TypeScript 编写的 Node.js 中的变化的包。它基本上是带有 Node 的 TypeScript 的一个<code>nodemon</code>等价物。</p>
+<p>现在我们可以编辑<code>package.json</code>文件来添加脚本，以构建和运行开发项目。将以下脚本添加到<code>package.json</code>文件中:</p>
+<pre class="language-typescript hljs">"scripts": {
+  "build": "tsc --build",
+  "dev": "ts-node-dev --respawn ./src/index.ts"
+},
+</pre>
+<p>我们需要的最后一个文件是要忽略<code>node_modules</code>的<code>.gitignore</code>文件。用以下内容创建一个<code>.gitignore</code>文件:</p>
+<pre class="language-typescript hljs">node_modules
+</pre>
+<p>对于客户端应用程序，我们不需要这样做，因为 Vite 创建的样板文件已经有了一个<code>.gitignore</code>文件。</p>
+<p>到目前为止，我们已经完成了客户机和服务器应用程序的设置。现在我们将编写一个带有端点的小型服务器作为用例。</p>
+<p>在<code>/server/src</code>下，创建一个包含以下内容的<code>index.ts</code>文件:</p>
+<pre class="language-typescript hljs">import express from 'express';
+import path from 'path';
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+const pathName = path.join(__dirname, '/../../client/dist');
+
+app
+  .use(express.static(pathName))
+  .listen(PORT, () =&gt; console.log(`Listening on ${PORT}`));
+
+app.get('/api/test', (req, res) =&gt; {
+  res.send({ foo: 'bar' });
+});
+
+app.get('*', (req, res) =&gt; {
+  res.sendFile(pathName);
+});
+</pre>
+<p>这是一个运行在端口<code>8080</code>上的基本 Express 服务器，服务于<code>client/dist</code>文件夹中的内容，该文件夹是包含来自客户端应用程序的构建过程输出的目录。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>我们在<code>/api/test</code>上也有一个可访问的端点，它用一个用于测试目的的对象来响应。</p>
+<h2>测试服务器</h2>
+<p>现在，我们可以通过从客户端发送请求来快速测试服务器应用程序。Vite 生成了一个示例应用程序，所以我们可以用它来创建一个函数和一个对服务器的 GET 请求，然后在组件挂载时调用这个函数。</p>
+<p>在<code>client/src</code>下，找到<code>App.tsx</code>并添加以下代码片段:</p>
+<pre class="language-typescript hljs">const get = async () =&gt; {
+  const res = await fetch('/api/test');
+  const body = await res.json()
+  console.log(body)
+}
+
+useEffect(() =&gt; {
+  get();
+})
+</pre>
+<p>在我们为客户机应用程序运行开发服务器之前，我们应该启动服务器应用程序，以便可以访问<code>/api/test</code>端点。在<code>/server</code>目录下，运行<code>npm run dev</code>以手表模式启动服务器。</p>
+<p>现在，使用<code>/client</code>目录下的<code>npm run dev</code>命令运行客户端应用程序的开发服务器。这将在<code>localhost:3000</code>上启动一个开发服务器。如果您访问该页面并打开浏览器控制台，您应该会看到从服务器返回的对象。</p>
+<p>为了将这两个应用程序部署到一个 Heroku dyno 上，我们需要在主项目目录的<code>package.json</code>中添加一些脚本。</p>
+<pre class="language-typescript hljs">|- server
+|- client
+|- package.json
+</pre>
+<p>因为我们有多个文件夹，它们有自己的<code>package.json</code>文件，我们应该告诉 Heroku 在这些文件夹中安装依赖项和<code>devDependencies</code>。为此，进入这些目录并调用<code>npm install --dev</code>。我们需要<code>devDependencies</code>的原因是我们需要用<code>typescript</code>包编译打字稿，这个包列在<code>devDependencies</code>里。</p>
+<p>这同样适用于构建过程。我们进入这些文件夹并调用<code>npm run build</code>命令。最后，我们需要启动应用程序，这只是服务器应用程序。</p>
+<pre class="language-typescript hljs">"scripts": {
+  "install": "cd client &amp;&amp; npm install --dev &amp;&amp; cd ../server &amp;&amp; npm install --dev",
+  "build": "cd client &amp;&amp; npm run build &amp;&amp; cd ../server &amp;&amp; npm run build",
+  "start": "cd server/dist &amp;&amp; node index.js"
+},
+</pre>
+<h2>结论</h2>
+<p>在本文中，我们讨论了如何将解耦的 monorepo 项目部署到 Heroku 上的单个 dyno，而不是为一个服务器和一个客户端应用程序部署多个 dyno。在拥有多个微服务以及客户端和服务器应用程序的情况下，您将需要多个 dynos，因为每个服务都应该独立运行。</p>
+<p>在没有任何附加服务的全栈应用的例子中，只有运行在 dyno 上的服务器为客户端提供服务，并可能实现客户端和可能的微服务之间的通信。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>专注于重要的 bug-<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">试试今天的 log 火箭</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

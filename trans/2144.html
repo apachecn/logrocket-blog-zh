@@ -1,0 +1,138 @@
+<html>
+<head>
+<title>Working with Node.js streams - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 Node.js streams - LogRocket 博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/working-node-js-streams/#0001-01-01">https://blog.logrocket.com/working-node-js-streams/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>流是大多数 Node.js 应用程序依赖的主要特性之一，尤其是在处理 HTTP 请求、读/写文件和进行套接字通信时。流是非常可预测的，因为在使用流时，我们总是可以预期数据、错误和结束事件。</p>
+<p>本文将教节点开发人员如何使用流来有效地处理大量数据。当节点开发人员必须处理大型数据源时，这是他们面临的一个典型的现实挑战，一次处理所有这些数据可能是不可行的。</p>
+<p>本文将涵盖以下主题:</p>
+
+<h2 id="stream-types">流的类型</h2>
+<p>以下是 Node.js 中的四种主要类型的流:</p>
+<ul>
+<li>可读流:可读流负责从源文件中读取数据</li>
+<li>可写流:可写流负责将特定格式的数据写入文件</li>
+<li>双工流:双工流是实现可读和可写流接口的流</li>
+<li>转换流:转换流是一种双工流，它读取数据，转换数据，然后以指定的格式写入转换后的数据</li>
+</ul>
+<h2 id="why-use-node-streams">何时使用 Node.js 流</h2>
+<p>当我们处理太大而无法读入内存并作为一个整体处理的文件时，流就派上了用场。</p>
+<p>例如，如果您正在处理一个视频会议/流应用程序，该应用程序需要以较小的块传输数据，以支持大容量 web 流，同时避免网络延迟，那么 Node.js streams 是一个不错的选择。</p>
+<h2 id="batching">配料过程</h2>
+<p>批处理是一种常见的数据优化模式，它包括以块的形式收集数据，将这些数据存储在内存中，并在所有数据都存储在内存中后将它们写入磁盘。</p>
+<p>让我们来看看典型的配料过程:</p>
+<pre>const fs = require("fs");
+const https = require("https");
+const url = "some file url";
+https.get(url, (res) =&gt; {
+  const chunks = [];
+  res
+    .on("data", (data) =&gt; chunks.push(data))
+    .on("end", () =&gt;
+      fs.writeFile("file.txt", Buffer.concat(chunks), (err) =&gt; {
+        err ? console.error(err) : console.log("saved successfully!");
+      })
+    );
+});
+</pre>
+<p>在这里，所有的数据都被放入一个数组中。当数据事件被触发时，一旦“结束”事件被触发，表明我们完成了接收数据，我们就使用<code>fs.writeFile</code>和<code>Buffer.concat</code>方法将数据写入文件。</p>
+<p>批处理的主要缺点是内存分配不足，因为所有数据在写入磁盘之前都存储在内存中。</p>
+<p>在收到数据时写入数据是处理大文件的一种更有效的方法。这就是流派上用场的地方。</p>
+<h2 id="composing-node-streams">在 Node.js 中编写流</h2>
+<p>Node.js <code>fs</code>模块公开了一些原生的<a href="https://nodejs.org/api/stream.html">节点流 API </a>，可以用来编写流。</p>
+<p>我们将讨论可读、可写和转换流。如果你想了解更多，你可以阅读我们关于 Node.js 中的<a href="https://blog.logrocket.com/creating-duplex-streams-nodejs/">双工流的博文。</a></p>
+<h3>编写可写流</h3>
+<pre>const fs = require("fs");
+const fileStream = fs.createWriteStream('./file.txt')
+for (let i = 0; i &lt;= 20000; i++) {
+  fileStream.write("Hello world welcome to Node.js\n"
+  );
+}
+</pre>
+<p>使用<code>createWriteStream()</code>方法创建可写流，该方法需要将文件的路径作为参数写入。<br/>运行上面的代码片段会在你当前的目录下创建一个名为<code>file.txt</code>的文件，里面有 20，000 行<code>Hello world welcome to Node.js</code>。</p>
+<h3>组成可读流</h3>
+<pre>const fs = require("fs");
+const fileStream = fs.createReadStream("./file.txt");
+fileStream
+  .on("data", (data) =&gt; {
+    console.log("Read data:", data.toString());
+  })
+  .on("end", () =&gt; { console.log("No more data."); });
+</pre>
+<p>这里，<code>data</code>事件处理程序将在每次读取一大块数据时执行，而<code>end</code>事件处理程序将在不再有数据时执行。<br/>运行上面的代码片段将从<code>./file.txt</code>向控制台记录 20，000 行<code>Hello world welcome to Node.js</code>字符串。</p>
+<h3 id="transform-streams">合成转换流</h3>
+<p>转换流具有可读和可写的特性。它允许处理输入数据，然后以处理后的格式输出数据。</p>
+<p>为了创建转换流，我们需要从 Node.js 流模块导入<code>Transform</code>类。<code>transform</code>流构造器接受包含数据处理/转换逻辑的函数:</p>
+<pre>const fs = require("fs");
+const { Transform } = require("stream");
+const fileStream= fs.createReadStream("./file.txt");
+const transformedData= fs.createWriteStream("./transformedData.txt");
+
+const uppercase = new Transform({
+  transform(chunk, encoding, callback) {
+    callback(null, chunk.toString().toUpperCase());
+  },
+});
+
+fileStream.pipe(uppercase).pipe(transformedData);
+</pre>
+<p>这里，我们创建了一个新的<code>transform</code>流，其中包含一个需要三个参数的函数:第一个是数据的<code>chunk</code>，第二个是<code>encoding</code>(如果数据块是一个字符串，这很方便)，后面是一个用转换后的结果调用的<code>callback</code>。</p>
+<p>运行上面的代码片段会将<code>./file.txt</code>中的所有文本转换为大写，然后将其写入<code>transformedData.txt</code>。<br/>如果我们运行这个脚本并打开结果文件，我们会看到所有的文本都转换成了大写。</p>
+<h2 id="piping-streams">管道流</h2>
+<p>管道流是用于将多个流连接在一起的重要技术。当我们需要将复杂的处理分解成更小的任务并按顺序执行它们时，它就派上了用场。Node.js 为此提供了一个本地的<code>pipe</code>方法:</p>
+<pre>fileStream.pipe(uppercase).pipe(transformedData);
+</pre>
+<p>有关上述代码片段的更多详细信息，请参考撰写转换流下的代码片段。</p>
+<h2 id="node-streams-error-handling">处理 Node.js 流时出错</h2>
+<h3>使用管道的错误处理</h3>
+<p>Node 10 引入了管道 API 来增强 Node.js 流的错误处理。<code>pipeline</code>方法接受任意数量的<code>streams</code>，后跟一个<code>callback</code>函数，该函数处理<code>pipeline</code>中的任何错误，并将在<code>pipeline</code>完成后执行:</p>
+<pre>pipeline(...streams, callback)
+
+
+const fs = require("fs");
+const { pipeline, Transform } = require("stream");
+
+pipeline(
+  streamA,
+  streamB,
+  streamC,
+  (err) =&gt; {
+    if (err) {
+      console.error("An error occured in pipeline.", err);
+    } else {
+      console.log("Pipeline execcution successful");
+    }
+  }
+);
+</pre>
+<p>使用<code>pipeline</code>时，应该按照需要执行的顺序依次传递一系列流。</p>
+<h3>使用管道处理错误</h3>
+<p>我们还可以使用管道来处理流错误，如下所示:</p>
+<pre>const fs = require("fs");
+const fileStream= fs.createReadStream("./file.txt");
+let b = otherStreamType()
+let c = createWriteStream()
+fileStream.on('error', function(e){handleError(e)})
+.pipe(b)
+.on('error', function(e){handleError(e)})
+.pipe(c)
+.on('error', function(e){handleError(e)});
+</pre>
+<p>如上面的代码片段所示，我们必须为每个创建的<code>pipe</code>创建一个<code>error</code>事件处理程序。这样，我们可以跟踪错误的上下文，这在调试时很有用。这种技术的缺点是冗长。</p>
+<h2>结论</h2>
+<p>在本文中，我们探索了 Node.js 流，何时使用它们，以及如何实现它们。</p>
+<p>Node.js 流的知识是必不可少的，因为在处理大型数据集时，它们是一个很好的工具。查看<a href="https://nodejs.org/api/stream.html"> Node.js API 文档</a>了解更多关于流的信息。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200 只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的 web 应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

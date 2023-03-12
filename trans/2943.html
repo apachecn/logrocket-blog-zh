@@ -1,0 +1,235 @@
+<html>
+<head>
+<title>Building a rich text editor with Lexical and React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用词法和反应日志构建富文本编辑器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-rich-text-editor-lexical-react/#0001-01-01">https://blog.logrocket.com/build-rich-text-editor-lexical-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>术语 WYSIWYG 在软件中非常常用，用来描述富文本编辑器或能够编辑富格式文本的系统。有了 WYSIWYG 文本编辑器，您基本上可以看到在处理文档时的最终结果。这种方法是有益的，可以提供即时的反馈，不像系统那样需要编写一些标记语言，比如 markdown。</p>
+<p>所见即所得编辑器是非常重要的功能，你可以在许多类型的软件中找到，包括内容管理系统、web 构建器、复杂表单、笔记工具、看板等等。事实上，这篇文章是用<a href="https://www.dropbox.com/paper"> Dropbox Paper </a>写的，这是一个很好的所见即所得编辑器的例子。</p>
+<p>在本文中，我们将使用<a href="https://github.com/facebook/lexical">词法</a>和 React 来构建一个简化版的 Dropbox 纸张编辑器。你可以在这个 repo 查看这篇文章的<a href="https://stackblitz.com/edit/react-4rxemf?file=src%2FEditor.js">源代码。我们开始吧！</a></p>
+
+<h2 id="what-lexical">什么是词汇？</h2>
+<p>Lexical 是一个独立的、可扩展的文本编辑器框架，是由脸书在撰写本文时积极开发的。Lexical 为开发人员提供了低级 API 来构建他们自己的具有不同复杂程度的编辑器。值得注意的是，在撰写本文时，Lexical 仍处于早期开发阶段。然而，在我看来，现有的插件足以构建各种伟大的工具。</p>
+<p>如果你熟悉像<a href="https://ckeditor.com/"> CKEditor </a>、<a href="https://quilljs.com/"> Quill </a>和<a href="https://prosemirror.net/"> ProseMirror </a>这样的工具，那么你就会意识到富文本编辑器有一些开发者经常需要的通用功能。Lexical 以一组独立的、模块化的包的形式提供了这些特性，您可以根据自己的需求轻松地将它们集成到您的项目中，从而消除了反复重写某些功能的需要。</p>
+<p>Lexical 不是为任何特定平台构建的。相反，它被设计成完全跨平台和框架不可知的，这意味着底层 API 可以很容易地移植到移动或本机桌面，同时仍然保持与 web 版本的兼容性。它还可以无缝地插入不同的前端框架。</p>
+<h3 id="features-lexical">词汇特征</h3>
+<p>Lexical 是一个快速、可靠、轻量级且可访问的编辑器引擎，旨在提供出色的开发人员体验。Lexical 对编辑器用户界面的外观或样式没有主见。你可以把它想象成一个无头的富文本编辑器，它为你提供了构建任何你想要的东西的原语。它的无头方法使它具有高度的可扩展性，允许您构建新的功能或改进现有的功能以最大限度地满足您的需求。</p>
+<p>词法公开的一些 API 包括:</p>
+<ul>
+<li>纯文本</li>
+<li>多信息文本</li>
+<li>选择</li>
+<li>历史</li>
+<li>剪贴板</li>
+<li>目录</li>
+<li>桌子</li>
+<li>密码</li>
+<li>环</li>
+</ul>
+<h2 id="getting-started-lexical">词汇入门</h2>
+<p>让我们通过构建一个 Dropbox Paper editor 的简单克隆来探索 Lexical 的一些特性。编辑器由底部的浮动工具栏组成，整个文档是编辑器视口。</p>
+<p>在这个例子中，我们将对词法使用 React 绑定。为了使它易于访问，我们将把它放在 Stackblitz 上，并在本文末尾提供完整演示的链接。</p>
+<p>首先，我们将创建一个 React 项目并安装必要的依赖项。您可以选择任何您喜欢的方法来启动 React 项目，包括<a href="https://create-react-app.dev/">创建 React App </a>、<a href="https://stackblitz.com/"> Stackblitz </a>或<a href="https://codesandbox.io/"> CodeSandbox </a>:</p>
+<pre class="&quot;language-bash">$ npm install -S lexical @lexical/react @lexical/utils @fortawesome/fontawesome-svg-core @fortawesome/free-solid-svg-icons @fortawesome/react-fontawesome clsx 
+</pre>
+<p>接下来，我们将导入必要的组件来创建编辑器的实例:</p>
+<pre class="&quot;language-javascript">Editor.jsx
+import React from 'react';
+import clsx from 'clsx';
+import {
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  FORMAT_TEXT_COMMAND,
+} from 'lexical';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { mergeRegister } from '@lexical/utils';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+
+function onChange(state) {
+  state.read(() =&amp;gt; {
+    const root = $getRoot();
+    const selection = $getSelection();
+    console.log(selection);
+  });
+}
+
+export const Editor = () =&amp;gt; {
+  return (
+    &amp;lt;div className='bg-white relative rounded-sm'&amp;gt;
+      &amp;lt;LexicalComposer
+        initialConfig={{
+          theme: {
+            paragraph: 'mb-1', // tailwind classes work!
+          },
+          onError(error) {
+            throw error;
+          },
+        }}
+      &amp;gt;
+        &amp;lt;RichTextPlugin
+          contentEditable={
+            &amp;lt;ContentEditable className="h-[450px] outline-none py-[15px] px-2.5 resize-none overflow-hidden text-ellipsis" /&amp;gt;
+          }
+          placeholder={
+            &amp;lt;div className="absolute top-[15px] left-[10px] pointer-events-none select-none"&amp;gt;
+              Now write something brilliant...
+            &amp;lt;/div&amp;gt;
+          }
+        /&amp;gt;
+        &amp;lt;OnChangePlugin onChange={onChange} /&amp;gt;
+        &amp;lt;HistoryPlugin /&amp;gt;
+      &amp;lt;/LexicalComposer&amp;gt;
+    &amp;lt;/div&amp;gt;
+  )
+}
+</pre>
+<p>我们已经导入了以下组件:</p>
+<ul>
+<li><code>LexicalComposer</code>:编辑器根组件，也是编辑器实例的上下文提供者</li>
+<li><code>LexicalRichTextPlugin</code>:展示一组支持富文本编辑的通用功能，包括粗体、斜体、下划线、删除线、对齐文本格式以及复制和粘贴</li>
+<li><code>LexicalOnChangePlugin</code>:每当编辑器状态改变时，执行一个回调函数，让您根据状态改变执行动作</li>
+<li><code>HistoryPlugin</code>:提供编辑器历史功能，公开撤销和重做命令</li>
+</ul>
+<h3 id="styling-components">设计组件的样式</h3>
+<p>在上面的代码块中，我们创建了一个词法编辑器的简单实例，并在<code>LexicalComposer</code>上定义了初始的<code>config</code>。在<code>config</code>中，我们可以自定义编辑器的某些行为。例如，我们可以通过定义一个<code>theme</code>对象来定制<a href="https://lexical.dev/docs/concepts/nodes">节点</a>的外观，该对象将 CSS 类名映射到编辑器。如果在<code>paragraph</code>节点上定义了一个类名，样式表中与该类名匹配的样式将应用于所有相应的节点。</p>
+<p>更简单的方法是在我们的<code>theme</code>对象中使用 Tailwind CSS 类直接定义内联样式，就像我们在上面的<code>Editor.jsx</code>代码中所做的那样。这种方法也适用于您导入的任何组件；只是加了一个<code>className</code>道具。</p>
+
+<p>此时，我们有了一个简单的编辑器，可以在其中输入文本，但是我们无法控制应用什么格式。为了解决这个问题，让我们构建一个类似于 Dropbox Paper 的浮动工具栏:</p>
+<pre class="&quot;language-javascript">// Editor.jsx
+//...
+const Toolbar = () =&amp;gt; {
+  const [editor] = useLexicalComposerContext();
+  const [isBold, setIsBold] = React.useState(false);
+
+  const updateToolbar = React.useCallback(() =&amp;gt; {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      setIsBold(selection.hasFormat('bold'));
+    }
+  }, [editor]);
+
+  React.useEffect(() =&amp;gt; {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) =&amp;gt; {
+        editorState.read(() =&amp;gt; {
+          updateToolbar();
+        });
+      })
+    );
+  }, [updateToolbar, editor]);
+
+  return (
+    &amp;lt;div className="absolute z-20 bottom-0 left-1/2 transform -translate-x-1/2 min-w-52 h-10 px-2 py-2 bg-[#1b2733] mb-4 space-x-2 flex items-center"&amp;gt;
+      &amp;lt;button
+        className={clsx(
+          'px-1 hover:bg-gray-700 transition-colors duration-100 ease-in',
+          isBold ? 'bg-gray-700' : 'bg-transparent'
+        )}
+        onClick={() =&amp;gt; {
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+        }}
+      &amp;gt;
+        &amp;lt;FontAwesomeIcon
+          icon="fa-solid fa-bold"
+          className="text-white w-3.5 h-3.5"
+        /&amp;gt;
+      &amp;lt;/button&amp;gt;
+      {/* ... */}
+    &amp;lt;/div&amp;gt;
+  );
+};
+</pre>
+<p>让我们来分解这个代码。我们创建了一个返回一个<code>div</code>元素的<code>Toolbar</code>组件，它绝对位于编辑器的底部。我们定义了一个代表工具栏动作的<code>button</code>元素，即<code>bold</code>。我们还将在这里定义其他动作按钮。</p>
+<p><code>onClick</code>事件触发对<code>editor.dispatchCommand</code>的调用，后者对某些事件如<code>FORMAT_TEXT_COMMAND</code>作出反应，并相应地更新编辑器状态。<code>RichTextPlugin</code>已经在内部处理了<code>FORMAT_TEXT_COMMAND</code>，然而，我们可以<a href="https://lexical.dev/docs/concepts/commands#createcommand">使用<code>editor.registerCommand</code>编写我们自己的定制命令</a>来显式处理更复杂的节点。</p>
+<p>每次编辑器状态改变时，<code>updateToolbar</code>函数都会运行。通过这个功能，我们可以控制每种文本格式的当前状态，并在工具栏中显示一个指示器，可以是活动的，也可以是不活动的。</p>
+<p>在<code>useEffect</code>回调中，我们实际上通过<code>registerUpdateListener</code>注册了监听器。我们只需要在编辑器中渲染<code>Toolbar</code>组件，如下所示:</p>
+<pre class="&quot;language-javascript">//...
+export const Editor = () =&amp;gt; {
+  return (
+    &amp;lt;div className='bg-white relative rounded-sm'&amp;gt;
+      &amp;lt;LexicalComposer
+        initialConfig={{
+          theme: {
+            paragraph: 'mb-1', // tailwind classes work!
+          },
+          onError(error) {
+            throw error;
+          },
+        }}
+      &amp;gt;
+        &amp;lt;Toolbar/&amp;gt;
+        &amp;lt;RichTextPlugin
+          contentEditable={
+            &amp;lt;ContentEditable className="h-[450px] outline-none py-[15px] px-2.5 resize-none overflow-hidden text-ellipsis" /&amp;gt;
+          }
+          placeholder={
+            &amp;lt;div className="absolute top-[15px] left-[10px] pointer-events-none select-none"&amp;gt;
+              Now write something brilliant...
+            &amp;lt;/div&amp;gt;
+          }
+        /&amp;gt;
+        &amp;lt;OnChangePlugin onChange={onChange} /&amp;gt;
+        &amp;lt;HistoryPlugin /&amp;gt;
+      &amp;lt;/LexicalComposer&amp;gt;
+    &amp;lt;/div&amp;gt;
+  )
+}
+</pre>
+<p>现在，我们可以按照相同的模式向工具栏添加更多的动作按钮。我们只需要复制<code>button</code>元素，然后更改<code>icon</code>和<code>onClick</code>处理程序来分派正确的事件。让我们为斜体文本格式添加一个操作按钮:</p>
+<pre class="&quot;language-javascript">// Editor.jsx
+//...
+&amp;lt;button
+  className={clsx(
+    'px-1 hover:bg-gray-700 transition-colors duration-100 ease-in',
+    isItalic ? 'bg-gray-700' : 'bg-transparent'
+  )}
+  onClick={() =&amp;gt; {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+  }}
+&amp;gt;
+  &amp;lt;FontAwesomeIcon
+    icon="fa-solid fa-italic"
+    className="text-white w-3.5 h-3.5"
+  /&amp;gt; 
+&amp;lt;/button&amp;gt;
+//...
+</pre>
+<p>就这样，我们结束了！如果您已经完成了，那么您应该有了一个简单的 WYSIWYG 编辑器的工作原型，它具有最少的功能，您可以在其上进行构建。词汇框架附带了各种各样的<a href="https://lexical.dev/docs/react/plugins">预构建插件</a>，您可以使用它们为您的编辑器添加不同的功能。</p>
+<p>您可以在 Stackblitz 上查看本文中<a href="https://stackblitz.com/edit/react-4rxemf?file=src%2FEditor.js">示例的完整代码。它包括更多的格式化特性，如<code>underline</code>、<code>strikethrough</code>、<code>left/right/center/justify alignment</code>等等。</a></p>
+<h2 id="alternatives-lexical">词汇的替代品</h2>
+<p>除了词法工具之外，还有几个替代工具可以用来构建文本编辑器并提供类似的功能。</p>
+<p>一个例子是同样在脸书开发的 Draft.js。与 Lexical 不同，Draft.js 框架是专门为 React 构建的。这意味着它的底层架构与 React 框架紧密耦合。</p>
+<p>虽然 Draft.js 是可扩展和可定制的，但它不像 Lexical 那样提供跨平台和框架无关的好处。尽管如此，它仍然提供了许多构建任何类型的富文本编辑器所需的特性。如果您的项目不需要跨平台支持，我鼓励您探索 Draft.js 作为 Lexical 的替代。值得注意的是，Draft.js 现在处于<a href="https://github.com/facebook/draft-js#status">维护模式</a>，不会添加新功能。</p>
+<p>另一个替代词法的好方法是<a href="https://editorjs.io/"> Editor.js </a>。这个开源的文本编辑器框架产生 JSON 输出，而不是原始的 HTML，使得在不同于 web 的平台上无缝地呈现数据。</p>
+<p>Editor.js 核心 API 提供了许多创建强大的富文本编辑器所需的基本工具；然而，它的设计也是可扩展和可插拔的，这意味着您可以在编辑器中轻松地为任何您需要的功能导入插件。这里有一个<a href="https://editorjs.io/getting-started">快速入门指南</a>，用 Editor.js 创建你的第一个文本编辑器。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们学习了如何使用带有 React 的词法框架来构建一个简单、丰富的文本编辑器。</p>
+<p>请记住，由于在撰写本文时 Lexical 仍处于早期开发阶段，随着每个新版本的不断完善，API 必然会随着时间的推移而发生变化。然而，现在你可以用当前提供的特性和插件构建很多有趣的东西。感谢您的阅读，如果您有任何问题，请务必留下评论。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用 LogRocket 消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款 React analytics 解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket 告诉您 React 应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS 异常、前端性能指标和用户交互。然后，LogRocket 使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的 React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试 LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

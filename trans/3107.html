@@ -1,0 +1,164 @@
+<html>
+<head>
+<title>Integrating a Rust module into an Android app - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>将 Rust 模块集成到 Android 应用程序中</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/integrating-rust-module-android-app/#0001-01-01">https://blog.logrocket.com/integrating-rust-module-android-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>由于我有交叉编译和构建自动化的经验，我经常选择 Rust 作为我的主要编程语言。此外，Rust 仍然是一门相对较新的语言，利用过去十年的任何技术都会失败。有时候，跟随炒作列车是最快的成功之路。</p>
+<p>如果你希望你的项目的卖点之一是用户可以控制他们自己的数据，你不能使用完全基于浏览器的服务。相反，你需要提供一些消费者可以在他们自己的 Android 设备上操作的东西。如果您已经有了一些在内部运行的 headless 实例，只需要再多一点努力，您就可以为 Windows 和 Linux 开发可再发行的包。</p>
+<p>然而，请记住，只有桌面版本的应用程序将是一个重大的障碍。如果你想让你的应用真正起飞，你还需要一个移动版本。因此，你需要弄清楚如何让你的应用程序在 Android 上运行。</p>
+<p>这个<a href="https://github.com/martinwairegi/rustonandroid.git"> GitHub repo </a>有一个基本的内置反向波兰符号计算器，演示了如何将 Rust 模块集成到 Android 应用程序中。然而，我们的项目，如下图所示，将使用一种更低级的方法，直接使用 C 和 Rust 编译器。所有与交叉编译相关的问题，比如编译器标志、链接器标志等等，都得到了明确的解决。</p>
+<p>我们使用 Gradle 主要是为了将所有东西组装成一个<code>.apk</code>包。如果你正在寻找一个快速简单的解决方案，你可以使用一个 Rust 插件来大大简化这个过程。我们开始吧！</p>
+<p><img data-attachment-id="122108" data-permalink="https://blog.logrocket.com/integrating-rust-module-android-app/attachment/rust-module-android-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg" data-orig-size="576,1280" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="rust-module-android-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-135x300.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-461x1024.jpeg" decoding="async" class="aligncenter wp-image-122108 size-full jetpack-lazy-image" src="../Images/8fa0a551cede1629db1a9af45124bab3.png" alt="Rust Module Android Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg 576w, https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-135x300.jpeg 135w, https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-461x1024.jpeg 461w" data-lazy-sizes="(max-width: 576px) 100vw, 576px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="122108" data-permalink="https://blog.logrocket.com/integrating-rust-module-android-app/attachment/rust-module-android-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg" data-orig-size="576,1280" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="rust-module-android-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-135x300.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-461x1024.jpeg" decoding="async" loading="lazy" class="aligncenter wp-image-122108 size-full" src="../Images/8fa0a551cede1629db1a9af45124bab3.png" alt="Rust Module Android Example" srcset="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg 576w, https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-135x300.jpeg 135w, https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example-461x1024.jpeg 461w" sizes="(max-width: 576px) 100vw, 576px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/06/rust-module-android-example.jpeg"/></noscript>
+<h2 id="tableofcontents">目录</h2>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>首先，我们将介绍一些项目实现所需的工具和平台。你需要:</p>
+<ul>
+<li>Android 原生开发套件 r21</li>
+<li>（同 groundcontrolcenter）地面控制中心</li>
+<li>尝试</li>
+<li>Android 软件开发套件</li>
+</ul>
+<p>你可以从 Android 开发者门户获得 Android 工具。只需要 SDK，而不是整个 Android Studio 安装。请务必获得 NDK 的 r21 LTS 版本，而不是最新的 r22 版本。</p>
+<h2 id="rust-cross-compilers">与交叉编译器的冲突</h2>
+<p>先用<code>rustup-init</code>装锈。安装 Rust 后，使用<code>rustup</code>安装对 Android 目标的支持。首先，您需要获得 Rust 交叉编译器。幸运的是，Rust 通过调用以下代码使这变得非常简单:</p>
+<pre class="language-rust hljs">rustup target add aarch64-linux-android
+rustup target add armv7-linux-androideabi
+rustup target add x86_64-linux-android
+</pre>
+<h2 id="java-runtime-environment">Java 运行时环境</h2>
+<p>我们的示例项目利用 Gradle 来生成<code>.apk</code>，这需要一个 JRE 来运行。虽然 Android Studio 为您提供了下载和指定一个 JRE 和 Gradle 来运行它的选项，但这个项目使用您系统的默认 JRE。</p>
+<h2 id="environment-variables">环境变量</h2>
+<p>你还需要 Android 开发工具。尽管 SDK 包的大小超过 80 MB，但它包含了最少的必需工具，因此您可以利用 SDK 管理器来添加推荐的额外工具。从<a href="https://developer.android.com/studio/command-line"> Android Studio 下载</a>页面下载命令行工具档案。</p>
+<p>虽然 Android 可以运行本机代码，但大多数应用程序都是用 Java 或 Kotlin 编写的，这在 SDK 中有所反映。最后，要使用本机代码，您需要本机开发工具包。在 NDK 下载页面上有许多版本的 NDK 可供下载，但是如前所述，我们想要使用 r21 版本。</p>
+<p>最后，在开始构建之前，设置如下所示的环境变量:</p>
+<ul>
+<li><code>ANDROID_SDK_ROOT</code>:指向 Android SDK 目录</li>
+<li><code>ANDROID_NDK_ROOT</code>:指向安卓 NDK r21 目录</li>
+<li><code>ANDROID_API</code>:指定您想要定位的 Android API 级别，即 29</li>
+</ul>
+<h2 id="directories">目录</h2>
+<p>主目录包含用于完成构建并将其结合在一起的脚本。</p>
+<h3 id="android"><code>android/</code></h3>
+<p><code>android/</code>目录包括 Android 应用程序文件、<code>AndroidManifest.xml</code>文件、带有基本 UI 的活动和用于与 Rust 代码交互的<code>glue</code>类。</p>
+<h3 id="rust"><code>rust/</code></h3>
+<p>我们将把我们的 Rust 代码保存在<code>rust/</code>文件夹中。它分为三个部分:</p>
+<ul>
+<li><code>android.rs</code></li>
+<li><code>lib.rs</code></li>
+<li><code>main.rs</code></li>
+</ul>
+<p>该应用程序可以构建为独立的可执行文件，它将从<code>stdin</code>中一次读取一行输入，对其进行评估，并输出结果。</p>
+<h2 id="building-application-activities">构建应用程序和活动</h2>
+<p>要了解如何<a href="https://blog.logrocket.com/deep-dive-concurrency-rust-programming-language/">将 Rust 代码与提供用户界面的 Java 代码</a>结合，可以研究“如何将 Rust 代码 APK 与 Java 代码结合”。很快，你可能会注意到，如果不了解 Android 应用程序，这是不容易做到的。至少，不是在一个干净简单的事情。</p>
+<p>大多数文章建议采用不同的方法:将活动集成到一个应用程序中:</p>
+<pre class="language-rust hljs">package pl.martin.blog.RustOnAndroid;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+
+public class MainActivity extends AppCompatActivity {
+        private Button button;
+        private EditText input;
+        private TextView resultBox;
+
+        private int colourRed;
+       private int colourGreen;
+
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+               super.onCreate(savedInstanceState);
+               setContentView(R.layout.activity_main);
+
+                button = (Button)findViewById(R.id.button);
+                input = (EditText)findViewById(R.id.exprInput);
+                resultBox = (TextView)findViewById(R.id.exprResult);
+
+                colourRed = Color.parseColor("#AA0000");
+                colourGreen = Color.parseColor("#007F00");
+
+                button.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View v) {
+                                String expr = input.getText().toString();
+                                Result result = RpnCalculator.rpn(expr);
+                                if(result.isOk()) {
+                                        resultBox.setTextColor(colourGreen);
+                                        resultBox.setText(result.getValue());
+                                } else {
+                                        resultBox.setTextColor(colourRed);
+                                        resultBox.setText(result.getError());
+                                }
+                        }
+                });
+        }
+}
+</pre>
+<p>如果你以前从未接触过 Android，那么活动就是你在开发应用程序时会考虑的屏幕或视图。例如，考虑一个购物应用程序。一些活动可能是登录屏幕和收银台购物车。</p>
+<p>可能会包括一些交互式组件，如标志性的汉堡菜单。如果你愿意，理论上你可以把整个程序放在一个单独的活动中，但是这很难实现。当然，关于活动还有更多要讨论的，但这不是本文的重点。</p>
+<p>现在，让我们回到 Rust 应用程序。虽然将活动集成到一个应用程序中似乎是我的困境的解决方案，但我不确定我的<code>Rust.apk</code>如何适应这一切。在研究了<a href="https://crates.io/crates/cargo-apk"> cargo-apk </a>代码后，我发现它将我的代码包装在一些神奇的胶水代码中，并生成一个<code>NativeActivity</code>供 Android 运行。</p>
+<p>您可能需要修改<code>AndroidManifest.xml</code>并在文档中添加一个活动节点，以便将活动合并到一个应用程序中。当 cargo-apk 完成任务时，它会创建一个小的<code>AndroidManifest.xml</code>文件，并将其保存在最终的 apk 旁边。你可以用这个文件找出<code>NativeActivity</code>有什么属性。</p>
+<p>继续将下面的代码添加到 Java 应用程序的清单中:</p>
+<pre class="language-javascript hljs"> &lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;manifest xmlns:android="http://schemas.android.com/apk/res/android"
+package="pl.martin.blog.RustOnAndroid"&gt;
+
+&lt;application
+android:allowBackup="true"
+android:icon="@mipmap/ic_launcher"
+android:label="@string/app_name"
+android:roundIcon="@mipmap/ic_launcher_round"
+android:supportsRtl="true"
+android:theme="@style/Theme.RustOnAndroid"&gt;
+&lt;activity android:name="pl.martin.blog.RustOnAndroid.MainActivity"&gt;
+&lt;intent-filter&gt;
+&lt;action android:name="android.intent.action.MAIN" /&gt;
+
+&lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+&lt;/intent-filter&gt;
+&lt;/activity&gt;
+&lt;/application&gt;
+
+&lt;/manifest&gt;
+</pre>
+<p>Java 应用程序的构建过程不会自动计算出您的<code>libstartup.so</code>文件包含在哪里。你需要将库文件复制到一个特定的目录，Android 应用的构建机制 Gradle 会自动检测到它们。这样做向应用程序清单添加了一个声明，声明该应用程序将包含某些活动:</p>
+<pre class="language-javascript hljs">$ mkdir -p android/app/src/main/jniLibs/arm64-v8a
+$ cp sqlite-autoconf-3340000/.libs/libsqlite3.so android/app/src/main/jniLibs/arm64-v8a/
+$ cp target/aarch64-linux-android/debug/libstatup.so android/app/src/main/jniLibs/arm64-v8a/
+$ cd android/ &amp;amp;&amp;amp; ./gradlew &amp;amp;&amp;amp; ./gradlew build
+</pre>
+<p>之后，开始构建。你会看到它正在工作，所以你可以在你的 Android 智能手机上安装<code>.apk</code>。</p>
+<h2 id="building">完成构建</h2>
+<p>要完成该过程，请使用<code>build-all.sh</code>脚本。它会将生成的<code>.apk</code>文件保存在<code>build/</code>目录中该脚本旁边。您还将构建 GMP 和 Rust 代码:</p>
+<pre class="language-shell hljs">build-libgmp.sh
+</pre>
+<p>以上脚本仅用于创建 GMP 库:</p>
+<pre class="language-shell hljs">build-librpn.sh
+</pre>
+<p>该脚本仅用于生成 Rust 代码。注意，您必须首先创建 GMP 和<code>.so</code>文件。LIBS 目录中必须有 GMP，否则链接将失败:</p>
+<pre class="language-shell hljs">build-apk.sh
+</pre>
+<p>使用上面的脚本只创建<code>.apk</code>文件。首先必须创建 GMP 和 Rust 代码。该应用程序可以在没有本地库的情况下编译，但在运行时会崩溃。</p>
+<h2 id="conclusion">结论</h2>
+<p>让我们的 Rust 代码在 Android 上运行并不容易，但我们找到了解决方案。我们用标准 Rust 编写代码，然后编译成共享库，JVM 在运行时加载。虽然<a href="https://docs.rs/jni/latest/jni/"> JNI 第一次出现令人恐惧</a>，但是采用这种标准化的方法意味着 Java 代码和 Gradle 构建系统都是不必要的，因为我们用 Rust 编写了原生代码。</p>
+<p>用 Cargo 进行交叉编译仍然是一个挑战，因为我们必须用 cargo-apk 配置许多环境变量才能让它正常工作。我们的代码所依赖的外部库也有问题，但是我们用几个 shell 脚本解决了所有这些问题。</p>
+<p>请随意查看关于如何将 Rust 模块集成到 Android 应用程序中的 GitHub 知识库。我希望你喜欢这篇文章，如果你有任何问题，一定要留下评论。编码快乐！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust 应用的 web 前端的全面可见性</h2><p>调试 Rust 应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪 Rust 应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的 DVR，记录你的 Rust 应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket 还可以监控应用的性能，报告客户端 CPU 负载、客户端内存使用等指标。</p><p>现代化调试 Rust 应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,402 @@
+<html>
+<head>
+<title>Build a full-stack TypeScript app using tRPC and React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 tRPC 和 React - LogRocket 博客构建一个全栈 TypeScript 应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/#0001-01-01">https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>你可能已经熟悉了远程过程调用框架<a href="https://grpc.io/"> gRPC </a>。鉴于命名的相似性，你可能倾向于相信<a href="https://trpc.io/"> tRPC </a>与它有某种联系，或者做相同或相似的事情。然而，事实并非如此。</p>
+<p>虽然 tRPC 确实也是一个远程过程调用框架，但它的目标和基础与 gRPC 有根本的不同。tRPC 的主要目标是提供一种简单的、类型安全的方法，以最小的占用空间为基于 TypeScript 和 JavaScript 的项目构建 API。</p>
+<p>在本文中，我们将使用 tRPC 构建一个简单的全栈 TypeScript 应用程序，当涉及到代码和跨越 API 边界时，它将是类型安全的。我们将构建一个小型的 cat 主题应用程序，展示如何在后端设置 tRPC，以及如何在 React 前端使用创建的 API。你可以在<a href="https://github.com/zupzup/trpc-example"> GitHub </a>上找到这个例子的完整代码。我们开始吧！</p>
+
+<h2 id="exploring-trpc">探索 tRPC</h2>
+<p>如果您有一个在后端和前端都使用 TypeScript 的应用程序，tRPC 会帮助您以一种在依赖性和运行时复杂性方面产生绝对最小开销的方式来设置 API。然而，tRPC 仍然提供了类型安全和所有随之而来的特性，比如整个 API 的自动完成和当 API 被无效使用时的错误。</p>
+<p>实际上，您可以将 tRPC it 视为 GraphQL 的一个非常轻量级的替代方案。然而，tRPC 并非没有其局限性。首先，它仅限于 TypeScript 和 JavaScript。此外，您正在构建的 API 将遵循 tRPC 模型，这意味着它不是 REST API。你不能简单地把一个 REST API 转换成 tRPC，然后拥有和以前一样的 API，但是包含类型。</p>
+<p>从本质上讲，tRPC 是一个包含电池的解决方案，可以满足你所有的 API 需求，但它也将是一个 tRPC-API。这就是名称中的 RPC 的来源，它从根本上改变了远程调用的工作方式。只要您习惯在 API 网关上使用 TypeScript，tRPC 可能是一个很好的解决方案。</p>
+<h2 id="setting-trpc">设置 tRPC</h2>
+<p>我们首先在项目根目录下创建一个名为<code>server</code>的文件夹。在<code>server</code>文件夹中，我们创建一个<code>package.json</code>文件，如下所示:</p>
+<pre class="“language-json">{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tsconfig/node14": "^1.0.1",
+    "typescript": "^4.5"
+  },
+  "dependencies": {
+    "@trpc/server": "^9.21.0",
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.13",
+    "cors": "^2.8.5",
+    "express": "^4.17.2",
+    "zod": "^3.14.2"
+  }
+}
+</pre>
+<p>我们还将创建一个<code>tsconfig.json</code>文件:</p>
+<pre class="“language-json">{
+  "extends": "@tsconfig/node14/tsconfig.json",
+  "compilerOptions": {
+      "outDir": "build"
+  }
+}
+</pre>
+<p>最后，创建一个可执行的<code>run.sh</code>文件:</p>
+<pre class="“language-bash">#!/bin/bash -e
+
+./node_modules/.bin/tsc &amp;&amp; node build/index.js
+</pre>
+<p>接下来，我们创建一个名为<code>src</code>的文件夹，并在其中包含一个<code>index.ts</code>文件。最后，我们执行<code>server</code>文件夹中的<code>npm install</code>。至此，我们完成了后端的设置。</p>
+<p>对于前端，我们将使用<a href="https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/"> Create React App 来设置一个 React app </a>,使用项目根中的以下命令来支持 TypeScript:</p>
+<pre class="“language-bash">npx create-react-app client --template typescript
+</pre>
+<p>我们也可以运行<code>client</code>文件夹中的<code>npm install</code>，用<code>npm start</code>运行应用程序，看看一切正常，设置正确。接下来，我们将实现应用程序的后端。</p>
+<h2 id="setting-express-backend">设置我们的 Express 后端</h2>
+<h3 id="install-dependencies">安装依赖项</h3>
+<p>正如您在应用程序的<code>server</code>部分的<code>package.json</code>中看到的，我们使用 Express 作为 HTTP 服务器。此外，我们添加了 TypeScript 和<code>trpc-server</code>依赖项。</p>
+<p>除此之外，我们使用了<code>cors</code>库来将 CORS 添加到我们的 API 中，这对于这个例子来说并不是必需的，但是这是一个很好的实践。我们还添加了<a href="https://github.com/colinhacks/zod">Z</a>T3】od，这是一个支持类型脚本的模式验证库，通常与 tRPC 结合使用。然而，你也可以使用其他库，比如<a href="https://github.com/jquense/yup">Y</a>T7】up 或者<a href="https://github.com/ianstormtaylor/superstruct"> Superstruct </a>。稍后我们会看到这到底是为了什么。</p>
+<p>解决了依赖关系之后，让我们用 tRPC 支持来设置我们的基本 Express 后端。</p>
+<h3 id="express-backend">带有 Express 的后端</h3>
+<p>我们将从定义 tRPC 路由器开始，它是整个基础设施的一个非常重要的部分，允许我们在类型安全和自动完成方面将后端和前端连接在一起。这个路由器应该在它自己的文件中，例如<code>router.ts</code>，因为我们稍后也会将它导入到 React 应用程序中。</p>
+<p>在<code>router.ts</code>中，我们首先为我们的域对象<code>Cat</code>定义数据结构:</p>
+<pre class="“language-javascript">let cats: Cat[] = [];
+
+const Cat = z.object({
+    id: z.number(),
+    name: z.string(),
+});
+const Cats = z.array(Cat);
+
+...
+
+export type Cat = z.infer&lt;typeof Cat&gt;;
+export type Cats = z.infer&lt;typeof Cats&gt;;
+</pre>
+<p>您可能想知道为什么我们不构建简单的 JavaScript 或 TypeScript 类型和对象。因为我们使用 Zod 对 tRPC 进行模式验证，所以我们也需要用它来构建这些域对象。我们实际上可以使用 Zod 添加验证规则，比如字符串的最大字符数、电子邮件验证等等，将类型检查与实际验证结合起来。</p>
+<p>当输入无效时，我们还会得到自动创建的错误消息。但是，这些错误可以完全自定义。如果您对验证和错误处理感兴趣，<a href="https://trpc.io/docs/error-formatting">查看文档</a>了解更多信息。</p>
+<p>使用 Zod 实现我们的类型后，我们可以使用<code>z.infer</code>从中推断出一个 TypeScript 类型。一旦我们有了这些，我们就导出类型用于应用程序的其他部分，如前端，然后继续创建应用程序的核心，路由器:</p>
+<pre class="“language-javascript">const trpcRouter = trpc.router()
+    .query('get', {
+        input: z.number(),
+        output: Cat,
+        async resolve(req) {
+            const foundCat = cats.find((cat =&gt; cat.id === req.input));
+            if (!foundCat) {
+                throw new trpc.TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: `could not find cat with id ${req.input}`,
+                });
+            }
+            return foundCat;
+        },
+    })
+    .query('list', {
+        output: Cats,
+        async resolve() {
+            return cats;
+        },
+    })
+</pre>
+<p>我们可以通过调用<code>router()</code>方法创建一个 tRPC 路由器，并将我们不同的端点链接到它上面。我们还可以创建多个路由器，并将它们组合在一起。在 tRPC 中，有两种类型的程序:</p>
+<ul>
+<li>查询:用于提取数据。思考<code>GET</code></li>
+<li>突变:用于改变数据。想想<code>POST</code>、<code>PUT</code>、<code>PATCH</code>、<code>DELETE</code></li>
+</ul>
+<p>在上面的代码片段中，我们创建了我们的<code>query</code>端点，一个用于通过 ID 获取单个的<code>Cat</code>对象，一个用于获取所有的<code>Cat</code>对象。tRPC 还支持<code>infiniteQuery</code>的概念，它接受一个光标，如果需要的话，可以返回一个潜在无限数据的分页响应。</p>
+<p>对于 out <code>GET</code>端点，我们定义了一个<code>input</code>。这个端点本质上是一个<code>GET /get?input=123</code>端点，根据上面的定义返回我们的<code>Cat</code>的 JSON。</p>
+<p>如果需要，我们可以定义多个输入。在<code>resolve</code>异步函数中，我们实现了实际的业务逻辑。在现实世界的应用程序中，我们可能称之为服务或数据库层。然而，因为我们只是将我们的<code>Cat</code>对象保存在内存中，或者保存在一个数组中，我们检查是否有一个具有给定 ID 的<code>Cat</code>，如果没有，我们抛出一个错误。如果我们找到一个<code>Cat</code>，我们就返回它。</p>
+<p><code>list</code>端点甚至更简单，因为它不接受任何输入，只返回我们当前的<code>Cat</code>对象列表。让我们看看如何用 tRPC 实现创建和删除:</p>
+<pre class="“language-javascript">    .mutation('create', {
+        input: z.object({ name: z.string().max(50) }),
+        async resolve(req) {
+            const newCat: Cat = { id: newId(), name: req.input.name };
+            cats.push(newCat)
+            return newCat
+        }
+    })
+    .mutation('delete', {
+        input: z.object({ id: z.number() }),
+        output: z.string(),
+        async resolve(req) {
+            cats = cats.filter(cat =&gt; cat.id !== req.input.id);
+            return "success"
+        }
+    });
+
+function newId(): number {
+    return Math.floor(Math.random() * 10000)
+}
+
+export type TRPCRouter = typeof trpcRouter;
+export default trpcRouter;
+</pre>
+<p>如您所见，我们使用<code>.mutation</code>方法来创建一个新的突变。在其中，我们可以再次定义<code>input</code>，在本例中它将是一个 JSON 对象。请务必注意我们在这里为<code>name</code>提供的验证选项。</p>
+<p>在<code>resolve</code>中，我们用一个随机 ID 从给定的名称创建一个新的<code>Cat</code>。检查底部的<code>newId</code>函数，并将其添加到我们的<code>Cat</code>对象列表中，将新的<code>Cat</code>返回给调用者。这样做会导致类似<code>POST /create</code>的东西期待某种身体。如果我们使用<code>application/json content-type</code>，它将返回 JSON 给我们，并期待 JSON。</p>
+<p>在<code>delete</code>变异中，我们期待一个<code>Cat</code>对象的 ID，为该 ID 过滤<code>Cat</code>对象的列表，并更新列表，向用户返回一个成功消息。这些响应实际上并不像我们在这里定义的那样。相反，它们被包装在 tRPC 响应中，如下所示:</p>
+<pre class="“language-javascript">{"id":null,"result":{"type":"data","data":"success"}}
+</pre>
+<p>这就是我们的路由器；我们有所有需要的端点。现在，我们必须将它与一个快速 web 应用程序连接起来:</p>
+<pre class="“language-javascript">import express, { Application } from 'express';
+import cors from 'cors';
+import * as trpcExpress from '@trpc/server/adapters/express';
+import trpcRouter from './router';
+
+const app: Application = express();
+
+const createContext = ({}: trpcExpress.CreateExpressContextOptions) =&gt; ({})
+
+app.use(express.json());
+app.use(cors());
+app.use(
+    '/cat',
+    trpcExpress.createExpressMiddleware({
+        router: trpcRouter,
+        createContext,
+    }),
+);
+
+app.listen(8080, () =&gt; {
+    console.log("Server running on port 8080");
+});
+</pre>
+<p>tRPC 附带了一个 Express 适配器，所以我们只需创建我们的 Express 应用程序，并在应用程序中使用提供的 tRPC 中间件。我们可以定义应该使用此配置的子路由、路由器和上下文。</p>
+<p>为每个传入的请求调用上下文函数，并将结果传递给处理程序。在 context 函数中，您可以为每个请求添加所需的上下文数据，比如身份验证令牌或登录用户的<code>userId</code>。</p>
+<p>如果你想学习更多关于 tRPC 授权的知识，在<a href="https://trpc.io/docs/authorization">文档</a>中有一节是关于 tRPC 的。</p>
+<h2 id="testing-express-backend">测试我们的 Express 后端</h2>
+<p>app 到此为止！让我们快速测试一下，这样我们就知道一切正常。我们可以通过执行<code>./run.sh</code>文件来启动应用程序，并使用 cURL 发送一些 HTTP 请求。首先，让我们创建一个新的<code>Cat</code>:</p>
+<pre class="“language-javascript">curl -X POST "http://localhost:8080/cat/create" -d '{"name": "Minka" }' -H 'content-type: application/json'
+
+{"id":null,"result":{"type":"data","data":{"id":7216,"name":"Minka"}}}
+</pre>
+<p>然后，我们可以列出现有的<code>Cat</code>对象:</p>
+<pre class="“language-javascript">curl "http://localhost:8080/cat/list"
+
+{"id":null,"result":{"type":"data","data":[{"id":7216,"name":"Minka"}]}}
+</pre>
+<p>我们也可以通过 ID 获取<code>Cat</code>:</p>
+<pre class="“language-javascript">curl "http://localhost:8080/cat/get?input=7216"
+
+{"id":null,"result":{"type":"data","data":{"id":7216,"name":"Minka"}}}
+</pre>
+<p>最后，删除一个<code>Cat</code>:</p>
+<pre class="“language-javascript">curl -X POST  "http://localhost:8080/cat/delete" -d '{"id": 7216}' -H 'content-type: application/json'
+
+{"id":null,"result":{"type":"data","data":"success"}}
+
+curl "http://localhost:8080/cat/list"
+
+{"id":null,"result":{"type":"data","data":[]}}
+</pre>
+<p>一切似乎都像预期的那样工作。现在，有了后端，让我们建立我们的反应前端。</p>
+<h2 id="creating-react-frontend">创建我们的 React 前端</h2>
+<p>首先，在<code>src</code>文件夹中，让我们创建一个<code>cats</code>文件夹，在我们的应用程序中添加一些结构。然后，我们添加一些额外的依赖项:</p>
+<pre class="“language-bash">npm install --save @trpc/client @trpc/server @trpc/react react-query zod
+</pre>
+<p>我们需要用于类型安全的<code>server</code>，用于调用 API 所需的最小逻辑的<code>client</code>，<code>zod</code>，如前所述，用于模式验证，<code>trpc/react</code>用于<a href="https://blog.logrocket.com/pagination-infinite-scroll-react-query-v3/">更容易与 React Query </a>集成，最后是 React Query。然而，也有可能单独使用<code>trpc/client</code>，或者完全是普通的，这也在<a href="https://trpc.io/docs/vanilla">文档</a>中有所涉及。</p>
+<p>在这个例子中，像在官方例子中一样，我们将使用 React Query，它为 React 应用程序添加了 API 交互。添加 React Query 是完全可选的，可以只使用一个普通的客户端和您选择的前端框架，包括 React，并按照您想要的方式集成它。让我们从在<code>App.tsx</code>中构建我们的应用程序的基本结构开始:</p>
+<pre class="“language-javascript">import { useState } from 'react';
+import './App.css';
+import type { TRPCRouter } from '../../server/src/router';
+import { createReactQueryHooks } from '@trpc/react';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import Create from './cats/Create';
+import Detail from './cats/Detail';
+import List from './cats/List';
+
+const BACKEND_URL: string = "http://localhost:8080/cat";
+
+export const trpc = createReactQueryHooks&lt;TRPCRouter&gt;();
+
+function App() {
+  const [queryClient] = useState(() =&gt; new QueryClient());
+  const [trpcClient] = useState(() =&gt; trpc.createClient({ url: BACKEND_URL }));
+
+  const [detailId, setDetailId] = useState(-1);
+
+  const setDetail = (id: number) =&gt; {
+    setDetailId(id);
+  }
+
+  return (
+    &lt;trpc.Provider client={trpcClient} queryClient={queryClient}&gt;
+      &lt;QueryClientProvider client={queryClient}&gt;
+        &lt;div className="App"&gt;
+          &lt;Create /&gt;
+          &lt;List setDetail={setDetail}/&gt;
+          { detailId &gt; 0 ? &lt;Detail id={detailId} /&gt; : null }
+        &lt;/div&gt;
+      &lt;/QueryClientProvider&gt;
+    &lt;/trpc.Provider&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>要解开的东西很多，所以让我们从头开始。我们使用来自<code>trpc/react</code>的<code>createReactQueryHooks</code>助手实例化<code>trpc</code>，给它我们从后端应用程序导入的<code>TRPCRouter</code>。我们还导出用于我们的应用程序的其余部分。</p>
+<p>本质上，这创建了所有到我们底层 API 的绑定。接下来，我们创建一个 React 查询客户端和一个 tRPC 客户端来为我们的后端提供 URL。我们将使用这个客户机向 API 发出请求，或者更确切地说，是 React Query 将在下面使用的客户机。</p>
+<p>除了所有这些设置之外，我们还为<code>detailId</code>定义了一个状态变量，这样我们就知道如果用户选择了某个细节，将显示哪个<code>Cat</code>细节。</p>
+<p>如果你检查一下我们从<code>App</code>返回的内容，你可以看到我们实际的标记，带有<code>App</code>类的<code>div</code>嵌套在两层中。这些层在外面，tRPC 提供者，在里面，React 查询提供者。</p>
+<p>这两个组件为我们的整个应用程序提供了必要的活动部件。因此，我们可以在整个应用程序中使用 tRPC，并且我们的查询调用可以与 React 应用程序无缝集成。接下来，我们将为<code>Create</code>、<code>List</code>和<code>Detail</code>添加组件到我们的标记中，这将包括我们所有的业务逻辑。</p>
+<p>让我们从<code>Create</code>组件开始，在<code>src/cats</code>文件夹中创建一个<code>Create.css</code>和<code>Create.tsx</code>文件。在这个组件中，我们将简单地创建一个表单，并将表单连接到我们在后端实现的<code>create</code>变异。一旦创建了一个新的<code>Cat</code>，我们想要重新获取<code>Cat</code>对象的列表，以便它总是最新的。我们可以用下面的代码实现这一点:</p>
+<pre class="“language-javascript">import './Create.css';
+import { ChangeEvent, useState } from 'react';
+import { trpc } from '../App';
+
+function Create() {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+
+  const cats = trpc.useQuery(['list']);
+  const createMutation = trpc.useMutation(['create'], {
+    onSuccess: () =&gt; {
+      cats.refetch();
+    },
+    onError: (data) =&gt; {
+      setError(data.message);
+    }
+  });
+
+  const updateText = (event: ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+    setText(event.target.value);
+  };
+
+  const handleCreate = async() =&gt; {
+    createMutation.mutate({ name: text });
+    setText("");
+  };
+
+  return (
+    &lt;div className="Create"&gt;
+      {error &amp;&amp; error}
+      &lt;h2&gt;Create Cat&lt;/h2&gt;
+      &lt;div&gt;Name: &lt;input type="text" onChange={updateText} value={text} /&gt;&lt;/div&gt;
+      &lt;div&gt;&lt;button onClick={handleCreate}&gt;Create&lt;/button&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+
+export default Create;
+</pre>
+<p>让我们从一些非常基本的、普通的 React 逻辑开始。我们为表单域创建一些内部组件状态，以及我们可能想要显示的潜在错误。我们返回一个简单的表单，其中包含一个连接到州的文本字段，以及一个提交它的按钮。</p>
+<p>现在，我们来看看<code>handleCreate</code>函数。我们在<code>createMutation</code>上调用<code>.mutate</code>，我们在它上面定义它，然后重置<code>text</code>字段。</p>
+<p>使用<code>trpc.useMutation</code>和我们的<code>create</code>端点创建<code>createMutation</code>。在您的 IDE 或编辑器中，注意当在<code>useMutation</code>调用中键入<code>create</code>时，您将得到自动完成建议。我们还在有效载荷中得到关于<code>.mutate</code>调用的建议，建议我们使用<code>name</code>字段。</p>
+<p>在<code>.useMutation</code>调用中，我们定义了成功和错误时应该发生的事情。如果我们遇到一个错误，我们只是想使用我们的组件内部状态来显示它。如果我们成功地创建了一个<code>Cat</code>，我们想要为我们的<code>Cat</code>对象列表重新获取数据。为此，我们使用<code>trpc.useQuery</code>和我们的<code>list</code>端点来定义对这个端点的调用，并在<code>onSuccess</code>处理程序中调用它。</p>
+<p>我们已经可以看到将我们的应用程序与 tRPC API 集成是多么容易，以及 tRPC 如何在开发过程中帮助我们。接下来让我们看看详细视图，在<code>cats</code>文件夹中创建<code>Detail.tsx</code>和<code>Detail.css</code>:</p>
+<pre class="“language-javascript">import './Detail.css';
+import { trpc } from '../App';
+
+function Detail(props: {
+  id: number,
+}) {
+  const cat = trpc.useQuery(['get', props.id]);
+
+  return (
+    cat.data ? 
+      &lt;div className="Detail"&gt;
+        &lt;h2&gt;Detail&lt;/h2&gt;
+        &lt;div&gt;{cat.data.id}&lt;/div&gt;
+        &lt;div&gt;{cat.data.name}&lt;/div&gt;
+      &lt;/div&gt; : &lt;div className="Detail"&gt;&lt;/div&gt;
+  );
+}
+
+export default Detail;
+</pre>
+<p>在上面的组件中，我们基本上只是再次使用<code>.useQuery</code>来定义我们的<code>getCatById</code>端点，通过 props 提供我们从根组件获得的 ID。如果我们真的得到数据，我们渲染<code>Cat</code>的细节。我们也可以在这里使用数据获取的效果。本质上，任何将 API 与 React 应用程序集成的方式都可以很好地与 tRPC 和 React Query 配合使用。</p>
+<p>最后，让我们通过在<code>cats</code>中创建<code>List.css</code>和<code>List.tsx</code>来实现我们的<code>List</code>组件。在我们的<code>Cat</code>对象列表中，我们将显示一个<code>Cat</code>的 ID 和名称，以及一个详细显示它的链接和一个删除它的链接:</p>
+<pre class="“language-javascript">import './List.css';
+import { trpc } from '../App';
+import type { Cat } from '../../../server/src/router';
+import { useState } from 'react';
+
+function List(props: {
+  setDetail: (id: number) =&gt; void,
+}) {
+  const [error, setError] = useState("");
+  const cats = trpc.useQuery(['list']);
+  const deleteMutation = trpc.useMutation(['delete'], {
+    onSuccess: () =&gt; {
+      cats.refetch();
+    },
+    onError: (data) =&gt; {
+      setError(data.message);
+    }
+  });
+
+  const handleDelete = async(id: number) =&gt; {
+    deleteMutation.mutate({ id })
+  };
+
+  const catRow = (cat: Cat) =&gt; {
+    return (
+      &lt;div key={cat.id}&gt;
+        &lt;span&gt;{cat.id}&lt;/span&gt;
+        &lt;span&gt;{cat.name}&lt;/span&gt;
+        &lt;span&gt;&lt;a href="#" onClick={props.setDetail.bind(null, cat.id)}&gt;detail&lt;/a&gt;&lt;/span&gt;
+        &lt;span&gt;&lt;a href="#" onClick={handleDelete.bind(null, cat.id)}&gt;delete&lt;/a&gt;&lt;/span&gt;
+      &lt;/div&gt;
+    );
+  };
+
+  return (
+    &lt;div className="List"&gt;
+      &lt;h2&gt;Cats&lt;/h2&gt;
+      &lt;span&gt;{error}&lt;/span&gt;
+      { cats.data &amp;&amp; cats.data.map((cat) =&gt; {
+        return catRow(cat);
+      })}
+    &lt;/div&gt;
+  );
+}
+
+export default List;
+</pre>
+<p>这个组件基本上结合了我们在前两个组件中使用的功能。首先，我们在我们的<code>list</code>端点上使用<code>useQuery</code>获取猫的列表，还实现了<code>Cat</code>对象的删除，随后使用<code>deleteMutation</code>重新获取，指向后端的<code>delete</code>变异。</p>
+<p>除此之外，一切都很相似。我们通过 props 从<code>App</code>传入<code>setDetailId</code>函数，这样我们可以设置猫在<code>Detail</code>中显示细节，并创建一个删除猫的处理程序，它执行我们的变异。</p>
+<p>注意 tRPC 提供的所有自动完成功能。如果您输入错误，例如，一个端点的名称，您将得到一个错误，并且前端不会启动，直到错误被纠正。这就是我们的前端，让我们测试它，看看 tRPC 的行动！</p>
+<h2 id="testing-trpc-features">测试和 tRPC 特性</h2>
+<p>首先，我们用<code>npm start</code>启动 app，看看效果如何。一旦应用程序启动，我们可以创建新的猫，删除它们，并观看它们的详细页面，同时直接在列表中观察变化。不是特别好看，但是很管用！</p>
+<p><img data-attachment-id="104483" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/create-new-cat-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg" data-orig-size="346,296" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="create-new-cat-display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display-300x257.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg" decoding="async" class="aligncenter wp-image-104483 size-full jetpack-lazy-image" src="../Images/71a38dfd5b23034e10673db750b233e4.png" alt="Create New Cat Display" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg 346w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display-300x257.jpeg 300w" data-lazy-sizes="(max-width: 346px) 100vw, 346px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="104483" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/create-new-cat-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg" data-orig-size="346,296" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="create-new-cat-display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display-300x257.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg" decoding="async" loading="lazy" class="aligncenter wp-image-104483 size-full" src="../Images/71a38dfd5b23034e10673db750b233e4.png" alt="Create New Cat Display" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg 346w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display-300x257.jpeg 300w" sizes="(max-width: 346px) 100vw, 346px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-new-cat-display.jpeg"/></noscript>
+<p><img data-attachment-id="104485" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/create-list-detail-cat/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg" data-orig-size="432,429" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="create-list-detail-cat" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-300x298.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg" decoding="async" class="aligncenter wp-image-104485 size-full jetpack-lazy-image" src="../Images/c79506099644627517a7fe0cd6c3fead.png" alt="Create List Detail Cat" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg 432w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-300x298.jpeg 300w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-150x150.jpeg?crop=1 150w" data-lazy-sizes="(max-width: 432px) 100vw, 432px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="104485" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/create-list-detail-cat/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg" data-orig-size="432,429" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="create-list-detail-cat" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-300x298.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg" decoding="async" loading="lazy" class="aligncenter wp-image-104485 size-full" src="../Images/c79506099644627517a7fe0cd6c3fead.png" alt="Create List Detail Cat" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg 432w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-300x298.jpeg 300w, https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat-150x150.jpeg?crop=1 150w" sizes="(max-width: 432px) 100vw, 432px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/create-list-detail-cat.jpeg"/></noscript>
+<p>让我们看看 tRPC 如何在我们的开发过程中帮助我们。假设我们想为我们的猫添加一个<code>age</code>字段:</p>
+<pre class="“language-javascript">const Cat = z.object({
+    id: z.number(),
+    name: z.string(),
+    age: z.number(),
+});
+
+...
+    .mutation('create', {
+        input: z.object({ name: z.string().max(50), age: z.number().min(1).max(30) }),
+        async resolve(req) {
+            const newCat: Cat = { id: newId(), name: req.input.name, age: req.input.age };
+            cats.push(newCat)
+            return newCat
+        }
+    })
+...
+</pre>
+<p>我们将字段添加到我们的域对象中，我们还需要将它添加到我们的<code>create</code>端点中。一旦你点击了后端代码上的<strong>保存</strong>，导航回到<code>./client/src/cats/Create.tsx</code>中的前端代码。我们的编辑给我们指出了一个错误。在我们对<code>createMutation</code>的呼叫中，<code>age</code>房产丢失；</p>
+<p><img data-attachment-id="104487" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/editor-shows-error-missing-age/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg" data-orig-size="730,99" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="editor-shows-error-missing-age" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age-300x41.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg" decoding="async" class="aligncenter wp-image-104487 size-full jetpack-lazy-image" src="../Images/2c247a43236e7f61fd4e8683f329bf29.png" alt="Editor Shows Error Missing Age" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age-300x41.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="104487" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/editor-shows-error-missing-age/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg" data-orig-size="730,99" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="editor-shows-error-missing-age" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age-300x41.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg" decoding="async" loading="lazy" class="aligncenter wp-image-104487 size-full" src="../Images/2c247a43236e7f61fd4e8683f329bf29.png" alt="Editor Shows Error Missing Age" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age-300x41.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/editor-shows-error-missing-age.jpeg"/></noscript>
+<p>如果我们现在想将<code>age</code>字段添加到我们的变异中，我们的编辑器将直接从我们更改的<code>router.ts</code>中为我们提供完整的类型信息:</p>
+<p><img data-attachment-id="104489" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/add-age-field-autocomplete/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg" data-orig-size="730,149" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="add-age-field-autocomplete" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete-300x61.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg" decoding="async" class="aligncenter wp-image-104489 size-full jetpack-lazy-image" src="../Images/a5435f56b266e6816067a11e0b9a1674.png" alt="Add Age Field Autocomplete" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete-300x61.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="104489" data-permalink="https://blog.logrocket.com/build-full-stack-typescript-app-trpc-react/add-age-field-autocomplete/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg" data-orig-size="730,149" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="add-age-field-autocomplete" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete-300x61.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg" decoding="async" loading="lazy" class="aligncenter wp-image-104489 size-full" src="../Images/a5435f56b266e6816067a11e0b9a1674.png" alt="Add Age Field Autocomplete" srcset="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete-300x61.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/04/add-age-field-autocomplete.jpeg"/></noscript>
+<p>从我的角度来看，这是 tRPC 的真正力量。虽然有一种简单的方法在前端和后端创建 API 很好，但真正的卖点是，如果我在一端而不是另一端进行突破性的更改，代码实际上不会构建。</p>
+<p>例如，想象一个巨大的代码库，有多个团队在处理 API 端点和 UI 元素。就 API 兼容性而言，在几乎不增加应用程序开销的情况下拥有这种安全性是非常了不起的。</p>
+<h2 id="conclusion">结论</h2>
+<p>希望本文向您展示了 tRPC 如何在前端和后端都使用 TypeScript 的情况下非常有用。我喜欢低足迹的方法。有了最少或没有额外的依赖，您可以专注于编译时正确性，而不是运行时检查。</p>
+<p>显然，在某些情况下，TypeScript 限制可能会让人难以承受。tRPC 背后的原则在开发人员体验方面非常好。tRPC 是一个令人兴奋的项目，我将来一定会继续关注它。我希望你喜欢这篇文章！快乐编码。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

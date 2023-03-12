@@ -1,0 +1,301 @@
+<html>
+<head>
+<title>Fetching dynamically structured data in a CMS with GraphQL - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用 GraphQL - LogRocket Blog 获取 CMS 中的动态结构化数据</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/#0001-01-01">https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>GraphQL 是向应用程序提供数据的层，因此它必须服务于应用程序的需求。但是有时 GraphQL 强加了它自己的工作方式，应用程序必须适应 GraphQL 的工作方式。</p>
+<p>这种情况在对 CMS 使用 GraphQL 时最为明显，因为 CMS 天生固执己见，GraphQL 可能会覆盖它们的行为。如果我们不依赖于 CMS，而是从头开始构建一个网站，那么我们应该完全控制网站的架构，我们可能愿意为 GraphQL 修改它——这种冲突就不会发生。</p>
+<p>在本文中，我们将探索 GraphQL 在数据获取过程中强加其自身前提条件的方式，为什么会发生这种情况，以及我们有哪些选项来解决它。我们将使用 WordPress 作为 CMS 的例子。</p>
+<h2>提取嵌套级别的数据</h2>
+<p>任何应用程序都可以有包含相同类型子项的实体。例如，一个菜单包含项目，项目可以有子项目，子项目本身可以包含子项目，依此类推。类似地，评论可以有回应，而回应本身也可以有回应。</p>
+<p>让我们看看如何在 GraphQL 中使用多级菜单。获取 GraphQL 中的菜单数据包括查询菜单中所有不同级别的项目。</p>
+<p>例如，在<a href="https://newapi.getpop.org/graphiql/?query=query%20GetMenu%20%7B%0A%20%20menu(id%3A176)%20%7B%0A%20%20%20%20id%0A%20%20%20%20items%20%7B%0A%20%20%20%20%20%20...MenuItemProps%0A%20%20%20%20%20%20children%20%7B%0A%20%20%20%20%20%20%20%20...MenuItemProps%0A%20%20%20%20%20%20%20%20children%20%7B%0A%20%20%20%20%20%20%20%20%20%20...MenuItemProps%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%0A%0Afragment%20MenuItemProps%20on%20MenuItem%20%7B%0A%20%20id%0A%20%20label%0A%20%20url%0A%7D" target="_blank" rel="noopener">这个查询</a>中，菜单有三个级别，我们使用片段<code>MenuItemProps</code>为所有级别的所有菜单项获取相同的字段(<code>id</code>、<code>label</code>和<code>url</code>):</p>
+<pre class="language-json hljs">query GetMenu {
+  menu(id: 176) {
+    id
+    items {
+      ...MenuItemProps
+      children {
+        ...MenuItemProps
+        children {
+          ...MenuItemProps
+        }
+      }
+    }
+  }
+}
+
+fragment MenuItemProps on MenuItem {
+  id
+  label
+  url
+}
+</pre>
+<p>可以理解，级别的数量反映在 GraphQL 查询中。因为应用程序中的菜单有三层，所以 GraphQL 查询有三层嵌套。</p>
+<p>然而，在 WordPress 中，菜单的创建不是由主题或任何插件预先决定的——相反，它是由网站管理员通过<strong>菜单</strong>屏幕配置的，并存储在数据库中:</p>
+<p><img data-attachment-id="85391" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/creating-menus-wordpress/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png" data-orig-size="730,652" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="creating-menus-wordpress" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress-300x268.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png" decoding="async" class="aligncenter size-full wp-image-85391 jetpack-lazy-image" src="../Images/e82a1a65ffa9d052c39c238b7458face.png" alt="Creating menus in WordPress" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress-300x268.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="85391" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/creating-menus-wordpress/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png" data-orig-size="730,652" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="creating-menus-wordpress" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress-300x268.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-85391" src="../Images/e82a1a65ffa9d052c39c238b7458face.png" alt="Creating menus in WordPress" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress-300x268.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/creating-menus-wordpress.png"/></noscript>
+<p>这带来了一个问题:当站点管理员通过用户界面向菜单添加额外的级别时，如果这个新级别没有反映在 GraphQL 查询中，它将不会出现在站点中。开发人员必须参与修改代码——向 GraphQL 查询添加额外的级别，重新生成主题的。zip 文件，并在网站上重新安装它。只有这样，新的级别才会显示在查询中。</p>
+<p>你可能会猜测，由于不得不做所有这些事情，使用 CMS 的优势几乎消失了。</p>
+<p>事实上，WordPress 不仅被开发人员使用，也被非开发人员使用，这些人可能没有意识到为了更新菜单，他们的站点主题需要更新。这违背了直觉，也违背了 CMS 的理念，所以 GraphQL 会在它的主机 WordPress 上强加它自己的工作方式。</p>
+<p>让我们来看看解决这个问题的三种可能的方法。</p>
+<h3>创建更大的初始 GraphQL 查询结构</h3>
+<p>解决这个问题的一个简单方法是最初构建 GraphQL 查询，使它获取比所需更多的级别，这样网站管理员就有空间在以后继续添加级别，而不需要开发人员。</p>
+<p>例如，如果应用程序需要三个级别，GraphQL 查询仍然可以提取六个级别的数据:</p>
+<pre class="language-json hljs">query GetMenu {
+  menu(id:176) {
+    id
+    items {
+      ...MenuItemProps
+      children {
+        ...MenuItemProps
+        children {
+          ...MenuItemProps
+          children {
+            ...MenuItemProps
+            children {
+              ...MenuItemProps
+              children {
+                ...MenuItemProps
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fragment MenuItemProps on MenuItem {
+  id
+  label
+  url
+}
+</pre>
+<p>这种解决方案并不是非常完美，但是在大多数情况下都行得通。</p>
+<h3>告诉 GraphQL 迭代子层</h3>
+<p>更好的解决方案是告诉 GraphQL 继续向下迭代子层，直到不再有子层，也就是说，直到字段<code>children</code>为<code>null</code>。例如，在使用 PHP 时，函数可以递归地调用自己，直到输入成为基本元素:</p>
+<pre class="language-php hljs">function filterFieldArgsWithNullValues(array $fieldArgs): array
+{
+  return array_filter(
+    $fieldArgs,
+    function (mixed $elem): bool {
+      if (is_array($elem)) {
+        $filteredElem = $this-&gt;filterFieldArgsWithNullValues($elem);
+        return count($elem) === count($filteredElem);
+      }
+      return $elem !== null;
+    }
+  );
+}
+</pre>
+<p>将这种策略移植到 GraphQL 需要一个递归片段，该片段再次应用于<code>children</code>元素:</p>
+<pre class="language-json hljs">fragment MenuItemProps on MenuItem {
+  id
+  label
+  url
+  children {
+    ...MenuItemProps
+  }
+}
+</pre>
+<p>然而，GraphQL 规范<a href="http://spec.graphql.org/June2018/#sec-Fragment-spreads-must-not-form-cycles" target="_blank" rel="noopener">禁止片段递归</a>，所以这种策略是不可能的。</p>
+<h3>创建自定义指令</h3>
+<p>另一个解决方案是创建一个自定义指令<code>@recursive</code>，它递归地将一个片段应用于一个字段的连接及其子连接，直到到达图中的叶节点:</p>
+<pre class="language-json hljs">query GetMenu {
+  menu(id:176) {
+    id
+    items @recursive(field: "children") {
+      ...MenuItemProps
+    }
+  }
+}
+
+fragment MenuItemProps on MenuItem {
+  id
+  label
+  url
+}
+</pre>
+<p>但是这种解决方案也被 GraphQL 规范所禁止，因为响应的<a href="https://spec.graphql.org/draft/#sec-Overview" target="_blank" rel="noopener">形状必须与查询的</a>形状相匹配，而这将受到<code>@recursive</code>指令的影响。</p>
+<h3>放宽查询中嵌套的使用</h3>
+<p>想到的最后一个解决方案是放松查询中嵌套的使用，创建一个单独的字段<code>itemDataEntries</code>，产生一个包含所有菜单数据的结构化<code>JSONObject</code>，包括所有级别和子级别，就像在<a href="https://newapi.getpop.org/graphiql/?operationName=GetMenu&amp;query=query%20GetMenu%20%7B%0A%20%20menu(id%3A176)%20%7B%0A%20%20%20%20id%0A%20%20%20%20itemDataEntries%0A%20%20%7D%0A%7D" target="_blank" rel="noopener">查询</a>中所做的那样:</p>
+<pre class="language-json hljs">query GetMenu {
+  menu(id:176) {
+    id
+    itemDataEntries
+  }
+}
+</pre>
+<p>对此查询的响应如下所示:</p>
+<pre class="language-json hljs">{
+  "data": {
+    "menu": {
+      "id": 176,
+      "itemDataEntries": [
+        {
+          "id": 735,
+          "objectID": "6",
+          "parentID": null,
+          "label": "About The Tests",
+          "url": "https://newapi.getpop.org/about/",
+          "children": [
+            {
+              "id": 1451,
+              "objectID": "1133",
+              "parentID": "735",
+              "label": "Page Image Alignment",
+              "url": "https://newapi.getpop.org/about/page-image-alignment/",
+              "children": []
+            },
+            {
+              "id": 1452,
+              "objectID": "1134",
+              "parentID": "735",
+              "label": "Page Markup And Formatting",
+              "url": "https://newapi.getpop.org/about/page-markup-and-formatting/",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": 739,
+          "objectID": "174",
+          "parentID": null,
+          "label": "Level 1",
+          "url": "https://newapi.getpop.org/level-1/",
+          "children": [
+            {
+              "id": 740,
+              "objectID": "173",
+              "parentID": "739",
+              "label": "Level 2",
+              "url": "https://newapi.getpop.org/level-1/level-2/",
+              "children": [
+                {
+                  "id": 741,
+                  "objectID": "172",
+                  "parentID": "740",
+                  "label": "Level 3",
+                  "url": "https://newapi.getpop.org/level-1/level-2/level-3/",
+                  "children": []
+                },
+                {
+                  "id": 1453,
+                  "objectID": "747",
+                  "parentID": "740",
+                  "label": "Level 3a",
+                  "url": "https://newapi.getpop.org/level-1/level-2/level-3a/",
+                  "children": []
+                },
+                {
+                  "id": 1454,
+                  "objectID": "748",
+                  "parentID": "740",
+                  "label": "Level 3b",
+                  "url": "https://newapi.getpop.org/level-1/level-2/level-3b/",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 742,
+          "objectID": "146",
+          "parentID": null,
+          "label": "Lorem Ipsum",
+          "url": "https://newapi.getpop.org/lorem-ipsum/",
+          "children": []
+        }
+      ]
+    }
+  }
+}
+</pre>
+<p>这种方法具有以下优点:</p>
+<ul>
+<li>检索的数据完全由用户界面驱动，反映了存储在数据库中的内容</li>
+<li>因此，在用户向菜单添加任何数量的附加级别后，应用程序都不需要更新</li>
+</ul>
+<p>然而，这种方法也有一个明显的缺点:我们失去了 GraphQL 的强类型。我们得到的不是一个带有强类型字段的菜单项——比如将<code>url</code>作为<code>URL</code>、<code>label</code>作为<code>String</code>、<code>objectID</code>作为<code>ID</code>等等——而是一个 GraphQL 工具和客户端无法理解的普通对象，比如 Apollo 或 Relay。因此，我们不会真正充分利用 GraphQL 的优势。</p>
+<h2>将动态元素映射到模式</h2>
+<p>当我们需要获取由用户界面驱动并存储在数据库中的实体时，我们会遇到另一个问题。例如，WordPress 允许动态创建选项名称的设置菜单，以及由站点管理员或他们选择的主题和插件动态创建的元值。这意味着这些菜单选项和元值不为 GraphQL 服务器所知，也不与 graph QL 服务器共享。</p>
+<p>在这一节中，我们将探索两个 GraphQL 服务器如何为 WordPress 传递设置，<a href="https://www.wpgraphql.com/" target="_blank" rel="noopener"> WPGraphQL </a>和<a href="https://graphql-api.com" target="_blank" rel="noopener"> GraphQL API for WordPress </a>。</p>
+<h3>在 WPGraphQL 中传递设置</h3>
+<p>WPGraphQL 将设置映射到一个特殊类型<code>GeneralSettings</code>下，该类型包含以下字段:</p>
+<pre class="language-json hljs"># The general setting type
+type GeneralSettings {
+  # A date format for all date strings.
+  dateFormat: String
+  # Site tagline.
+  description: String
+  # This address is used for admin purposes, like new user notification.
+  email: String
+  # WordPress locale code.
+  language: String
+  # A day number of the week that the week should start on.
+  startOfWeek: Int
+  # A time format for all time strings.
+  timeFormat: String
+  # A city in the same timezone as you.
+  timezone: String
+  # Site title.
+  title: String
+  # Site URL.
+  url: String
+}
+</pre>
+<p>在这种情况下，WPGraphQL 是固执己见的，已经预先决定了哪些选项足够重要，已经包含在其模式中。如果应用程序需要一个选项，但它不存在—比如说，<code>homeurl</code>，它不同于站点 URL —那么开发人员必须扩展模式。</p>
+<h3>用 GraphQL API 为 WordPress 提供设置</h3>
+<p>WordPress 的 GraphQL API 采用了一种不同的方法:选项本身并没有硬编码在模式中，而是通过一个接收选项名称的<code>option</code>字段来访问:</p>
+<pre class="language-json hljs">type Root {
+  option(name: String): AnyScalar
+}
+</pre>
+<p>并非所有选项都要通过 API 公开；网站管理员必须在插件设置中明确地将它们列入安全列表，或者通过它们的全名或者正则表达式:</p>
+<p><img data-attachment-id="85403" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/graphql-api-safelist-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png" data-orig-size="730,467" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphql-api-safelist-options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png" decoding="async" class="aligncenter size-full wp-image-85403 jetpack-lazy-image" src="../Images/f2ab209dd18db72458536bd7fecc11bb.png" alt="GraphQL API safelist options" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options-300x192.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="85403" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/graphql-api-safelist-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png" data-orig-size="730,467" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphql-api-safelist-options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-85403" src="../Images/f2ab209dd18db72458536bd7fecc11bb.png" alt="GraphQL API safelist options" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options-300x192.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/graphql-api-safelist-options.png"/></noscript>
+<p>现在，查询可以获取安全列表中的选项:</p>
+<pre class="language-json hljs">{
+  siteURL: option(name: "home")
+  siteName: option(name: "blogname")
+  siteDescription: option(name: "blogdescription")
+}
+</pre>
+<p>这种方法不是事先固执己见的。如果应用程序需要额外的选项，它可以作为配置提供给 API，并存储在数据库中，因此不需要修改代码来扩展 GraphQL 模式。</p>
+<p>这种方法的缺点是仍然丢失了严格的类型。在 WPGraphQL 的方法中，字段<code>description</code>具有类型<code>String</code>,<code>startOfWeek</code>具有类型<code>Int</code>，但是在 WP 方法的 GraphQL API 中，<code>option</code>字段总是类型<code>AnyScalar</code>，这是一个自定义类型，用于表示所有内置类型(<code>String</code>、<code>Int</code>、<code>Float</code>、<code>Boolean</code>和<code>ID</code>)。</p>
+<h2>一个可能的解决方案:自动生成 GraphQL API</h2>
+<p>到目前为止，我们已经看到了上述两种不同用例的解决方案有几个缺点:</p>
+<ul>
+<li>需要产生一个更大的查询，以便为将来做计划</li>
+<li>GraphQL 模式是固执己见的，预先决定哪些字段是可用的</li>
+<li>GraphQL 模式没有强类型</li>
+</ul>
+<p>避免这些缺点的解决方案是从不同的输入中自动生成 GraphQL API，包括站点管理员输入到 CMS 中的数据。有了这样的方法，就不需要雇佣开发人员来扩展模式，我们也不会失去 GraphQL 严格类型化的好处。</p>
+<p>这会是什么样子？关于暴露设置的例子，GraphQL 服务器将允许我们通过一些配置页面选择必须在 API 中暴露的选项，并请求定义它们的类型。有了这个输入，GraphQL 服务器就可以生成 GraphQL API 模式，为每个选择的选项添加一个字段，这将是预期的类型。</p>
+<p><img data-attachment-id="85406" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/db-option-mapping-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png" data-orig-size="730,709" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="db-option-mapping-options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options-300x291.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png" decoding="async" class="aligncenter size-full wp-image-85406 jetpack-lazy-image" src="../Images/a8ba5290ca51df1f6b89127f462731ae.png" alt="DB option mapping options" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options-300x291.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="85406" data-permalink="https://blog.logrocket.com/fetching-dynamically-structured-data-cms-graphql/db-option-mapping-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png" data-orig-size="730,709" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="db-option-mapping-options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options-300x291.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-85406" src="../Images/a8ba5290ca51df1f6b89127f462731ae.png" alt="DB option mapping options" srcset="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options-300x291.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/01/db-option-mapping-options.png"/></noscript>
+<p>然而，这种解决方案不容易实现。</p>
+<h3>SDL 第一 GraphQL 服务器</h3>
+<p>特别是当使用<a href="https://blog.logrocket.com/code-first-vs-schema-first-development-graphql/" target="_blank" rel="noopener"> SDL 优先的 GraphQL 服务器</a>时，我们必须通过 SDL 提供 GraphQL 模式，这与让服务器自动生成模式的想法相冲突。对于代码优先的服务器来说，不存在固有的冲突，但是实现可能并不简单，因为我们需要满足我们正在使用的 CMS 的特性。</p>
+<p>我们的最佳选择是 GraphQL 服务器已经实现了这种方法，为特定的 CMS 进行了定制。例如，因为 WPGraphQL 和用于 WordPress 的 GraphQL API 都是为 WordPress 定制的，它们可以很好地自动生成模式，考虑来自 CMS 的所有输入，包括用户提供的菜单和来自 DB 的选项。</p>
+<h3>基于 JavaScript 的服务器</h3>
+<p>对于基于 JS 的服务器，已经有自动生成 GraphQL 模式的服务，比如<a href="https://www.graphile.org/postgraphile/" target="_blank" rel="noopener"> PostGraphile </a>和<a href="https://hasura.io/" target="_blank" rel="noopener"> Hasura </a>。但是，这些服务使用 DB 作为输入来生成 GraphQL 模式(PostgreSQL 用于 PostGraphilePostgreSQL 和一些其他的 Hasura)，而不是 CMS。因此，一些特定 CMS 提供的定制特性，比如配置暴露什么选项，或者嵌套注释可以跨越多少层，将需要定制开发。</p>
+<p>当 API 打算由第三方使用时，那么自动生成 GraphQL 模式应该小心谨慎，一次处理一个特定的特性。这是因为这种方法<a href="https://wundergraph.com/blog/tight_coupling_as_a_service#on-good-api-design" target="_blank" rel="noopener">可能不会产生一个设计良好的 API </a>，这可能会让你的用户感到困惑，更重要的是，会暴露使 API 不安全的信息。我们必须确保包含管理端信息(比如表列名)的输入数据不会泄露给面向公众的层。</p>
+<h2>结论</h2>
+<p>我们研究了两种不同的情况，在这两种情况下，GraphQL 强加了一种可能与应用程序的工作方式相反的工作方式，特别是那些基于 CMS(如 WordPress)的应用程序。</p>
+<p>第一种情况涉及菜单项和注释的嵌套。最好的处理方法是为菜单项和注释的 GraphQL 查询添加额外的嵌套层，即使最初并不需要这些额外的层，以便允许站点的管理员从用户界面中增加这个数量，而不必雇用开发人员来更新代码和部署更改。</p>
+<p>第二种情况涉及查询动态创建的数据，就像设置和元值一样。我们探讨了 WPGraphQL 和 WP 的 GraphQL API 实现的两种方法，这两种方法都有缺点。最好的解决方案是将它们结合起来，让 GraphQL 模式从站点管理员通过用户界面提供的配置中动态生成。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的 GraphQL 请求</h2><p>虽然 GraphQL 有一些调试请求和响应的特性，但确保 GraphQL 可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的 DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的 GraphQL 请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪 Apollo 客户机状态并检查 GraphQL 查询的键值对。</p><p>LogRocket 检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录 Redux、NgRx 和 Vuex 操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

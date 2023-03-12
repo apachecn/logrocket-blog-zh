@@ -1,0 +1,249 @@
+<html>
+<head>
+<title>Building a web scraper in Go with Colly - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用 Colly - LogRocket 博客构建 web scraper</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-web-scraper-go-colly/#0001-01-01">https://blog.logrocket.com/building-web-scraper-go-colly/#0001-01-01</a></blockquote><div><article class="article-post">
+ <h2>介绍</h2>
+<p>构建应用程序时，您可能需要从一些网站或其他来源提取数据，以便与您的应用程序集成。有些网站公开了一个 API，你可以用它来获取这些信息，而有些网站没有。在这种情况下，您可能需要自己从网站中提取数据。这就是所谓的网页抓取。</p>
+<p>Web 抓取是通过获取数据、选择相关部分并以可读或可解析的格式呈现它们来从网站中提取数据。</p>
+<p>在本教程中，我们将了解一个允许我们构建 web scrapers 的 Go 包，Colly，我们将构建一个基本的 web scraper，它从电子商务商店获取产品信息并将数据保存到 JSON 文件中。事不宜迟，我们开始吧！</p>
+<h2>科里简介</h2>
+<p>Colly 是一个 Go 框架，允许你创建网页抓取器、爬虫或蜘蛛。根据官方文档，Colly 允许您轻松地从网站中提取结构化数据，这些数据可用于广泛的应用程序，如数据挖掘、数据处理或归档。以下是 Colly 的一些特点:</p>
+<ul>
+<li>速度:Colly 快。单核上超过 1k 请求/秒</li>
+<li>同步/异步/并行抓取</li>
+<li>支持缓存</li>
+<li>支持 robots.txt</li>
+</ul>
+<p>这里有一个<a href="http://go-colly.org" target="_blank" rel="noopener"> Colly 官网</a>的链接，可以了解更多。现在我们对 Colly 有了一些了解，让我们用它来构建一个 web scraper。</p>
+<h2>先决条件</h2>
+<p>要跟随本教程，您需要在您的本地机器上安装 Go，并且您至少需要有 Go 的基本知识。<a href="https://go.dev/dl/" target="_blank" rel="noopener">按照这里的步骤</a>进行安装。</p>
+<p>确保您可以在终端中运行 Go 命令。要检查这一点，请在终端中键入命令和 go 版本。您应该会得到类似如下的输出</p>
+<p><img data-attachment-id="84194" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/check-go-commands/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png" data-orig-size="770,186" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Check Go commands" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-300x72.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png" decoding="async" class="aligncenter wp-image-84194 jetpack-lazy-image" src="../Images/a093114b0af17719c30db2bbe2db5ea3.png" alt="Check Go Commands" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png 770w, https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-300x72.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-768x186.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84194" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/check-go-commands/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png" data-orig-size="770,186" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Check Go commands" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-300x72.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png" decoding="async" loading="lazy" class="aligncenter wp-image-84194" src="../Images/a093114b0af17719c30db2bbe2db5ea3.png" alt="Check Go Commands" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png 770w, https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-300x72.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands-768x186.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/check-go-commands.png"/></noscript>
+<h2>钻研代码</h2>
+<p>好了，让我们开始写一些代码。创建一个名为<code>main.go</code>的文件，并添加以下代码:</p>
+<pre class="language-go hljs">package main
+
+import (
+   "github.com/gocolly/colly"
+)
+
+func main() {
+   c := colly.NewCollector()
+   c.Visit("https://jumia.com.ng")
+}
+</pre>
+<p>让我们看看每一行代码都做了什么。首先，<code>package main</code>指令告诉 Go 这个文件是主包的一部分。接下来，我们正在导入 Colly，最后，我们有我们的主函数。main 函数是任何 Go 程序的入口点，这里我们实例化了一个 Colly collector 对象的新实例。</p>
+<p>收集器对象是使用 Colly 进行网页抓取的核心。它允许您在事件发生时触发某些功能，例如请求成功完成、收到响应等。</p>
+<p>让我们来看看这些方法中的一些。将您的<code>main.go</code>文件修改为:</p>
+<pre class="language-go hljs">package main
+
+import (
+   "fmt"
+   "time"
+
+   "github.com/gocolly/colly"
+)
+
+func main() {
+   c := colly.NewCollector()
+   c.SetRequestTimeout(120 * time.Second)
+   c.OnRequest(func(r *colly.Request) {
+       fmt.Println("Visiting", r.URL)
+   })
+
+   c.OnResponse(func(r *colly.Response) {
+       fmt.Println("Got a response from", r.Request.URL)
+   })
+
+   c.OnError(func(r *colly.Response, e error) {
+       fmt.Println("Got this error:", e)
+   })
+
+   c.Visit("https://jumia.com.ng/")
+}
+</pre>
+<p>首先，我们导入 Go fmt 包，它允许我们将文本打印到控制台。我们也在导入时间包。这允许我们增加 Colly 的超时持续时间，以防止我们的 web scraper 过快失败。</p>
+<p>接下来，在我们的 main 方法中，我们将请求超时设置为<code>120</code>秒，并调用三个回调函数。</p>
+<p>首先是<code>OnRequest</code>。每当 Colly 发出请求时，这个回调就会运行。这里我们只是打印出<code>"Visiting"</code>和请求 URL。</p>
+<p>接下来是<code>OnResponse</code>。每当 Colly 收到响应时，这个回调就会运行。我们还将打印出<code>"Got a response from"</code>以及请求 URL。</p>
+<p>我们收到的最后一个回电是<code>OnError</code>。每当 Colly 在发出请求时遇到错误，它就会运行。</p>
+<p>在运行之前，您需要做几件事情:</p>
+<p>首先，初始化当前目录中的 Go 模块。为此，使用<code>go mod init</code>命令:</p>
+<p><img data-attachment-id="84196" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-mod-init-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png" data-orig-size="730,89" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go mod init command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png" decoding="async" class="size-full wp-image-84196 aligncenter jetpack-lazy-image" src="../Images/2ca1b3efa23fa7e6c4c66b246a5a6462.png" alt="go mod init Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command-300x37.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84196" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-mod-init-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png" data-orig-size="730,89" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go mod init command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png" decoding="async" loading="lazy" class="size-full wp-image-84196 aligncenter" src="../Images/2ca1b3efa23fa7e6c4c66b246a5a6462.png" alt="go mod init Command" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command-300x37.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-init-command.png"/></noscript>
+<p>接下来，运行<code>go mod tidy</code>获取所有依赖项:</p>
+<p><img data-attachment-id="84198" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-mod-tidy-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png" data-orig-size="730,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go mod tidy command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png" decoding="async" class="size-full wp-image-84198 aligncenter jetpack-lazy-image" src="../Images/7f946d7645c66a8d728e59d55ccc9a73.png" alt="go mod tidy Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command-300x198.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84198" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-mod-tidy-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png" data-orig-size="730,481" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go mod tidy command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png" decoding="async" loading="lazy" class="size-full wp-image-84198 aligncenter" src="../Images/7f946d7645c66a8d728e59d55ccc9a73.png" alt="go mod tidy Command" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command-300x198.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-mod-tidy-command.png"/></noscript>
+<p>现在，让我们测试目前为止的代码。运行<code>go run main.go</code>运行 Go 程序:</p>
+<p><img data-attachment-id="84202" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-run-main/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png" data-orig-size="1008,124" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go run main command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png" decoding="async" class="aligncenter wp-image-84202 jetpack-lazy-image" src="../Images/f5e9d150d16145250e0c7eacf348152b.png" alt="go run main Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png 1008w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-300x37.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-768x94.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84202" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-run-main/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png" data-orig-size="1008,124" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go run main command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-300x37.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png" decoding="async" loading="lazy" class="aligncenter wp-image-84202" src="../Images/f5e9d150d16145250e0c7eacf348152b.png" alt="go run main Command" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png 1008w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-300x37.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-768x94.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main.png"/></noscript>
+<p>正如你所看到的，我们已经成功地向 jumia.com.ng 提出了请求，并得到了回应。</p>
+<h2>分析 Jumia 网站</h2>
+<p>好了，我们已经建立了我们的网页抓取器的基础，但在我们继续之前，让我们分析一下我们要抓取的网站。在浏览器中导航到 URL<a href="https://jumia.com.ng" rel="nofollow">https://jumia.com.ng</a>，让我们看看 DOM 结构。</p>
+<p><img data-attachment-id="84206" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/jumia-website/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png" data-orig-size="730,393" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Jumia website" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website-300x162.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png" decoding="async" class="size-full wp-image-84206 aligncenter jetpack-lazy-image" src="../Images/29a27a74e201d84d3a9cd88ed9fdb09c.png" alt="Jumia Website" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website-300x162.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84206" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/jumia-website/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png" data-orig-size="730,393" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Jumia website" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website-300x162.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png" decoding="async" loading="lazy" class="size-full wp-image-84206 aligncenter" src="../Images/29a27a74e201d84d3a9cd88ed9fdb09c.png" alt="Jumia Website" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website-300x162.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/jumia-website.png"/></noscript>
+<p>如你所见，网站上有一堆卡片，上面有产品信息。让我们在浏览器的开发工具中检查这些卡。右键点击卡片，点击<strong>检查</strong>，或者点击<strong>Shift+Ctrl+J</strong>(Windows 上)或者<strong>option+command+J</strong>(Mac 上)，打开开发工具。</p>
+<p><img data-attachment-id="84204" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/inspect-jumia-website/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png" data-orig-size="730,260" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Inspect Jumia website" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website-300x107.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png" decoding="async" class="size-full wp-image-84204 aligncenter jetpack-lazy-image" src="../Images/654b1d9a23a35d9b2fcdcaa8c2a6b74c.png" alt="Inspect Jumia Website" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website-300x107.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84204" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/inspect-jumia-website/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png" data-orig-size="730,260" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Inspect Jumia website" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website-300x107.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png" decoding="async" loading="lazy" class="size-full wp-image-84204 aligncenter" src="../Images/654b1d9a23a35d9b2fcdcaa8c2a6b74c.png" alt="Inspect Jumia Website" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website-300x107.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/inspect-jumia-website.png"/></noscript>
+<p>从上面我们可以看到，单品卡是一个<code>a</code>标签，带有一个<code>core</code>类。这里面有各种各样的<code>div</code>元素，嵌套有<code>name</code>、<code>prc</code>和<code>tag _dsct</code>类。这些<code>div</code>分别包含产品名称、价格和折扣。在 Colly 中，我们可以使用 CSS 选择器来选择这些元素并提取标签。</p>
+<p>现在，让我们定义单个产品的结构。在 main 方法上方，添加以下代码:</p>
+<pre class="language-go hljs">type Product struct {
+   Name     string
+   Image    string
+   Price    string
+   Url      string
+   Discount string
+}
+</pre>
+<p>这里，我们定义一个结构来保存每个产品的名称、图片(URL)、价格、URL 和折扣。现在，将您的 main 方法修改为:</p>
+<pre class="language-go hljs">func main() {
+   c := colly.NewCollector()
+   c.SetRequestTimeout(120 * time.Second)
+   products := make([]Product, 0)
+
+   // Callbacks
+
+   c.OnHTML("a.core", func(e *colly.HTMLElement) {
+       e.ForEach("div.name", func(i int, h *colly.HTMLElement) {
+           item := Product{}
+           item.Name = h.Text
+           item.Image = e.ChildAttr("img", "data-src")
+           item.Price = e.Attr("data-price")
+           item.Url = "https://jumia.com.ng" + e.Attr("href")
+           item.Discount = e.ChildText("div.tag._dsct")
+           products = append(products, item)
+       })
+
+   })
+
+   c.OnRequest(func(r *colly.Request) {
+       fmt.Println("Visiting", r.URL)
+   })
+
+   c.OnResponse(func(r *colly.Response) {
+       fmt.Println("Got a response from", r.Request.URL)
+   })
+
+   c.OnError(func(r *colly.Response, e error) {
+       fmt.Println("Got this error:", e)
+   })
+
+   c.OnScraped(func(r *colly.Response) {
+       fmt.Println("Finished", r.Request.URL)
+       js, err := json.MarshalIndent(products, "", "    ")
+       if err != nil {
+           log.Fatal(err)
+       }
+       fmt.Println("Writing data to file")
+       if err := os.WriteFile("products.json", js, 0664); err == nil {
+           fmt.Println("Data written to file successfully")
+       }
+
+   })
+
+   c.Visit("https://jumia.com.ng/")
+}
+</pre>
+<p>哇，这里发生了很多事。让我们看看这段代码在做什么。</p>
+<p>首先，我们创建一个产品数组，并将其赋给<code>products</code>变量。</p>
+<p>接下来，我们再添加两个回调:<code>OnHTML</code>和<code>OnScraped</code>。</p>
+<p>当 web scraper 收到一个 HTML 响应时，<code>OnHTML</code>回调就会运行。它接受两个参数:CSS 选择器和要运行的实际函数。这个回调用 CSS 选择器选择元素，并调用响应的第二个参数中定义的函数。</p>
+<p>向该函数传递从 CSS 选择器返回的 HTML 元素，并对其执行一些操作。这里，我们选择类名为<code>core</code>的所有<code>a</code>元素。然后我们遍历结果，再次选择所有嵌套在其中的带有类<code>name</code>的<code>div</code>。从那里，我们创建了一个<code>Product</code>结构的实例，并将其名称指定为从<code>div</code>获得的文本。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自 LogRocket 的精彩文章:</h3>
+
+<hr/></div>
+<p>我们使用<code>e.ChildAttr</code>函数获取嵌套在其中的第一个图像标签的<code>data-src</code>属性，并将其指定为产品的图像。我们使用<code>e.Attr</code>函数获取元素的<code>data-price</code>属性，并将其设置为产品的价格。我们用同样的方法从<code>href</code>属性中获得它的 URL。最后，我们使用<code>e.ChildText</code>函数从具有<code>tag _dsct</code>类的<code>div</code>元素中选择文本，并将其设置为产品的折扣。</p>
+<p>接下来，我们将产品添加到我们之前创建的产品列表中。</p>
+<p>我们定义的第二个回调是<code>OnScraped</code>回调。当程序成功完成 web 抓取作业并即将退出时运行。这里，我们打印出<code>`"</code>完成的<code>`"</code>以及请求 URL，然后将产品列表转换成 JSON 对象。</p>
+<p>确保首先导入编码/json 包。注意，我们使用<code>json.MarshalIndent</code>函数来对 JSON 对象应用一些格式和缩进。最后，我们将抓取结果保存到一个文件中。</p>
+<h2>运行我们的程序</h2>
+<p>现在代码都完成了，让我们运行我们的程序。在我们这样做之前，这里有完整的代码作为参考:</p>
+<pre class="language-go hljs">package main
+
+import (
+   "encoding/json"
+   "fmt"
+   "log"
+   "os"
+   "time"
+
+   "github.com/gocolly/colly"
+)
+
+type Product struct {
+   Name     string
+   Image    string
+   Price    string
+   Url      string
+   Discount string
+}
+
+func main() {
+   c := colly.NewCollector()
+   c.SetRequestTimeout(120 * time.Second)
+   products := make([]Product, 0)
+
+   // Callbacks
+
+   c.OnHTML("a.core", func(e *colly.HTMLElement) {
+       e.ForEach("div.name", func(i int, h *colly.HTMLElement) {
+           item := Product{}
+           item.Name = h.Text
+           item.Image = e.ChildAttr("img", "data-src")
+           item.Price = e.Attr("data-price")
+           item.Url = "https://jumia.com.ng" + e.Attr("href")
+           item.Discount = e.ChildText("div.tag._dsct")
+           products = append(products, item)
+       })
+
+   })
+
+   c.OnRequest(func(r *colly.Request) {
+       fmt.Println("Visiting", r.URL)
+   })
+
+   c.OnResponse(func(r *colly.Response) {
+       fmt.Println("Got a response from", r.Request.URL)
+   })
+
+   c.OnError(func(r *colly.Response, e error) {
+       fmt.Println("Got this error:", e)
+   })
+
+   c.OnScraped(func(r *colly.Response) {
+       fmt.Println("Finished", r.Request.URL)
+       js, err := json.MarshalIndent(products, "", "    ")
+       if err != nil {
+           log.Fatal(err)
+       }
+       fmt.Println("Writing data to file")
+       if err := os.WriteFile("products.json", js, 0664); err == nil {
+           fmt.Println("Data written to file successfully")
+       }
+
+   })
+
+   c.Visit("https://jumia.com.ng/")
+}
+</pre>
+<p>在您的终端中，运行命令<code>go run main.go</code>。</p>
+<p><img data-attachment-id="84200" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-run-main-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png" data-orig-size="1060,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go run main command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-300x106.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-1024x361.png" decoding="async" class="aligncenter wp-image-84200 jetpack-lazy-image" src="../Images/601bed5bbea5f6e828605efabb803bf2.png" alt="go run main Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png 1060w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-300x106.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-1024x361.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-768x271.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84200" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/go-run-main-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png" data-orig-size="1060,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="go run main command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-300x106.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-1024x361.png" decoding="async" loading="lazy" class="aligncenter wp-image-84200" src="../Images/601bed5bbea5f6e828605efabb803bf2.png" alt="go run main Command" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png 1060w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-300x106.png 300w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-1024x361.png 1024w, https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2-768x271.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/go-run-main-2.png"/></noscript>
+<p>太好了！有用！现在，您应该看到一个名为<code>products.json</code>的新文件已经创建。</p>
+<p><img data-attachment-id="84208" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/products-json-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png" data-orig-size="346,226" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="products.json file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file-300x196.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png" decoding="async" class="size-full wp-image-84208 aligncenter jetpack-lazy-image" src="../Images/f8e4465732f68d3e4e3b04bb9e49f326.png" alt="products.json File" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png 346w, https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file-300x196.png 300w" data-lazy-sizes="(max-width: 346px) 100vw, 346px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="84208" data-permalink="https://blog.logrocket.com/building-web-scraper-go-colly/products-json-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png" data-orig-size="346,226" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="products.json file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file-300x196.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png" decoding="async" loading="lazy" class="size-full wp-image-84208 aligncenter" src="../Images/f8e4465732f68d3e4e3b04bb9e49f326.png" alt="products.json File" srcset="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png 346w, https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file-300x196.png 300w" sizes="(max-width: 346px) 100vw, 346px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/12/products-json-file.png"/></noscript>
+<p>打开这个文件，你会看到刮结果。</p>
+<h2>包扎</h2>
+<p>在这篇文章中，我们成功地用 Go 构建了一个 web scraper。我们研究了如何从电子商务商店获取产品信息。我希望你学到了很多，并将这些应用到你的个人项目中。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket 会告诉您应用程序中实际影响用户的最具影响力的 bug 和 UX 问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket 自动聚合客户端错误、JS 异常、前端性能指标和用户交互。然后 LogRocket 使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的 bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试 LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>
