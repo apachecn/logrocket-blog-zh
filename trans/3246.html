@@ -1,0 +1,556 @@
+<html>
+<head>
+<title>Build a full-stack app with Tetra - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Tetra - LogRocket博客构建全栈应用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-full-stack-app-tetra/#0001-01-01">https://blog.logrocket.com/build-full-stack-app-tetra/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>大多数全栈应用将前端和后端代码分离到不同的文件中；大多数web框架都是基于这种结构构建的。随着文件和代码行数的增加，可能会增加代码库的复杂性，从而使调试更加困难。通过引入一个名为<a href="https://www.tetraframework.com/" target="_blank" rel="noopener"> Tetra </a>的框架，这些独立文件导致的复杂性被最小化。</p>
+<p>本教程将向您介绍Tetra框架及其组件。您还将学习如何构建一个简单的全栈博客应用程序，使用Tetra执行CRUD功能。</p>
+<p>我们将讨论以下内容:</p>
+
+<h2 id="what-is-tetra">Tetra是什么？</h2>
+<p><a href="https://www.tetraframework.com/#features" target="_blank" rel="noopener"> Tetra </a>是在服务器端用<a href="https://docs.djangoproject.com/" target="_blank" rel="noopener"> Django </a>和<a href="https://alpinejs.dev/" target="_blank" rel="noopener"> Alpine.js </a>搭建的全栈框架，执行前端逻辑。Tetra允许在一个统一的位置拥有前端和后端逻辑，并降低应用程序中的代码复杂性。它使用一个称为组件类的类将后端实现与前端连接起来。</p>
+<h3 id="tetra-component">Tetra组件</h3>
+<p>tetra组件是一个代码单元，它将Python、HTML、CSS和JavaScript逻辑作为单个Python文件中的一个实体来处理。如果您熟悉<a href="https://reactjs.org/" target="_blank" rel="noopener"> React框架</a>，您可以将其组件的行为比作Tetra组件，除了React组件只执行前端功能。</p>
+<p>组件可以相互依赖，也可以相互独立。这意味着您可以从一个组件调用另一个组件，或者将它作为一个独立的组件。你可以在这里阅读更多关于tetra组件<a href="https://www.tetraframework.com/docs/components" target="_blank" rel="noopener">的信息。</a></p>
+<h2 id="build-tetra-blog-app">让我们建立一个Tetra博客应用程序</h2>
+<p>本教程的其余部分将指导您如何在Django应用程序中安装Tetra，以及如何使用Tetra构建博客应用程序的分步流程。博客应用程序将从管理员的角度呈现，在这里您可以创建新帖子，更新现有帖子，删除帖子，以及查看所有博客帖子。</p>
+<p>应用程序将不包括任何身份验证或授权层。目标是在关注Tetra核心功能的同时，尽可能保持简单。</p>
+<h3 id="prerequisites">先决条件</h3>
+<ul>
+<li>熟练使用<a href="https://www.djangoproject.com/" target="_blank" rel="noopener"> Django </a>构建单片应用</li>
+<li>HTML、CSS和JavaScript的工作知识</li>
+<li>任何合适的IDE或文本编辑器</li>
+<li>计算机上安装的Python版本3.9或更高版本</li>
+<li>安装在您机器上的npm软件包管理器</li>
+</ul>
+<h2 id="project-setup">项目设置</h2>
+<p>第一步是为应用程序创建一个虚拟环境。在终端中运行以下命令来设置项目目录和虚拟环境:</p>
+<pre class="language-bash hljs">mkdir tetra
+cd tetra
+python -m venv tetra 
+cd tetra
+Scripts/activate</pre>
+<p>下一步是安装Django。因为Tetra在Django框架上运行，所以需要将Django集成到您的应用程序中。</p>
+<pre class="language-bash hljs">pip install django
+django-admin startproject tetra_blog
+cd tetra_blog</pre>
+<p>接下来，创建博客应用程序:</p>
+<pre class="language-bash hljs">python manage.py startapp blog</pre>
+<p>将博客应用添加到<code>settings.py</code>文件的<code>INSTALLED_APPS</code>列表中，如下图所示:</p>
+<pre class="language-python hljs">INSTALLED_APPS = [
+    'blog.apps.BlogConfig',
+    ...
+ ]</pre>
+<p>在app目录中，创建一个<code>components.py</code>文件，该文件将包含您将在项目中构建的所有组件。</p>
+<h2 id="tetra-installation-configuration">Tetra安装和配置</h2>
+<p>成功设置Django项目后，下一步是在应用程序中安装Tetra框架。</p>
+<pre class="language-bash hljs">pip install tetraframework</pre>
+<p>在<code>settings.py</code>文件中，将<code>tetra</code>添加到<code>INSTALLED_APPS</code>列表中，如下图所示:</p>
+<pre class="language-python hljs">INSTALLED_APPS = [
+    ...
+    'tetra',
+    'django.contrib.staticfiles',
+    ...
+]</pre>
+<p>确保<code>tetra</code>列在<code>django.contrib.staticfiles</code>元素之前。</p>
+<p>接下来，您将希望在<code>MIDDLEWARE</code>列表的末尾包含<code>tetra.middleware.TetraMiddleware</code>。这会将组件中的JavaScript和CSS添加到HTML模板中。</p>
+<pre class="language-python hljs">MIDDLEWARE = [ 
+    ...
+    'tetra.middleware.TetraMiddleware'
+]</pre>
+<p>将下面的修改应用到根<code>urls.py</code>文件，通过你的公共方法公开Tetra的端点:</p>
+<pre class="">from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    ...
+ 
+    path('tetra/', include('tetra.urls')),
+  ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)</pre>
+<h3 id="install-esbuild">安装ebuild</h3>
+<p>Tetra构建你的JS/CSS组件并使用<a href="https://esbuild.github.io/" target="_blank" rel="noopener"> esbuild </a>打包它们。这允许您跟踪任何可能发生在Python源文件的前端实现中的错误。</p>
+<pre class="language-bash hljs">npm init
+npm install esbuild</pre>
+<p>如果您使用的是Windows操作系统，您必须在您的<code>settings.py</code>文件中明确声明<code>esbuild</code>的构建路径:</p>
+<pre class="language-python hljs">TETRA_ESBUILD_PATH = '&lt;absolute-path-to-project-root-directory&gt;/node_modules/.bin/esbuild.cmd'</pre>
+<h2 id="blog-post-model">博客帖子模型</h2>
+<p>该应用程序将在博客帖子上执行CRUD功能。<code>Post</code>模型将包含三个属性:标题、内容和日期。</p>
+<p>将以下代码添加到<code>models.py</code>文件中，以设置<code>Post</code>模型:</p>
+<pre class="language-python hljs">from django.db import models
+from django.utils import timezone
+from django.urls import reverse
+
+
+class Post(models.Model):
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    date_posted = models.DateTimeField(default=timezone.now)
+
+
+    def __str__(self):
+        return self.title
+    // generate a reverse url for the model
+    def get_absolute_url(self):
+        return reverse('post-detail', kwargs={'pk': self.id})</pre>
+<p>执行迁移命令为模型创建一个表:</p>
+<pre class="language-bash hljs">python manage.py makemigrations
+python manage.py migrate</pre>
+<h2 id="add-post-component"><code>AddPost</code>组件</h2>
+<p>该组件负责呈现UI以创建新文章。它还将包含我们创建一个<code>Post</code>模型并在数据库中保存数据所需的Python逻辑。</p>
+<p>在<code>components</code>文件夹中创建<code>add_post.py</code>文件，并将以下代码添加到该文件中:</p>
+<pre class="language-python hljs">from sourcetypes import javascript, css, django_html
+from tetra import Component, public, Library
+from ..models import Post
+
+default = Library()
+
+@default.register
+class AddPost(Component):
+    title=public("")
+    content=public("")
+
+ 
+    def load(self):
+        self.post = Post.objects.filter(id=0)
+
+
+    @public
+    def add_post(self, title, content):
+        post = Post(
+            title = title,
+            content = content
+        )
+        post.save()</pre>
+<p>在上面的代码中，<code>AddPost</code>类是Tetra组件类的子类，Tetra组件类是构建定制组件的基类。使用<code>@default.register</code>装饰器，将<code>AddPost</code>组件注册到Tetra库中。</p>
+<p><code>title</code>和<code>content</code>变量是组件的<a href="https://www.tetraframework.com/docs/components#public-attributes" target="_blank" rel="noopener">公共属性</a>，每个变量都有一个空字符串的初始值。<code>public attributes</code>的值可用于模板、JavaScript和服务器逻辑。</p>
+<p>当组件启动时，以及当它从保存状态恢复时，<code>load</code>方法运行。你可以把<code>load</code>方法当做组件的构造器；它在您从模板中调用组件时运行。</p>
+<p><code>add_post</code>方法是一个<a href="https://www.tetraframework.com/docs/components#public-methods" target="_blank" rel="noopener">公共方法</a>，它接收标题和内容作为参数来创建一个<code>Post</code>实例，然后将它保存到数据库中。就像公共属性一样，公共方法向模板、JavaScript和Python公开。通过在方法签名上方添加<code>@public</code>装饰器，将方法声明为公共的。</p>
+<p>下面是您应该作为<code>AddPost</code>组件的一部分包含在<code>add_post.py</code>文件中的HTML代码:</p>
+<pre class="language-python hljs">template: django_html = """
+   
+    &lt;div class="container"&gt;
+        &lt;h2&gt;Add blog post&lt;/h2&gt;
+        &lt;label&gt; Title
+        &lt;em&gt;*&lt;/em&gt;
+        &lt;/label&gt;
+        &lt;input type="text" maxlength="255" x-model="title" name="title" placeholder="Input post title" required/&gt;
+
+        &lt;label&gt; Content
+        &lt;em&gt;*&lt;/em&gt;
+        &lt;/label&gt;
+        &lt;textarea rows="20" cols="80" x-model="content" name="content" placeholder="Input blog content" required /&gt; &lt;/textarea&gt;
+
+        &lt;button type="submit" @click="addPost(title, content)"&gt;&lt;em&gt;Submit&lt;/em&gt;&lt;/button&gt;
+    &lt;/div&gt;
+    
+    """</pre>
+<p>输入字段接收文章标题，并通过<a href="https://alpinejs.dev/directives/model" target="_blank" rel="noopener"> Alpine.js x-model属性</a>将其绑定到<code>title</code>公共属性。同样，<code>textarea</code>接收博客文章的内容，并将该值绑定到组件的<code>content</code>公共属性。</p>
+<p>使用按钮标记中的Alpine.js <code>@click</code>指令，模板调用JavaScript <code>addPost</code>方法:</p>
+<pre class="language-javascript hljs">script: javascript = """
+    export default {
+
+        addPost(title, content){
+            this.add_post(title, content)   
+        }
+        
+    }
+    """</pre>
+<p>JavaScript <code>addPost</code>方法将从标题和内容中获得的值作为参数传递给组件的<code>add_post</code>公共方法。您也可以从上面的HTML模板中直接调用<code>add_post</code>公共方法。</p>
+<p>这里通过JavaScript函数传递它的目的是演示如何在Tetra组件中执行JavaScript操作。这有助于您更好地控制用户的行为，例如在用户单击按钮后禁用按钮，以防止用户在处理之前的请求时发送多个请求。</p>
+<p>下面是设置模板样式的CSS代码:</p>
+<pre class="language-css hljs">style: css = """
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: left;
+        justify-content: center;
+        border-style: solid;
+        width: fit-content;
+        margin: auto;
+        margin-top: 50px;
+        width: 50%;
+        border-radius: 15px;
+        padding: 30px;
+    }
+
+    input, textarea, label{
+        margin-bottom: 30px;
+        margin-left: 20px;
+        ;
+    }
+
+    label {
+        font-weight: bold;
+    }
+
+    input{
+        height: 40px;
+    }
+
+    h2 {
+        text-align: center;
+    }
+
+    button {
+        width: 150px;
+        padding: 10px;
+        border-radius: 9px;
+        border-style: none;
+        background: green;
+        color: white;
+        margin: auto;
+    }
+    
+    """</pre>
+<p>下一步是从Django视图模板中调用<code>AddPost</code>组件。在博客应用程序<code>templates</code>文件夹中创建一个<code>add_post.html</code>文件，该文件夹是您在本教程的上一节中创建的。将以下代码片段添加到文件中:</p>
+<pre class="language-html hljs">{% load tetra %}
+&lt;!Doctype html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;title&gt; Add post &lt;/title&gt;
+    {% tetra_styles %}
+    {% tetra_scripts include_alpine=True %}
+  &lt;/head&gt;
+  &lt;body&gt;
+     &lt;form enctype="multipart/form-data" method="POST"&gt;
+      {% csrf_token %}
+      {% @ add_post / %}
+    &lt;/form&gt;
+  &lt;/body&gt;
+  &lt;/html&gt;</pre>
+<p>该模板首先将Tetra模板标签加载到模板中。它通过代码顶部描述的<code>{% load tetra %}</code>命令来实现这一点。您还需要分别通过<code>{% tetra_styles %}</code>和<code>{% tetra_scripts}</code>将CSS和JavaScript注入模板。</p>
+<p>默认情况下，Tetra不会在模板中包含Alpine.js。在注入组件的JavaScript时，必须通过添加<code>include_alpine=True</code>来显式声明它。</p>
+<p><code>form</code>标签中的<code>{% @ add_post / %}</code>标签调用<code>AddPost</code>组件的<code>load</code>方法，并呈现您在创建组件时声明的HTML内容。</p>
+<p>注意，用于加载组件的组件名是蛇形的。这是从模板调用组件的默认配置。您也可以在创建组件时设置自定义名称，如下所示:</p>
+<pre class="language-python hljs">...
+@default.register(name="custom_component_name")
+class AddPost(Component):
+...</pre>
+<p>然后您可以使用<code>{% @ custom_component_name / %}</code>加载组件。</p>
+<p>接下来，将下面的代码片段添加到<code>views.py</code>文件中:</p>
+<pre class="language-python hljs">from django.shortcuts import render
+
+def add_post(request):
+    return render(request, 'add_post.html')</pre>
+<p>在博客应用程序目录中创建一个<code>urls.py</code>文件，并将以下代码片段添加到该文件中:</p>
+<pre class="language-python hljs">from django.urls import path
+from . import views
+
+
+urlpatterns = [
+     path("add", views.add_post, name='add-post'),
+
+]</pre>
+<p>在根文件<code>urls.py</code>中，添加以下路径:</p>
+<pre class="language-python hljs">urlpatterns = [
+    ...
+    path('tetra/', include('tetra.urls')),
+    path('post/', include('blog.urls'))
+]</pre>
+<p>用<code>python manage.py runserver command</code>运行应用程序。通过<code>localhost:8000/post/add</code>在浏览器上查看页面。</p>
+<p>以下是该页面的输出:</p>
+<p id="gdcalert1"><img data-attachment-id="127500" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/add-blog-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png" data-orig-size="730,601" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add blog post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-1024x843.png" decoding="async" class="wp-image-127500 size-full aligncenter jetpack-lazy-image" src="../Images/83c96bd997e3f377ef75267803fc7220.png" alt="Add blog post page with title box and content box" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778-300x247.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127500" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/add-blog-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png" data-orig-size="730,601" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Add blog post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-1024x843.png" decoding="async" loading="lazy" class="wp-image-127500 size-full aligncenter" src="../Images/83c96bd997e3f377ef75267803fc7220.png" alt="Add blog post page with title box and content box" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778-300x247.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/add-blog-post-e1660075506778.png"/></noscript>
+<h2 id="post-item-component"><code>PostItem</code>组件</h2>
+<p><code>PostItem</code>组件包含用于在主屏幕上呈现创建的帖子的模板。</p>
+<pre class="language-python hljs">@default.register
+class PostItem(Component):
+    
+    def load(self, post):
+        self.post = post</pre>
+<p><code>load</code>方法接收<code>Post</code>实例作为其参数，并将其暴露给HTML模板，该模板在屏幕上呈现其标题和内容。</p>
+<pre class="language-python hljs"> template: django_html = """
+   
+    &lt;article class="post-container" {% ... attrs %}&gt;
+            &lt;small class="article-metadata"&gt;{{ post.date_posted.date}}&lt;/small&gt;
+            &lt;p class="article-title"&gt; {{ post.title }}&lt;/p&gt;
+            &lt;p class="article-content"&gt;{{ post.content }}&lt;/p&gt;
+
+        &lt;/article&gt;
+            
+    """</pre>
+<p><code>{% ... attrs %}</code>标签是一个<a href="https://www.tetraframework.com/docs/attribute-tag"> Tetra属性标签</a>，模板在调用组件时用它来接收传递给它的参数。当使用attributes标记接收参数时，应该在HTML模板的根节点中声明该标记，就像上面代码片段中的article标记一样。</p>
+<p>下面是模板的CSS实现:</p>
+<pre class="language-css hljs">style: css = """
+    
+    .article-metadata {
+        padding-bottom: 1px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #e3e3e3;
+        
+    }
+
+
+    .article-title{
+        font-size: x-large;
+        font-weight: 700;
+    }
+
+    .article-content {
+        white-space: pre-line;
+    }
+
+    .post-container{
+        margin: 50px;
+    }
+
+    a.article-title:hover {
+        color: #428bca;
+        text-decoration: none;
+    }
+
+    .article-content {
+        white-space: pre-line;
+    }
+
+    a.nav-item{
+        text-align: right;
+        margin-right: 100px;
+    }
+
+    h1 {
+       text-align: center;
+    }
+    """</pre>
+<p>下面是通过<code>PostItem</code>组件发布的内容:</p>
+<p id="gdcalert2"><img data-attachment-id="127502" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/post-item-component/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png" data-orig-size="730,114" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="PostItem component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component-300x47.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png" decoding="async" class="aligncenter wp-image-127502 size-full jetpack-lazy-image" src="../Images/e02d66ee086ad2a5795bb5b34e817bf4.png" alt="PostItem component shows post with default text" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component-300x47.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127502" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/post-item-component/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png" data-orig-size="730,114" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="PostItem component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component-300x47.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png" decoding="async" loading="lazy" class="aligncenter wp-image-127502 size-full" src="../Images/e02d66ee086ad2a5795bb5b34e817bf4.png" alt="PostItem component shows post with default text" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component-300x47.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-item-component.png"/></noscript>
+<h2 id="view-posts-component"><code>ViewPosts</code>组件</h2>
+<p>该组件负责呈现所有创建的帖子。将以下代码片段添加到<code>components.py</code>文件中:</p>
+<pre class="language-python hljs">@default.register
+class PostView(Component):
+
+    def load(self):
+        self.posts = Post.objects.all()
+
+    template: django_html = """
+        &lt;div&gt;
+            &lt;h1&gt; Tetra blog &lt;/h1&gt;
+            &lt;div class="navbar-nav"&gt;
+                &lt;a class="nav-item nav-link" href="{% url 'add-post' %}"&gt;New Post&lt;/a&gt;
+            &lt;div&gt;
+            &lt;div class="list-group"&gt;
+                {% for post in posts %}
+                    {% @ post_item post=post key=post.id / %}
+                {% endfor %}
+            &lt;/div&gt;
+         &lt;/div&gt;
+        """</pre>
+<p>组件中的<code>load</code>方法从数据库中检索所有创建的帖子。HTML模板包含一个锚标记，它指向<code>add-post</code> URL来创建一篇新文章。</p>
+<p>对于从数据库获取的每个post，HTML通过在For循环中传递post对象作为其参数来创建一个<code>PostItem</code>组件。</p>
+<p>接下来，从Django视图模板中调用<code>ViewPost</code>组件。在博客应用程序的<code>templates</code>文件夹中创建一个<code>home.html</code>文件，并将以下代码片段添加到该文件中:</p>
+<pre class="language-html hljs">{% load tetra %}
+&lt;!Doctype html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;title&gt; Blog home &lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"&gt;
+    {% tetra_styles %}
+    {% tetra_scripts include_alpine=True %}
+  &lt;/head&gt;
+  &lt;body&gt;
+      {% @ view_post / %}
+  &lt;/body&gt;
+  &lt;/html&gt;</pre>
+<p>接下来，将以下内容添加到<code>views.py</code>文件中:</p>
+<pre class="language-python hljs">def home(request):
+    return render(request, 'home.html')</pre>
+<p>最后，更新博客应用程序<code>urls.py</code>文件中的<code>urlpatterns</code>列表。</p>
+<pre class="language-python hljs">urlpatterns = [
+     path("", views.home, name='home'),
+    ...
+]</pre>
+<p>您可以通过<code>localhost:8000/post</code>查看页面。</p>
+<p id="gdcalert3"><img data-attachment-id="127506" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/tetra-blog/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png" data-orig-size="730,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Tetra blog" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-300x124.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png" decoding="async" class="aligncenter size-full wp-image-127506 jetpack-lazy-image" src="../Images/e7d1c730c66885990a2117275d1d56f7.png" alt="Tetra blog" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-300x124.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127506" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/tetra-blog/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png" data-orig-size="730,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Tetra blog" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-300x124.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-127506" src="../Images/e7d1c730c66885990a2117275d1d56f7.png" alt="Tetra blog" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-300x124.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog.png"/></noscript>
+<h2 id="post-detail-component"><code>PostDetail</code>组件</h2>
+<p>该组件将在一个页面上呈现完整的文章。该页面还将包含两个按钮:分别用于删除和更新文章。将以下代码添加到<code>components.py</code>文件中:</p>
+<pre class="language-python hljs">@default.register
+class PostDetail(Component):
+ 
+    def load(self, pk):
+        self.post = Post.objects.filter(id=pk)[0]
+
+    @public(update=False)
+    def delete_item(self):
+        Post.objects.filter(id=self.post.id).delete()
+        self.client._removeComponent()</pre>
+<p><code>load</code>方法通过<code>pk</code>变量接收帖子的<code>id</code>并获取<code>Post</code>实例，该实例的ID与数据库中的<code>pk</code>值相匹配。</p>
+<p><code>delete_item</code>方法从数据库中删除<code>Post</code>实例，自动将其从主屏幕中删除。默认情况下，当您调用组件时，公共方法将重新呈现该组件。通过在<code>@public</code>装饰器中将<code>update</code>属性设置为<code>False</code>，它确保不会试图重新呈现之前删除的帖子。</p>
+<p>以下是HTML模板:</p>
+<pre class="language-html hljs"> template: django_html = """
+        &lt;article &gt; 
+            &lt;small class="text-muted"&gt;{{ post.date_posted.date}}&lt;/small&gt;
+                
+            &lt;h2 class="article-title"&gt;{{ post.title }}&lt;/h2&gt;
+            &lt;p class="article-content"&gt;{{ post.content }}&lt;/p&gt;
+
+            &lt;div class="post-buttons"&gt;
+            &lt;button id="delete-button" type="submit" @click="delete_item()"&gt;&lt;em&gt;Delete&lt;/em&gt;&lt;/button&gt;
+           &lt;button id="update-button"&gt; &lt;em&gt;Update&lt;/em&gt; &lt;/button&gt;
+            &lt;/div&gt;
+           
+        &lt;/article&gt;
+    """</pre>
+<p>该模板检索从<code>load</code>方法获取的文章的日期、标题和内容，并呈现这些值。它还包含删除和更新文章的按钮。<strong>删除</strong>按钮调用<code>delete_item</code>方法对帖子执行删除操作。我们将在后续部分实现<strong>更新</strong>按钮。</p>
+<p>下面是模板的CSS:</p>
+<pre class="language-css hljs"> style: css = """
+
+        article{
+            margin: 100px;
+        }
+
+        .post-buttons{
+            position: absolute;
+            right: 0;
+        }
+
+        #delete-button, #update-button{
+            width: 150px;
+            padding: 10px;
+            border-radius: 9px;
+            border-style: none;
+            font-weight: bold;
+            margin: auto;
+        }
+
+        #update-button{
+            background: blue;
+            color: white;
+        }
+
+        #delete-button{
+            background: red;
+            color: white;
+        }
+
+    """</pre>
+<p>在上一节创建的<code>PostItem</code>模板中，通过包含一个<code>anchor</code>标签来更新HTML代码，该标签将用户从主屏幕引导到帖子详细信息页面。</p>
+<pre class="language-html hljs">@default.register
+class PostItem(Component):
+   
+  ...        
+   
+    template: django_html = """
+   
+    &lt;article class="post-container" &gt;
+           ...
+            &lt;a href="{% url 'post-detail' pk=post.id %}"&gt; {{ post.title }}&lt;/a&gt;
+          ...
+
+        &lt;/article&gt;
+            
+    """</pre>
+<p>在templates文件夹中，创建一个<code>post-detail.html</code>文件，该文件将作为post-detail页面的根HTML文件，并在该文件中包含以下代码:</p>
+<p>接下来，更新<code>views.py</code>和<code>urls.py</code>文件以包含帖子详细信息页面的路径:</p>
+<pre class="language-python hljs">def post_detail(request, **kwargs):
+    return render(request, 'post_detail.html', kwargs)</pre>
+<pre class="language-python hljs">urlpatterns = [
+     path("&lt;int:pk&gt;/", views.post_detail, name='post-detail')
+]</pre>
+<p>通过单击博客主页上的文章标题，在浏览器中查看文章的详细信息。</p>
+<p id="gdcalert4"><img data-attachment-id="127509" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/post-details/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png" data-orig-size="730,183" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Post details" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details-300x75.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png" decoding="async" class="aligncenter size-full wp-image-127509 jetpack-lazy-image" src="../Images/879476a5a557b7ffc199a50388533de1.png" alt="Post details with delete and update buttons" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/post-details-300x75.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127509" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/post-details/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png" data-orig-size="730,183" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Post details" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details-300x75.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-127509" src="../Images/879476a5a557b7ffc199a50388533de1.png" alt="Post details with delete and update buttons" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/post-details-300x75.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/post-details.png"/></noscript>
+<h2 id="update-post-component"><code>UpdatePost</code>组件</h2>
+<p>该组件负责更新现有帖子的标题和内容。</p>
+<pre class="language-python hljs">@default.register
+class PostUpdate(Component):
+    title=public("")
+    content=public("")
+
+
+    def load(self, pk):
+        self.post = Post.objects.filter(id=pk)[0]
+        self.title=self.post.title
+        self.content=self.post.content
+
+    @public
+    def update_post(self, title, content):
+        self.post.title = title
+        self.post.content = content
+
+        self.post.save()
+</pre>
+<p><code>load</code>方法接收您想要更新的文章的ID，并从数据库中获取它。然后，它将其标题和内容分别分配给<code>title</code>和<code>content</code>公共属性。</p>
+<p><code>update_post</code>方法接收更新的标题和内容，并将它们分配给获取的文章，然后保存到数据库。</p>
+<p>下面是组件的HTML模板:</p>
+<pre class="language-html hljs"> template: django_html = """
+        &lt;div class="container"&gt;
+            &lt;h2&gt;Update blog post&lt;/h2&gt;
+            &lt;label&gt; Title
+            &lt;em&gt;*&lt;/em&gt;
+            &lt;/label&gt;
+            &lt;input type="text" maxlength="255" x-model="title" name="title" required/&gt;
+
+            &lt;label&gt; Content
+            &lt;em&gt;*&lt;/em&gt;
+            &lt;/label&gt;
+            &lt;textarea rows="20" cols="80" x-model="content" name="content" required&gt; &lt;/textarea&gt;
+
+            &lt;button type="submit" @click="update_post(title, content)"&gt;&lt;em&gt;Submit&lt;/em&gt;&lt;/button&gt;
+        &lt;/div&gt;
+        """</pre>
+<p>上面的模板通过Alpine.js <code>x-model</code>属性呈现标题和内容公共属性的值，而按钮使用Alpine.js <code>@click</code>函数调用<code>update_post</code>方法，并将标题和内容的新值作为参数传递。</p>
+<p>在上一节创建的<code>PostDetail</code>模板中，通过包含一个<code>anchor</code>标签来更新HTML代码，该标签将用户从主屏幕引导到post update页面。</p>
+<pre class="language-html hljs">@default.register
+class PostDetail(Component):
+ 
+   ...
+
+    template: django_html = """
+        &lt;article  {% ... attrs %} &gt; 
+            ...
+            &lt;a class="nav-item nav-link" href="{% url 'update-post' pk=post.id %}"&gt;&lt;button id="update-button"&gt; &lt;em&gt;Update&lt;/em&gt; &lt;/button&gt;&lt;/a&gt;
+         ...
+           
+        &lt;/article&gt;
+    """</pre>
+<p>接下来，在template文件夹中，创建一个<code>post_update.html</code>文件，作为<code>PostUpdate</code>组件的根HTML模板。将以下代码片段添加到文件中:</p>
+<pre class="language-html hljs">{% load tetra %}
+&lt;!Doctype html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt; Update post &lt;/title&gt;
+    {% tetra_styles %}
+    {% tetra_scripts include_alpine=True %}
+  &lt;/head&gt;
+  &lt;body&gt;
+     &lt;form enctype="multipart/form-data" method="POST"&gt;
+      {% csrf_token %}
+      {% @ post_update pk=pk / %}
+    &lt;/form&gt;
+  &lt;/body&gt;
+  &lt;/html&gt;</pre>
+<p>最后，分别用下面的代码更新<code>views.py</code>和<code>urls.py</code>文件:</p>
+<pre class="language-python hljs">def update_post(request, **kwargs):
+    return render(request, 'post_update.html', kwargs)</pre>
+<pre class="language-python hljs">urlpatterns = [
+     ...
+     path("&lt;int:pk&gt;", views.update_post, name='update-post'),
+     ...
+
+]</pre>
+<p>您可以通过点击帖子详细信息屏幕上的<strong>更新</strong>按钮导航到<code>update-post</code>页面。</p>
+<p id="gdcalert5"><img data-attachment-id="127511" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/update-blog-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png" data-orig-size="730,582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Update blog post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png" decoding="async" class="aligncenter wp-image-127511 size-full jetpack-lazy-image" src="../Images/4d454d6e605d3eebaecac49648b28f59.png" alt="Update blog post screen with title and content boxes" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post-300x239.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127511" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/update-blog-post/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png" data-orig-size="730,582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Update blog post" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png" decoding="async" loading="lazy" class="aligncenter wp-image-127511 size-full" src="../Images/4d454d6e605d3eebaecac49648b28f59.png" alt="Update blog post screen with title and content boxes" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post-300x239.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/update-blog-post.png"/></noscript>
+<p id="gdcalert6"><img data-attachment-id="127513" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/tetra-blog-updated-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png" data-orig-size="730,133" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blog updated" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1-300x55.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png" decoding="async" class="aligncenter size-full wp-image-127513 jetpack-lazy-image" src="../Images/52a6f4ebdf59dac5d3349dae9dfac578.png" alt="Blog post title now shows &quot;-updated&quot; " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1-300x55.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127513" data-permalink="https://blog.logrocket.com/build-full-stack-app-tetra/attachment/tetra-blog-updated-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png" data-orig-size="730,133" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blog updated" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1-300x55.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-127513" src="../Images/52a6f4ebdf59dac5d3349dae9dfac578.png" alt="Blog post title now shows &quot;-updated&quot; " srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1-300x55.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/tetra-blog-updated-1.png"/></noscript>
+<h2 id="tetras-production-readiness">关于Tetra生产准备就绪的说明</h2>
+<p>在撰写本文时，Tetra仍处于早期开发阶段，目前支持Python 3.9及更高版本。然而，Tetra团队正致力于将该框架的功能扩展到Python的旧版本。</p>
+<p>在用Tetra开始生产之前，你应该知道的一件事是框架文档需要大量的改进。它太简洁了，因为有些依赖项要么根本没有解释，要么不够详细。例如，文档没有讨论如何处理图像，这就是为什么我们为这个演示构建了一个博客应用程序。</p>
+<p>直到我完成了这个项目，我才意识到这个框架并不像文档中描述的那么复杂。</p>
+<h2>结论</h2>
+<p>本文向您介绍了Tetra及其组件。通过构建一个执行CRUD操作的简单博客应用程序，您了解了Tetra如何工作，以及如何从单个文件执行全栈操作。</p>
+<p>Tetra主页包含了一些额外的例子，展示了如何用Tetra构建一些简单的应用程序。如果你也有兴趣了解这个框架的更多信息，<a href="https://www.tetraframework.com/docs/introduction" target="_blank" rel="noopener">文档</a>可以为你提供指导。你可以在<a href="https://github.com/olu-damilare/tetra_blog" target="_blank" rel="noopener"> GitHub </a>上查看博客应用的完整实现。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

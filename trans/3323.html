@@ -1,0 +1,219 @@
+<html>
+<head>
+<title>Go template libraries: A performance comparison - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Go模板库:性能比较</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/golang-template-libraries-performance-comparison/#0001-01-01">https://blog.logrocket.com/golang-template-libraries-performance-comparison/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>模板库是编程语言生态系统的重要组成部分。Go的标准库提供了开箱即用的强大模板库，但在<a href="https://blog.logrocket.com/tag/go/"> Go </a>中也有多个社区构建的模板库供开发者使用。</p>
+<p>由于有多种选择，很难为您的特定用例选择最佳选择。</p>
+<p>本文将使用Go的基准测试工具，基于性能、功能和安全性对一些最流行的模板库进行比较。具体来说，我们将看看一些常见的操作——如条件操作、模板嵌套和循环等。—在模板中使用，并对它们进行基准测试，让您了解每个模板引擎的性能和内存占用。</p>
+<p>基于对当今开发人员的使用和适用性，我决定使用四个Go模板库作为本文的基础，其他几个要么是预编译的，要么是稀疏维护的。我们今天要比较的库是<code>template/text</code>、<code>pongo2</code>、<code>liquid</code>和<code>quicktemplate</code>。</p>
+<p>我们开始吧！</p>
+
+<h2 id="templatetext"><code>template/text</code></h2>
+<p>Go的标准<a href="https://pkg.go.dev/text/template" target="_blank" rel="noopener">库</a>提供了一个功能全面且强大的模板引擎。它是非常高性能和良好优化的。</p>
+<h3 id="performance">表演</h3>
+<p>性能是任何计算机程序最重要的方面。Go的标准在生产中被广泛使用，并且理所当然地成为开发人员的热门选择。</p>
+<h4><strong>解析</strong></h4>
+<p>如果您的用例要求模板经常变化，或者您需要在每次请求时加载模板，那么解析很快就成为一个非常重要的基准。<code>text</code>包提供了各种解析方法，比如从字符串或文件中解析，或者使用模式从文件系统中读取文件。</p>
+<pre><code>// template has loop, if statement function call etc.
+BenchmarkGoParsing-10                      32030             37202 ns/op
+</code></pre>
+<p>您可以在启动时解析模板并缓存它以提高性能。如果您的模板经常变化，那么您可以使用cron，它在后台以固定的时间间隔更新。</p>
+<h4>字符串替换</h4>
+<p>一个字符串替换是任何模板引擎最基本的功能，<code>text</code>在字符串替换方面是超级快的。</p>
+<pre><code>// template -&gt; This is a simple string {{ .Name }} with value as string
+BenchmarkGoStd-10                        4185343               288.8 ns/op
+</code></pre>
+<p>当使用struct作为数据上下文时，字符串替换会更快—使用map可能会有点慢，因为它也会增加键查找的时间。</p>
+<pre><code>// template -&gt; This is a simple string {{ index . "name" }} with value as string
+BenchmarkGoStdMapWithIndex-10            1333495               852.7 ns/op
+</code></pre>
+<p>正如你所见，使用地图是昂贵的。避免<code>index</code>功能允许优化上述模板。</p>
+<pre><code>// template -&gt; This is a simple string {{ .Name }} with value as string`
+BenchmarkGoStdMapWith-10                 3563234               338.5 ns/op
+</code></pre>
+<p><code>.</code>还允许我们在地图上执行关键字查找。</p>
+<h4>条件式</h4>
+<p>条件是模板引擎的一个重要操作；低效的条件运算会导致性能下降。<code>text</code>包支持<code>if</code>操作，支持<code>and</code>和<code>or</code>操作。这两种方法都有多个参数，每个参数都是布尔类型。<code>text</code>为条件句提供合理的表现。</p>
+<pre><code>// template -&gt; This is the file {{if and .First (eq .Second "value") (ne .Third "value")}}Got{{end}}. Git do
+BenchmarkGoIfString-10                    506409              2323 ns/op
+</code></pre>
+<p>上面演示的性能可以通过避免<code>eq</code>和<code>ne</code>调用来提高。<code>template</code>中的每个函数都是通过反射调用的，这会导致性能下降。</p>
+<p>如果<code>eq .Second</code> <code>"value"</code>在代码中，那么编译器将能够优化它，因为具体类型在编译器类型中是已知的。如果所有的<code>eq</code>和<code>ne</code>调用都被一个简单的布尔函数代替，速度会更快。</p>
+<pre><code>// template -&gt; This is the file {{if and .First .Four .Five}}Got{{end}}. Git do
+BenchmarkGoIf-10                          987169              1186 ns/op
+</code></pre>
+<p>(注意:在基准测试期间，字符串比较也包括在时间计算中)</p>
+<h4>环</h4>
+<p>循环也由<code>text</code>包提供。<code>range</code>用于迭代切片、数组和映射。循环的性能取决于循环体中包含的操作。</p>
+<pre><code>// template -&gt;`{{range .Six}}{{.}},{{end}}`
+BenchmarkGoLoop-10                       1283661               919.8 ns/op
+</code></pre>
+<p>类似地，在map上迭代也是有效的:</p>
+<pre><code>// template -&gt; {{range $key, $value:=.Seven}}{{$key}},{{$value}}:{{end}}
+BenchmarkGoLoopMap-10                     566796              2003 ns/op
+</code></pre>
+<h4>函数调用</h4>
+<p>相反，函数调用允许开发人员在模板内更改和转换输入。但是，这通常会产生成本，因为函数调用是通过反射进行的。使用函数有很高的开销——如果可能的话，避免函数调用。</p>
+<pre><code>// template -&gt; This is a simple string {{ noop }} with value as string
+BenchmarkGoStdCallFunc-10                2611596               472.3 ns/op
+</code></pre>
+<h4>嵌套模板</h4>
+<p>嵌套模板允许用户共享代码，避免不必要的重复代码。<code>text</code>支持调用嵌套模板。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre><code>// template -&gt; {{define "noop"}} This is {{.Second}} and {{.Third}} {{end}}
+//
+//{{template "noop" .}}
+
+BenchmarkGoNested-10                     1868461               630.2 ns/op
+</code></pre>
+
+<p>值得注意的是，<code>text</code>尤其拥有出色的社区支持，像<code>sprig</code>这样的库提供了大量可以在模板中使用的函数。对语法高亮显示和内置验证的支持是Go的标准库模板包的标准。</p>
+<h2 id="pongo2"><code>pongo2</code></h2>
+<p><a href="https://github.com/flosch/pongo2" target="_blank" rel="noopener"> <code>pongo2</code> </a>是一个社区构建的模板引擎，其语法受Django-syntax的启发。它是由社区为Go而建的。今天它非常受欢迎，在<a href="https://github.com/flosch/pongo2" target="_blank" rel="noopener"> GitHub </a>上有超过2K颗星星。</p>
+<h3 id="performance-1">表演</h3>
+<p><code>pongo2</code>针对模板中的函数调用进行了很好的优化。它是一个完整的模板引擎，具有循环、条件和嵌套模板。</p>
+<h4>从语法上分析</h4>
+<p><code>pongo2</code>支持从字符串、字节、文件、缓存解析模板。我们可以看到，在性能方面，它比Go的标准库的模板包要快一点:</p>
+<pre><code>// template has loop, if, nested template and function call
+BenchmarkPongoParsing-10                   38670             29153 ns/op
+</code></pre>
+<h4>字符串替换</h4>
+<p>与<code>text</code>包相比，<code>pongo2</code>中的字符串替换要慢一些。它只支持map for data context，导致额外的查找操作时间，这反映在下面的基准测试中。</p>
+<pre><code>// template -&gt; This is a simple string {{ name }} with value as string
+BenchmarkPongo2-10                       1815843               654.2 ns/op
+</code></pre>
+<h4>条件式</h4>
+<p><code>pongo2</code>为if/else提供了更加开发人员友好的语法。它更接近于用编程语言编写if/else的方式。从pongo2的性能角度来看，<code>if/else</code>比<code>text</code>包更昂贵。</p>
+<pre><code>// template -&gt; Name is {% if First &amp;&amp; Four &amp;&amp; Five %}got{% endif %}. Go
+BenchmarkPongo2String2If-10               709471              1528 ns/op
+</code></pre>
+<h4>环</h4>
+<p><code>pongo2</code>中的循环比<code>text</code>包稍慢:</p>
+<pre><code>// template -&gt; {% for value in Six %} {{ value }}, {% endfor %}
+BenchmarkPongo2String2Loop-10             650672              1796 ns/op
+</code></pre>
+<p>地图上的循环也更慢:</p>
+<pre><code>// template -&gt; {% for key,value in Seven %} {{key}},{{ value }}, {% endfor %}
+BenchmarkPongo2String2LoopMap-10          359858              3182 ns/op
+</code></pre>
+<h4>函数调用</h4>
+<p><code>pongo2</code>中的函数调用比<code>text</code>包更快，因为它有一个在编译时已知的函数签名，并且函数不需要通过反射调用，这使得它更快。</p>
+<pre><code>// template -&gt; This is a simple string {{ noop }} with value as string
+BenchmarkPongo2StdCallFunc-10            4775058               261.9 ns/op
+</code></pre>
+<h4>嵌套模板</h4>
+<p><code>pongo2</code>宏是为嵌套模板性能提供的，比<code>text</code>包慢。</p>
+<pre><code>// template -&gt; {% macro noop(first, second) %}
+             This is {{first}} and {{second}}
+             {% endmacro %}
+             {{noop("anshul","goyal")}}
+
+
+BenchmarkPongo2String2Nested-10           657597              1665 ns/op
+</code></pre>
+<h2 id="liquid"><code>liquid</code></h2>
+<p><a href="https://github.com/osteele/liquid" target="_blank" rel="noopener"> <code>liquid</code> </a>是Shopify模板语言的社区构建实现。它提供了一个全功能的模板库。</p>
+<h3 id="performance-2">表演</h3>
+<p>从我的研究来看，这很有成效。它是一个完整的模板引擎，具有循环、条件和嵌套模板。</p>
+<h4>从语法上分析</h4>
+<p><code>liquid</code>支持从字符串、字节、文件解析模板。性能方面，比Go的标准库模板包和<code>pongo2</code>要慢一点。</p>
+<pre><code>// template has loop, if, nested template and function call
+BenchmarkLiquidParsing-10                       29710             40114 ns/op
+</code></pre>
+<h4>字符串替换</h4>
+<p>字符串替换性能与<code>pongo2</code>相当，而<code>liquid</code>比<code>text</code>包稍慢。它只支持数据上下文的映射，导致额外的查找操作时间，如下面的基准所示。</p>
+<pre><code>// template -&gt; This is a simple string {{ name }} with value as string
+BenchmarkLiquidString-10                       1815843                676.0 ns/op
+</code></pre>
+<h4>条件式</h4>
+<p>有非常开发人员友好的if/else语法。它更接近于if/else在其他已建立的编程语言中的编写方式。<code>if/else</code>在液体中的性能不如<code>text</code>包，但比<code>pongo2</code>快。</p>
+<pre><code>// template -&gt; This is the file {%if First and  Four and Five %}Got{%endif%}. Git do
+BenchmarkLiquidIf-10               709471              953.3 ns/op
+</code></pre>
+<h4>环</h4>
+<p><code>liquid</code>中的循环也比使用<code>text</code>包时慢。与<code>pongo2</code>相比，<code>liquid</code>的循环速度更慢:</p>
+<pre><code>// template -&gt; {%for value in Six %}{{value}},{%endfor%}
+BenchmarkLiquidLoop-10             650672              3067 ns/op
+</code></pre>
+<h4>函数调用</h4>
+<p><code>pongo2</code>中的函数调用比<code>liquid</code>更快，因为它有一个在编译时提取的函数签名，并且函数不需要通过反射调用，这使得它更快。</p>
+<pre><code>// template -&gt; This is a simple string {{ noop }} with value as string
+BenchmarkPongo2StdCallFunc-10            4775058               359.0 ns/op
+</code></pre>
+<h2 id="quicktemplate"><code>quicktemplate</code></h2>
+<p><code>quicktemplate</code>是预编译模板；它将模板转换成Go代码。它不允许开发人员在运行时更改代码。<code>quicktemplate</code>非常快，因为它不执行任何反射，一切都通过编译器优化器运行。</p>
+<p>如果您的用例不需要频繁更新，那么<code>quicktemplate</code>可能是您非常好的选择。与<code>liquid</code>和<code>fasttemplate</code>(用于字符串替换)相比，<code>quicktemplate</code>的基准如下所示:</p>
+<table>
+<thead>
+<tr>
+<th>特征</th>
+<th>液体</th>
+<th><a href="https://github.com/valyala/fasttemplate">快速模板</a></th>
+<th><a href="https://github.com/valyala/quicktemplate">快速模板</a></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>从语法上分析</td>
+<td>40114 ns/op</td>
+<td>188.8 ns/op</td>
+<td>不适用的</td>
+</tr>
+<tr>
+<td>If语句</td>
+<td>953.3 ns/op</td>
+<td>不适用的</td>
+<td>87.47 ns/升</td>
+</tr>
+<tr>
+<td>带字符串的if语句</td>
+<td>1144 ns/升</td>
+<td>N/A</td>
+<td>99.18 ns/升</td>
+</tr>
+<tr>
+<td>-好的</td>
+<td>3067 ns/向上</td>
+<td>N/A</td>
+<td>268.8 ns/升</td>
+</tr>
+<tr>
+<td>功能</td>
+<td>359.0 ns/op</td>
+<td>不适用的</td>
+<td>191.7 ns/op</td>
+</tr>
+<tr>
+<td>嵌套模板</td>
+<td>不适用的</td>
+<td>N/A</td>
+<td>191.7 ns/升</td>
+</tr>
+<tr>
+<td>字符串替换</td>
+<td>676.0 ns/op</td>
+<td>75.21 ns/升</td>
+<td>105.9 ns/升</td>
+</tr>
+</tbody>
+</table>
+<p><code>quicktemplate</code>是预编译的模板引擎(即模板转换成Go代码)。然后，编译器对Go代码进行优化，导致执行速度非常快。它还避免了反射，从而带来了巨大的性能提升。</p>
+<p>(注意:<code>quicktemplate</code>提供了快速的模板执行，但代价是没有模板的运行时更新。<code>fasttemplate</code>仅支持字符串替换)</p>
+<h2 id="conclusion">结论</h2>
+<p><code>pongo2</code>和<code>text</code>都各有利弊。<code>pongo2</code>提供了比<code>text</code>更友好的语法，但是<code>text</code>提供了更好的整体性能。</p>
+<p>您使用哪个模板库完全取决于哪个更适合您的特定项目需求。<code>text</code>预捆绑了Go的安装，这自然使它成为一个非常受欢迎的选择，而如果你的模板不需要经常改变，像<code>quicktemplate</code>这样的选项也是一个不错的选择，如果你不太喜欢使用Go的标准库，像<code>pongo2</code>这样的其他选项更容易使用。如果您只需要字符串替换，那么从性能角度来看，<code>fasttemplate</code>也是一个很好的选择。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

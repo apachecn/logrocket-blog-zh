@@ -1,0 +1,429 @@
+<html>
+<head>
+<title>Unit testing Flutter code with Mockito - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Mockito - LogRocket博客对颤振代码进行单元测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/unit-testing-flutter-code-mockito/#0001-01-01">https://blog.logrocket.com/unit-testing-flutter-code-mockito/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>单元测试验证单个方法或类是否按预期工作。它还通过确认在进行新的更改时现有逻辑是否仍然工作来提高可维护性。</p>
+<p>一般来说，单元测试很容易编写，但是要在测试环境中运行。默认情况下，当发出网络调用或HTTP请求时，会产生一个状态代码为<code>400</code>的空响应。为了解决这个问题，我们可以很容易地使用Mockito在任何时候发出HTTP请求时返回一个假的响应。Mockito有各种各样的用例，我们将在后面逐步介绍。</p>
+<p>在本教程中，我们将演示如何使用Mockito来测试颤振代码。我们将学习如何生成模拟、存根数据，并对发出流的方法执行测试。我们开始吧！</p>
+
+<h2 id="what-mockito">什么是莫奇托？</h2>
+<p><a href="https://site.mockito.org/" target="_blank" rel="noopener"> Mockito是一个众所周知的包</a>，它使得生成现有类的伪实现变得更加容易。它消除了重复编写这些功能的压力。此外，Mockito有助于控制输入，因此我们可以测试预期的结果。</p>
+<p>假设使用Mockito使得编写单元测试更容易，然而，对于糟糕的架构，模仿和编写单元测试很容易变得复杂。</p>
+<p>在本教程的后面，我们将学习如何将Mockito与模型-视图-视图模型(MVVM)模式一起使用，该模式涉及将代码库分成不同的可测试部分，如视图模型和存储库。</p>
+<h2 id="generating-mocks-stubbing-data">生成模拟和存根数据</h2>
+<p>模拟是真实类的假实现。它们通常用于控制测试的预期结果，或者当真正的类在测试环境中容易出错时。</p>
+<p>为了更好地理解这一点，我们将为处理发送和接收帖子的应用程序编写单元测试。</p>
+<h3 id="project-structure-overview">项目结构概述</h3>
+<p>在我们开始之前，让我们将所有必需的包添加到我们的项目中。</p>
+<pre class="language-yaml hljs">dependencies:
+  dio: ^4.0.6 # For making HTTP requests
+
+dev_dependencies:
+  build_runner: ^2.2.0 # For generating code (Mocks, etc)
+  mockito: ^5.2.0 # For mocking and stubbing
+</pre>
+<p>我们将使用MVVM和存储库模式，该模式将包括对存储库和视图模型的测试。在Flutter中，将所有的测试放在<code>test</code>文件夹中是一个很好的实践，它与<code>lib</code>文件夹的结构非常匹配。</p>
+<p>接下来，我们将通过给文件名添加<code>_test</code>来创建<code>authentication_repository.dart</code>和<code>authentication_repository_test.dart</code>文件。这有助于测试运行人员找到项目中存在的所有测试。</p>
+<p><img data-attachment-id="128660" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/test-files/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png" data-orig-size="730,451" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-files" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files-300x185.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png" decoding="async" class="aligncenter size-full wp-image-128660 jetpack-lazy-image" src="../Images/dee0cb834a59b0ae667340be1dc09363.png" alt="Test Files" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/test-files-300x185.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="128660" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/test-files/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png" data-orig-size="730,451" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test-files" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files-300x185.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-128660" src="../Images/dee0cb834a59b0ae667340be1dc09363.png" alt="Test Files" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/test-files-300x185.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/test-files.png"/></noscript>
+<p>我们将通过创建一个名为<code>AuthRepository</code>的类来开始这一部分。顾名思义，这个类将处理我们应用程序中的所有身份验证功能。之后，我们将包含一个登录方法，它检查状态代码是否等于<code>200</code>，并捕捉身份验证时出现的任何错误。</p>
+<pre class="language-dart hljs">class AuthRepository {
+  Dio dio = Dio();
+
+  AuthRepository();
+
+  Future&lt;bool&gt; login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final result = await dio.post(
+        '&lt;https://reqres.in/api/login&gt;',
+        data: {'email': email, 'password': password},
+      );
+
+      if (result.statusCode != 200) {
+        return false;
+      }
+    } on DioError catch (e) {
+      print(e.message);
+      return false;
+    }
+
+    return true;
+  }
+
+  // ...
+}
+</pre>
+<pre class="language-dart hljs">void main() {
+  late AuthRepository authRepository;
+
+  setUp(() {
+    authRepository = AuthRepository();
+  });
+
+  test('Successfully logged in user', () async {
+    expect(
+      await authRepository.login(email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6b010a060e182b060a020745080406">[email protected]</a>', password: '123456'),
+      true,
+    );
+  });
+}
+</pre>
+<p>在上面的测试中，我们初始化了setup函数中的<code>AuthRepository</code>。由于它将在每个测试和测试组之前直接在<code>main</code>中运行，它将为每个测试或组初始化一个新的<code>auth</code>存储库。</p>
+<p>接下来，我们将编写一个测试，期望login方法返回<code>true</code>而不抛出错误。然而，测试仍然会失败，因为默认情况下单元测试不支持发出网络请求，因此用<code>Dio</code>发出的登录请求会返回一个状态代码<code>400</code>。</p>
+<p><img data-attachment-id="128662" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/status-code-400-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png" data-orig-size="730,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="status-code-400-error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png" decoding="async" class="aligncenter size-full wp-image-128662 jetpack-lazy-image" src="../Images/4bc0384f1fc6d60bc489f5e9e1c9b7a9.png" alt="Status Code 400 Error" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error-300x118.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="128662" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/status-code-400-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png" data-orig-size="730,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="status-code-400-error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-128662" src="../Images/4bc0384f1fc6d60bc489f5e9e1c9b7a9.png" alt="Status Code 400 Error" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error-300x118.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/status-code-400-error.png"/></noscript><img decoding="async" src="../Images/d757d23f695f5541032882b038dca6d3.png" alt="" data-lazy-src="https://s3.us-west-2.amazonaws.com/secure.notion-static.com/d8bd384f-e7ec-463e-92bc-7782047332c6/Untitled.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&amp;X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220802%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20220802T125011Z&amp;X-Amz-Expires=86400&amp;X-Amz-Signature=ec9c246b96587c205873babd3e508777a971d89c241bd423f46f2a7b31672d65&amp;X-Amz-SignedHeaders=host&amp;response-content-disposition=filename+%3D%22Untitled.png%22&amp;x-id=GetObject&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://s3.us-west-2.amazonaws.com/secure.notion-static.com/d8bd384f-e7ec-463e-92bc-7782047332c6/Untitled.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&amp;X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220802%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20220802T125011Z&amp;X-Amz-Expires=86400&amp;X-Amz-Signature=ec9c246b96587c205873babd3e508777a971d89c241bd423f46f2a7b31672d65&amp;X-Amz-SignedHeaders=host&amp;response-content-disposition=filename%20%3D%22Untitled.png%22&amp;x-id=GetObject"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/d757d23f695f5541032882b038dca6d3.png" alt="" data-original-src="https://s3.us-west-2.amazonaws.com/secure.notion-static.com/d8bd384f-e7ec-463e-92bc-7782047332c6/Untitled.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&amp;X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220802%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20220802T125011Z&amp;X-Amz-Expires=86400&amp;X-Amz-Signature=ec9c246b96587c205873babd3e508777a971d89c241bd423f46f2a7b31672d65&amp;X-Amz-SignedHeaders=host&amp;response-content-disposition=filename%20%3D%22Untitled.png%22&amp;x-id=GetObject"/></noscript>
+<p>为了解决这个问题，我们可以使用Mockito生成一个功能类似于<code>Dio</code>的模拟类。在Mockito中，我们通过在<code>main</code>方法的开头添加注释<code>@GenerateMocks([classes])</code>来生成mocks。这通知构建运行器为列表中的所有类生成模拟。</p>
+<pre class="language-dart hljs">@GenerateMocks([Dio, OtherClass])
+void main(){
+    // test for login
+}
+</pre>
+<p>接下来，打开终端并运行命令<code>flutter pub run build_runner build</code>开始为类生成模拟。代码生成完成后，我们将能够通过在类名前添加<code>Mock</code>来访问生成的模拟。</p>
+<pre class="language-dart hljs">@GenerateMocks([Dio])
+void main(){
+      MockDio mockDio = MockDio()
+      late AuthRepository authRepository;
+      ...
+}
+</pre>
+<p>当我们调用登录端点时，我们必须存根数据以确保<code>MockDio</code>返回正确的响应数据。在Flutter中，stubbing意味着在调用mock方法时返回一个假对象。例如，当测试使用<code>MockDio</code>调用登录端点时，我们应该返回一个状态代码为<code>200</code>的响应对象。</p>
+<p>可以使用函数<code>when()</code>来清除mock，该函数可以与<code>thenReturn</code>、<code>thenAnswer</code>或<code>thenThrow</code>一起使用，以便在我们调用mock方法时提供所需的值。<code>thenAnswer</code>函数用于返回未来或流的方法，而<code>thenReturn</code>用于模拟类的普通同步方法。</p>
+<pre class="language-dart hljs">// To stub any method; gives error when used for futures or stream
+when(mock.method()).thenReturn(value);
+
+// To stub method that return a future or stream
+when(mock.method()).thenAnswer(() =&gt; futureOrStream);
+
+// To stub error
+when(mock.method()).thenThrow(errorObject);
+
+// dart
+@GenerateMocks([Dio])
+void main() {
+  MockDio mockDio = MockDio();
+  late AuthRepository authRepository;
+
+  setUp(() {
+    authRepository = AuthRepository();
+  });
+
+  test('Successfully logged in user', () async {
+    // Stubbing
+    when(mockDio.post(
+      '&lt;https://reqres.in/api/login&gt;',
+      data: {'email': '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1a707b777f695a777b737634797577">[email protected]</a>', 'password': '123456'},
+    )).thenAnswer(
+      (inv) =&gt; Future.value(Response(
+        statusCode: 200,
+        data: {'token': 'ASjwweiBE'},
+        requestOptions: RequestOptions(path: '&lt;https://reqres.in/api/login&gt;'),
+      )),
+    );
+
+    expect(
+      await authRepository.login(email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="573d363a3224173a363e3b7934383a">[email protected]</a>', password: '123456'),
+      true,
+    );
+  });
+}
+</pre>
+<p>在创建我们的存根之后，我们仍然需要将<code>MockDio</code>传递到测试文件中，这样就可以使用它来代替真正的<code>dio</code>类。为了实现这一点，我们将从<code>authRepository</code>中移除真正的<code>dio</code>类的定义或实例化，并允许它通过其构造函数传递。这个概念叫做依赖注入。</p>
+<h3 id="dependency-injection">依赖注入</h3>
+<p><a href="https://blog.logrocket.com/dependency-injection-flutter-using-getit-injectable/" target="_blank" rel="noopener">Flutter中的依赖注入</a>是一种技术，其中一个对象或类提供另一个对象的依赖。这种模式确保了测试和视图模型都可以定义它们想要使用的<code>dio</code>的类型。</p>
+<pre class="language-dart hljs">class AuthenticationRepository{
+        Dio dio;
+
+        // Instead of specifying the type of dio to be used
+        // we let the test or viewmodel define it
+        AuthenticationRepository(this.dio)
+}
+
+</pre>
+<pre class="language-dart hljs">@GenerateMocks([Dio])
+void main() {
+  MockDio mockDio = MockDio();
+  late AuthRepository authRepository;
+
+  setUp(() {
+    // we can now pass in Dio as an argument
+    authRepository = AuthRepository(mockDio);
+  });
+}
+</pre>
+<h2 id="using-argument-matchers">使用参数匹配器</h2>
+<p>在前面的登录示例中，如果在发出请求时电子邮件<code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c2a8a3afa7b182afa3abaeeca1adaf">[email protected]</a></code>被更改为<code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1d2c0cce1ccc0c8cd8fc2cecc">[email protected]</a></code>，测试将产生一个<code>no stub found</code>错误。这是因为我们只为<code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4f252e222a3c0f222e2623612c2022">[email protected]</a></code>创建了存根。</p>
+<p>然而，在大多数情况下，我们希望通过使用Mockito提供的参数匹配器来避免重复不必要的逻辑。有了参数匹配器，我们可以对各种各样的值使用相同的存根，而不是确切的类型。</p>
+<p>为了更好地理解匹配参数，我们将测试<code>PostViewModel</code>并为<code>PostRepository</code>创建模拟。推荐使用这种方法，因为当我们存根时，我们将返回自定义对象或模型，而不是响应和映射。也很轻松！</p>
+<p>首先，我们将创建<code>PostModel</code>来更清晰地表示数据。</p>
+<pre class="language-dart hljs">class PostModel {
+  PostModel({
+    required this.id,
+    required this.userId,
+    required this.body,
+    required this.title,
+  });
+
+  final int id;
+  final String userId;
+  final String body;
+  final String title;
+
+  // implement fromJson and toJson methods for this
+}
+</pre>
+<p>接下来，我们创建<code>PostViewModel</code>。这用于检索数据或向<code>PostRepository</code>发送数据。<code>PostViewModel</code>只不过是从存储库中发送和检索数据，并通知UI用新数据重建。</p>
+<pre class="language-dart hljs">import 'package:flutter/material.dart';
+import 'package:mockito_article/models/post_model.dart';
+import 'package:mockito_article/repositories/post_repository.dart';
+
+class PostViewModel extends ChangeNotifier {
+  PostRepository postRepository;
+  bool isLoading = false;
+
+  final Map&lt;int, PostModel&gt; postMap = {};
+
+  PostViewModel(this.postRepository);
+
+  Future&lt;void&gt; sharePost({
+    required int userId,
+    required String title,
+    required String body,
+  }) async {
+    isLoading = true;
+    await postRepository.sharePost(
+      userId: userId,
+      title: title,
+      body: body,
+    );
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future&lt;void&gt; updatePost({
+    required int userId,
+    required int postId,
+    required String body,
+  }) async {
+    isLoading = true;
+    await postRepository.updatePost(postId, body);
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future&lt;void&gt; deletePost(int id) async {
+    isLoading = true;
+    await postRepository.deletePost(id);
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future&lt;void&gt; getAllPosts() async {
+    isLoading = true;
+    final postList = await postRepository.getAllPosts();
+
+    for (var post in postList) {
+      postMap[post.id] = post;
+    }
+
+    isLoading = false;
+    notifyListeners();
+  }
+}
+</pre>
+<p>如前所述，我们模拟依赖关系，而不是我们测试的实际类。在这个例子中，我们为<code>PostViewModel</code>编写单元测试，并模仿<code>PostRepository</code>。这意味着我们将调用生成的<code>MockPostRepository</code>类中的方法，而不是可能抛出错误的<code>PostRepository</code>。</p>
+<p>Mockito使得匹配参数变得非常容易。例如，看看<code>PostViewModel</code>中的<code>updatePost</code>方法。它调用存储库<code>updatePost</code>方法，该方法只接受两个位置参数。对于stub这个类方法，我们可以选择提供确切的<code>postId</code>和<code>body</code>，或者我们可以使用Mockito提供的变量<code>any</code>来简化事情。</p>
+<pre class="language-dart hljs">@GenerateMocks([PostRepository])
+void main() {
+  MockPostRepository mockPostRepository = MockPostRepository();
+  late PostViewModel postViewModel;
+
+  setUp(() {
+    postViewModel = PostViewModel(mockPostRepository);
+  });
+
+  test('Updated post successfully', () {
+    // stubbing with argument matchers and 'any'
+    when(
+      mockPostRepository.updatePost(any, argThat(contains('stub'))),
+    ).thenAnswer(
+      (inv) =&gt; Future.value(),
+    );
+
+    // This method calls the mockPostRepository update method
+    postViewModel.updatePost(
+      userId: 1,
+      postId: 3,
+      body: 'include `stub` to receive the stub',
+    );
+
+    // verify the mock repository was called
+    verify(mockPostRepository.updatePost(3, 'include `stub` to receive the stub'));
+  });
+}
+</pre>
+<p>上面的存根包括了变量<code>any</code>和函数<code>argThat(matcher)</code>。在Dart中，匹配器用于指定测试预期。我们有不同类型的匹配器适合不同的测试用例。例如，如果对象包含相应的值，匹配器<code>contains(value)</code>将返回<code>true</code>。</p>
+<h3 id="matching-positional-named-arguments">匹配位置参数和命名参数</h3>
+<p><a href="https://blog.logrocket.com/introduction-to-using-dart-in-flutter/" target="_blank" rel="noopener">在Dart中，我们也有位置参数和命名参数</a>。在上面的例子中，<code>updatePost</code>方法的mock和stub处理位置参数并使用<code>any</code>变量。</p>
+<p>然而，命名参数不支持<code>any</code>变量，因为Dart没有提供一种机制来知道一个元素是否被用作命名参数。相反，我们在处理命名参数时使用<code>anyNamed(’name’)</code>函数。</p>
+<pre class="language-dart hljs">when(
+  mockPostRepository.sharePost(
+    body: argThat(startsWith('stub'), named: 'body'),
+    postId: anyNamed('postId'),
+    title: anyNamed('title'),
+    userId: 3,
+  ),
+).thenAnswer(
+  (inv) =&gt; Future.value(),
+);
+</pre>
+<p>当使用带有命名参数的匹配器时，我们必须提供参数的名称以避免错误。<a href="https://api.flutter.dev/flutter/package-matcher_matcher/package-matcher_matcher-library.html" target="_blank" rel="noopener">你可以在Dart文档</a>中阅读更多关于匹配器的信息，查看所有可能的可用选项。</p>
+<h2 id="creating-fakes-mockito">在莫奇托制造假货</h2>
+<p>仿制品和假货经常被混淆，所以让我们快速澄清两者的区别。</p>
+<p>Mocks是生成的类，允许使用参数匹配器进行存根化。然而，Fakes是覆盖real类的现有方法以提供更多灵活性的类，所有这些都没有使用参数匹配器。</p>
+<p>例如，在post存储库中使用fakes而不是mocks将允许我们使伪存储库的功能类似于真实存储库。这是可能的，因为我们能够根据提供的值返回结果。更简单地说，当我们在测试中调用<code>sharePost</code>时，我们可以选择保存文章，然后使用<code>getAllPosts</code>确认文章是否被保存。</p>
+<pre class="language-dart hljs">class FakePostRepository extends Fake implements PostRepository {
+  Map&lt;int, PostModel&gt; fakePostStore = {};
+
+  @override
+  Future&lt;PostModel&gt; sharePost({
+    int? postId,
+    required int userId,
+    required String title,
+    required String body,
+  }) async {
+    final post = PostModel(
+      id: postId ?? 0,
+      userId: userId,
+      body: body,
+      title: title,
+    );
+    fakePostStore[postId ?? 0] = post;
+    return post;
+  }
+
+  @override
+  Future&lt;void&gt; updatePost(int postId, String body) async {
+    fakePostStore[postId] = fakePostStore[postId]!.copyWith(body: body);
+  }
+
+  @override
+  Future&lt;List&lt;PostModel&gt;&gt; getAllPosts() async {
+    return fakePostStore.values.toList();
+  }
+
+  @override
+  Future&lt;bool&gt; deletePost(int id) async {
+    fakePostStore.remove(id);
+
+    return true;
+  }
+}
+</pre>
+<p>使用<code>fake</code>更新的测试如下所示。使用<code>fake</code>，我们可以一次测试所有的方法。当一篇文章被添加或共享时，它会被添加到存储库中的地图中。</p>
+<pre class="language-dart hljs">@GenerateMocks([PostRepository])
+void main() {
+  FakePostRepository fakePostRepository = FakePostRepository();
+  late PostViewModel postViewModel;
+
+  setUp(() {
+    postViewModel = PostViewModel(fakePostRepository);
+  });
+
+  test('Updated post successfully', () async {
+    expect(postViewModel.postMap.isEmpty, true);
+    const postId = 123;
+
+    postViewModel.sharePost(
+      postId: postId,
+      userId: 1,
+      title: 'First Post',
+      body: 'My first post',
+    );
+    await postViewModel.getAllPosts();
+    expect(postViewModel.postMap[postId]?.body, 'My first post');
+
+    postViewModel.updatePost(
+      postId: postId,
+      userId: 1,
+      body: 'My updated post',
+    );
+    await postViewModel.getAllPosts();
+    expect(postViewModel.postMap[postId]?.body, 'My updated post');
+  });
+}
+</pre>
+<p><img data-attachment-id="128664" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/updated-post-successfully/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png" data-orig-size="730,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="updated-post-successfully" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png" decoding="async" class="aligncenter size-full wp-image-128664 jetpack-lazy-image" src="../Images/4fa206e2807de13b18b59270e8f76ea8.png" alt="Updated Post Successfully Screen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully-300x118.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="128664" data-permalink="https://blog.logrocket.com/unit-testing-flutter-code-mockito/attachment/updated-post-successfully/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png" data-orig-size="730,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="updated-post-successfully" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-128664" src="../Images/4fa206e2807de13b18b59270e8f76ea8.png" alt="Updated Post Successfully Screen" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully-300x118.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/updated-post-successfully.png"/></noscript>
+<h2 id="mocking-testing-streams-flutter">抖动中的模拟和测试流</h2>
+<p>用Mockito模拟和存根化流与期货非常相似，因为我们使用相同的语法进行存根化。然而，现金流与期货有很大的不同，因为它们提供了一种机制，可以在价值发出时持续监听价值。</p>
+<p>为了测试返回流的方法，我们可以测试该方法是否被调用，或者检查值是否以正确的顺序发出。</p>
+<pre class="language-dart hljs">class PostViewModel extends ChangeNotifier {
+  ...
+  PostRepository postRepository;
+  final likesStreamController = StreamController&lt;int&gt;();
+
+  PostViewModel(this.postRepository);
+
+  ...
+  void listenForLikes(int postId) {
+    postRepository.listenForLikes(postId).listen((likes) {
+      likesStreamController.add(likes);
+    });
+  }
+}
+
+
+@GenerateMocks([PostRepository])
+void main() {
+  MockPostRepository mockPostRepository = MockPostRepository();
+  late PostViewModel postViewModel;
+
+  setUp(() {
+    postViewModel = PostViewModel(mockPostRepository);
+  });
+
+  test('Listen for likes works correctly', () {
+    final mocklikesStreamController = StreamController&lt;int&gt;();
+
+    when(mockPostRepository.listenForLikes(any))
+        .thenAnswer((inv) =&gt; mocklikesStreamController.stream);
+
+    postViewModel.listenForLikes(1);
+
+    mocklikesStreamController.add(3);
+    mocklikesStreamController.add(5);
+    mocklikesStreamController.add(9);
+
+    // checks if listen for likes is called
+    verify(mockPostRepository.listenForLikes(1));
+    expect(postViewModel.likesStreamController.stream, emitsInOrder([3, 5, 9]));
+  });
+}
+</pre>
+<p>在上面的例子中，我们添加了一个<code>listenforLikes</code>方法，它调用<code>PostRepository</code>方法并返回一个我们可以监听的流。接下来，我们创建了一个测试，它监听流并检查方法是否以正确的顺序被调用和发出。</p>
+<p>对于一些复杂的情况，我们可以使用<code>expectLater</code>或<code>expectAsync1</code>，而不是只使用<code>expect</code>函数。</p>
+<h2 id="conclusion">结论</h2>
+<p>尽管大多数逻辑看起来很简单，但编写测试非常重要，这样我们就不会重复地对这些功能进行QA。编写测试的目的之一是随着你的应用程序变大，减少重复的QA。</p>
+<p>在本文中，我们学习了如何在编写单元测试时有效地使用Mockito来生成模拟。我们还学习了如何使用fakes和参数匹配器来编写功能测试。</p>
+<p>希望您能更好地理解如何构建您的应用程序来简化模仿。感谢阅读！</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

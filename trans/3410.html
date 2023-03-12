@@ -1,0 +1,751 @@
+<html>
+<head>
+<title>Deforming a mesh in Unity - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Unity - LogRocket博客中变形网格</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deforming-mesh-unity/#0001-01-01">https://blog.logrocket.com/deforming-mesh-unity/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在这篇文章中，你将学习如何使用各种技术在Unity中变形一个网格，这样当你在游戏中需要一个特定的或相似的特征时，你就可以为你的项目选择一个最合适的。我们将实现一个效果，使用一个基本的函数来移动顶点，类似于水面上的波纹。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="why-use-mesh-deformation">为什么使用网格变形？</h2>
+<p>游戏中有很多需要网格变形的特性，包括风中摇曳的草，角色互动，水中的波浪，甚至是<a href="https://blog.logrocket.com/easy-environment-design-unity-terrain-features/" target="_blank" rel="noopener">地形特性</a>比如角色脚下的积雪。我还可以继续，但是很明显，在各种各样的游戏和类型中使用网格变形是很重要的。</p>
+<h2 id="deform-mesh-unity">如何在Unity中变形网格</h2>
+<p>首先，我们需要一个带有<code>Deformer</code>组件和<code>MeshFilter</code>的游戏对象。</p>
+<p>基础变形器<code>MonoBehaviour</code>应该包含属性并缓存网格对象:</p>
+<pre class="language-csharp hljs">[RequireComponent(typeof(MeshFilter))]
+public abstract class BaseDeformer : MonoBehaviour
+{
+   [SerializeField] protected float _speed = 2.0f;
+   [SerializeField] protected float _amplitude = 0.25f;
+   protected Mesh Mesh;
+
+   protected virtual void Awake()
+   {
+       Mesh = GetComponent&lt;MeshFilter&gt;().mesh;
+   }
+}
+</pre>
+<p>为了方便地修改和计算位移函数，我们创建了一个计算位移的实用程序类。这里介绍的所有方法都将使用utility类，它允许我们在同一位置同时为所有方法更改位移函数:</p>
+<pre class="language-csharp hljs">public static class DeformerUtilities
+{
+   [BurstCompile]
+   public static float CalculateDisplacement(Vector3 position, float time, float speed, float amplitude)
+   {
+       var distance = 6f - Vector3.Distance(position, Vector3.zero);
+       return Mathf.Sin(time * speed + distance) * amplitude;
+   }
+}
+</pre>
+<p>在这篇博文中，我们将使用以下技术来变形一个网格:</p>
+
+<h3 id="mesh-deformation-single-threaded-implementation">单线程实现的网格变形</h3>
+<p>这是Unity中变形网格的最简单方法。对于没有任何其他基于性能的工作的小游戏来说，这可能是一个完美的解决方案。</p>
+<p>我们需要在每个<code>Update()</code>上迭代<code>Mesh.vertices</code>，并根据位移函数修改它们:</p>
+<pre class="language-csharp hljs">public class SingleThreadedDeformer : BaseDeformer
+{
+   private Vector3[] _vertices;
+
+   protected override void Awake()
+   {
+       base.Awake();
+       // Mesh.vertices return a copy of an array, therefore we cache it to avoid excessive memory allocations
+       _vertices = Mesh.vertices;
+   }
+
+   private void Update()
+   {
+       Deform();
+   }
+
+   private void Deform()
+   {
+       for (var i = 0; i &lt; _vertices.Length; i++)
+       {
+           var position = _vertices[i];
+           position.y = DeformerUtilities.CalculateDisplacement(position, Time.time, _speed, _amplitude);
+           _vertices[i] = position;
+       }
+
+       // MarkDynamic optimizes mesh for frequent updates according to docs
+       Mesh.MarkDynamic();
+       // Update the mesh visually just by setting the new vertices array
+       Mesh.SetVertices(_vertices);
+       // Must be called so the updated mesh is correctly affected by the light
+       Mesh.RecalculateNormals();
+   }
+}
+</pre>
+<h3 id="C-sharp-job-system-implementation-unity">用C#在Unity中实现作业系统</h3>
+<p>在前面的方法中，我们在每一帧中迭代顶点数组。那么，我们如何优化它呢？你的第一个想法应该是同时做这项工作。Unity允许我们在工作线程上拆分计算，因此我们可以并行迭代数组。</p>
+<p>您可能会争辩说，调度任何工作并将结果收集到主线程上会有成本。当然，我只能同意你的观点。因此，您必须在目标平台上分析您的确切情况，以便做出任何假设。进行轮廓分析后，可以确定是使用作业系统还是其他方法来变形网格。</p>
+<p>要使用<a href="https://blog.logrocket.com/performance-unity-async-await-tasks-coroutines-c-job-system-burst-compiler/" target="_blank" rel="noopener"> C#作业系统</a>，我们需要将位移计算移到一个作业中:</p>
+<pre class="language-csharp hljs">[BurstCompile]
+public struct DeformerJob : IJobParallelFor
+{
+   private NativeArray&lt;Vector3&gt; _vertices;
+   [ReadOnly] private readonly float _speed;
+   [ReadOnly] private readonly float _amplitude;
+   [ReadOnly] private readonly float _time;
+
+   public DeformerJob(float speed, float amplitude, float time, NativeArray&lt;Vector3&gt; vertices)
+   {
+       _vertices = vertices;
+       _speed = speed;
+       _amplitude = amplitude;
+       _time = time;
+   }
+
+   public void Execute(int index)
+   {
+       var position = _vertices[index];
+       position.y = DeformerUtilities.CalculateDisplacement(position, _time, _speed, _amplitude);
+       _vertices[index] = position;
+   }
+}
+</pre>
+<p>然后，我们不是在<code>Update()</code>中变形网格，而是调度新作业，并尝试在<code>LateUpdate()</code>中完成它:</p>
+<pre class="language-csharp hljs">public class JobSystemDeformer : BaseDeformer
+{
+   private NativeArray&lt;Vector3&gt; _vertices;
+   private bool _scheduled;
+   private DeformerJob _job;
+   private JobHandle _handle;
+
+   protected override void Awake()
+   {
+       base.Awake();
+       // Similarly to the previous approach we cache the mesh vertices array
+       // But now NativeArray&lt;Vector3&gt; instead of Vector3[] because the latter cannot be used in jobs
+       _vertices = new NativeArray&lt;Vector3&gt;(Mesh.vertices, Allocator.Persistent);
+   }
+
+   private void Update()
+   {
+       TryScheduleJob();
+   }
+
+   private void LateUpdate()
+   {
+       CompleteJob();
+   }
+
+   private void OnDestroy()
+   {
+     // Make sure to dispose all unmanaged resources when object is destroyed
+       _vertices.Dispose();
+   }
+
+   private void TryScheduleJob()
+   {
+       if (_scheduled)
+       {
+           return;
+       }
+
+       _scheduled = true;
+       _job = new DeformerJob(_speed, _amplitude, Time.time, _vertices);
+       _handle = _job.Schedule(_vertices.Length, 64);
+   }
+
+   private void CompleteJob()
+   {
+       if (!_scheduled)
+       {
+           return;
+       }
+
+       _handle.Complete();
+       Mesh.MarkDynamic();
+       // SetVertices also accepts NativeArray&lt;Vector3&gt; so we can use in here too
+       Mesh.SetVertices(_vertices);
+       Mesh.RecalculateNormals();
+       _scheduled = false;
+   }
+}
+</pre>
+<p>您可以在<a href="https://docs.unity3d.com/Manual/Profiler.html" target="_blank" rel="noopener">分析器</a>中轻松检查工作线程是否繁忙:</p>
+<p><img data-attachment-id="134518" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unit-mesh-deformation-worker-profiler-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png" data-orig-size="730,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-mesh-deformation-worker-profiler" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1-300x174.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png" decoding="async" class="aligncenter wp-image-134518 size-full jetpack-lazy-image" src="../Images/3bde6d6dfb0086ce41f04c155c63a667.png" alt="Example of Profiler for Checking Worker Threads in Unity" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1-300x174.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134518" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unit-mesh-deformation-worker-profiler-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png" data-orig-size="730,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-mesh-deformation-worker-profiler" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1-300x174.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-134518 size-full" src="../Images/3bde6d6dfb0086ce41f04c155c63a667.png" alt="Example of Profiler for Checking Worker Threads in Unity" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1-300x174.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unit-mesh-deformation-worker-profiler-1.png"/></noscript>
+<h3 id="mesh-deformation-MeshData-implementation">使用MeshData实现的网格变形</h3>
+<p><a href="https://docs.unity3d.com/2020.1/Documentation/ScriptReference/Mesh.MeshData.html" target="_blank" rel="noopener"> MeshData </a>是添加到Unity v2020.1中的一个相对较新的API。它提供了一种在作业中使用网格的方法，这允许我们摆脱数据缓冲<code>NativeArray&lt;Vector3&gt; _vertices</code>。</p>
+<p>这个缓冲区是必需的，因为<code>mesh.vertices</code>返回一个实际数组的副本，所以缓存这个数据并重用集合是合理的。</p>
+<p>相反，MeshData返回指向实际网格数据的指针。从这里，我们可以每帧更新网格，并在调度新作业之前获得指向下一帧新数据的指针，而不会有与分配和复制大型阵列相关的性能损失。</p>
+<p>因此，前面的代码转换为:</p>
+<pre class="language-csharp hljs">[BurstCompile]
+public struct DeformMeshDataJob : IJobParallelFor
+{
+   public Mesh.MeshData OutputMesh;
+   [ReadOnly] private NativeArray&lt;VertexData&gt; _vertexData;
+   [ReadOnly] private readonly float _speed;
+   [ReadOnly] private readonly float _amplitude;
+   [ReadOnly] private readonly float _time;
+
+   public DeformMeshDataJob(
+       NativeArray&lt;VertexData&gt; vertexData,
+       Mesh.MeshData outputMesh,
+       float speed,
+       float amplitude,
+       float time)
+   {
+       _vertexData = vertexData;
+       OutputMesh = outputMesh;
+       _speed = speed;
+       _amplitude = amplitude;
+       _time = time;
+   }
+
+   public void Execute(int index)
+   {
+       var outputVertexData = OutputMesh.GetVertexData&lt;VertexData&gt;();
+       var vertexData = _vertexData[index];
+       var position = vertexData.Position;
+       position.y = DeformerUtilities.CalculateDisplacement(position, _time, _speed, _amplitude);
+       outputVertexData[index] = new VertexData
+       {
+           Position = position,
+           Normal = vertexData.Normal,
+           Uv = vertexData.Uv
+       };
+   }
+}
+</pre>
+<p>下面是我们如何获得调度作业所需的所有数据:</p>
+<pre class="language-csharp hljs">private void ScheduleJob()
+{
+...
+   // Will be writing into this mesh data
+   _meshDataArrayOutput = Mesh.AllocateWritableMeshData(1);
+   var outputMesh = _meshDataArrayOutput[0];
+   // From this one
+   _meshDataArray = Mesh.AcquireReadOnlyMeshData(Mesh);
+   var meshData = _meshDataArray[0];
+   // Set output mesh params
+   outputMesh.SetIndexBufferParams(meshData.GetSubMesh(0).indexCount, meshData.indexFormat);
+   outputMesh.SetVertexBufferParams(meshData.vertexCount, _layout);
+   // Get the pointer to the input vertex data array
+   _vertexData = meshData.GetVertexData&lt;VertexData&gt;();
+   _job = new DeformMeshDataJob(
+       _vertexData,
+       outputMesh,
+       _speed,
+       _amplitude,
+       Time.time
+   );
+
+   _jobHandle = _job.Schedule(meshData.vertexCount, _innerloopBatchCount);
+}
+</pre>
+<p>你可能已经注意到我们得到了<code>meshData.GetVertexData&lt;VertexData&gt;()</code>，而不仅仅是顶点数组:</p>
+<pre class="language-csharp hljs">[StructLayout(LayoutKind.Sequential)]
+public struct VertexData
+{
+   public Vector3 Position;
+   public Vector3 Normal;
+   public Vector2 Uv;
+}
+</pre>
+<p>这使我们可以在作业中设置输出网格数据中的所有顶点数据。与先前的技术相反，在先前的技术中，我们直接修改网格并且顶点数据已经存在，输出网格数据在创建时不包含作业内的顶点数据。当使用这个结构时，确保它包含你的网格拥有的所有数据；否则，调用<code>GetVertexData&lt;T&gt;()</code>可能会失败或产生不想要的结果。</p>
+<p>例如，这个将会工作，因为它匹配所有的顶点参数:</p>
+<p><img data-attachment-id="134526" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-vertices-mesh-data-successful-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-vertices-mesh-data-successful" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1-300x195.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png" decoding="async" class="aligncenter wp-image-134526 size-full jetpack-lazy-image" src="../Images/899101afcb00a175e56c1f71f88426aa.png" alt="Example of Successful Unity Vertex Data Parameters" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1-300x195.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134526" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-vertices-mesh-data-successful-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-vertices-mesh-data-successful" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1-300x195.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-134526 size-full" src="../Images/899101afcb00a175e56c1f71f88426aa.png" alt="Example of Successful Unity Vertex Data Parameters" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1-300x195.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertices-mesh-data-successful-1.png"/></noscript>
+<p>但是，这个例子会因为一个切线而失败:</p>
+<p><img data-attachment-id="134524" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-vertex-mesh-data-failure-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png" data-orig-size="730,527" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-vertex-mesh-data-failure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1-300x217.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png" decoding="async" class="aligncenter wp-image-134524 size-full jetpack-lazy-image" src="../Images/5a05802ba48cbfed06e7300c1f453c18.png" alt="Example of Failed Unity Vertex Parameters" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1-300x217.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134524" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-vertex-mesh-data-failure-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png" data-orig-size="730,527" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-vertex-mesh-data-failure" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1-300x217.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-134524 size-full" src="../Images/5a05802ba48cbfed06e7300c1f453c18.png" alt="Example of Failed Unity Vertex Parameters" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1-300x217.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-vertex-mesh-data-failure-1.png"/></noscript>
+<p>如果你需要切线，那么你必须用额外的字段扩展<code>VertexData</code>。这同样适用于您可能添加到网格的任何属性。</p>
+<p>完成作业后，我们以下列方式应用数据:</p>
+<pre class="language-csharp hljs">private void UpdateMesh(Mesh.MeshData meshData)
+   {
+     // Get a reference to the index data and fill it from the input mesh data
+       var outputIndexData = meshData.GetIndexData&lt;ushort&gt;();
+       _meshDataArray[0].GetIndexData&lt;ushort&gt;().CopyTo(outputIndexData);
+       // According to docs calling Mesh.AcquireReadOnlyMeshData
+ // does not cause any memory allocations or data copies by default, as long as you dispose of the MeshDataArray before modifying the Mesh
+       _meshDataArray.Dispose();
+       meshData.subMeshCount = 1;
+       meshData.SetSubMesh(0,
+           _subMeshDescriptor,
+           MeshUpdateFlags.DontRecalculateBounds |
+           MeshUpdateFlags.DontValidateIndices |
+           MeshUpdateFlags.DontResetBoneBounds |
+           MeshUpdateFlags.DontNotifyMeshUsers);
+       Mesh.MarkDynamic();
+       Mesh.ApplyAndDisposeWritableMeshData(
+           _meshDataArrayOutput,
+           Mesh,
+           MeshUpdateFlags.DontRecalculateBounds |
+           MeshUpdateFlags.DontValidateIndices |
+           MeshUpdateFlags.DontResetBoneBounds |
+           MeshUpdateFlags.DontNotifyMeshUsers);
+       Mesh.RecalculateNormals();
+   }
+</pre>
+<p>以下是完整的脚本:</p>
+<pre class="language-csharp hljs">public class MeshDataDeformer : BaseDeformer
+{
+   private Vector3 _positionToDeform;
+   private Mesh.MeshDataArray _meshDataArray;
+   private Mesh.MeshDataArray _meshDataArrayOutput;
+   private VertexAttributeDescriptor[] _layout;
+   private SubMeshDescriptor _subMeshDescriptor;
+   private DeformMeshDataJob _job;
+   private JobHandle _jobHandle;
+   private bool _scheduled;
+
+   protected override void Awake()
+   {
+       base.Awake();
+       CreateMeshData();
+   }
+
+   private void CreateMeshData()
+   {
+       _meshDataArray = Mesh.AcquireReadOnlyMeshData(Mesh);
+       _layout = new[]
+       {
+           new VertexAttributeDescriptor(VertexAttribute.Position,
+               _meshDataArray[0].GetVertexAttributeFormat(VertexAttribute.Position), 3),
+           new VertexAttributeDescriptor(VertexAttribute.Normal,
+               _meshDataArray[0].GetVertexAttributeFormat(VertexAttribute.Normal), 3),
+           new VertexAttributeDescriptor(VertexAttribute.TexCoord0,
+               _meshDataArray[0].GetVertexAttributeFormat(VertexAttribute.TexCoord0), 2),
+       };
+       _subMeshDescriptor =
+           new SubMeshDescriptor(0, _meshDataArray[0].GetSubMesh(0).indexCount, MeshTopology.Triangles)
+           {
+               firstVertex = 0, vertexCount = _meshDataArray[0].vertexCount
+           };
+   }
+
+   private void Update()
+   {
+       ScheduleJob();
+   }
+
+   private void LateUpdate()
+   {
+       CompleteJob();
+   }
+
+   private void ScheduleJob()
+   {
+       if (_scheduled)
+       {
+           return;
+       }
+
+       _scheduled = true;
+       _meshDataArrayOutput = Mesh.AllocateWritableMeshData(1);
+       var outputMesh = _meshDataArrayOutput[0];
+       _meshDataArray = Mesh.AcquireReadOnlyMeshData(Mesh);
+       var meshData = _meshDataArray[0];
+       outputMesh.SetIndexBufferParams(meshData.GetSubMesh(0).indexCount, meshData.indexFormat);
+       outputMesh.SetVertexBufferParams(meshData.vertexCount, _layout);
+       _job = new DeformMeshDataJob(
+           meshData.GetVertexData&lt;VertexData&gt;(),
+           outputMesh,
+           _speed,
+           _amplitude,
+           Time.time
+       );
+
+       _jobHandle = _job.Schedule(meshData.vertexCount, 64);
+   }
+
+   private void CompleteJob()
+   {
+       if (!_scheduled)
+       {
+           return;
+       }
+
+       _jobHandle.Complete();
+       UpdateMesh(_job.OutputMesh);
+       _scheduled = false;
+   }
+
+   private void UpdateMesh(Mesh.MeshData meshData)
+   {
+       var outputIndexData = meshData.GetIndexData&lt;ushort&gt;();
+       _meshDataArray[0].GetIndexData&lt;ushort&gt;().CopyTo(outputIndexData);
+       _meshDataArray.Dispose();
+       meshData.subMeshCount = 1;
+       meshData.SetSubMesh(0,
+           _subMeshDescriptor,
+           MeshUpdateFlags.DontRecalculateBounds |
+           MeshUpdateFlags.DontValidateIndices |
+           MeshUpdateFlags.DontResetBoneBounds |
+           MeshUpdateFlags.DontNotifyMeshUsers);
+       Mesh.MarkDynamic();
+       Mesh.ApplyAndDisposeWritableMeshData(
+           _meshDataArrayOutput,
+           Mesh,
+           MeshUpdateFlags.DontRecalculateBounds |
+           MeshUpdateFlags.DontValidateIndices |
+           MeshUpdateFlags.DontResetBoneBounds |
+           MeshUpdateFlags.DontNotifyMeshUsers);
+       Mesh.RecalculateNormals();
+   }
+}
+</pre>
+<h3 id="deforming-mesh-compute-shader-implementation">使用计算着色器实现变形网格</h3>
+<p>像前面的例子一样在工作线程上分割工作是一个好主意，但是我们可以通过将工作卸载到GPU来分割工作，这是为了执行并行工作而设计的。</p>
+<p>在这里，工作流类似于作业系统方法-我们需要调度一项工作，但我们将使用计算着色器并将数据发送到GPU，而不是使用作业。</p>
+<p>首先，创建一个使用<code>RWStructuredBuffer&lt;VertexData&gt;</code>而不是<code>NativeArray</code>作为数据缓冲区的着色器。除了这一点和语法，代码是相似的:</p>
+<pre class="language-HighLevelShadingLanguage hljs">#pragma kernel CSMain
+
+struct VertexData
+{
+   float3 position;
+   float3 normal;
+   float2 uv;
+};
+
+RWStructuredBuffer&lt;VertexData&gt; _VertexBuffer;
+float _Time;
+float _Speed;
+float _Amplitude;
+
+[numthreads(32,1,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+   float3 position = _VertexBuffer[id.x].position;
+   const float distance = 6.0 - length(position - float3(0, 0, 0));
+   position.y = sin(_Time * _Speed + distance) * _Amplitude;
+   _VertexBuffer[id.x].position.y = position.y;
+}
+</pre>
+<p>注意<code>VertexData</code>，它定义在着色器的顶部。我们也需要它在C#端的表示:</p>
+<pre class="language-csharp hljs">[StructLayout(LayoutKind.Sequential)]
+public struct VertexData
+{
+   public Vector3 Position;
+   public Vector3 Normal;
+   public Vector2 Uv;
+}
+</pre>
+<p>在这里，我们在<code>Update()</code>中创建请求<code>_request = AsyncGPUReadback.Request(_computeBuffer);</code>，并在<code>LateUpdate()</code>中收集准备好的结果:</p>
+<pre class="language-csharp hljs">public class ComputeShaderDeformer : BaseDeformer
+{
+   [SerializeField] private ComputeShader _computeShader;
+   private bool _isDispatched;
+   private int _kernel;
+   private int _dispatchCount;
+   private ComputeBuffer _computeBuffer;
+   private AsyncGPUReadbackRequest _request;
+
+   private NativeArray&lt;VertexData&gt; _vertexData;
+
+   // Cache property id to prevent Unity hashing it every frame under the hood
+   private readonly int _timePropertyId = Shader.PropertyToID("_Time");
+
+   protected override void Awake()
+   {
+       if (!SystemInfo.supportsAsyncGPUReadback)
+       {
+           gameObject.SetActive(false);
+           return;
+       }
+
+       base.Awake();
+       CreateVertexData();
+       SetMeshVertexBufferParams();
+       _computeBuffer = CreateComputeBuffer();
+       SetComputeShaderValues();
+   }
+
+   private void CreateVertexData()
+   {
+     // Can use here MeshData to fill the data buffer really fast and without generating garbage
+       _vertexData = Mesh.AcquireReadOnlyMeshData(Mesh)[0].GetVertexData&lt;VertexData&gt;();
+   }
+
+   private void SetMeshVertexBufferParams()
+   {
+       var layout = new[]
+       {
+           new VertexAttributeDescriptor(VertexAttribute.Position,
+               Mesh.GetVertexAttributeFormat(VertexAttribute.Position), 3),
+           new VertexAttributeDescriptor(VertexAttribute.Normal,
+               Mesh.GetVertexAttributeFormat(VertexAttribute.Normal), 3),
+           new VertexAttributeDescriptor(VertexAttribute.TexCoord0,
+               Mesh.GetVertexAttributeFormat(VertexAttribute.TexCoord0), 2),
+       };
+       Mesh.SetVertexBufferParams(Mesh.vertexCount, layout);
+   }
+
+   private void SetComputeShaderValues()
+   {
+       // No need to cache these properties to ids, as they are used only once and we can avoid odd memory usage
+       _kernel = _computeShader.FindKernel("CSMain");
+       _computeShader.GetKernelThreadGroupSizes(_kernel, out var threadX, out _, out _);
+       _dispatchCount = Mathf.CeilToInt(Mesh.vertexCount / threadX + 1);
+       _computeShader.SetBuffer(_kernel, "_VertexBuffer", _computeBuffer);
+       _computeShader.SetFloat("_Speed", _speed);
+       _computeShader.SetFloat("_Amplitude", _amplitude);
+   }
+
+   private ComputeBuffer CreateComputeBuffer()
+   {
+       // 32 is the size of one element in the buffer. Has to match size of buffer type in the shader
+       // Vector3 + Vector3 + Vector2 = 8 floats = 8 * 4 bytes
+       var computeBuffer = new ComputeBuffer(Mesh.vertexCount, 32);
+       computeBuffer.SetData(_vertexData);
+       return computeBuffer;
+   }
+
+   private void Update()
+   {
+       Request();
+   }
+
+   private void LateUpdate()
+   {
+       TryGetResult();
+   }
+
+   private void Request()
+   {
+       if (_isDispatched)
+       {
+           return;
+       }
+
+       _isDispatched = true;
+       _computeShader.SetFloat(_timePropertyId, Time.time);
+       _computeShader.Dispatch(_kernel, _dispatchCount, 1, 1);
+       _request = AsyncGPUReadback.Request(_computeBuffer);
+   }
+
+   private void TryGetResult()
+   {
+       if (!_isDispatched || !_request.done)
+       {
+           return;
+       }
+
+       _isDispatched = false;
+       if (_request.hasError)
+       {
+           return;
+       }
+
+       _vertexData = _request.GetData&lt;VertexData&gt;();
+       Mesh.MarkDynamic();
+       Mesh.SetVertexBufferData(_vertexData, 0, 0, _vertexData.Length);
+       Mesh.RecalculateNormals();
+   }
+
+   private void OnDestroy()
+   {
+       _computeBuffer?.Release();
+       _vertexData.Dispose();
+   }
+}
+</pre>
+<h3 id="vertex-shader-implementation-unity">在Unity中使用顶点着色器实现</h3>
+<p>所有以前的技术都使用不同的方法来修改主线程或工作线程以及GPU上的数据。最终，数据被传递回主线程来更新<code>MeshFilter</code>。</p>
+<p>有时，你需要更新<code>MeshCollider</code>，这样<a href="https://blog.logrocket.com/2d-3d-raycasting-unity/" target="_blank" rel="noopener">物理和刚体</a>将与你修改后的网格一起工作。但是如果不需要修改对撞机呢？</p>
+<p>想象一下，你只需要一个使用网格变形的视觉效果，比如树叶在风中摇曳。如果每一帧中的每一片叶子都要参与物理计算，你就不能添加很多树。</p>
+<p>幸运的是，我们可以修改和渲染网格，而无需将数据传回CPU。为此，我们将向顶点着色器添加一个置换函数。这是一个性能的游戏改变者，因为传递大量数据通常会成为游戏中的瓶颈。</p>
+<p>当然，一个包含网格数据的缓冲区不会产生显著的差异。然而，当你的游戏扩展时，你应该总是进行剖析，以确保它不会最终将大量不同功能的不同数据传递给GPU，并最终成为瓶颈。</p>
+<p>要在着色器中产生类似的效果，请在菜单中创建表面着色器。</p>
+<p>接下来，我们将把我们的属性添加到<code>Properties</code>块:</p>
+<pre class="language-HighLevelShaderLanguage hljs">[PowerSlider(5.0)] _Speed ("Speed", Range (0.01, 100)) = 2
+[PowerSlider(5.0)] _Amplitude ("Amplitude", Range (0.01, 5)) = 0.25
+</pre>
+<p>默认情况下，表面着色器中没有顶点着色器功能。我们需要将<code>vertex:vert</code>添加到表面定义中:</p>
+<pre class="language-HighLevelShaderLanguage hljs">#pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+</pre>
+<p>此外，表面着色器需要<code>addshadow</code>来为新顶点位置而不是原始顶点位置生成阴影过程。</p>
+<p>现在，我们可以定义<code>vert</code>函数:</p>
+<pre class="language-HighLevelShaderLanguage hljs">SubShader
+{
+...
+       float _Speed;
+       float _Amplitude;
+
+
+       void vert(inout appdata_full data)
+       {
+           float4 position = data.vertex;
+           const float distance = 6.0 - length(data.vertex - float4(0, 0, 0, 0));
+           position.y += sin(_Time * _Speed + distance) * _Amplitude;
+           data.vertex = position;
+       }
+...
+}
+</pre>
+<p><img data-attachment-id="134683" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-effect-gif/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif" data-orig-size="512,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-effect-gif" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif" decoding="async" class="aligncenter wp-image-134683 jetpack-lazy-image" src="../Images/837560ca6aeceeabf813d27f3e8a046c.png" alt="GIF of an Effect in Unity" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134683" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/unity-effect-gif/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif" data-orig-size="512,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-effect-gif" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif" decoding="async" loading="lazy" class="aligncenter wp-image-134683" src="../Images/837560ca6aeceeabf813d27f3e8a046c.png" alt="GIF of an Effect in Unity" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/unity-effect-gif.gif"/></noscript><br/>
+That’s it! However, you might notice that because we don’t use <code>MonoBehaviour</code>, there’s nowhere to call <code>RecalculateNormals()</code>, and the deformation looks dull. Even if we had a separate component, calling <code>RecalculateNormals()</code> wouldn’t help because deformation only occurs on the GPU — meaning that no vertices data is passed back to the CPU. So, we’ll need to do it.
+<p>为此，我们可以使用法线、切线和双切线向量。这些向量彼此正交。因为法线和切线都在数据里，所以我们把第三个算成<code>bitangent = cross(normal, tangent)</code>。</p>
+<p>假设它们是正交的，并且<code>normal</code>垂直于表面，我们可以通过将<code>tangent</code>和<code>bitangent</code>添加到当前位置来找到两个相邻的点。</p>
+<pre class="language-HighLevelShaderLanguage hljs">float3 posPlusTangent = data.vertex + data.tangent * _TangentMultiplier;
+float3 posPlusBitangent = data.vertex + bitangent * _TangentMultiplier;
+</pre>
+<p>不要忘记使用一个小的乘数，使点靠近当前顶点。接下来，使用相同的位移函数修改这些向量:</p>
+<pre class="language-HighLevelShaderLanguage hljs">float getOffset( float3 position)
+{
+   const float distance = 6.0 - length(position - float4(0, 0, 0, 0));
+   return sin(_Time * _Speed + distance) * _Amplitude;
+}
+
+void vert(inout appdata_full data)
+{
+   data.vertex.y = getOffset(data.vertex);
+...
+   posPlusTangent.y = getOffset(posPlusTangent);
+   posPlusBitangent.y = getOffset(posPlusBitangent);
+...
+   float3 modifiedTangent = posPlusTangent - data.vertex;
+   float3 modifiedBitangent = posPlusBitangent - data.vertex;
+   float3 modifiedNormal = cross(modifiedTangent, modifiedBitangent);
+   data.normal = normalize(modifiedNormal);
+}
+</pre>
+<p>现在，我们从修改的位置中减去当前顶点，得到一个新的切线和双切线。</p>
+<p>最后，我们可以使用叉积来找到修改后的法线。</p>
+<pre class="language-HighLevelShaderLanguage hljs">float3 modifiedTangent = posPlusTangent - data.vertex;
+float3 modifiedBitangent = posPlusBitangent - data.vertex;
+float3 modifiedNormal = cross(modifiedTangent, modifiedBitangent);
+data.normal = normalize(modifiedNormal);
+</pre>
+<p>这种方法是一种近似，但它给出了足够可信的结果，可用于许多情况。</p>
+<p><img data-attachment-id="134778" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/ezgif-com-gif-maker-5/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif" data-orig-size="715,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-mesh-deformation-graphic-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif" decoding="async" class="aligncenter wp-image-134778 size-full jetpack-lazy-image" src="../Images/6ea3071cc35a2189bbd128e16edcd28d.png" alt="GIF of Unity Effect Using Mesh Deformation" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134778" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/ezgif-com-gif-maker-5/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif" data-orig-size="715,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="unity-mesh-deformation-graphic-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif" decoding="async" loading="lazy" class="aligncenter wp-image-134778 size-full" src="../Images/6ea3071cc35a2189bbd128e16edcd28d.png" alt="GIF of Unity Effect Using Mesh Deformation" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/ezgif.com-gif-maker-3.gif"/></noscript>
+<p>最后，这是整个着色器:</p>
+<pre class="language-HighLevelShaderLanguage hljs">Shader "Custom/DeformerSurfaceShader"
+{
+   Properties
+   {
+       _Color ("Color", Color) = (1,1,1,1)
+       _MainTex ("Albedo (RGB)", 2D) = "white" {}
+       _Glossiness ("Smoothness", Range(0,1)) = 0.5
+       _Metallic ("Metallic", Range(0,1)) = 0.0
+       [PowerSlider(5.0)] _Speed ("Speed", Range (0.01, 100)) = 2
+       [PowerSlider(5.0)] _Amplitude ("Amplitude", Range (0.01, 5)) = 0.25
+       [PowerSlider(5.0)] _TangentMultiplier ("TangentMultiplier", Range (0.001, 2)) = 0.01
+   }
+   SubShader
+   {
+       Tags
+       {
+           "RenderType"="Opaque"
+       }
+       LOD 200
+
+       CGPROGRAM
+       #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+
+       #pragma target 3.0
+
+       sampler2D _MainTex;
+
+       struct Input
+       {
+           float2 uv_MainTex;
+       };
+
+       half _Glossiness;
+       half _Metallic;
+       fixed4 _Color;
+       float _Speed;
+       float _Amplitude;
+       float _TangentMultiplier;
+
+       float getOffset( float3 position)
+       {
+           const float distance = 6.0 - length(position - float4(0, 0, 0, 0));
+           return sin(_Time * _Speed + distance) * _Amplitude;
+       }
+
+       void vert(inout appdata_full data)
+       {
+           data.vertex.y = getOffset(data.vertex);
+
+
+           float3 posPlusTangent = data.vertex + data.tangent * _TangentMultiplier;
+           posPlusTangent.y = getOffset(posPlusTangent);
+           float3 bitangent = cross(data.normal, data.tangent);
+
+
+           float3 posPlusBitangent = data.vertex + bitangent * _TangentMultiplier;
+           posPlusBitangent.y = getOffset(posPlusBitangent);
+
+
+           float3 modifiedTangent = posPlusTangent - data.vertex;
+           float3 modifiedBitangent = posPlusBitangent - data.vertex;
+           float3 modifiedNormal = cross(modifiedTangent, modifiedBitangent);
+           data.normal = normalize(modifiedNormal);
+       }
+
+       void surf(Input IN, inout SurfaceOutputStandard o)
+       {
+           fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * _Color;
+           o.Albedo = c.rgb;
+           o.Metallic = _Metallic;
+           o.Smoothness = _Glossiness;
+           o.Alpha = c.a;
+       }
+       ENDCG
+   }
+   FallBack "Diffuse"
+}
+</pre>
+<h2 id="comparing-performances-mesh-deformation-techniques-unity">Unity中网格变形技术的性能比较</h2>
+<p>为了比较所有的方法，我们将使用Unity的性能测试包。</p>
+<p>让我们看一个允许我们运行500帧样本应用程序的基本测试。从那里，我们将收集帧时间，以查看我们讨论的每种技术的中值帧时间。我们也可以使用一个简单的<code>WaitForSeconds(x)</code>枚举器，但是这将在每种技术的运行中产生不同数量的样本，因为帧时间不同:</p>
+<pre class="language-csharp hljs">[UnityTest, Performance]
+public IEnumerator DeformableMeshPlane_MeshData_PerformanceTest()
+{
+   yield return StartTest("Sample");
+}
+
+private static IEnumerator StartTest(string sceneName)
+{
+   yield return LoadScene(sceneName);
+   yield return RunTest();
+}
+
+private static IEnumerator LoadScene(string sceneName)
+{
+   yield return SceneManager.LoadSceneAsync(sceneName);
+   yield return null;
+}
+
+private static IEnumerator RunTest()
+{
+   var frameCount = 0;
+   using (Measure.Frames().Scope())
+   {
+       while (frameCount &lt; 500)
+       {
+           frameCount++;
+           yield return null;
+       }
+   }
+}
+</pre>
+<p>例如，我在以下配置上运行了测试套件:</p>
+<pre class="prettyprint">Intel Core i7-8750H CPU 2.20GHz (Coffee Lake), 1 CPU, 12 logical and 6 physical cores
+NVIDIA GeForce GTX 1070
+</pre>
+<p><code>test</code>下的网格有160801个顶点和320000个三角形。</p>
+<p><img data-attachment-id="134516" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/mesh-data-test-unity-vertices-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mesh-data-test-unity-vertices" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png" decoding="async" class="aligncenter wp-image-134516 size-full jetpack-lazy-image" src="../Images/efae4f2daf6a202d51bf37e3c6f96c6c.png" alt="Example of the Mesh Data Test for the Vertices in Unity" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="134516" data-permalink="https://blog.logrocket.com/deforming-mesh-unity/attachment/mesh-data-test-unity-vertices-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mesh-data-test-unity-vertices" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-134516 size-full" src="../Images/efae4f2daf6a202d51bf37e3c6f96c6c.png" alt="Example of the Mesh Data Test for the Vertices in Unity" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/mesh-data-test-unity-vertices-1.png"/></noscript>
+<h2>结论</h2>
+<p>很明显，顶点着色器是这里的赢家。然而，它不能涵盖其他技术可以涵盖的所有用例，包括用修改后的数据更新网格碰撞器。</p>
+<p>排在第二位的是计算着色器，因为它将修改后的网格数据传递给CPU，从而允许它在更广泛的情况下使用。可惜的是，在OpenGL ES v3.1之前的手机上不支持的<a href="https://docs.unity3d.com/Manual/class-ComputeShader.html" target="_blank" rel="noopener">。</a></p>
+<p>我们看到的性能最差的方法是单线程方法。虽然这是最简单的方法，但如果你有较小的网格或正在制作原型，它仍然可以适应你的框架预算。</p>
+<p>如果您的目标是低端移动设备，MeshData似乎是一种平衡的方法。您应该在运行时检查当前的<a href="https://docs.unity3d.com/ScriptReference/SystemInfo-supportsComputeShaders.html" target="_blank" rel="noopener">平台是否支持计算着色器</a>，然后选择网格数据或计算着色器变形器。</p>
+<p>最后，在决定游戏的性能关键部分之前，您必须始终分析您的代码，因此在选择这些技术时，请在目标平台上测试您的用例。在GitHub上查看整个资源库。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

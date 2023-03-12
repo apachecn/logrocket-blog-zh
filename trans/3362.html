@@ -1,0 +1,257 @@
+<html>
+<head>
+<title>Using TypeORM’s QueryBuilder in NestJS - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在NestJS - LogRocket博客中使用TypeORM的QueryBuilder</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-typeorms-querybuilder-nestjs/#0001-01-01">https://blog.logrocket.com/using-typeorms-querybuilder-nestjs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>NestJS 是一个相对较新的JavaScript web框架，它使您能够构建企业级的服务器端应用程序。它功能强大，实施最佳实践，并使用最新的JavaScript特性。它还默认支持TypeScript，并使用了<a href="https://typeorm.io" target="_blank" rel="noopener"> TypeORM </a>，这是一个用TypeScript构建的强大的对象关系管理库。</p>
+<p>在GitHub 上有超过<a href="https://typeorm.io" target="_blank" rel="noopener"> 29.3k颗星星，TypeORM是最受欢迎的Node.js ORMs之一。除了与数据库无关之外，TypeORM还有一个独特的API，允许您使用活动记录和数据映射模式以不同的方式访问SQL数据库(如MYSQL和PostgreSQL)和NoSQL数据库(如MongoDB)中的数据。</a></p>
+<p>在本文中，我们将学习如何将TypeORM与NestJS集成，添加一个数据库驱动程序，并使用NestJS中的TypeORM QueryBuilder运行基本查询。</p>
+<p>为了有效地阅读本文，您应该具备:</p>
+<ul>
+<li><a href="https://nodejs.org/en/" target="_blank" rel="noopener"> Node.js </a> v12 LTS或Node &gt; v14安装在您的计算机上— <a href="https://github.com/nvm-sh/nvm" target="_blank" rel="noopener"> NVM </a>使得在Node.js的不同版本之间切换变得更加容易</li>
+<li>NestJS和JavaScript的基本工作知识</li>
+</ul>
+<p>需要复习一些基础知识吗？查看这篇关于用NestJS构建电子商务应用程序的实用文章。</p>
+<p>我们开始吧！</p>
+<h2>目录</h2>
+
+<p>设置NestJS很简单，根据您的需要，有几种方法可以实现。然而，在本文中，我们将使用CLI安装它。</p>
+<pre class="language-shell hljs">npx @nestjs/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c4a7a8ad84fdeaf4eaf4">[email protected]</a> new nest-app
+</pre>
+<p>这个命令将对NestJS“Hello，World！”样板应用程序，因此您可以直接开始编码。</p>
+<p>现在我们已经安装了NestJS，让我们将TypeORM集成到我们的应用程序中。请密切关注这一部分；在开始编写查询之前，需要正确集成TypeORM。</p>
+<p>在您的终端上运行这个命令来安装TypeORM和SQLite3驱动程序——我们将在本教程中使用SQLite来降低安装和设置MySQL或PostgreSQL数据库的复杂性。</p>
+<pre class="language-shell hljs">npm install @nestjs/typeorm sqlite3
+</pre>
+<h3 id="generate-basic-app-setup">生成基本应用程序设置</h3>
+<p>接下来，让我们使用NestJS CLI为查询应用程序的框架生成控制器和服务。运行以下命令来生成它，并选择REST API传输层。</p>
+<pre class="language-shell hljs">npx @nestjs/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="17747b7e572e39273927">[email protected]</a> g resource posts
+</pre>
+<p><img data-attachment-id="132116" data-permalink="https://blog.logrocket.com/using-typeorms-querybuilder-nestjs/attachment/basic-app-setup-nestjs-orm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png" data-orig-size="730,193" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Basic app setup for NestJS and TypeORM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png" decoding="async" class="size-full wp-image-132116 aligncenter jetpack-lazy-image" src="../Images/4d4f7b665744fbf1de2daaf18d37cc96.png" alt="Basic App Setup for NestJS and TypeORM" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm-300x79.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="132116" data-permalink="https://blog.logrocket.com/using-typeorms-querybuilder-nestjs/attachment/basic-app-setup-nestjs-orm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png" data-orig-size="730,193" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Basic app setup for NestJS and TypeORM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png" decoding="async" loading="lazy" class="size-full wp-image-132116 aligncenter" src="../Images/4d4f7b665744fbf1de2daaf18d37cc96.png" alt="Basic App Setup for NestJS and TypeORM" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm-300x79.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/basic-app-setup-nestjs-orm.png"/></noscript>
+<p>它将询问您是否想要生成CRUD入口点。选择<strong>是</strong>。为您生成所有内容需要一点时间，但这是NestJS的一个有益方面。</p>
+<p>您的目录结构现在应该如下所示:</p>
+<pre>.
+├── README.md
+├── dist
+├── nest-cli.json
+├── package-lock.json
+├── package.json
+├── src
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   ├── main.ts
+│   └── posts
+│       ├── dto
+│       │   ├── create-post.dto.ts
+│       │   └── update-post.dto.ts
+│       ├── entities
+│       │   └── post.entity.ts
+│       ├── posts.controller.spec.ts
+│       ├── posts.controller.ts
+│       ├── posts.module.ts
+│       ├── posts.service.spec.ts
+│       └── posts.service.ts
+├── test
+├── tsconfig.build.json
+├── tsconfig.json
+└── yarn.lock
+</pre>
+<h3 id="configure-typeorm-sqlite">用SQLite配置TypeORM</h3>
+<p>现在，让我们在<code>src/app.module.ts</code>文件中配置TypeORM。</p>
+<p>最初，它看起来像这样:</p>
+<pre class="language-typescript hljs">// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { PostsModule } from './posts/posts.module';
+@Module({
+  imports: [PostsModule],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<p>导入SQLite连接选项、TypeORM模块和post实体，如下面的代码所示:</p>
+<pre class="language-typescript hljs">// src/app.module.ts
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SqliteConnectionOptions } from 'typeorm/driver/sqlite/SqliteConnectionOptions';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { Post } from './posts/entities/post.entity';
+import { PostsModule } from './posts/posts.module';
+
+const config: SqliteConnectionOptions = {
+  type: "sqlite",
+  database: "../db",
+  entities: [Post],
+  synchronize: true
+}
+
+@Module({
+  imports: [PostsModule, TypeOrmModule.forRoot(config)],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<p>现在，让我们完成刚刚添加的更新。首先，查看配置对象的形状，我们添加了数据库和实体，并同步了数据库。但是，重要的是要记住，在生产环境中不应该同步数据库，因为这可能会导致数据丢失。</p>
+<pre class="language-typescript hljs">// the config
+const config: SqliteConnectionOptions = {
+  type: "sqlite",
+  database: "../db",
+  entities: [Post],
+  synchronize: true // set to false on production 
+}
+</pre>
+<p>因为我们使用的是SQLite数据库，所以可以用<code>"../db",</code>快速添加数据库的路径。如果它不存在，将自动为您创建。对于MySQL或PostgreSQL，形状是不同的，所以查看<a href="https://typeorm.io/" target="_blank" rel="noopener">文档</a>来了解更多。</p>
+<h3 id="create-database-entities">创建数据库实体</h3>
+<p>实体是数据库模型，在我们的例子中，我们的<code>Post</code>实体有一个ID和一个标题，如下面的代码所示:</p>
+<pre class="language-typscript hljs">// src/post/entities/post.entity.ts
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+@Entity()
+export class Post {
+    @PrimaryGeneratedColumn()
+    id: number;
+    @Column()
+    title: string;
+}
+</pre>
+<p>最后，在一般的应用程序TypeORM设置上，让我们用NestJS来挂钩TypeORM配置。请注意<code>.forRoot</code>方法，因为在设置特性级配置时，您可能会看到类似的东西。</p>
+<pre>  imports: [PostsModule, TypeOrmModule.forRoot(config)],
+</pre>
+<p>这里，我们有一个与NestJS挂钩的TypeORM。接下来，让我们将我们的<code>Post</code>特性与ORM集成。</p>
+<p>导航到<code>src/posts/posts.module.ts</code>文件，用以下配置更新它:</p>
+<pre class="language-typscript hljs">// src/posts/posts.module.ts
+import { Module } from '@nestjs/common';
+import { PostsService } from './posts.service';
+import { PostsController } from './posts.controller';
+@Module({
+  controllers: [PostsController],
+  providers: [PostsService]
+})
+export class PostsModule {}
+</pre>
+<p>接下来，导入TypeORM，<code>Post</code>实体，并通过用<code>[TypeOrmModule.forFeature([Post])]</code>设置模块imports的值来更新代码。请注意，我们使用的是<code>forFeature</code>，传入的是实体数组，而不是应用级的模块配置。</p>
+<pre>import { Module } from '@nestjs/common';
+import { PostsService } from './posts.service';
+import { PostsController } from './posts.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Post } from './entities/post.entity';
+@Module({
+  imports: [TypeOrmModule.forFeature([Post])],
+  controllers: [PostsController],
+  providers: [PostsService]
+})
+export class PostsModule {}
+</pre>
+<h2 id="run-basic-queries-typeorm-querybuilder-nestjs">在NestJS中使用TypeORM QueryBuilder运行基本查询</h2>
+<p>使用TypeORM和NestJS访问数据库有几种方法，包括使用存储库API、实体管理器API和使用数据源API。</p>
+<p>下面是一个简单的例子，展示了如何使用上面提到的API通过ID获取一个项目。我已经删除了与这个例子无关的大部分代码，但是你可以在<a href="https://github.com/ezesundayeze/nestjs-typeORM" target="_blank" rel="noopener"> GitHub </a>上找到完整的代码。</p>
+<pre class="language-typscript hljs">//src/posts/posts.service.ts
+
+@Injectable()
+export class PostsService {
+
+  constructor(
+    @InjectRepository(Post) private postRepository: Repository&lt;Post&gt;,
+    @InjectEntityManager() private postManager: EntityManager,
+    @InjectDataSource() private dataSource: DataSource
+  ) { }
+
+  async findOne(id: number) {
+
+    const postWithRepository = await this.postRepository.findOneBy({ id });
+
+    const postWithRepositoryQueryBuilder = await this.postRepository
+      .createQueryBuilder("post")
+      .where("post.id= :postId", { postId: id })
+      .getOne()
+
+    const postWithEntityManager = await this.postManager
+      .createQueryBuilder(Post, "post")
+      .where("post.id= :postId", { postId: id })
+      .getOne()
+
+    const postWithDataSource = await this.dataSource
+      .createQueryBuilder()
+      .select("post")
+      .from(Post, "post")
+      .where("post.id= :postId", { postId: id })
+      .getOne()
+
+    return {
+      postWithRepository,
+      postWithRepositoryQueryBuilder,
+      postWithEntityManager,
+      postWithDataSource
+    };
+  }
+
+}
+</pre>
+<p>如您所见，我们在构造函数中初始化了数据访问层，然后在方法中使用它们。</p>
+<pre class="language-typescript hljs">//src/posts/posts.service.ts
+...
+constructor(
+    @InjectRepository(Post) private postRepository: Repository&lt;Post&gt;,
+  ) { }
+...
+</pre>
+<p>除此之外，代码的其余部分只是普通的TypeORM查询；您可以通过查看他们的<a href="https://typeorm.io/" target="_blank" rel="noopener">文档</a>来更深入地探索TypeORM。</p>
+<p>以上代码中的所有查询都将返回相同的结果。所以，实现一个目标有几种方法，但哪种方法是最有效的呢？</p>
+<p>当处理小型数据集时，这两种方法的性能相似。然而，我发现在处理具有多个关系的大型数据集时，QueryBuilder API比存储库查询更有效。我相信这是因为<a href="https://stackoverflow.com/questions/58722202/what-are-the-different-use-cases-for-using-querybuilder-vs-repository-in-typeor" target="_blank" rel="noopener"> QueryBuilder API </a>比<a href="https://martinfowler.com/eaaCatalog/repository.html" target="_blank" rel="noopener">存储库API相对更接近原始SQL查询。</a></p>
+<h2>通过NestJS在TypeORM中使用<code>JOIN</code>查询</h2>
+<p>如果您已经编写了一个SQL查询，涉及到使用SQL从多个表中访问数据，那么您很可能以前也编写过一个<code>JOIN</code>查询。<code>JOIN</code>查询允许您一次从多个表中查询数据。让我们来看看TypeORM中的一个<code>LEFT JOIN</code>操作。这种类型的查询将返回左表中的所有行和右表中的匹配行。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>有几种方法可以在TypeORM中执行<code>LEFT JOIN</code>操作。让我们来看看其中的一些:</p>
+
+<p>尽管我们的重点是使用QueryBuilder，但我将向您展示一个使用这两种选项的示例，以便您可以看到两者之间的差异。</p>
+<p>下面我们来看看这个SQL <code>LEFT JOIN</code>操作。我们将把它转换成使用TypeORM的<code>find</code>选项和QueryBuilder方法。</p>
+<pre>SELECT * FROM "user"
+LEFT JOIN "courses" "course" ON "course"."id" = "user"."courseId"
+WHERE "course"."name" = 'JavaScript Fundamentals' AND "course"."length" = '8 hours'
+</pre>
+<h3>在类型表单中使用<code>find</code></h3>
+<pre class="language-javascript hljs">userRepository.find({
+    relations: { course: true },
+    where: {
+        course: { name: "JavaScript Fundamentals", length: "8 hours" },
+    },
+})
+</pre>
+<p>上面的代码是一个使用TypeORM <code>find</code>选项的<code>LEFT JOIN</code>查询。幸运的是，这很简单，因为TypeORM会计算出最适合您的<code>JOIN</code>，并给出合适的结果。现在，让我们用TypeORM QueryBuilder实现上面的查询。</p>
+<h3>将QueryBuilder用于<code>JOIN</code></h3>
+<pre class="language-typescript hljs">const user = this.userManager
+      .createQueryBuilder(User, "user")
+      .leftJoin("course"."id", "course")
+      .where("course.name = :name", { name: "JavaScript Fundamentals" })
+      .andWhere("course.length = :length", { length: "8 hours" })
+</pre>
+<p>当使用QueryBuilder时，您还可以选择不同类型的<code>JOINS</code>，不像<code>find</code>选项，它在幕后做所有的事情。</p>
+<p>下面是TypeORM中提供的一些额外的<a href="https://typeorm.io/select-query-builder#joining-and-mapping-functionality" target="_blank" rel="noopener"><code>JOINS</code>。</a></p>
+<h2>结论</h2>
+<p>如果你想在不影响质量的情况下快速构建一个可靠的后端，可以考虑使用TypeORM。在本文中，我们学习了如何将TypeORM QueryBuilder与NestJS集成在一起使用，但我们只是触及了TypeORM的皮毛。查看TypeORM文档以<a href="https://typeorm.io/" target="_blank" rel="noopener">了解更多信息</a>。</p>
+<p>黑客快乐！</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

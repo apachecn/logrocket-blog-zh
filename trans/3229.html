@@ -1,0 +1,312 @@
+<html>
+<head>
+<title>Creating micro-frontends with Piral - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Piral - LogRocket博客创建微前端</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-micro-frontends-piral/#0001-01-01">https://blog.logrocket.com/creating-micro-frontends-piral/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>三年多以前，我在LogRocket的一篇文章中透露了通过某种发现机制形成微前端的想法，这篇文章叫做<a href="https://blog.logrocket.com/taming-the-front-end-monolith-dbaede402c39/" target="_blank" rel="noopener">驯服前端整体</a>。发现机制，也就是feed服务，是我参与的解决方案的核心。</p>
+<p>这个解决方案就是Piral，半年后我们在O'Reilly的软件架构会议上正式公布了它。</p>
+<p>如今，Piral是微前端领域最常用和最知名的解决方案之一。仅此一点就足以证明另一篇博文的合理性——但是，我们也看到了微前端越来越受欢迎，以及对总体可伸缩性的需求。</p>
+<p>事不宜迟，让我们看看什么是微前端，为什么松耦合对它们如此重要，以及Piral如何解决这一问题(以及其他问题)以实现巨大的可伸缩性。我们将在以下几节中讨论这一点:</p>
+
+<h2 id="what-micro-frontends">什么是微前端？</h2>
+<p>近年来，微前端越来越受欢迎。原因之一是对大型web应用程序的需求增加。今天，像AWS和Azure门户这样的强大门户，以及像网飞或DAZN这样的丰富用户体验，已经不是例外，而是常态。如何构建如此大型的应用程序？如何扩展它们？</p>
+<p>这些问题的一个答案是使用微前端。微前端是一个<a href="https://blog.logrocket.com/how-to-build-web-app-with-multiple-subdomains-nginx/" target="_blank" rel="noopener">业务子域</a>的技术表示。基本思想是孤立地开发UI的一部分。这一块不需要在屏幕上的一个区域里表现出来；它实际上可以由多个片段组成，即一个菜单项和该菜单项链接到的页面。唯一的限制是，该作品应该与企业子域相关。</p>
+<p>微前端由不同的组件组成，但它们不是传统的UI组件，如下拉菜单或富文本字段框。相反，这些组件是特定于领域的组件，包含一些业务逻辑，比如需要发出什么API请求。</p>
+<p>在这个上下文中，即使像菜单项这样简单的东西也是域组件，因为它已经知道到页面的链接来自同一个业务域。一旦组件有了一些领域逻辑，它就是一个领域组件——因此可以成为微前端的一部分。</p>
+<p>为了实现微前端，存在一整套方法和实践。它们可以在构建时在服务器端和客户端集合在一起。</p>
+<p>在本文中，我们将研究客户端的组合，但是同样的故事也可以写在服务器上。那么微前端实际上是如何伸缩的呢？</p>
+<h2 id="scalability-problems-frameworks">其他微前端框架的可伸缩性问题</h2>
+<p>许多微前端框架在现实环境中面临可伸缩性问题。看看其他的文章，这项技术乍一看似乎不错；例如，如果你读过<a href="https://blog.logrocket.com/micro-frontend-apps-single-spa/" target="_blank" rel="noopener">用单spa创建微前端应用</a>或者<a href="https://blog.logrocket.com/building-svelte-micro-frontends-podium/" target="_blank" rel="noopener">用讲台构建苗条的微前端</a>，他们很好地介绍了技术和用例。另一个例子可以在<a href="https://blog.logrocket.com/micro-frontends-fronts/" target="_blank" rel="noopener">用前端</a>构建渐进式微前端中看到。</p>
+<p>问题是这些框架通常试图在视觉上分割UI。然而，在现实中，你永远不会把你的前端分成像“导航”、“页眉”、“内容”和“页脚”这样的部分。这是为什么呢？</p>
+<p>一个真正的应用程序由不同的部分组成，正如上一节所解释的，这些部分来自不同的子域，它们组合在一起形成完整的应用程序域。虽然这些子域可以在纸上很好地完全分开，但它们通常在相同的布局元素中呈现给最终用户。</p>
+<p>想象一下类似于网络商店的东西。如果您有一个子域用于产品细节，另一个子域用于处理以前的订单，那么作为用户，您不会希望在订单历史中只看到无意义的产品id。相反，您希望订单历史中至少显示产品名称和一些细节。因此，这些子域在视觉上向最终用户交错。</p>
+<p>同样，几乎每个子域都有助于共享UI布局元素，比如导航、页眉或页脚。因此，让微前端专门处理一个导航区域在实践中没有多大意义，因为这个微前端会收到来自其他团队的大量请求——并成为一个瓶颈。这样做会导致一个隐藏的整体。</p>
+<p>现在，有人可能会说，在微前端中没有导航会导致相同的更改需求，但这次是在应用程序外壳所有者上。这甚至会更糟。</p>
+<p>那么解决办法是什么呢？显然，我们需要将这些事情分开。所以不用像这样的东西:</p>
+<pre class="language-javascript hljs">import MyMenuItem1 from 'my-micro-frontend1';
+import MyMenuItem1 from 'my-micro-frontend2';
+import MyMenuItemN from 'my-micro-frontendN';
+
+const MyMenu = () =&gt; (
+    &lt;&gt;
+        &lt;MyMenuItem1 /&gt;
+        &lt;MyMenuItem2 /&gt;
+        &lt;MyMenuItemN /&gt;
+    &lt;/&gt;
+);
+</pre>
+<p>我们需要注册每个必要的部分，比如来自微前端本身的导航项。这样，我们可以得到这样的结构:</p>
+<pre class="language-javascript hljs">const MyMenu = () =&gt; {
+    const items = useRegisteredMenuItems();
+
+    return (
+        &lt;&gt;
+            {items.map(({ id, Component }) =&gt; &lt;Component key={id} /&gt;)}
+        &lt;/&gt;
+    );
+};
+</pre>
+<p>为了避免需要知道微前端的名称和位置，需要一种发现。这只是一个JSON文档，可以从一个已知的位置检索，比如后端服务。</p>
+<p>现在我们知道了需要扩展什么，是时候开始实现了。幸运的是，有一个框架已经给了我们这方面的先机:Piral。</p>
+<h2 id="how-piral-differ">皮拉尔有什么不同？</h2>
+<p>Piral是一个使用微前端创建超可伸缩web应用的框架。在众多特性中，它具有以下特点:</p>
+<ul>
+<li>一种集成的微前端发现机制</li>
+<li>端到端的丰富开发人员体验，满足您的一切需求</li>
+<li>具有跨框架支持的松散耦合组件</li>
+</ul>
+<p>这样，单个团队就可以专注于他们特定的领域问题，而不是需要联合和联合发布。Piral应用程序由三部分组成:</p>
+<ol>
+<li>应用程序外壳。这可以简单到一个HTML文件，其中包含对微前端发现服务的引用，称为提要</li>
+<li>微前端的提要(也可以是一个静态JSON，但通常您会想要更强大的东西)</li>
+<li>不同的模块(微前端)，称为pilets</li>
+</ol>
+<p>整个设置可概述如下:</p>
+<p><img data-attachment-id="126865" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/module-setup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png" data-orig-size="730,381" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Setup diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-1024x534.png" decoding="async" class="aligncenter size-full wp-image-126865 jetpack-lazy-image" src="../Images/d35fa40d5b1ef54c82e4a16233610613.png" alt="Diagram depicting piral application setup" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829-300x157.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126865" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/module-setup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png" data-orig-size="730,381" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Setup diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-1024x534.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126865" src="../Images/d35fa40d5b1ef54c82e4a16233610613.png" alt="Diagram depicting piral application setup" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829-300x157.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/module-setup-e1659636377829.png"/></noscript>
+<p>模块开发人员可以使用命令行实用程序<code>piral-cli</code>来搭建(即，使用一些模板创建)和发布新的pilets，调试和更新现有的模块，或者执行一些林挺和验证。真正的用户不会将解决方案视为不同的部分——他们实际上在一个应用程序中使用应用程序外壳和pilets。从技术上讲，这些pilets是从feed服务中获取的。</p>
+<p>通常，微前端的开发体验并不理想。要么需要检查并开始多项工作，要么整个过程归结为一个开发-提交-尝试-失败-重启的循环。Piral在这里有所不同——它试图先离线。微前端直接在称为仿真器的应用外壳的特殊版本中开发。</p>
+<p><img data-attachment-id="126867" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-instance-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png" data-orig-size="730,332" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Micro-frontend setup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram-300x136.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png" decoding="async" class="aligncenter size-full wp-image-126867 jetpack-lazy-image" src="../Images/64e05a1ba8334a0f2045199fcac56dd3.png" alt="Piral micro-frontend diagram" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram-300x136.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126867" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-instance-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png" data-orig-size="730,332" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Micro-frontend setup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram-300x136.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126867" src="../Images/64e05a1ba8334a0f2045199fcac56dd3.png" alt="Piral micro-frontend diagram" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram-300x136.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-instance-diagram.png"/></noscript>
+<p>模拟器只是一个npm包，可以安装在任何npm项目中。当<code>piral-cli</code>用于调试时，它实际上将使用模拟器中的内容作为页面来显示。然后，pilet将通过内部API提供服务，而不是通过远程feed服务或类似的服务。</p>
+<p>然而，在开发过程中加载现有的微前端仍然是有意义的。在这种情况下，仍然可以集成来自现有提要的pilets。</p>
+<p>让我们看看这一切在实践中是如何运作的。</p>
+<h2 id="developing-app-shell-piral">使用Piral开发您的应用程序外壳</h2>
+<p>使用Piral创建应用程序外壳有多种方式:</p>
+<ul>
+<li>迁移现有项目</li>
+<li>手动将包添加到新项目中</li>
+<li>使用<code>piral-cli</code>创建一个新项目</li>
+</ul>
+<p>在这篇文章中，我们将做后者。</p>
+<p>在命令行上，我们运行:</p>
+<pre class="language-bash hljs">npm init piral-instance --bundler esbuild --target my-app-shell --defaults
+</pre>
+<p>这将在<code>my-app-shell</code>目录中创建一个新的应用程序外壳。该项目将使用npm、TypeScript和<code>esbuild</code>工具作为我们的捆绑器(尽管我们实际上可以选择任何类型的捆绑器，如webpack、Parcel或Vite等。).选择<code>esbuild</code>在很多情况下就足够了，并提供了最快安装时间的好处。</p>
+<p>现在，我们可以开始调试项目了。进入新目录(如<code>cd my-app-shell</code>)并启动调试会话:</p>
+<pre class="language-bash hljs">npm start
+</pre>
+<p>转到<code><a href="http://localhost:1234" rel="nofollow">http://localhost:1234</a></code>会显示标准模板:</p>
+<p><img data-attachment-id="126871" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/hello-world-8/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png" data-orig-size="1148,395" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Default selection" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-300x103.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-1024x352.png" decoding="async" class="aligncenter size-full wp-image-126871 jetpack-lazy-image" src="../Images/dd0026b324ae5d534806b840fdd46208.png" alt="Hello world piral page with Bootstrap template selected" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png 1148w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-300x103.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-1024x352.png 1024w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-768x264.png 768w" data-lazy-sizes="(max-width: 1148px) 100vw, 1148px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126871" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/hello-world-8/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png" data-orig-size="1148,395" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Default selection" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-300x103.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-1024x352.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126871" src="../Images/dd0026b324ae5d534806b840fdd46208.png" alt="Hello world piral page with Bootstrap template selected" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png 1148w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-300x103.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-1024x352.png 1024w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-768x264.png 768w" sizes="(max-width: 1148px) 100vw, 1148px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world.png"/></noscript>
+<h3 id="changing-template">更改模板</h3>
+<p>我们现在可以在所有可能的方面改变模板。例如，我们可以改变提供的布局，没有任何固定的内容瓦片；只需编辑<code>src/layout.tsx</code>文件，删除<code>defaultTiles</code>和<code>defaultMenuItems</code>。确保不仅要删除它们的初始化，还要删除对它们的引用。</p>
+<p>为了获得更详细的信息，我们可以将<code>DashboardContainer</code>改为:</p>
+<pre class="language-typescript hljs">DashboardContainer: ({ children }) =&gt; (
+  &lt;div&gt;
+    &lt;h1&gt;Hello, world!&lt;/h1&gt;
+    &lt;p&gt;Welcome to your new microfrontend app shell, built with:&lt;/p&gt;
+    &lt;div className="tiles"&gt;
+      {defaultTiles}
+      {children}
+    &lt;/div&gt;
+  &lt;/div&gt;
+),
+</pre>
+<p>收件人:</p>
+<pre class="language-typescript hljs">DashboardContainer: ({ children }) =&gt; (
+  &lt;div&gt;
+    &lt;h1&gt;Hello, world!&lt;/h1&gt;
+    &lt;p&gt;Welcome to your new microfrontend app shell, built with:&lt;/p&gt;
+    &lt;div className="tiles"&gt;
+      {children}
+    &lt;/div&gt;
+  &lt;/div&gt;
+),
+</pre>
+<p>这里可以看到的所有组件都有不同的用途。虽然它们中的许多来自可选插件，但有些——如<code>ErrorInfo</code>或<code>Layout</code>——已经通过驱动Piral的核心库进行了定义。</p>
+<p>在上面的案例中，我们为Piral的仪表板插件定义了仪表板容器。仪表板插件为我们提供了一个仪表板，默认情况下，它位于我们页面的主页(<code>/</code>)上。我们可以改变这里的一切，包括它的外观和它应该位于哪里(当然，如果我们想有一个仪表板的话)。</p>
+<p>仪表板非常适合门户应用程序，因为它们在一个屏幕上收集了大量信息。对于微前端来说，仪表板也是很好的——尤其是作为一个橱窗。在这个页面上，即使不是所有的，也可能是大多数的微前端想要展示一些东西。</p>
+<p>从dashboard容器中移除默认磁贴后，web应用程序现在应该看起来更空一些:</p>
+<p><img data-attachment-id="126873" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/hello-world-new-microfrontend/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png" data-orig-size="1152,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Web app after removing default tiles" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-1024x308.png" decoding="async" class="aligncenter size-full wp-image-126873 jetpack-lazy-image" src="../Images/3119d3b3ea60f4fad7155feb36bd0835.png" alt="Web app after removing default tiles" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png 1152w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-300x90.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-1024x308.png 1024w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-768x231.png 768w" data-lazy-sizes="(max-width: 1152px) 100vw, 1152px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126873" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/hello-world-new-microfrontend/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png" data-orig-size="1152,346" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Web app after removing default tiles" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-1024x308.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126873" src="../Images/3119d3b3ea60f4fad7155feb36bd0835.png" alt="Web app after removing default tiles" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png 1152w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-300x90.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-1024x308.png 1024w, https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend-768x231.png 768w" sizes="(max-width: 1152px) 100vw, 1152px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/hello-world-new-microfrontend.png"/></noscript>
+<p>我们的web应用程序之所以空虚，主要原因是我们没有在某个地方集成任何呈现组件的微前端。此时，脚手架机制将我们的新应用程序外壳连接到Piral自己拥有的特殊提要:空提要。</p>
+<p>空提要就是顾名思义将一直保持为空的提要。我们可以更改应用程序外壳的代码，转而使用其他提要。</p>
+<h3 id="changing-feeds-display-pilets">更改提要以显示不同的内容</h3>
+<p>为此，您需要打开<code>src/index.tsx</code>文件。在那里，您将看到包含要使用的提要的URL的变量:</p>
+<pre class="language-typescript hljs">const feedUrl = 'https://feed.piral.cloud/api/v1/pilet/sample';
+</pre>
+<p>转到示例提要，它在另一个应用程序外壳中使用，我们实际上可以看到如果由微前端适当填充，外壳会是什么样子。仪表板现在应该看起来像这样:</p>
+<p><img data-attachment-id="126875" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-hello-world/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png" data-orig-size="730,335" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Dashboard" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png" decoding="async" class="aligncenter size-full wp-image-126875 jetpack-lazy-image" src="../Images/5047580ead30d42716be53e9f11e225a.png" alt="New micro-frontend app shell dashboard" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world-300x138.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126875" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-hello-world/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png" data-orig-size="730,335" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Dashboard" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126875" src="../Images/5047580ead30d42716be53e9f11e225a.png" alt="New micro-frontend app shell dashboard" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world-300x138.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-hello-world.png"/></noscript>
+<p>事实上，我们已经可以在新的应用程序外壳中显示来自另一个feed的pilets，这真的很酷。这预先表明，桩实际上是独立的，与它们的壳没有密切关系。</p>
+<p>但是，请记住，这种平稳的集成并不总是可能的。Pilets总是可以以一种相当容易集成到其他Piral实例中的方式来开发。同样，以排除不同应用程序外壳的方式开发pilet也是可能的。</p>
+<h2 id="creating-app-emulator">创建应用程序模拟器</h2>
+<p>在我们为这个应用程序外壳开发一些微前端之前，我们需要创建它的模拟器。停止调试过程，并运行以下命令:</p>
+<pre class="language-bash hljs">npm run build
+</pre>
+<p>这将在当前项目上运行<code>piral build</code>。结果是<code>dist</code>中有两个子目录:</p>
+<ol>
+<li><code>dist/release</code></li>
+<li><code>dist/emulator</code></li>
+</ol>
+<p>前者可用于在某处实际部署我们的web应用程序，而后者包含一个可上传到注册表的<code>.tgz</code>文件，如下所示:</p>
+<pre class="language-bash hljs">npm publish dist/emulator/my-app-shell-1.0.0.tgz
+</pre>
+<p>您可能需要npm凭据来发布软件包，但是即使您已经登录npm，您也可能不想发布它，而是将其保持为私有，或者在不同的注册表上发布。</p>
+<p>对于使用定制注册表测试发布过程，您可以使用<a href="https://verdaccio.org/docs/what-is-verdaccio" target="_blank" rel="noopener"> Verdaccio </a>。在新的shell中，启动:</p>
+<pre class="language-bash hljs">npx verdaccio
+</pre>
+<p>这将安装并运行本地版本的Verdaccio。您应该会在屏幕上看到如下内容:</p>
+<pre class="language-plaintext hljs">warn --- http address - http://localhost:4873/ - verdaccio/5.13.1
+</pre>
+<p>到这个地址看看说明。它们应该如下所示:</p>
+<p><img data-attachment-id="126878" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/no-package-published-yet/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png" data-orig-size="618,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Package publish instructions" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png" decoding="async" class="aligncenter size-full wp-image-126878 jetpack-lazy-image" src="../Images/8d87df53e73f77d4f50b8caea4058362.png" alt="No package published yet message with instructions for publishing your first package." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png 618w, https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet-300x171.png 300w" data-lazy-sizes="(max-width: 618px) 100vw, 618px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126878" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/no-package-published-yet/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png" data-orig-size="618,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Package publish instructions" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126878" src="../Images/8d87df53e73f77d4f50b8caea4058362.png" alt="No package published yet message with instructions for publishing your first package." srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png 618w, https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet-300x171.png 300w" sizes="(max-width: 618px) 100vw, 618px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/no-package-published-yet.png"/></noscript>
+<p>运行登录命令(<code>npm adduser --registry <a href="http://localhost:4873/" rel="nofollow">http://localhost:4873/</a></code>)并填写数据。对于<code>Username</code>和<code>Password</code>，用<code>test</code>就可以了。什么都会被拿走；<code>Email</code>可以简单到<code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="20464f4f604241520e434f4d">[email protected]</a></code>。</p>
+<p>发布到自定义注册表现在可以通过以下方式进行:</p>
+<pre class="language-bash hljs">npm publish dist/emulator/my-app-shell-1.0.0.tgz --registry http://localhost:4873/
+</pre>
+<p>一旦完成，我们就可以为这个外壳创建微前端了！</p>
+<h2 id="rolling-micro-frontends">推出微前端</h2>
+<p>正如我们对应用程序外壳所做的那样，我们可以使用<code>piral-cli</code>来搭建一个项目。这个命令现在使用<code>pilet</code>而不是<code>piral-instance</code>。我们运行:</p>
+<pre class="language-bash hljs">npm init pilet --source my-app-shell --registry http://localhost:4873/ --bundler esbuild --target my-pilet --defaults
+</pre>
+<p>这将创建一个名为<code>my-pilet</code>的新目录，其中包含新微前端的代码。工具设置为<code>esbuild</code>(像以前一样，我们使用esbuild，因为它安装非常快，但是你也可以<a href="https://blog.logrocket.com/webpack-or-esbuild-why-not-both/">使用不同的东西，比如webpack </a>)。</p>
+<p>上面重要的部分是指定<code>--source</code>，它指示用于开发的仿真器。现在一切就绪，我们可以<code>cd my-pilet</code>并运行:</p>
+<pre class="language-bash hljs">npm start
+</pre>
+<p>像之前一样，开发服务器托管在<code><a href="http://localhost:1234" rel="nofollow">http://localhost:1234</a></code>。转到那里会出现如下所示的页面:</p>
+<p><img data-attachment-id="126880" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/local-host-1234/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png" data-orig-size="964,427" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Development server" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png" decoding="async" class="aligncenter size-full wp-image-126880 jetpack-lazy-image" src="../Images/918d1557bcf633c0644c0cbd7176709e.png" alt="Development server shows Hello, world page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png 964w, https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-300x133.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-768x340.png 768w" data-lazy-sizes="(max-width: 964px) 100vw, 964px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126880" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/local-host-1234/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png" data-orig-size="964,427" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Development server" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126880" src="../Images/918d1557bcf633c0644c0cbd7176709e.png" alt="Development server shows Hello, world page" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png 964w, https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-300x133.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234-768x340.png 768w" sizes="(max-width: 964px) 100vw, 964px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/local-host-1234.png"/></noscript>
+<p>几乎和我们使用过的<code>empty</code>饲料一样空。然而，在本例中，新pilet的模板已经注册了一个tile和一个菜单项。让我们看看如何改变这种情况。</p>
+<h3 id="changing-pilets">更换电池</h3>
+<p>打开<code>src/index.tsx</code>文件，看看代码:</p>
+<pre class="language-typescript hljs">import * as React from 'react';
+import type { PiletApi } from 'my-app-shell';
+
+export function setup(api: PiletApi) {
+  api.showNotification('Hello from Piral!', {
+    autoClose: 2000,
+  });
+  api.registerMenu(() =&gt;
+    &lt;a href="https://docs.piral.io" target="_blank"&gt;Documentation&lt;/a&gt;
+  );
+  api.registerTile(() =&gt; &lt;div&gt;Welcome to Piral!&lt;/div&gt;, {
+    initialColumns: 2,
+    initialRows: 1,
+  });
+}
+</pre>
+<p>简单来说，一个pilet只是一个JavaScript库；重要的是这个库输出了什么。</p>
+<p>pilet导出一个<code>setup</code>函数(确切地说，是一个可选的<code>teardown</code>函数)。一旦微前端被连接，该函数就被使用，并接收由应用程序外壳定义和创建的单个参数<code>api</code>。</p>
+<p>应用程序外壳的API(通常称为Pilet API)是Pilet在应用程序中注册其部件的地方。让我们添加一个页面并稍微改变一下磁贴。</p>
+<p>我们从瓷砖开始。我们可以给它一些类似于<code>teaser</code>的类，让它有一点背景知识。此外，我们希望为仪表板容器添加一些元数据。我们可以使用<code>initialColumns</code>和<code>initialRows</code>属性来传达想要的大小。</p>
+<pre class="language-typescript hljs">app.registerTile(() =&gt; &lt;div className="teaser"&gt;Hello LogRocket!&lt;/div&gt;, {
+  initialColumns: 2,
+  initialRows: 2,
+})
+</pre>
+<p>保存后，图块的外观会有所不同。让我们去掉不再需要的<code>showNotification</code>,引入一个新的页面:</p>
+<pre class="language-typescript hljs">api.registerPage('/foo', () =&gt;
+  &lt;p&gt;This is my page&lt;/p&gt;
+);
+</pre>
+<p>要链接到此页面，我们可以更改注册的菜单项。为了执行SPA导航，我们可以使用一个熟悉的React工具，<code>react-router-dom</code>:</p>
+<pre class="language-typescript hljs">api.registerMenu(() =&gt;
+  &lt;Link to="/foo"&gt;Foo&lt;/Link&gt;
+);
+</pre>
+<p>太好了！然而，像页面这样的片段并不总是需要的，只应该在应该呈现的时候加载。这种惰性加载可以通过将代码放在一个专用文件中来实现，即<code>Page.tsx</code>，并将注册改为:</p>
+<pre class="language-typescript hljs">const Page = React.lazy(() =&gt; import('./Page'));
+api.registerPage('/foo', Page);
+</pre>
+<p><code>Page.tsx</code>的内容可以简单明了:</p>
+<pre class="language-typescript hljs">import * as React from 'react';
+
+export default () =&gt; {
+  return (
+    &lt;&gt;
+      &lt;h1&gt;Page Title&lt;/h1&gt;
+      &lt;p&gt;Lorem ipsum dolor sit ...&lt;/p&gt;
+      &lt;p&gt;Lorem ipsum dolor sit ...&lt;/p&gt;
+    &lt;/&gt;
+  );
+};
+</pre>
+<p>注册页面后，您现在可以单击导航栏中的“Foo”来查看页面:</p>
+<p><img data-attachment-id="126882" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-page-title/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png" data-orig-size="957,308" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Foo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png" decoding="async" class="aligncenter size-full wp-image-126882 jetpack-lazy-image" src="../Images/66e636266ebd885847fb234023e15cbe.png" alt="Clicking on foo shows page with default text" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png 957w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-300x97.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-768x247.png 768w" data-lazy-sizes="(max-width: 957px) 100vw, 957px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="126882" data-permalink="https://blog.logrocket.com/creating-micro-frontends-piral/attachment/piral-page-title/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png" data-orig-size="957,308" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Foo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-300x97.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-126882" src="../Images/66e636266ebd885847fb234023e15cbe.png" alt="Clicking on foo shows page with default text" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png 957w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-300x97.png 300w, https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title-768x247.png 768w" sizes="(max-width: 957px) 100vw, 957px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/piral-page-title.png"/></noscript>
+<h3 id="building-publishing-pilet">构建和发布我们的pilet</h3>
+<p>现在我们的pilet已经编写好了，我们可以实际构建并发布它了。在这一点上，我们还没有创建自己的feed或在任何地方发布应用程序外壳，所以最后一部分实际上有点理论性。</p>
+<p>要构建pilet，您可以运行:</p>
+<pre class="language-bash hljs">npm run build
+</pre>
+<p>创建完成后，您可以使用<code>npx pilet pack</code>打包pilet。这将非常类似于运行<code>npm pack</code>。结果是另一个<code>.tgz</code>文件——这次不是模拟器，而是实际的pilet。tarball是可以上传到一个专用服务的东西，比如一个feed服务，提供feed供应用程序外壳使用。</p>
+<p>在<a href="https://www.piral.cloud" target="_blank" rel="noopener"> piral.cloud </a>可以找到非商业和商业产品的例子。</p>
+<p>在我们结束本教程之前，让我们看看如何集成一个通用功能——在本例中，用SWR执行HTTP请求。</p>
+<h2 id="integrating-swr-perform-http-requests">集成SWR来执行HTTP请求</h2>
+<p>有多种方法可以整合像SWR这样的共同关心的问题。一旦您将swr(或位于它之上的其他库)添加到应用程序shell并在那里配置它，您有三种选择:</p>
+<ol>
+<li>将其公开为共享库</li>
+<li>通过Pilet API公开它</li>
+<li>不公开它(尽管，在我们的SWR例子中，这并不可行，因为我们需要一个对钩子的引用)</li>
+<li>将使用<code>swr</code>的决定留给pilets:他们可以共享<code>swr</code>作为一个分布式依赖项(也就是说，只有在没有其他pilets加载它的时候才加载它)</li>
+</ol>
+<p>整合SWT最简单、最可靠的方法是使用第一个选项。为此，我们回到应用程序外壳。</p>
+<p>在应用程序外壳的目录中运行:</p>
+<pre class="language-bash hljs">npm install swr
+</pre>
+<p>现在，我们来修改一下<code>package.json</code>。保留几乎所有内容，但是修改<code>pilets</code>部分的<code>externals</code>数组，如下所示:</p>
+<pre class="language-json hljs">{
+  "name": "my-app-shell",
+  "version": "1.1.0",
+  // ...
+  "pilets": {
+    "externals": ["swr"],
+    // ...
+  },
+  // ...
+}
+</pre>
+<p>请注意，我还更改了版本号。因为我们将对模拟器进行更新，所以我们需要一个新版本。这将指示Piral实际上与所有pilets共享<code>swr</code>依赖项。</p>
+<p>为了实际测试这一点，让我们编写<code>npm run build</code>并再次发布。</p>
+<pre class="language-bash hljs">npm run build
+npm publish dist/emulator/my-app-shell-1.1.0.tgz --registry http://localhost:4873/
+</pre>
+<p>有了更新的shell，让我们进入pilet的目录并升级应用程序shell:</p>
+<pre class="language-bash hljs">npx pilet upgrade
+</pre>
+<p>pilet的<code>package.json</code>文件应该已经更改。它现在应该包含对版本<code>1.1.0</code>中<code>my-app-shell</code>的引用，而不是<code>1.0.0</code>。另外，你应该看到<code>devDependencies</code>和<code>peerDependencies</code>中列出的<code>swr</code>。</p>
+<p>让我们修改页面以使用<code>swr</code>:</p>
+<pre class="language-typescript hljs">import * as React from 'react';
+import LogRocket from 'swr';
+
+// note: fetcher could have also been globally configured in the app shell
+// however, in general the pilet's don't know about this and so they may want to
+// reconfigure or redefine it like here
+const fetcher = (resource, init) =&gt; fetch(resource, init).then(res =&gt; res.json());
+
+export default () =&gt; {
+  const { data, error } = useSWR('https://jsonplaceholder.typicode.com/users/1', fetcher);
+
+  if (error) {
+    return &lt;div&gt;failed to load&lt;/div&gt;;
+  }
+
+  if (!data) {
+    return &lt;div&gt;loading...&lt;/div&gt;;
+  }
+
+  return (
+    &lt;&gt;
+      Hello {data.name}!
+    &lt;/&gt;
+  );
+};
+</pre>
+<p>现在我们完成了！SWR不仅在我们的应用程序中成功设置，我们还可以在所有微前端中使用它。这既节省了加载SWR的带宽，也节省了SWR的内部缓存，给所有微前端带来了很好的性能优势。</p>
+<h2 id="summary">摘要</h2>
+<p>在这篇文章中，你看到了Piral的入门是多么容易。Piral为您提供了将您的web应用程序分发到不同存储库的选项，甚至跨不同的团队。</p>
+<p>在这篇文章中，我们只探索了非常基本的设置，但是你可以用Piral做更多的事情。探索Piral的最佳方式是浏览官方文档。</p>
+<p>Piral比大多数其他解决方案伸缩性更好的原因是Piral鼓励松散耦合。这样，你将很难将两个东西融合在一起，这有助于避免功能重叠和隐藏的独石。</p>
+<p>无论您计划做什么，请确保已经考虑了哪些依赖项要共享，哪些要留给pilet。我们已经看到了一个例子，提供<code>swr</code>作为共享依赖项实际上是在几秒钟内建立起来的。编码快乐！</p><div class="code-block code-block-28">
+<div class="blog-plug inline-plug js-libraries-plug"><h2>您是否添加了新的JS库来提高性能或构建新特性？如果他们反其道而行之呢？</h2><p>毫无疑问，前端变得越来越复杂。当您向应用程序添加新的JavaScript库和其他依赖项时，您将需要更多的可见性，以确保您的用户不会遇到未知的问题。</p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放JavaScript错误，就像它们发生在您自己的浏览器中一样，这样您就可以更有效地对错误做出反应。</p><a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a>
+<a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p><a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>自信地构建— <a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

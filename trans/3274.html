@@ -1,0 +1,90 @@
+<html>
+<head>
+<title>Managing dependency boundaries in TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在TypeScript - LogRocket博客中管理依赖边界</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/managing-dependency-boundaries-typescript/#0001-01-01">https://blog.logrocket.com/managing-dependency-boundaries-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当从事大型项目时，开发人员倾向于遵循某些有助于管理复杂性的原则，即架构，使应用程序更容易理解和扩展。虽然管理架构的方式有很多，但是一些流行的例子包括<a href="https://blog.logrocket.com/dont-underestimate-the-model-in-mvc/">模型-视图-控制器(MVC) </a>和<a href="https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)">六角形</a>架构模式。</p>
+<p>在这些模式中，抽象被设置为高级系统设计或架构蓝图，描述每个模块的职责以及它们之间的关系和它们的依赖关系。正确的架构选择将取决于系统的上下文、需求，以及您是需要实时数据处理还是单一的web应用程序。</p>
+<p>保持日常的开发与架构蓝图保持一致是具有挑战性的，尤其是如果您的项目或组织正在快速发展的话。虽然拉式请求评审、指导、文档和知识共享可能会有所帮助，但仅仅这些可能还不够。</p>
+<p>在本文中，我们将讨论依赖关系在TypeScript上下文中的重要性。我们将回顾依赖关系未被检查时的潜在陷阱，并且我们将提出一个解决方案来保持我们的代码与架构依赖关系同步。我们开始吧！</p>
+
+<h2 id="dependencies-typescript">TypeScript中的依赖项</h2>
+<p>在TypeScript中，像<code>functions</code>、<code>objects</code>和<code>values</code>这样的变量可以使用<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules"> ES6模块</a>语法在文件之间导入或导出。用<code>export</code>标注的变量将被导出，并且可以使用<code>import</code>语法导入:</p>
+<pre class="language-typescript hljs">// constants.ts
+export const USER = "Alain";
+
+// logic.ts
+import { USER } from "./constants";
+export const greet = (): string =&amp;gt; `Hi ${USER}!`;
+
+// ui.ts
+import { greet } from "./logic";
+const html = `&amp;lt;h1&amp;gt;${greet()}&amp;lt;/h1&amp;gt;`; // &amp;lt;h1&amp;gt;Hi Alain!&amp;lt;/h1&amp;gt;
+</pre>
+<p>有了这个特性，您可以将应用程序的功能分解成模块，然后按照架构蓝图来组织这些模块。重要的是要注意，导入本地文件和本地或远程包是可能的，就像那些通过npm可用的包一样。</p>
+<p>这个模块语法提供了很大的灵活性，对您可以导入和导出的内容没有任何限制。依赖关系图是在整个应用程序中隐式定义的。</p>
+<figure id="attachment_128485" aria-describedby="caption-attachment-128485" class="wp-caption aligncenter"><img data-attachment-id="128485" data-permalink="https://blog.logrocket.com/managing-dependency-boundaries-typescript/attachment/dependency-graph-typecript-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png" data-orig-size="730,406" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dependency-graph-typecript-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png" decoding="async" class="wp-image-128485 size-full jetpack-lazy-image" src="../Images/b25bfd804f14c40b272ae64be1b15991.png" alt="Dependency Graph Typescript Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example-300x167.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="128485" data-permalink="https://blog.logrocket.com/managing-dependency-boundaries-typescript/attachment/dependency-graph-typecript-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png" data-orig-size="730,406" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dependency-graph-typecript-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png" decoding="async" loading="lazy" class="wp-image-128485 size-full" src="../Images/b25bfd804f14c40b272ae64be1b15991.png" alt="Dependency Graph Typescript Example" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example-300x167.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-typecript-example.png"/></noscript><figcaption id="caption-attachment-128485" class="wp-caption-text">Dependency graph for the example above</figcaption></figure>
+<p>然而，随着项目的发展，隐式依赖图可能会不受控制地增长，从而导致一些问题。</p>
+<h2 id="shortcomings-unchecked-dependency-management">未检查的依赖管理的缺点</h2>
+<p>未检查依赖的一个缺陷是，任何程序模块都可以导入并创建对代码库中导出的任何方法的依赖。私有和辅助方法可以在它们的模块之外被引用，所以保持一个模块的公共API需要持续的人工监督。</p>
+<p>导入第三方包构成了另一个权衡。第三方模块很棒，可以提高你的开发速度，防止你重新发明轮子。然而，另一方面，太多的依赖关系会使项目暴露于安全问题，这是由于过时的包、包之间的冲突以及巨大的包大小。</p>
+<p>第三个也是主要的问题是，没有办法以编程方式强制或验证代码是否遵循架构的依赖规则。随着时间的推移，蓝图和实现可能会分离，以至于参考体系结构不再有效，从而使体系结构的内在特征无效。</p>
+<p>例如，在MVC中，我们可能会失去视图和控制器之间的分离，这种分离包含了业务逻辑，使得测试变得困难，并且降低了在不破坏业务逻辑的情况下迭代UI的能力。</p>
+<p>在下一节中，我们将学习如何使依赖关系显式化，以便模块内部保持私有，第三方依赖关系处于控制之下，并且架构与代码保持同步。</p>
+<h2 id="adding-explicit-dependencies-fences">使用围栏添加显式依赖关系</h2>
+<p>为了明确模块之间的依赖关系并设置限制性的依赖规则，我们将使用<a href="https://github.com/smikula/good-fences"> good-fences </a>包。good-fences使您能够在TypeScript项目中创建和实施边界，它可以极大地帮助减少上述缺陷。</p>
+<p>让我们通过一个例子来学习如何使用good-fences包。我们将使用由good-fence提供的栅栏的概念，来确保项目的实现随着时间的推移匹配并维护计划的依赖图。</p>
+<p>栅栏定义了一个模块如何与其他模块和栅栏目录交互。我们可以通过向TypeScript目录添加一个<code>fence.json</code>文件来创建一个栅栏。栅栏只限制通过它们的东西，比如导入、导出和外部依赖。在隔离目录中，没有模块导入限制。您也可以标记围栏，以便其他围栏配置可以标记它们。</p>
+<h2 id="practical-example">依赖边界:一个实际的例子</h2>
+<p>此示例的完整代码可在报告后的<a href="https://github.com/aperkaz/code-boundaries">中找到。我们将使用一个简单的React应用程序，它遵循商店驱动的UI架构，类似于</a><a href="https://blog.logrocket.com/react-component-design-patterns-2022/#the-presentational-and-container-component-patterns"> React的表示组件模式</a>。该应用程序提供了对<a href="https://en.wikipedia.org/wiki/Fibonacci_number">斐波那契</a>或<a href="https://en.wikipedia.org/wiki/Pell_number">佩尔</a>数列的第n个数的计算。就像我说的，这是个简单的应用程序。</p>
+<p>UI无法访问应用程序中的业务逻辑方法，因为它们被抽象在商店后面。此外，业务逻辑代码不依赖于任何UI代码，因此UI可以在不涉及业务逻辑的情况下发展。</p>
+<p>下面是模块之间的依赖关系图。请注意，模块之间的依赖关系用箭头标记。内部模块为灰色，外部包装为蓝色。</p>
+<p><img data-attachment-id="128488" data-permalink="https://blog.logrocket.com/managing-dependency-boundaries-typescript/attachment/dependency-graph-between-modules/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dependency-graph-between-modules" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png" decoding="async" class="aligncenter wp-image-128488 size-full jetpack-lazy-image" src="../Images/6a8af69b3c0022efd2b70895e7dceef5.png" alt="Dependency Graph Between Modules" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="128488" data-permalink="https://blog.logrocket.com/managing-dependency-boundaries-typescript/attachment/dependency-graph-between-modules/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dependency-graph-between-modules" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png" decoding="async" loading="lazy" class="aligncenter wp-image-128488 size-full" src="../Images/6a8af69b3c0022efd2b70895e7dceef5.png" alt="Dependency Graph Between Modules" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dependency-graph-between-modules.png"/></noscript>
+<p>为了实现上面的模式，我们将创建三个不同的隔离目录，<code>math</code>、<code>store</code>和<code>ui</code>。每个目录映射到模式中的一个模块。</p>
+<p>为了防止其他模块或任一模块的类型进入实现细节，每个隔离目录只允许从<code>index.ts</code>文件导入。只要在<code>index.ts</code>文件上定义的公共API没有被修改，实现细节和助手工具仍然可以安全地更改。</p>
+<p>此外，为了防止循环或不必要的依赖，如<code>ui</code>直接依赖于<code>logic</code>，每个围栏都被标记，定义它可以从哪些其他围栏导入。</p>
+<p>最后，为了缓解未经检查的第三方进口的问题，每个栅栏将明确声明哪些第三方包允许进口。要添加新的包，您必须修改<code>fence.json</code>文件，使这些依赖关系显式化。</p>
+<p>我们项目的围栏配置如下:</p>
+<pre class="language-json hljs">// ./math/fence.json
+{
+  "tags": ["math-module"],
+  "exports": ["index"],
+  "imports": [],
+  "dependencies": []
+}
+// ./store/fence.json
+{
+  "tags": ["store-module"],
+  "exports": ["index"],
+  "imports": ["math-module"],
+  "dependencies": ["react-redux", "@reduxjs/toolkit"]
+}
+// ./ui/fence.json
+{
+  "tags": ["ui-module"],
+  "imports": ["store-module"],
+  "dependencies": ["react"]
+}
+</pre>
+<p>关于栅栏配置选项的深入解释，可以查看<a href="https://github.com/smikula/good-fences">官方文档</a>。</p>
+<p>所有这些规则都可以通过运行<code>good-fences</code> npm包，指向项目的<code>tsconfig.json</code>文件，即<code>yarn good-fences</code>，以编程方式进行检查。现在，您可以将检查作为CI/CD管道的一部分或作为提交挂钩来运行！</p>
+<h2 id="conclusion">结论</h2>
+<p>适当的依赖管理和在实现过程中遵循架构设计是健康和可维护的代码库的重要方面。</p>
+<p>good-fences不是解决这个复杂问题的灵丹妙药，而是手边的一个很好的工具。随着项目的增长，自动化手动的依赖关系规则检查是很容易的，这鼓励了团队对依赖关系的关注。该代码在回购后的<a href="https://github.com/aperkaz/code-boundaries">中可用；请随意更改并进一步探索它。编码快乐！</a></p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

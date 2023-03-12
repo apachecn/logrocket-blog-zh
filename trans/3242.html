@@ -1,0 +1,321 @@
+<html>
+<head>
+<title>Understanding Rust generics and how to use them - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>理解Rust泛型以及如何使用它们</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-rust-generics/#0001-01-01">https://blog.logrocket.com/understanding-rust-generics/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>泛型是一种减少编写重复代码的需要的方法，它将这一任务委托给编译器，同时也使代码更加灵活。许多语言都支持某种方式来做到这一点，尽管它们可能称之为不同的东西。</p>
+<p>使用泛型，我们可以编写可用于多种数据类型的代码，而不必为每种数据类型重写相同的代码，从而使生活更轻松，编码更不容易出错。</p>
+<p>在这篇文章中，我们将看到什么是泛型，如何在Rust中使用它们，以及如何在自己的代码中使用它们。特别是，我们将看到:</p>
+
+<p>注意，你需要熟练地阅读和编写基本的Rust代码。这包括变量声明、<code>if…else</code>块、循环和结构声明。了解一点特质也是有帮助的。</p>
+<h2 id="why-generics-useful">为什么泛型有用？</h2>
+<p>如果你以前使用过Rust，很可能你已经使用过泛型而没有注意到。在我们进入泛型的定义和它们如何在Rust中工作之前，让我们先看看为什么我们可能需要使用它们。</p>
+<p>考虑这样一种情况，我们想写一个函数，获取一部分数字并对它们进行排序。这看起来很简单，所以我们开始编写函数:</p>
+<pre class="language-rust hljs">fn sort(arr:&amp;mut [usize]){
+  // sorting logic goes here...
+}
+</pre>
+<p>在花了几分钟时间试图记住如何在Rust中使用<code>quicksort</code>，然后在网上查找之后，我们意识到:这种方法并不特别灵活。</p>
+<p>是的，我们可以传递数组<code>usize</code>来排序，但是因为Rust没有隐式地对值进行类型转换，所以这个函数不接受任何其他类型的数值——<code>u8</code>、<code>u16</code>等等。</p>
+<p>为了对这些其他整数类型进行排序，我们需要创建另一个数组，用类型转换为<code>usize</code>的原始值填充它，并将其作为输入传递。我们还需要将排序后的数组类型转换回原始类型。</p>
+<p>那是很大的工作量！此外，这种解决方案对于有符号的类型，如<code>i8</code>、<code>i16</code>等，仍然完全不起作用。</p>
+<p>另一个问题是，即使是类型转换也只能单独对数值进行排序。考虑一个例子，我们有一个用户列表，每个用户都有一个数字<code>id</code>字段。我们不能将它们传递给这个函数！</p>
+<p>为了根据每个用户的<code>id</code>对它们进行排序，我们首先需要将每个<code>id</code>提取到一个<code>vec</code>，如果需要的话将其类型化为<code>usize</code>，使用该函数对其进行排序，然后将每个<code>id</code>与原始用户列表一一匹配，以创建一个按用户<code>id</code>排序的新用户列表。</p>
+<p>这也是大量的工作，特别是考虑到我们正在做的核心工作——排序——是相同的。</p>
+<p>当然，我们可以为我们需要的每种类型编写一个函数:一个用于<code>usize</code>，一个用于<code>i16</code>，一个用于<a href="https://blog.logrocket.com/fundamentals-for-using-structs-in-rust/" target="_blank" rel="noreferrer noopener">，一个用于提供对结构</a>的访问，等等。但是这需要编写和维护大量的代码。</p>
+<p>想象一下，如果我们使用这个方法，但是我们在第一个函数中犯了一个错误。如果我们随后为各种其他类型复制和粘贴函数，我们将不得不手动纠正每一个类型。如果我们忘记修复任何错误，我们将会得到奇怪的排序错误，这些错误只出现在一种类型中。</p>
+<p>现在考虑我们是否要写一个<code>Wrapper</code>类型。它基本上将数据包装在其中，并提供更多的功能，如日志记录、调试跟踪等等。</p>
+<p>我们可以定义一个结构，并在其中保留一个字段来存储该数据，但我们需要为我们想要包装的每种数据类型编写一个单独的专用结构，并为每种类型手动重新实现相同的功能。</p>
+<p>另一个问题是，如果我们决定将它作为库发布，用户将无法使用这个包装器来定制数据类型，除非他们编写另一个结构并手动实现它的所有内容，从而使库变得多余。</p>
+<p>泛型可以把我们从这些问题中拯救出来，在Rust中会有更多。</p>
+<h2 id="what-generics">什么是泛型？</h2>
+<p>那么什么是泛型，它们如何将我们从这些问题中拯救出来？</p>
+<p>非正式地说，泛型编程涉及关注你所关心的，忽略或抽象其他一切。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>维基百科对泛型编程更正式的定义是“一种计算机编程风格，其中算法是根据待指定的类型编写的，然后在需要时实例化作为参数提供的特定类型。”</p>
+<p>换句话说，当我们写代码时，我们用占位符类型而不是实际类型来写。实际的类型是稍后插入的。</p>
+<p>想想看，在函数中，我们是如何根据参数来编写代码的。例如，加法函数接受两个参数<code>a</code>和<code>b</code>，并将它们相加。这里我们实际上并没有对<code>a</code>和<code>b</code>的值进行硬编码。相反，每当我们调用加法函数时，我们将这些值作为参数传递以获得结果。</p>
+<p>类似地，在泛型中，类型占位符在编译时被替换为实际类型。</p>
+<p>因此，回过头来将泛型应用于我们之前的例子，我们将使用占位符类型编写<code>sort</code>函数；我们姑且称之为<code>Sortable</code>。然后，当我们用一片<code>usize</code>调用函数时，编译器会用<code>usize</code>替换这个占位符来创建一个新函数，并使用该函数进行排序调用。</p>
+<p>如果我们从另一个地方调用我们的<code>sort</code>函数并给它一个<code>i16</code>片，编译器将生成另一个函数——这次用<code>i16</code>替换占位符类型——并使用这个函数进行调用。</p>
+<p>至于包装器，我们可以简单地在结构的定义中放置一个类型占位符，并使数据字段成为这个占位符类型。然后，每当我们使用这个包装器时，编译器将生成一个专门为该类型定制的结构定义。</p>
+<p>这样，我们可以对任何类型使用包装器，甚至我们库的用户也可以将他们自己的类型包装在这个包装器中。</p>
+<p>这就是泛型如何帮助我们编写(因此需要维护)少量代码，同时增加代码的灵活性。现在我们将看到如何在Rust中使用泛型。</p>
+<h2 id="how-generics-work-rust">Rust中泛型的工作原理</h2>
+<p>正如开始提到的，如果你使用Rust已经有一段时间了，你可能已经在Rust中使用了泛型。</p>
+<p>想想我们想要实现的示例<code>Wrapper</code>类型。它与Rust的<code>Option</code>和<code>Result</code>类型惊人的相似。</p>
+<p>当我们想要分别指示可选值或结果时，我们使用这些类型来包装一些值。它们几乎没有限制，可以接受几乎任何类型的值。因此，我们可以用它们来包装任何我们想要的任意数据类型，这是因为它们被定义为泛型类型。</p>
+<p><code><a href="https://blog.logrocket.com/rust-enums-and-pattern-matching/" target="_blank" rel="noreferrer noopener">Option</a></code> <a href="https://blog.logrocket.com/rust-enums-and-pattern-matching/" target="_blank" rel="noreferrer noopener">类型是一个枚举</a>，大致定义为:</p>
+<pre class="language-rust hljs">enum Option&lt;T&gt;{
+  Some(T),
+  None
+}
+</pre>
+<p>在上面，<code>T</code>是我们在上一节提到的类型参数。每当我们将它与某个类型一起使用时，编译器会生成为该特定类型定制的枚举定义；例如，如果我们使用<code>Option</code>作为<code>String</code>，编译器将生成一个类似于下面的定义:</p>
+<pre class="language-rust hljs">enum StringOption{
+  Some(String),
+  None
+}
+</pre>
+<p>然后，无论我们在哪里使用<code>Option&lt;String&gt;</code>，它都会使用上面生成的定义。</p>
+<p>所有这些都发生在编译阶段；因此，我们不必担心为我们想要使用的每种数据类型定义不同的枚举，也不必为它们维护代码。</p>
+<p>类似地，<code>Result</code>是用两个通用类型定义的枚举:</p>
+<pre class="language-rust hljs">enum Result&lt;T,E&gt;{
+  Ok(T),
+  Err(E)
+}
+</pre>
+<p>在这里，我们可以定义任何类型来代替<code>T</code>和<code>E</code>，编译器将为每个组合生成并使用唯一的定义。</p>
+<p>再比如，考虑一下<a href="https://blog.logrocket.com/working-rust-collections/" target="_blank" rel="noreferrer noopener">各种集合Rust优惠</a> : <code>Vec</code>、<code>HashMap</code>、<code>HashSet</code>等。所有这些都是通用结构，因此可以用于任何数据类型来存储几乎任何值，在<code>HashMap</code>和<code>HashSet</code>的情况下有一些限制，我们将在后面看到。</p>
+<p>在这个阶段需要注意的一点是，一旦我们声明了泛型结构或枚举的具体类型，它实际上就生成并使用了具有固定类型的唯一结构或枚举。因此，我们不能将<code>usize</code>值存储在被声明为类型<code>Vec&lt;u8&gt;</code>的向量中，反之亦然。</p>
+<p>如果你想在同一个结构中存储不同类型的值，泛型不能单独使用，而需要和Rust traits 一起使用<a href="https://blog.logrocket.com/rust-traits-a-deep-dive/" target="_blank" rel="noreferrer noopener">，这不在本文讨论范围之内。</a></p>
+<h2 id="syntax-rust-generic-type-parameters">Rust泛型类型参数的语法</h2>
+<p>Rust中使用泛型类型参数的语法非常简单:</p>
+<pre class="language-rust hljs">fn sort&lt;T&gt;(arr:&amp;mut [T]){
+...
+}
+
+struct Wrapper&lt;T&gt;{
+....
+}
+
+impl&lt;K&gt; Wrapper&lt;K&gt;{
+...
+}
+</pre>
+<p>我们必须声明将在函数、结构或枚举名称后的<code>&lt;&gt;</code>中使用的泛型类型参数；我们在上面的例子中使用了<code>T</code>，但是它可以是任何东西。</p>
+<p>之后，只要我们想在函数、结构或枚举中使用泛型类型，就可以将这些声明的参数用作类型。</p>
+<p>通用结构的<code>impl</code>略有不同，其中<code>&lt;T&gt;</code>出现了两次。然而，它与其他方法非常相似，我们首先声明泛型参数，然后立即使用它。</p>
+<p>首先，我们在<code>impl&lt;T&gt;</code>中将泛型参数声明为<code>T</code>，这里我们说这个实现将使用一个名为<code>T</code>的泛型类型参数。然后，我们立即使用它来表明这是类型为<code>struct&lt;T&gt;</code>的实现。</p>
+<p>注意，在这个例子中，<code>T</code>是我们给出实现的结构类型的一部分，而不是泛型参数的声明。</p>
+<p>尽管我们在这里选择将其命名为<code>T</code>,但是通用参数可以有任何有效的变量名，为了清楚起见，应该使用类似于“好的”变量命名的规则。</p>
+<p>类似于上一节中的<code>Option</code>和<code>Result</code>示例，每当我们使用这个结构或函数时，编译器将生成一个专用的结构或函数，用实际的具体类型替换类型参数。</p>
+<h2 id="simple-rust-generic-usage-example">简单Rust通用用法示例</h2>
+<p>现在让我们回到最初的问题:函数<code>sort</code>和类型<code>Wrapper</code>。我们将首先解决<code>Wrapper</code>型。</p>
+<p>我们认为该结构如下:</p>
+<pre class="language-rust hljs">struct Wrapper{
+...
+data:???
+...
+}
+</pre>
+<p>因为我们希望该结构能够存储任何类型的数据，所以我们将使数据字段的类型通用化，这将允许我们和其他用户在该包装器中存储任何数据类型。</p>
+<pre class="language-rust hljs">struct Wrapper&lt;DataType&gt;{
+...
+data:DataType
+...
+}
+</pre>
+<p>这里，我们声明了一个名为<code>DataType</code>的泛型类型参数，然后声明字段<code>data</code>属于这个泛型类型。现在我们可以用<code>u8</code>作为数据来声明一个<code>DataStore</code>，用一个字符串作为数据来声明另一个:</p>
+<pre class="language-rust hljs">let d1 = Wrapper{data:5}; // can give error sometimes, see the note below
+let d2 = Wrapper{data:"data".to_owned()};
+</pre>
+<p>编译器通常会自动检测泛型类型要填充的类型，但在这种情况下，<code>5</code>可以是<code>u8</code>、<code>u16</code>、<code>usize</code>或相当多的其他类型。因此，有时我们可能需要显式声明类型，如下所示:</p>
+<pre><code>let d1 : DataStore&lt;u8&gt; = DataStore{data:5};
+// or
+let d1 = DataStore{data:5_u8};
+</code></pre>
+<p>回想一下我们之前提到的注意:一旦声明，类型是固定的，并且表现为唯一的类型。向量只能存储相同类型的元素。因此，我们不能将<code>d1</code>和<code>d2</code>放在同一个向量中，因为一个是<code>DataStore_u8</code>类型，另一个是<code>DataStore_String</code>类型。</p>
+<p>记住，当我们试图在没有指定变量类型的情况下调用某个迭代器上的<code>collect</code>时，我们会得到下面的类型错误:</p>
+<pre class="language-rust hljs">let c = [1,2,3].into_iter().collect(); //error : type annotation needed
+</pre>
+<p>这是因为<code>collect</code>方法的返回类型是具有trait界限的泛型(我们将在下一节探讨)，因此，编译器无法确定<code>c</code>将是哪种类型。</p>
+<p>因此，我们需要显式声明集合类型。然后，编译器可以计算出要存储在集合中的数据类型:</p>
+<pre class="language-rust hljs">let c : Vec&lt;usize&gt; = [1,2,3].into_iter().collect();
+// or, as compiler can decide 1,2,3 are of type usize
+let c : Vec&lt;_&gt; = [1,2,3].into_iter().collect();
+</pre>
+<p>总的来说，在编译器不能确定存储收集的数据所需的集合类型的情况下，我们需要指定类型。</p>
+<h2 id="generics-trait-bounds">具有性状界限的泛型</h2>
+<p>现在，让我们继续讨论<code>sort</code>函数。</p>
+<p>这里，解决方案并不像声明一个泛型类型并将其用作输入数组的数据类型那么简单。这是因为当简单地声明为<code>T</code>时，类型对它没有任何限制。因此，当我们试图比较两个值时，会得到如下所示的错误:</p>
+<pre>binary operation '&lt;' cannot be applied to type T
+</pre>
+<p>这是因为使用<code>&lt;</code>操作符时，我们赋予排序函数的类型不必一定是可比较的。例如，<code>user</code>结构——我们希望根据<code>id</code>值进行排序的结构——使用<code>&lt;</code>操作符不能直接进行比较。</p>
+<p>因此，我们必须明确地告诉编译器，只有在类型可以相互比较的情况下，才允许类型在这里被替换。为此，<a href="https://blog.logrocket.com/rust-traits-a-deep-dive/" target="_blank" rel="noreferrer noopener">在Rust中，我们必须使用特征界限</a>。</p>
+<p>特征类似于Java或C++等语言中的接口。它们包含方法签名，实现该特征的所有类型都必须实现这些方法签名。</p>
+<p>对于我们的排序函数，我们需要通过一个具有<code>compare</code>函数的特征来限制或者绑定类型参数<code>T</code>。该函数必须给出两个相同类型元素之间的关系(大于、小于或等于)。</p>
+<p>我们可以为此定义一个新的特征，但是我们也必须为所有的数字类型实现它，我们必须手动调用<code>compare</code>函数，而不是使用<code>&lt;</code>。或者我们可以利用Rust固有的特性来使事情变得更简单，我们现在就要这么做。</p>
+<p><code>Eq</code>和<code>Ord</code>是标准Rust库中的两个特征，它们提供了我们需要的功能。<code>Eq</code>特征提供了一个函数来检查两个值是否相等，而<code>Ord</code>提供了一种方法来比较和检查两个值之间哪个值小于或大于另一个值。</p>
+<p>默认情况下，这些由数值类型实现(除了<code>f32</code>和<code>f64</code>，它们不实现<code>Eq</code>，因为<code>NaN</code>既不等于也不等于<code>NaN</code>，所以我们只需要为自己的类型实现这些特征，比如<code>user</code>结构。</p>
+<p>要通过特征限制类型参数，语法是:</p>
+<pre class="language-rust hljs">fn fun&lt;Type:trait1+trait2+...&gt;(...){...}
+</pre>
+<p>这将指示编译器<code>Type</code>只能被那些实现<code>trait1</code>和<code>trait2</code>等的类型替换。我们可以指定单个特征或多个特征来限制类型。</p>
+<p>现在我们的排序函数:</p>
+<pre class="language-rust hljs">fn sort&lt;Sortable:Ord+Eq&gt;(arr:&amp;mut[Sortable]){
+...
+}
+</pre>
+<p>这里，我们声明了一个名为<code>Sortable</code>的泛型类型，并用特征<code>Ord</code>和<code>Eq</code>对其进行了限制。现在，替代它的类型必须同时实现<code>Eq</code>和<code>Ord</code>特征。</p>
+<p>这将允许我们对<code>u8</code>、<code>u16</code>、<code>usize</code>、<code>i32</code>等使用相同的函数。此外，如果我们为我们的<code>user</code>结构实现这些特征，它可以使用相同的函数进行排序，而不需要我们写一个单独的函数。</p>
+<p>同样的东西的另一种写法如下:</p>
+<pre class="language-rust hljs">fn sort&lt;Sortable&gt;(arr:&amp;mut [Sortable])where Sortable:Ord+Eq{
+...
+}
+</pre>
+<p>这里，我们没有将特征与类型参数声明一起写，而是将它们写在函数参数之后。</p>
+<p>从另一个角度来考虑这个问题:特征界限为我们提供了关于在类型参数中被替换的类型的保证。</p>
+<p>例如，Rust的<code>HashMap</code>要求提供给它的密钥可以被散列。换句话说，它需要保证哈希函数可以在替代键类型的类型上调用，并且它将给出一些可以被视为该键的哈希的值。</p>
+<p>因此，它通过要求它实现<code>Hash</code>特征来限制它的键类型。</p>
+<p>类似地，<code>HashSet</code>要求存储在其中的元素可以被散列，并且它将它们的类型限制为那些实现了<code>Hash</code>特征的元素。</p>
+<p>因此，我们可以将类型参数上的特征界限视为限制哪些类型可以被替换的方法，并保证被替换的类型将具有某些相关联的属性或功能。</p>
+<h2 id="lifetime-generics-rust">Rust中的生存期泛型</h2>
+<p>Rust大量使用泛型的另一个地方是在生存期中。</p>
+<p>这一点更难注意到，因为Rust 中的<a href="https://blog.logrocket.com/understanding-lifetimes-in-rust/" target="_blank" rel="noreferrer noopener">生命期大多是编译时实体，在代码或编译后的二进制文件中不直接可见。因此，几乎所有的生存期注释都是通用的“类型”参数，其值由编译器在编译时决定。</a></p>
+<p>少数例外之一是<code>'static</code>寿命。</p>
+<p>通常，如果一个类型有一个静态生存期，这意味着该值应该一直存在到程序结束。注意，这并不完全是它的意思，但是现在，我们可以这样认为。</p>
+<p>即使这样，生存期泛型仍然与类型泛型有一点不同:它们的最终值是由编译器计算的，而不是我们在代码中指定类型，编译器简单地替换它。</p>
+<p>因此，如果需要的话，编译器可以强制将较长的生存期缩短，并且必须在为每个注释赋值之前为其计算适当的生存期。此外，我们通常不需要直接处理这些，而是让编译器为我们推断这些，甚至不需要指定参数。</p>
+<p>生存期注释总是以符号<code>'</code>开始，其后可以是任何类似变量的名称。当我们想在一个结构或枚举中存储对某个东西的引用时，我们会显式地使用它们。</p>
+<p>由于Rust中的所有引用都必须是有效的引用(不能有悬空指针)，我们必须指定存储在结构中的引用必须至少保持有效，直到该结构在范围内，或者有效。</p>
+<p>请考虑以下情况:</p>
+<pre class="language-rust hljs">struct Reference{
+  reference:&amp;u8
+}
+</pre>
+<p>上面的代码将给出一条错误消息，指出没有指定lifetime参数。</p>
+<p>编译器不知道引用必须有效多长时间——是否应该与结构的生存期、<code>'static</code>或其他时间一样长。因此，我们必须按如下方式指定生存期参数:</p>
+<pre class="language-rust hljs">struct Reference&lt;'a&gt;{
+  reference:&amp;'a u8
+}
+</pre>
+<p>这里，我们指定了<code>Reference</code>结构将有一个关联的生命周期<code>'a</code>，并且其中的引用必须至少在这段时间内保持有效。现在，在编译时，Rust可以根据寿命确定规则替换寿命，并决定存储的引用是否有效。</p>
+<p>另一个需要显式声明生存期的地方是当函数接受多个引用并返回一个输出引用时。</p>
+<p>如果函数根本不返回引用，那么就不需要考虑生存期。如果它只通过引用接受一个参数，那么只要输入引用为，返回的引用就必须有效。</p>
+<p>我们只能返回从输入中构造的引用。默认情况下，任何其他都是无效的，因为它将由函数中创建的值构造，当我们从函数调用返回时，这些值将是无效的。</p>
+<p>但是当我们接受多个引用时，我们必须指定每个引用——包括输入和输出引用——必须存在多长时间，因为编译器无法自己确定。一个非常基本的例子如下:</p>
+<pre class="language-rust hljs">fn return_reference(in1:&amp;[usize],in2:&amp;[usize])-&gt;&amp;usize{
+...
+}
+</pre>
+<p>这里，编译器会抱怨我们必须指定输出<code>&amp;usize</code>的生命周期，因为它不知道它是否与<code>in1</code>或<code>in2</code>相关。增加所有三个引用的生存期将解决这个问题:</p>
+<pre class="language-rust hljs">fn return_reference&lt;'a&gt;(in1:&amp;'a [usize],in2:&amp;'a [usize])-&gt;&amp;'a usize{
+...
+}
+</pre>
+<p>就像泛型类型参数一样，我们在函数名后声明了生存期参数<code>'a</code>，然后用它来指定变量的生存期。</p>
+<p>这告诉编译器，只要输入引用有效，输出引用就有效。此外，这增加了对<code>in1</code>和<code>in2</code>必须具有相同寿命的限制。</p>
+<p>因此，编译器将不允许存在不同时间的输入引用。</p>
+<p>为了处理这种情况，我们还可以在这里为<code>in1</code>和<code>in2</code>指定两个不同的生命周期，并指定返回值的生命周期与返回它的那个生命周期相同。</p>
+<p>例如，如果我们从<code>in1</code>返回一个值，我们将保持<code>in1</code>的生存期和返回类型不变，并给<code>in2</code>一个不同的生存期参数，如下所示:</p>
+<pre class="language-rust hljs">fn return_reference&lt;'a,'b&gt;(in1:&amp;'a [usize],in2:&amp;'b [usize])-&gt;&amp;'a usize{
+...// return values only from in1
+}
+</pre>
+<p>如果我们不小心从<code>in2</code>返回一个引用，编译器会给我们一个错误消息，说生命周期不匹配。这可以用作附加检查，检查引用是否从正确的位置返回。</p>
+<p>但是如果我们事先不知道我们将从哪个输入返回引用呢？在这种情况下，我们可以指定一个生存期必须至少与另一个生存期一样长:</p>
+<pre class="language-rust hljs">fn return_reference&lt;'a,'b:'a&gt;(in1:&amp;'a [usize],in2:&amp;'b [usize])-&gt;&amp;'a usize{
+...
+}
+</pre>
+<p>这表明<code>'b</code>的寿命必须至少与<code>'a</code>一样长。因此，我们可以从<code>in1</code>或<code>in2</code>返回一个值，编译器不会给我们错误信息。</p>
+<p>鉴于许多需要显式生存期的东西都是非常高级的主题，这里并没有考虑所有相关的用例。您可以<a href="https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html" target="_blank" rel="noreferrer noopener">查看嵌入式Rust Book了解更多关于寿命的信息</a>。</p>
+<h2 id="typestate-programming-rust-generics">使用泛型在Rust中进行类型状态编程</h2>
+<p>这是另一个稍微高级一点的泛型用例。我们可以使用泛型来选择性地实现结构的功能。这通常与状态机或具有多个状态的对象有关，其中每个状态都有不同的功能。</p>
+<p>考虑我们想要实现加热器结构的情况。加热器可以处于低、中或高状态。根据它的状态，它需要做不同的事情。</p>
+<p>想象加热器有一个旋钮或转盘:当旋钮处于低位时，它可以转到中位，但不先转到中位就不能直接转到高位。当处于中等水平时，它可能会变高或变低。高的时候只能到中，不能直接到低。</p>
+<p>为了在Rust中实现这一点，我们可以把它变成一个<code>enum</code>，并有可能把这三个状态变成它的变体。但是我们还不能指定不同的具体方法——至少在撰写本文时还不能。我们将不得不到处使用<code>match</code>语句，并有条件地应用该逻辑。</p>
+<p>这就是<a href="https://docs.rust-embedded.org/book/static-guarantees/typestate-programming.html" target="_blank" rel="noreferrer noopener">类型状态在Rust </a>中有用的地方。</p>
+<p>首先，让我们声明三个代表我们状态的单元结构:</p>
+<pre class="language-rust hljs">struct Low;
+struct Medium;
+struct High;
+</pre>
+<p>现在，我们将使用一个名为<code>State</code>的通用参数来声明我们的加热器结构:</p>
+<pre class="language-rust hljs">struct Heater&lt;State&gt;{
+...
+}
+</pre>
+<p>但是有了这个，编译器就报错参数没用了，所以我们必须做点别的。</p>
+<p>我们实际上并不想存储状态结构，因为我们实际上并没有对它们做任何事情，它们也没有任何数据。相反，我们使用这些状态来指示加热器的状态和功能(即，从低到中、从中到高等)。)对它是可用的。</p>
+<p>因此，我们使用一种叫做<code>PhantomData</code>的特殊类型:</p>
+<pre class="language-rust hljs">use std::marker::PhantomData;
+
+struct Heater&lt;State&gt;{
+...
+state:PhantomData&lt;State&gt;
+...
+}
+</pre>
+<p><code>PhantomData</code>是<a href="https://docs.rs/rustc-std-workspace-std/latest/std/" target="_blank" rel="noreferrer noopener">锈</a> <code><a href="https://docs.rs/rustc-std-workspace-std/latest/std/" target="_blank" rel="noreferrer noopener">std</a></code> <a href="https://docs.rs/rustc-std-workspace-std/latest/std/" target="_blank" rel="noreferrer noopener">库</a>中的特殊结构。这种结构表现得好像它存储数据，但实际上并不存储任何数据。现在对于编译器来说，似乎我们正在使用泛型类型参数，所以它没有抱怨。</p>
+<p>这样，我们可以实现加热器当前状态的特定方法，如下所示:</p>
+<pre class="language-rust hljs">impl Heater&lt;Low&gt;{
+  fn turn_to_medium(self)-&gt;Heater&lt;Medium&gt;{
+    ...
+  }
+// methods specific to low state of the heater
+}
+
+impl Heater&lt;Medium&gt;{
+// methods specific to medium state of the heater
+  fn turn_to_low(self)-&gt;Heater&lt;Low&gt;{
+    ...
+  }
+  fn turn_to_high(self)-&gt;Heater&lt;High&gt;{
+    ...
+  }
+}
+
+impl Heater&lt;High&gt;{
+// methods specific to high state of the heater
+  fn turn_to_medium&lt;Medium&gt;{
+    ...
+  }
+}
+</pre>
+<p>每个状态都包含不能从任何其他状态访问的特定方法。我们还可以利用这一点来限制功能，使其仅处于加热器的特定状态:</p>
+<pre class="language-rust hljs">fn only_for_medium_heater(h:&amp;mut Heater&lt;Medium&gt;){
+// this will only accept medium heater
+}
+</pre>
+<p>因此，如果我们试图给这个函数一个带有<code>Low</code>状态的<code>Heater</code>，我们将在编译时得到一个错误:</p>
+<pre class="language-rust hljs">let h_low:Heater&lt;Low&gt; = Heater{
+...
+state:PhantomData,
+...
+}
+only_for_medium_heater(h_low); // Compiler Error!!!
+</pre>
+<p>注意，我们实际上并没有使用<code>new</code>方法创建<code>PhantomData</code>，因为它实际上并没有存储任何东西。</p>
+<p>此外，我们需要确保编译器能够判断出我们存储<code>Heater</code>结构的变量的类型状态。我们可以通过如上所述显式指定类型来实现，或者在显式声明类型状态的上下文中使用变量，如函数、调用或其他相关上下文。</p>
+<p>我们可以正常地实现所有状态通用的方法，如下所示:</p>
+<pre class="language-rust hljs">impl &lt;T&gt;Heater&lt;T&gt;{
+// methods common to all states, i.e. to any heater
+// here the type T is generic
+}
+</pre>
+<h2 id="advanced-generic-types-rust-generic-associated-types">Rust中的高级泛型类型:泛型关联类型</h2>
+<p>这里我们将提到泛型类型的一个更高级的用例:泛型关联类型(GATs)。这是一个非常高级和复杂的主题，因此我们不会在本文中详细讨论。</p>
+<p>关联类型是我们在特征中定义的类型。之所以这么叫，是因为它们完全与那种特质联系在一起。这里有一个例子:</p>
+<pre class="language-rust hljs">trait Computable{
+  type Result;
+  fn compute(&amp;self)-&gt;Self::Result;
+}
+</pre>
+<p>在这里，<code>Result</code>类型与特质<code>Computable</code>相关联；因此，我们可以在函数定义中使用它们。要了解这与简单使用泛型类型参数有何不同，你可以<a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html?highlight=associated#specifying-placeholder-types-in-trait-definitions-with-associated-types" target="_blank" rel="noreferrer noopener">查看嵌入式Rust Book </a>。</p>
+<p>泛型关联类型，顾名思义，允许我们在关联类型中使用泛型。这是Rust 的一个相对较新的补充，事实上，在撰写本文时，并不是它的所有部分都是稳定的。</p>
+<p>使用GATs，可以定义包含泛型类型、生存期和本文中讨论的所有内容的关联类型。</p>
+<p>你可以在Rust官方博客上阅读关于这个主题的更多内容，但是记住这是一个非常高级的用例，它在Rust编译器中的实现还没有完全稳定。</p>
+<h2 id="conclusion">结论</h2>
+<p>现在你知道什么是泛型，为什么它们有用，以及Rust如何使用它们，即使你没有注意到。</p>
+<p>我们讨论了如何使用泛型来编写更少的代码，同时可以更加灵活；如何限制类型的功能；以及如何对类型状态使用泛型，以便可以有选择地实现该结构所处状态的功能。</p>
+<p>你可以在Github库中找到这个博客的代码。感谢阅读！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,176 @@
+<html>
+<head>
+<title>Moving away from Kotlin’s AsyncTask: Alternative solutions - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>远离Kotlin的AsyncTask:替代解决方案</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/moving-away-kotlin-asynctask-alternative-solutions/#0001-01-01">https://blog.logrocket.com/moving-away-kotlin-asynctask-alternative-solutions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在Android的世界中，长时间运行的操作——如繁重的计算、数据库操作或网络操作——不会在UI或主线程上执行，因为这些操作不会立即完成，并且往往会阻塞调用它们的线程。</p>
+<p>如果这些操作是在主线程上完成的，那将会是一场UI灾难。在现代应用程序中，人们非常依赖长时间运行的操作来为用户提供丰富的内容。而且，正如我们所知，保持良好的用户界面体验是非常有吸引力的，可以让用户不断回来。为了避免UI崩溃和冻结，应该将工作从主线程中取出并卸载到另一个线程上，以避免丢失用户。</p>
+<p>Android框架对此有严格的政策；默认情况下，它不允许在主线程上执行长时间运行的操作，如数据库交互或网络请求。如果违反此策略，将在运行时引发异常。</p>
+<p>Android最初设计了<a href="https://developer.android.com/reference/kotlin/android/os/AsyncTask" target="_blank" rel="noopener">API<code>AsyncTask</code>T4来帮助异步任务，而不需要第三方库。我不会详述<code>AsyncTask</code>的内部工作方式，因为从API级别30开始，<code>AsyncTask</code>已经被弃用，取而代之的是其他替代方式，我们将在本帖中讨论。</a></p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="why-asynctask-deprecated">AsyncTask为什么被弃用？</h2>
+<p>在使用此API之前，您应该了解此API的三个主要部分:</p>
+<ul>
+<li>在使用它之前，必须对其进行子类化</li>
+<li>它有三种通用类型，分别是<code>Params</code>、<code>Progress</code>和<code>Result</code></li>
+<li>执行有四个步骤:<ul>
+<li><code>onPreExecute</code></li>
+<li><code>doInBackground</code></li>
+<li><code>onProgressUpdate</code></li>
+<li><code>onPostExecute</code></li>
+</ul>
+</li>
+</ul>
+<h3><code>AsyncTask</code>的用法示例</h3>
+<p>让我们先看一些代码:</p>
+<pre class="language-kotlin hljs">class DoWorkAsync(private val binding: ActivityMainBinding) :
+    AsyncTask&lt;Int, Unit, AsyncResult&gt;() {
+
+    override fun onPreExecute() {
+        super.onPreExecute()
+        println("running onPreExecute on ${Thread.currentThread().name}")
+        binding.displayText.text = "heavy calculation ongoing..."
+    }
+
+    override fun doInBackground(vararg params: Int?): AsyncResult {
+        println("running doInBackground on ${Thread.currentThread().name}")
+        val param = params.first() ?: return AsyncResult.Error
+        val factorial = factorial(param)
+        return AsyncResult.Success(param, factorial)
+    }
+
+    override fun onPostExecute(result: AsyncResult?) {
+        println("running onPostExecute on ${Thread.currentThread().name}")
+        super.onPostExecute(result)
+        when (result) {
+            is AsyncResult.Success -&gt; "Factorial of ${result.input} = ${result.value}"
+            AsyncResult.Error, null -&gt; "An error occurred while computing the value"
+        }.also { binding.displayText.text = it }
+    }
+}
+</pre>
+<p>在上面的代码块中，我创建了一个扩展了<code>AsyncTask</code>的<code>DoWorkAsync</code>类，并将泛型类型指定为<code>Int</code>、<code>Unit</code>和<code>AsyncResult</code>。这些类型分别代表<code>Params</code>、<code>Progress</code>和<code>Result</code>。</p>
+<p>在我们执行<code>doInBackground</code>中的长时间运行的操作之前，<code>onPreExecute</code>被调用。在这里你可以做一些事情，比如<a href="https://blog.logrocket.com/build-react-native-progress-bar/" target="_blank" rel="noopener">显示一个进度条</a>来表示工作正在进行中。</p>
+<p>实际任务在<code>doInBackground</code>中完成；这里所做的工作从主线程转移到另一个线程，以确保流畅的用户体验。</p>
+<p>通过这种方法访问视图是不安全的，因为您试图从另一个线程访问在主线程中创建的视图。从技术上讲，如果发生这种情况，应用程序应该会崩溃。</p>
+<p><code>onPostExecute</code>在<code>doInBackground</code>工作完成后被调用。从这里<em>访问视图是</em>安全的，因为我们从最初创建视图的主线程调用。</p>
+<p>参见下面打印到控制台的线程名称截图。</p>
+<p><img data-attachment-id="135774" data-permalink="https://blog.logrocket.com/moving-away-kotlin-asynctask-alternative-solutions/attachment/thread-name-printed-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png" data-orig-size="730,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="thread-name-printed-console" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console-300x174.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png" decoding="async" class="aligncenter size-full wp-image-135774 jetpack-lazy-image" src="../Images/1ec9d9f80b89e5920f6aaa5776ef3a1c.png" alt="The thread name is printed to the console" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console-300x174.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135774" data-permalink="https://blog.logrocket.com/moving-away-kotlin-asynctask-alternative-solutions/attachment/thread-name-printed-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png" data-orig-size="730,423" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="thread-name-printed-console" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console-300x174.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135774" src="../Images/1ec9d9f80b89e5920f6aaa5776ef3a1c.png" alt="The thread name is printed to the console" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console-300x174.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/thread-name-printed-console.png"/></noscript>
+<p>使用<code>AsyncTask</code> API可能允许您执行异步任务，但是有一些显而易见的问题:</p>
+<ol>
+<li>对于简单的任务来说，设置太麻烦了</li>
+<li>API容易出现内存泄漏</li>
+<li>从API级别30开始，该API已被弃用</li>
+</ol>
+<h2 id="alternatives-deprecated-asynctask">不推荐使用的替代产品<code>AsyncTask</code></h2>
+<p>由于<code>AsyncTask</code>的缺点和不受欢迎，开发者应该转向Android异步编程的替代解决方案之一:</p>
+<ol>
+<li>科特林·科特雷普</li>
+<li><a href="https://github.com/ReactiveX/RxJava" target="_blank" rel="noopener"> RxJava </a></li>
+<li>实施者</li>
+</ol>
+<p>前两个更受欢迎，API使用更简单，所以我们将在本文中重点讨论这两个。</p>
+<h2 id="what-are-kotlin-coroutines">什么是Kotlin协同程序？</h2>
+<p>协程是一种并发的方法，你可以在不阻塞UI线程的情况下暂停和恢复任务的执行。多个协程可以在一个线程上执行，而不会阻塞该线程。</p>
+<p>JetBrains在Kotlin中从头开始开发Kotlin协同例程，以减少处理异步任务和并发时的麻烦。它的好处之一是用顺序代码简化了异步性。</p>
+<p>要在Android中使用Kotlin协同程序，您需要掌握一些基本组件。</p>
+<h3>暂停功能</h3>
+<p>暂停功能类似于常规功能。唯一的区别是函数上的<code>suspend</code>修饰符。在编译时，编译器将这样的函数标记为暂停点。这些功能可以暂停或恢复。最后一点是，挂起函数只能从协程或另一个挂起函数中调用。</p>
+<p>一个<code>suspend</code>函数是这样定义的:</p>
+<pre class="language-kotlin hljs">suspend fun invokeSuspendFunc(){ }</pre>
+<p>一个<code>regular</code>函数是这样定义的:</p>
+<pre class="language-kotlin hljs">fun invokeRegularFunc(){ }
+</pre>
+<h3 id="coroutine-builders">协同程序构建器</h3>
+<p>协程生成器用于启动新协程。常见的构建者有<code>launch()</code>和<code>async()</code>。</p>
+<h3 id="coroutine-context-dispatchers">协程上下文和调度程序</h3>
+<p>这决定了操作应该在哪个线程中执行。</p>
+<h2 id="using-kotlin-coroutines-async-tasks">为异步任务使用Kotlin协同例程</h2>
+<p>为了开始使用协程，我们将添加一些额外的依赖项，以便从应用程序内的逻辑范围启动协程。这样做的好处是，当启动协程的作用域被破坏时，协程会自动取消。</p>
+<p>从下面的代码块中复制依赖项。</p>
+<pre class="language-gradle hljs">implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.3'
+implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.5.1"
+</pre>
+<p>为了演示，我将坚持我们以前使用的相同任务，寻找一个数的阶乘。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre class="language-kotlin hljs">private fun coDoWork(binding: ActivityMainBinding) {
+    lifecycleScope.launch(Dispatchers.IO) {
+        println("running task on ${Thread.currentThread().name}")
+        val result = factorial(input)
+        val text = "Factorial of $result = $result"
+        withContext(Dispatchers.Main) {
+            println("Accessing UI on ${Thread.currentThread().name}")
+            binding.displayText.text = text
+        }
+    }
+    println("running end on ${Thread.currentThread().name}")
+}
+</pre>
+<p>检查上述代码块的输出，第11行的语句在协程代码块中的代码之前执行。我们已经能够使用顺序代码实现协程的异步性，而不会阻塞主线程。</p>
+<p>在第2行中，我们创建了一个协程，并将其执行标记为在一个工作线程上完成。这释放了主线程来执行其他操作，如第11行中的语句。</p>
+<p>因为UI应用程序是单线程的，所以Kotlin协同程序为我们提供了在线程间切换的灵活性，以执行特定于线程的操作；一个例子是访问UI组件。<code>binding.displayText.*text*</code> <code>= text</code>如果从非主线程的线程访问会抛出异常。为了安全地通知UI所做工作的结果，我们使用<code>withContext(Dispatchers.Main)</code>T3切换到主线程。</p>
+<h2 id="what-is-rxjava">RxJava是什么？</h2>
+<p>RxJava是基于反应流规范的<a href="https://reactivex.io/" target="_blank" rel="noopener"> <code>reactiveX</code>库</a>的Java实现。背后的基本思想由<a href="https://en.wikipedia.org/wiki/Observer_pattern" target="_blank" rel="noopener">观察者模式</a>描述。</p>
+<p>这个范式有两个主要组成部分:可观察的和观察者。可观察对象负责发出数据流，由观察者使用。为了建立这种联系，观察者必须认同可观察的事物。</p>
+<p>此外，由可观察对象发出的项目会受到转换和操作的影响，这取决于用例。根据GitHub repo 上的这个<a href="https://github.com/ReactiveX/RxJava/wiki/Alphabetical-List-of-Observable-Operators" target="_blank" rel="noopener">列表，RxJava有大量的操作符(超过200个),可以在数据流发送给观察者之前应用于数据流。</a></p>
+<p>RxJava谈够了；让我们深入了解RxJava在异步编程中的一些实际应用。</p>
+<h2 id="using-rxjava-async-tasks">将RxJava用于异步任务</h2>
+<p>像这样添加必要的梯度依赖关系:</p>
+<pre class="language-gradle hljs">implementation "io.reactivex.rxjava3:rxjava:3.1.5"
+implementation 'io.reactivex.rxjava3:rxandroid:3.0.0'
+</pre>
+<p>我们这里的目标是异步计算一个数的阶乘，并在主线程上发出计算结果，在那里将使用它。</p>
+<p>首先，我们将这样设置我们的可观察对象:</p>
+<pre class="language-kotlin hljs">val observable = Observable.create&lt;BigInteger&gt; {
+    it.onNext(factorial(input))
+}.subscribeOn(Schedulers.io())
+    .observeOn(AndroidSchedulers.mainThread())
+</pre>
+<p>上面的代码块相当简单:首先，我们创建一个发出数字阶乘的可观察对象。指定当观察者订阅时，被观察对象应该使用哪个调度程序。在我们的例子中，我们使用<code>Schedulers.io()</code>，这意味着在后台进行I/O工作。</p>
+<p><code>observeOn</code>指定观察者应该观察哪个调度器的可观察对象。在我们的例子中，我们使用了<code>AndroidSchedulers.mainThread()</code>来表示主线程。</p>
+<p>像这样实现观察者:</p>
+<pre class="language-kotlin hljs">val observer = object : Observer&lt;BigInteger&gt; {
+    override fun onSubscribe(disposable: Disposable) {
+        disposableContainer.add(disposable)
+    }
+
+    override fun onNext(result: BigInteger) {
+        val text = "Factorial of $result = $result"
+        binding.displayText.text = text
+    }
+
+    override fun onError(error: Throwable) {
+        binding.displayText.text = error.message
+    }
+
+    override fun onComplete() {
+        println("operation completed")
+    }
+}
+</pre>
+<p>观察者的实现相当简单。回调在不同的时间被调用，这取决于来自可观察对象的信号。</p>
+<p>实际订阅是这样的:</p>
+<pre class="language-kotlin hljs">observable.subscribe(observer)
+</pre>
+<p>这是装置的最后一部分，它建立了可观察对象和观察者之间的联系；把它看作一个闭合电路的开关。只有当订阅处于活动状态时，才会将数据发送给观察者。</p>
+<p>有关完整的代码示例，请查看<a href="https://github.com/enyason/asynctask_and_alternative_solutions" target="_blank" rel="noopener"> my GitHub repo </a>。</p>
+<h2>结论</h2>
+<p><code>AsyncTask</code>的被弃进一步指出了它在Android上的缺点。因此，强烈建议利用我们在本文中讨论的其他替代方法。协程和RxJava都是为并发和异步编程而设计。</p>
+<p>Kotlin coroutines对异步编程的顺序方法使其在Android社区中比RxJava有优势；然而，在一些特定的用例中，两者各有千秋；协程在发出网络请求和执行数据库操作方面表现突出，另一方面，RxJava在处理表单验证和实现反应式系统方面非常强大。</p><div class="code-block code-block-32">
+<div class="blog-plug inline-plug kotlin-plug"><h2>LogRocket :即时重现你的安卓应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款Android监控解决方案，可以帮助您即时重现问题，确定bug的优先级，并了解您的Android应用程序的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的Android应用程序— <a class="signup" href="hhttps://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

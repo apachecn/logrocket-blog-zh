@@ -1,0 +1,127 @@
+<html>
+<head>
+<title>Assertion functions in TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>TypeScript - LogRocket博客中的断言函数</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/assertion-functions-typescript/#0001-01-01">https://blog.logrocket.com/assertion-functions-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>TypeScript中的断言函数是一种非常有表现力的函数类型，其签名声明如果函数本身返回，则验证给定的条件。</p>
+<p>在其基本形式中，一个典型的<code>assert</code>函数只是检查一个给定的谓词，如果这个谓词为假，就抛出一个错误。例如，如果谓词为假，Node.js的assert将抛出一个<code>AssertionError</code>。</p>
+<p>自3.7版以来，TypeScript通过在类型系统级别实现对断言的支持，已经超越了这一点。</p>
+<p>在本文中，我们将探索TypeScript中的断言函数，并了解如何使用它们来表达变量的不变量。</p>
+<h2>目录</h2>
+
+<h2 id="javascript-like-assertions">类似JavaScript的断言</h2>
+<p>Node.js带有一个预定义的assert函数。正如我们在引言中提到的，如果给定的谓词为假，它会抛出一个<code>AssertionError</code>:</p>
+<pre class="language-typescript hljs">const aValue = 10
+assert(aValue === 20)</pre>
+<p>在JavaScript中，这有助于防止函数中出现不正确的类型:</p>
+<pre class="language-typescript hljs">function sumNumbers(x, y) {
+  assert(typeof x === "number");
+  assert(typeof y === "number");
+  return x + y;
+}</pre>
+<p>不幸的是，代码流分析没有考虑这些断言。事实上，它们只是在运行时被评估，然后就被遗忘了。</p>
+<p>通过断言函数，TypeScript的代码流分析将能够使用函数的类型(简而言之，它的签名)来推断我们代码的一些属性。我们可以使用这个新特性在整个代码中保证我们的类型。</p>
+<h2 id="typescript-like-assertions">类似类型脚本的断言</h2>
+<p>断言函数在其签名中指定了要评估的类型谓词。例如，下面的函数确保给定值是一个<code>string</code>:</p>
+<pre class="language-typescript hljs">function isString(value: unknown): asserts value is string {
+  if (typeof value !== "string") throw new Error("Not a string")
+}</pre>
+<p>如果我们用一个给定的参数调用上面的函数，并且它正确地返回，TypeScript知道值的类型是<code>string</code>。因此，它会将其类型缩小到<code>string</code>:</p>
+<pre class="language-typescript hljs">const aValue: string|number = "Hello"
+isString(aValue)
+// The type of aValue is narrowed to string here</pre>
+<p>当然，没有什么能阻止我们弄乱这个断言。例如，我们可以编写如下(错误的)函数:</p>
+<pre class="language-typescript hljs">function isString(value: unknown): asserts value is string {
+  if (typeof value !== "number") throw new Error("Not a string")
+}
+</pre>
+<p>注意，我们现在正在检查<code>value's</code>类型是否不是<code>number</code>，而不是<code>string</code>。在这种情况下，TypeScript的代码流分析将看到类型为<code>never</code>的<code>Value</code>，而不是上面的<code>string</code>。</p>
+<p>断言函数对于<a href="https://blog.logrocket.com/writing-readable-code-with-typescript-enums-a84864f340e9/" target="_blank" rel="noopener">枚举</a>非常有用:</p>
+<pre class="language-typescript hljs">type AccessLevel = "r" | "w" | "rw"
+
+const writeOnly = "w"
+
+
+function allowsReadAccess(level: AccessLevel): asserts level is "r" | "rw" {
+    if (!level.includes("r")) throw new Error("Read not allowed")
+}
+
+allowsReadAccess(writeOnly)</pre>
+<p>在上面的例子中，我们首先定义了一个类型，它的值只能是<code>"r"</code>、<code>"w"</code>或<code>"rw"</code>。让我们假设这种类型简单地定义了对给定资源的三种访问类型。然后，我们声明一个断言函数，如果它的实际参数不允许读操作，就抛出。</p>
+<p>如您所见，我们正在明确地缩小类型，声明如果函数返回，值必须是<code>"r"</code>或<code>"rw"</code>。如果我们用<code>writeOnly</code>作为实际参数调用<code>allowsReadAccess</code>，我们将得到一个预期的错误，表明<code>"Read access is not allowed"</code>。</p>
+<p>断言函数的另一个常见用途是表达不可空性。下面的代码片段展示了一种确保值被定义的方法，即它既不是<code>null</code>也不是<code>undefined</code>:</p>
+<pre class="language-typescript hljs">function assertIsDefined&lt;T&gt;(value: T): asserts value is NonNullable&lt;T&gt; {
+  if (value === undefined || value === null) {
+    throw new Error(`${value} is not defined`)
+  }
+}</pre>
+<p>其中<code>NonNullable&lt;T&gt;</code>是一个类型脚本类型，它从类型t的合法值中排除了<code>null</code>和<code>undefined</code></p>
+<h3 id="function-declarations-and-expressions">函数声明和表达式</h3>
+<p>在撰写本文时，断言函数可能没有被定义为普通函数表达式。一般来说，函数表达式可以看作匿名函数；也就是说，没有名称的函数:</p>
+<pre class="language-typescript hljs">// Function declaration
+function fun() { ... }
+
+// Function expression
+const fun = function() { ... }</pre>
+<p>函数声明的主要优点是提升，这使得可以在文件中定义函数的任何地方使用函数。另一方面，函数表达式只能在创建后使用。</p>
+<p>实际上有一个解决方法，就是把断言函数写成函数表达式。我们将不得不将其签名定义为一个独立的类型，而不是定义函数及其实现:</p>
+<pre class="language-typescript hljs">// Wrong
+// Error: A type predicate is only allowed in return type position for functions and methods.
+// Error: Type '(value: any) =&gt; void' is not assignable to type 'void'.
+const assertIsNumber: asserts value is number = (value) =&gt; {
+  if (typeof value !== 'number') throw Error('Not a number')
+}
+
+// Correct
+type AssertIsNumber = (value: unknown) =&gt; asserts value is number
+const assertIsNumber: AssertIsNumber = (value) =&gt; {
+  if (typeof value !== 'number') throw Error('Not a number')
+}</pre>
+<h3 id="assertion-functions-and-type-guards">断言函数和类型保护</h3>
+<p>TypeScript中的断言函数有点类似于类型守卫。最初引入类型保护是为了执行运行时检查，以保证给定范围内的值的类型。</p>
+<p>特别是，类型保护是一个简单评估类型谓词的函数，返回<code>true</code>或<code>false</code>。这与断言函数略有不同，正如我们在上面看到的，如果谓词没有被验证，断言函数应该抛出一个错误，而不是返回<code>false</code>。</p>
+<pre class="language-typescript hljs">function isString(value: unknown): value is string {
+    return typeof value === "string"
+}
+
+// Type guards can also be declared as function expression
+const isStringExp = (value: unknown): value is string =&gt;
+    typeof value === "string"</pre>
+<p>不过，还有一个很大的不同。断言函数也可以在没有类型谓词的情况下使用，我们将在下一节中看到。</p>
+<h3 id="assertion-functions-without-a-type-predicate">没有类型谓词的断言函数</h3>
+<p>到目前为止，我们看到的断言函数都在检查给定值是否有给定的类型。因此，它们都是为目标类型量身定做的。尽管如此，断言函数给了我们更多的能力。特别是，我们可以编写一个完全通用的函数来断言一个条件，该条件将输入作为一个参数:</p>
+<pre class="language-typescript hljs">function assert(condition: unknown, msg?: string): asserts condition {
+  if (condition === false) throw new Error(msg)
+}</pre>
+<p><code>assert</code>函数现在输入一个<code>condition</code>，它的类型是<code>unknown</code>，可能还有一个<code>message</code>。它的身体只是评估这样一个条件。如果是<code>false</code>，那么<code>assert</code>抛出一个错误，这是意料之中的。</p>
+<p>但是，请注意，签名使用了<code>asserts</code>之后的<code>condition</code>参数。通过这种方式，我们告诉TypeScript代码流分析，如果函数正确返回，它可以假设我们传入的任何谓词实际上都经过了验证。</p>
+<p>TypeScript的Playground为我们提供了一个非常好的代码流分析的可视化表示。让我们考虑下面的代码片段，其中我们生成一个随机数，然后调用<code>assert</code>来确保生成的数字是<code>10</code>:</p>
+<pre class="language-typescript hljs">const randomNumber = Math.random()
+assert(randomNumber == 10, "The number must be equal to 10")
+randomNumber</pre>
+<p>如果我们在调用<code>assert</code>之前检查<code>randomValue</code>的推断属性，TypeScript只是告诉我们类型(图1)。</p>
+<figure id="attachment_134895" aria-describedby="caption-attachment-134895" class="wp-caption aligncenter"><img data-attachment-id="134895" data-permalink="https://blog.logrocket.com/assertion-functions-typescript/attachment/randomnumber/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png" data-orig-size="567,150" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="RandomNumber" data-image-description="" data-image-caption="&lt;p&gt;RandomNumber&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png" decoding="async" class="size-full wp-image-134895 jetpack-lazy-image" src="../Images/e64945a733b7b795bf9f082ef1ebc215.png" alt="RandomNumber" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png 567w, https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-300x79.png 300w" data-lazy-sizes="(max-width: 567px) 100vw, 567px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="134895" data-permalink="https://blog.logrocket.com/assertion-functions-typescript/attachment/randomnumber/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png" data-orig-size="567,150" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="RandomNumber" data-image-description="" data-image-caption="&lt;p&gt;RandomNumber&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png" decoding="async" loading="lazy" class="size-full wp-image-134895" src="../Images/e64945a733b7b795bf9f082ef1ebc215.png" alt="RandomNumber" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png 567w, https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-300x79.png 300w" sizes="(max-width: 567px) 100vw, 567px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber.png"/></noscript><figcaption id="caption-attachment-134895" class="wp-caption-text">Figure 1. TypeScript is only able to infer the type of randomNumber before the call to assert.</figcaption></figure>
+<p>然后，只要我们调用条件为<code>randomNumber == 10</code>的<code>assert</code>，TypeScript就知道在剩余的执行过程中该值将为<code>10</code>(图2)。</p>
+<figure id="attachment_134897" aria-describedby="caption-attachment-134897" class="wp-caption aligncenter"><img data-attachment-id="134897" data-permalink="https://blog.logrocket.com/assertion-functions-typescript/attachment/randomnumber-set-10/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png" data-orig-size="514,98" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="RandomNumber set to 10" data-image-description="" data-image-caption="&lt;p&gt;RandomNumber set to 10&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10-300x57.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png" decoding="async" class="size-full wp-image-134897 jetpack-lazy-image" src="../Images/e792bdb54eefc55573e5cfae51d664d8.png" alt="RandomNumber set to 10" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png 514w, https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10-300x57.png 300w" data-lazy-sizes="(max-width: 514px) 100vw, 514px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="134897" data-permalink="https://blog.logrocket.com/assertion-functions-typescript/attachment/randomnumber-set-10/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png" data-orig-size="514,98" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="RandomNumber set to 10" data-image-description="" data-image-caption="&lt;p&gt;RandomNumber set to 10&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10-300x57.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png" decoding="async" loading="lazy" class="size-full wp-image-134897" src="../Images/e792bdb54eefc55573e5cfae51d664d8.png" alt="RandomNumber set to 10" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png 514w, https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10-300x57.png 300w" sizes="(max-width: 514px) 100vw, 514px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/randomnumber-set-10.png"/></noscript><figcaption id="caption-attachment-134897" class="wp-caption-text">Figure 2. TypeScript now tells us that <code>randomNumber</code> is set to 10.</figcaption></figure>
+<p>最后，如果我们试图检查<code>randomNumber</code>和另一个数字的相等性，TypeScript将能够在甚至不运行程序的情况下评估该属性。例如，代码流分析将抱怨下面的赋值，说“这个条件将总是返回‘false’，因为类型‘10’和‘20’没有重叠。”：</p>
+<pre class="language-typescript hljs">const pred = (randomNumber === 20)</pre>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们深入探讨了什么是TypeScript断言函数，以及如何使用它们让代码流分析推断出一组关于我们的值的属性。考虑到TypeScript被转换为JavaScript，这是一个非常好的特性，给程序员带来了更多的灵活性。</p>
+<p>特别是，我们看了一些用法，包括缩小类型范围和表示变量实际值的条件。最后，我们简要地提到了与类型保护的区别和相似之处，并掌握了断言函数的语法限制。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

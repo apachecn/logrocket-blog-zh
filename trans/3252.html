@@ -1,0 +1,359 @@
+<html>
+<head>
+<title>Using webpack with TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>将webpack与TypeScript - LogRocket Blog一起使用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-webpack-typescript/#0001-01-01">https://blog.logrocket.com/using-webpack-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在许多现代项目中使用，webpack是一个令人惊叹的工具，它优化了应用程序资源，使它们能够在任何设备上更高效地工作。webpack有助于将模块编译和捆绑到单个文件中，从而减少HTTP请求并提高应用程序性能。</p>
+<p>使用webpack，TypeScript代码被编译成浏览器友好的JavaScript文件。使用webpack加载器，您还可以将SASS和LESS文件转换成一个CSS包文件。</p>
+<p>在本文中，我们将学习如何使用webpack将TypeScript编译成JavaScript，将源代码捆绑到单个JavaScript文件中，并使用源映射进行调试。我们还将探索如何使用webpack插件。</p>
+<p>要跟随本教程，您需要以下内容:</p>
+<ul>
+<li>npm</li>
+<li>Node.js:如果你已经安装了Node.js，确保它≥v8.x。</li>
+<li>您选择的任何代码编辑器；我将使用<a href="https://code.visualstudio.com/"> Visual Studio代码</a></li>
+<li>打字稿的基础知识</li>
+</ul>
+<p>我们开始吧！</p>
+<hr/>
+<p id="tableofcontents"><em>向前跳转:</em></p>
+
+<hr/>
+<h2 id="webpack-loaders">webpack加载程序</h2>
+<p>默认情况下，webpack只理解JavaScript文件，将每个导入的文件视为一个模块。webpack不能编译或捆绑非JavaScript文件，因此它使用加载器。</p>
+<p>加载器告诉webpack如何编译和捆绑静态资产。它们用于将TypeScript模块编译成JavaScript，处理应用程序样式，甚至用ESLint林挺你的代码。</p>
+<p>少数webpack加载器包括ts-loader、css-loader、style-loader等等；我们将在本教程的后面讨论它们。</p>
+<h2 id="setting-up-webpack-typescript">设置webpack和TypeScript</h2>
+<p>让我们从建立我们的项目开始。首先，您应该在计算机上安装TypeScript。若要全局安装TypeScript，请使用下面的命令:</p>
+<pre class="language-bash hljs">npm install -g typescript
+</pre>
+<p>全局安装TypeScript消除了每次启动新项目时安装TypeScript的需要。</p>
+<p>接下来，我们将把webpack和<a href="https://www.npmjs.com/package/ts-loader"> ts-loader </a>包作为依赖项安装到我们的项目中:</p>
+<pre class="language-bash hljs">npm init -y
+npm install -D webpack webpack-cli ts-loader webpack-dev-server&gt;</pre>
+<h2 id="webpack-configuration">webpack配置</h2>
+<p>默认情况下，webpack不需要配置文件。它将假设您的项目的入口点是<code>src/index.js</code>，并将在生产过程中在<code>dist</code> / <code>main.js</code>中输出缩小和优化的结果。</p>
+<p>如果您想要使用插件或加载器，那么您将需要使用webpack配置文件，允许您指定webpack将如何与您的项目一起工作，要编译哪些文件，以及输出包文件将在哪里。</p>
+<p>让我们将webpack配置文件添加到项目中。从项目根文件夹中，使用以下配置创建一个<code>webpack.config.js</code>文件:</p>
+<pre class="language-json hljs">const path = require('path');
+
+module.exports = {
+  entry: './src/index.ts',
+  module: {
+    rules: [
+      {
+        test: /\.ts?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/,
+      },
+    ],
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+  devServer: {
+    static: path.join(__dirname, "dist"),
+    compress: true,
+    port: 4000,
+  },
+};</pre>
+<p>让我们回顾一些webpack配置选项。首先，<code>entry</code>选项是应用程序的起点，webpack在这里开始构建依赖图。webpack将根据条目文件进入其他模块。</p>
+<p><code>output</code>选项告诉webpack在哪里保存包文件，并允许您命名包文件。最后，<code>module</code>选项告诉webpack如何使用加载器处理具有特定规则的模块。</p>
+<h2 id="typescript-configuration">类型脚本配置</h2>
+<p>TypeScript配置文件控制如何将TypeScript编译成JavaScript，并指定传输TypeScript所需的各种编译器选项。</p>
+<p>从项目根文件夹中，创建<code>tsconfig.json</code>文件并添加以下配置:</p>
+<pre class="language-json hljs">{
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "target": "ES5",
+        "module": "ES2015"
+    }
+}
+</pre>
+<p><code>target</code>选项是您想要将类型脚本转换到的JavaScript版本，而<code>module</code>是所使用的导入语句的格式。您可以将模块设置为CommonJS、ES6或UMD，因为webpack将处理所有模块系统。</p>
+<h2 id="package-configuration">包装配置</h2>
+<p>现在，我们需要添加一个webpack脚本来为我们运行<code>webpack.config.js</code>文件。</p>
+<p>要添加webpack脚本，请打开<code>package.json</code>文件，并将以下脚本添加到脚本选项:</p>
+<pre class="language-json hljs">"develop": "webpack-dev-server --mode development",
+"build" : "webpack --mode production"</pre>
+<p><code>package.json</code>文件现在将包含以下配置设置:</p>
+<pre class="language-json hljs">{
+    "name": "webpack-setup",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1",
+    "develop": "webpack-dev-server --mode development",
+    "build": "webpack --mode production"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "css-loader": "^6.7.1",
+    "html-webpack-plugin": "^5.5.0",
+    "mini-css-extract-plugin": "^2.6.1",
+    "ts-loader": "^9.4.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-dev-server": "^4.11.1"
+  }
+}</pre>
+<p>现在，让我们创建一个简单的TypeScript程序，它将减去两个数。在<code>src</code>文件夹中，创建一个<code>index.ts</code>文件，并添加以下类型脚本代码:</p>
+<pre class="language-typescript hljs">import { subtract } from "./app";
+
+function init() {
+    const form = document.querySelector("form");
+    form?.addEventListener("submit", submitHandler);
+  }
+
+  function submitHandler(e: Event) {
+    e.preventDefault();
+    const num1 = document.querySelector("input[name='firstnumber']") as HTMLInputElement;
+    const num2 = document.querySelector("input[name='secondnumber']") as HTMLInputElement;
+    const result = subtract(Number(num1.value), Number(num2.value));
+    const resultElement = document.querySelector("p");
+    if (resultElement) {
+      resultElement.textContent = result.toString();
+    }
+  }
+
+  init();
+</pre>
+<p>接下来，创建另一个<code>app.ts</code>文件并添加以下代码:</p>
+<pre>export function subtract(firstnumber: number, secondnumber: number): number {
+  return firstnumber - secondnumber;
+}
+</pre>
+<p>运行<code>develop</code>脚本将在开发模式下启动应用程序:</p>
+<pre>npm run develop 
+</pre>
+<p>运行<code>build</code>脚本将在生产模式下运行应用程序:</p>
+<pre>npm run build</pre>
+<p>运行build命令后，webpack将把两个TypeScript文件转换成JavaScript代码，并在<code>dist</code>文件夹中生成一个<code>bundle.js</code>文件。</p>
+<h2 id="creating-html-pages-html-webpack-plugin">用<code>HtmlWebpackPlugin</code>创建HTML页面</h2>
+<p><code>HtmlWebpackPlugin</code>允许webpack生成一个标准的HTML页面，为生成的包文件提供服务。</p>
+<p>当包的文件名改变或被散列时，<code>HTMLWebpackPlugin</code>更新HTML页面上的文件名。首先，要安装<code>HtmlWebpackPlugin</code>，运行下面的命令:</p>
+<pre class="language-bash hljs">npm install html-webpack-plugin --save-dev</pre>
+<p>接下来，我们需要导入<code>HtmlWebpackPlugin</code>并添加到webpack配置插件选项，如下所示:</p>
+<pre class="language-javascript hljs">const HtmlWebpackPlugin = require("html-webpack-plugin");
+const path = require('path');
+
+module.exports = {
+  entry: './src/index.ts',
+  module: {
+    rules: [
+      {
+        test: /\.ts?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/,
+      }
+    ],
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+
+  plugins: [
+    new HtmlWebpackPlugin({
+        title: 'our project', 
+        template: 'src/custom.html' }) 
+   ],
+
+  devServer: {
+    static: path.join(__dirname, "dist"),
+    compress: true,
+    port: 4000,
+  },
+};
+</pre>
+<p>模板是由<code>HtmlWebpackPlugin</code>生成的自定义HTML文件，将被注入到HTML页面中。要创建定制HTML，在<code>src</code>文件夹中，创建一个<code>custom.html</code>文件，并添加以下HTML代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div class="cal"&gt;
+      &lt;center&gt;
+     &lt;form&gt;&lt;br&gt;
+      &lt;p&gt;Result : &lt;span id="display"&gt;&lt;/span&gt;&lt;/p&gt;
+      &lt;input type="number" class="input" placeholder="Enter first number" name="firstnumber" value="1" min="1" min="9" /&gt;&lt;br&gt;
+      &lt;input type="number" class="input" placeholder="Enter second number" name="secondnumber" value="1" min="1" min="9" /&gt;&lt;br&gt;&lt;br&gt;
+      &lt;button type="submit" class="button"&gt;Subtract&lt;/button&gt;
+    &lt;/form&gt;
+  &lt;/center&gt;
+  &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>您不必在自定义HTML中包含脚本或链接标签；<code>HtmlWebpackPlugin</code>将通过链接包文件URL和生成的页面来处理这个问题。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在生产模式下运行应用程序将在<code>dist</code>文件夹中生成<code>index.html</code> HTML页面。</p>
+
+<p>css-loader告诉webpack如何使用css模块。它将<code>@import</code>和<code>URL()</code>解释为<code>import/require()</code>，并解析它们。css-loader使webpack能够编译所有css文件，并将其转换为JavaScript格式。</p>
+<p>用style-loader捆绑CSS文件会使HTML页面样式没有反应，直到<code>Bundle.js</code>被完全加载。样式加载器将CSS注入DOM，但是捆绑的JavaScript文件必须在样式被注入之前完全加载。要解决这个，我们可以用<code><a href="https://webpack.js.org/plugins/mini-css-extract-plugin/">MiniCssExtractPlugin</a></code>。</p>
+<p><code>MiniCssExtractPlugin</code>提取CSS文件并将它们打包成一个单独的<code>bundle.css</code>文件。这有助于减小CSS资产的大小，并避免加载它们的不必要的HTTP请求。</p>
+<p>我们可以通过在终端中运行以下命令来安装css-loader和<code>MiniCssExtractPlugin</code>:</p>
+<pre class="language-bash hljs">npm install css-loader --save-dev
+npm install mini-css-extract-plugin --save-dev</pre>
+<p>现在，让我们将css-loader和<code>MiniCssExtractPlugin</code>添加到<code>webpack.config.js</code>文件中。</p>
+<p>在<code>webpack.config.js</code>文件的顶部，使用下面的代码导入<code>MiniCssExtractPlugin</code>模块:</p>
+<pre class="language-html hljs">const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+</pre>
+<p>然后，我们将向<code>rules</code>属性添加一个新规则，如下所示:</p>
+<pre class="language-javascript hljs">…
+{
+        test: /\.css$/,
+        use: [MiniCssExtractPlugin.loader, "css-loader"]
+}
+…
+</pre>
+<p>当css-loader将所有css文件编译成JavaScript时，<code>MiniCssExtractPlugin.loader</code>将CSS加载到CSS bundle文件中。</p>
+<p>接下来，我们将把<code>MiniCssExtractPlugin</code>添加到插件选项，如下所示:</p>
+<pre class="language-javascript hljs">plugins: [
+    new HtmlWebpackPlugin({
+        title: 'our project', // Load a custom template (lodash by default)
+        template: 'src/custom.html' }),
+    new MiniCssExtractPlugin({
+      filename:"bundle.css"})
+  ]
+</pre>
+<p>现在我们已经配置了<code>css-loader</code>和<code>MiniCssExtractPlugin</code>，让我们创建一个CSS文件并将其导入到<code>index.ts</code>中。在<code>src</code>文件夹中，创建一个<code>index.css</code>文件，并添加以下CSS代码:</p>
+<pre class="language-css hljs">form {
+    background-color:pink;
+    margin-top:100px;
+    border-radius:40px;
+}
+.cal{
+    width:550px;
+    height:300px;
+    margin-left:400px;
+}
+
+.button{
+    border-radius:10px;
+    margin-top:20px;
+    margin-bottom:20px;
+}
+.input{
+    border-radius:10px;
+    margin-top:40px;
+}
+</pre>
+<p>在<code>index.ts</code>中，导入CSS样式如下:</p>
+<pre class="language-typescript hljs">import styles "./main.css"
+</pre>
+<p>运行<code>npm run build</code>将会捆绑CSS并将其应用到<code>index.html</code>。当您在开发模式下启动应用程序并在浏览器上打开<code><a href="http://localhost:4000" rel="nofollow">http://localhost:4000</a></code>时，它看起来应该如下图所示:</p>
+<p><img data-attachment-id="142391" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/bundled-css-previewed-localhost/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bundled-css-previewed-localhost" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png" decoding="async" class="aligncenter wp-image-142391 size-full jetpack-lazy-image" src="../Images/6f04dd82926279ea54d14eef91e4b4a1.png" alt="Bundled CSS Previewed Localhost" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost-300x187.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142391" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/bundled-css-previewed-localhost/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png" data-orig-size="730,456" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bundled-css-previewed-localhost" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png" decoding="async" loading="lazy" class="aligncenter wp-image-142391 size-full" src="../Images/6f04dd82926279ea54d14eef91e4b4a1.png" alt="Bundled CSS Previewed Localhost" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost-300x187.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/bundled-css-previewed-localhost.png"/></noscript>
+<h2 id="css-minify">缩小CSS</h2>
+<p>我们可以使用<a href="https://webpack.js.org/plugins/css-minimizer-webpack-plugin/"> <code>css-minimizer-webpack-plugin</code> </a>删除不用的CSS规则，只保留必要的规则，从而减小CSS文件的大小。</p>
+<p><code>css-minimizer-webpack-plugin</code>分析编译后的CSS文件，找出任何未使用的样式。这个插件将从你最终的CSS文件中移除这些未使用的样式，从而减小文件的大小。</p>
+<p>运行下面的安装命令来安装<code>css-minimizer-webpack-plugin</code>:</p>
+<pre class="language-bash hljs">npm install css-minimizer-webpack-plugin --save-dev
+</pre>
+<p>让我们将<code>css-minimizer-webpack-plugin</code>添加到webpack配置中。首先，导入插件，如下所示:</p>
+<pre class="language-bash hljs">const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+</pre>
+<p>然后，我们将向webpack配置添加一个新的优化属性，如下所示:</p>
+<pre>optimization: {
+    minimizer: [
+      new CssMinimizerPlugin()
+    ],
+  }
+</pre>
+<p>当我们运行build命令时，<code>bundle.css</code>将被缩小，但<code>bundle.js</code>不会。默认的<code>bundle.js</code>最小化已经被我们设置的最小化选项覆盖。为了解决这个问题，我们需要使用<code>TerserWebpackPlugin</code>来缩小JavaScript。</p>
+<h2 id="minifying-javascript">缩小JavaScript</h2>
+<p>在撰写本文时的webpack当前版本v5.74.0和更高版本中，您不必安装<a href="https://webpack.js.org/plugins/terser-webpack-plugin/"> <code>TerserWebpackPlugin</code> </a>，因为它是开箱即用的。首先，我们必须导入<code>TerserWebpackPlugin</code>:</p>
+<pre class="language-javascript hljs">const TerserPlugin = require("terser-webpack-plugin");
+</pre>
+<p>然后，将<code>TerserPlugin</code>添加到最小化选项，如下所示:</p>
+<pre class="language-javascript hljs">optimization: {
+    minimizer: [
+      new CssMinimizerPlugin(),
+     new TerserPlugin()
+    ],
+  }
+</pre>
+<p>如果您运行<code>build</code>脚本并查看<code>dist</code>文件夹中的包文件，您会看到JavaScript和CSS都被缩小了。</p>
+<h2 id="using-copy-webpack-plugin">使用<code>Copywebpackplugin</code></h2>
+<p>我们可以配置webpack，使用<code><a href="https://webpack.js.org/plugins/copy-webpack-plugin/">CopyWebpackPlugin</a></code>将应用程序资产从开发文件夹复制到构建文件夹<code>dist</code>。这个插件可以将图像、视频和其他资源复制到<code>dist</code>文件夹中。</p>
+<p>使用以下命令安装<code>CopyWebpackPlugin</code>:</p>
+<pre class="language-bash hljs">npm install copy-webpack-plugin --save-dev
+</pre>
+<p>现在，让我们将<code>CopyWebpackPlugin</code>添加到webpack配置中。按如下方式导入插件:</p>
+<pre class="language-bash hljs">const CopyPlugin = require("copy-webpack-plugin");
+</pre>
+<p>接下来，我们将把<code>CopyWebpackPlugin</code>添加到插件选项中。<code>from</code>属性是我们要从中复制的文件夹，<code>to</code>属性是<code>dist</code>目录中要将所有文件复制到的文件夹:</p>
+<pre class="language-json hljs">...
+plugins: [
+new HtmlWebpackPlugin({
+        title: 'our project', // Load a custom template (lodash by default)
+        template: 'src/custom.html' }),
+    new MiniCssExtractPlugin({
+      filename:"bundle.css"}),
+    new CopyPlugin({
+      patterns: [
+        { from: "src/img", to: "img" }
+      ]
+    }),
+  ]
+
+...
+
+</pre>
+<p>创建一个新的<code>img</code>文件夹，并在其中添加图像。一旦运行构建命令，图像将被复制到<code>dist/img</code>。</p>
+<h2 id="debugging-source-map">使用源映射进行调试</h2>
+<p>当我们通过将TypeScript文件编译成JavaScript文件来使用捆绑包时，我们可能需要使用浏览器的DevTool来调试和测试捆绑包文件。</p>
+<p>当您在浏览器的DevTool上调试代码时，您会注意到只出现了包文件。每当我们的TypeScript代码中出现错误时，它只会在包文件中指出，这使得很难将错误追溯到TypeScript进行更正。然而，有了源映射，我们可以使用我们的DevTool轻松地调试TypeScript:</p>
+<p><img data-attachment-id="127715" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/typescript-debug-devtool/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png" data-orig-size="730,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="typescript-debug-devtool" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png" decoding="async" class="aligncenter wp-image-127715 size-full jetpack-lazy-image" src="../Images/f9ef9b967d21572e98d057ff55b0f897.png" alt="Typescript Debug Devtool" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool-300x151.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127715" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/typescript-debug-devtool/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png" data-orig-size="730,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="typescript-debug-devtool" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png" decoding="async" loading="lazy" class="aligncenter wp-image-127715 size-full" src="../Images/f9ef9b967d21572e98d057ff55b0f897.png" alt="Typescript Debug Devtool" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool-300x151.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/typescript-debug-devtool.png"/></noscript>
+<p>源映射显示原始的源文件，使我们可以很容易地调试TypeScript，修复包和缩小的JavaScript代码。</p>
+<p>源映射<code>.map</code>文件包含原始源文件和捆绑文件的细节。DevTools使用这个文件来映射原始源文件和捆绑文件。</p>
+<p>要为包文件生成<code>.map</code>文件，我们需要配置webpack和TypeScript。在TypeScript配置文件中，将<code>sourceMap</code>添加到编译器选项中，并将其值设置为<code>true</code>:</p>
+<pre class="language-json hljs">{
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "target": "ES5",
+        "module": "ES2015",
+        "sourceMap": true
+    }
+}
+</pre>
+<p>接下来，我们将把<code>devtool</code>属性添加到webpack配置中，并将其设置为<code>true</code>，告诉webpack为每个包文件生成一个适当的源映射:</p>
+<pre class="language-json hljs">module.exports = {
+  devtool: 'source-map',
+   ...
+}
+</pre>
+<p>当您运行build命令时，您将能够直接调试原始源代码:</p>
+<p><img data-attachment-id="127718" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/debug-source-code-build-tool/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="debug-source-code-build-tool" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png" decoding="async" class="aligncenter wp-image-127718 size-full jetpack-lazy-image" src="../Images/22dbe2daa22c0f3a509fdcc1e38a8af4.png" alt="Debug Source Code Build Tool" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool-300x169.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="127718" data-permalink="https://blog.logrocket.com/using-webpack-typescript/attachment/debug-source-code-build-tool/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="debug-source-code-build-tool" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png" decoding="async" loading="lazy" class="aligncenter wp-image-127718 size-full" src="../Images/22dbe2daa22c0f3a509fdcc1e38a8af4.png" alt="Debug Source Code Build Tool" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool-300x169.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/debug-source-code-build-tool.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>随着TypeScript越来越受欢迎，webpack已经成为希望优化项目的开发人员的一个重要选择。使用webpack插件，我们可以优化TypeScript应用程序资源。</p>
+<p>在本教程中，我们逐步完成了用TypeScript设置webpack的过程。我们还学习了如何使用webpack插件优化TypeScript应用程序，并探索了如何使用源映射调试TypeScript代码。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

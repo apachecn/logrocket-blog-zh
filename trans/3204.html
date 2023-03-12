@@ -1,0 +1,169 @@
+<html>
+<head>
+<title>Unit testing Vuex modules with Jest - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Jest - LogRocket博客对Vuex模块进行单元测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/unit-testing-vuex-modules-jest/#0001-01-01">https://blog.logrocket.com/unit-testing-vuex-modules-jest/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果您正在构建一个中型到大型的SPA，您可能会遇到希望更好地处理Vue组件状态的情况。</p>
+<p>在任何应用程序中，多个组件都依赖于同一个状态。让我们想象一下，来自不同组件的多个动作想要改变同一个状态。为了克服这些挑战，<a href="https://vuex.vuejs.org/"> Vuex </a>帮助我们维护整个应用程序的状态。</p>
+<p>在本文中，我将指导您在<a href="https://blog.logrocket.com/testing-typescript-apps-using-jest/"> TypeScript中实现Vuex模块，然后使用Jest </a>对其进行单元测试。本教程的完整代码可以在<a href="https://github.com/gsampath127/vuex-test"> vuex-test </a> GitHub库获得；随便叉吧。我们开始吧！</p>
+
+<h2 id="what-vuex">什么是Vuex？</h2>
+<p>Vuex是一个用于Vue应用程序的状态管理模式和库，允许您在应用程序中使用集中的状态管理，帮助您利用Flux-like架构。<a href="https://vuex.vuejs.org/guide/#the-simplest-store"> Vuex商店</a>包含四个核心概念:</p>
+<ol>
+<li>状态</li>
+<li>吸气剂</li>
+<li>突变</li>
+<li>行动</li>
+</ol>
+<p><a href="https://vuex.vuejs.org/guide/state.html">状态对象</a>包含您希望存储的数据，包括您的所有应用程序级状态，作为事实的单一来源。状态中定义的属性可以是任何数据类型，包括字符串、数字、对象或数组。</p>
+<p>如果您希望拥有一个基于存储状态的派生状态，例如，计算项目列表、过滤集合，或者在其他模块或组件中使用相同的派生状态集，您可以<a href="https://vuex.vuejs.org/guide/getters.html">定义getters </a>。</p>
+<p>另一方面，<a href="https://vuex.vuejs.org/guide/mutations.html">突变</a>是我们改变状态的唯一方法。突变总是同步的，有效载荷是可选的。您可以通过提交调用一个突变，即<code>MUTATION_NAME</code>或<code>payload</code>。总是建议从动作调用突变。</p>
+<p><a href="https://vuex.vuejs.org/guide/actions.html">动作</a>可以执行异步操作并提交变异。操作处理程序接收一个上下文对象，该对象公开store实例上的同一组方法或属性。</p>
+<p>您可以使用<code>context.getters</code>和<code>context.state</code>来获取状态，使用<code>context.commit</code>来调用突变。您可以使用<code>action-name</code>和<code>payload</code>调用动作处理程序，它们是从商店中的其他动作调用的。</p>
+<figure id="attachment_126003" aria-describedby="caption-attachment-126003" class="wp-caption aligncenter"><img data-attachment-id="126003" data-permalink="https://blog.logrocket.com/unit-testing-vuex-modules-jest/attachment/vuex-modules-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png" data-orig-size="730,557" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vuex-modules-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram-300x229.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png" decoding="async" class="wp-image-126003 size-full jetpack-lazy-image" src="../Images/c3de2f62019714bca01b6cb5663c5030.png" alt="Vuex Modules Diagram" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram-300x229.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="126003" data-permalink="https://blog.logrocket.com/unit-testing-vuex-modules-jest/attachment/vuex-modules-diagram/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png" data-orig-size="730,557" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vuex-modules-diagram" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram-300x229.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png" decoding="async" loading="lazy" class="wp-image-126003 size-full" src="../Images/c3de2f62019714bca01b6cb5663c5030.png" alt="Vuex Modules Diagram" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram-300x229.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/vuex-modules-diagram.png"/></noscript><figcaption id="caption-attachment-126003" class="wp-caption-text">Vuex architecture</figcaption></figure>
+<h2 id="create-vuex-module">创建Vuex模块</h2>
+<p>随着应用程序规模的增加，您的存储可能会变得臃肿。为了防止这种情况，Vuex允许你<a href="https://vuex.vuejs.org/guide/modules.html">将商店分成模块</a>。每个模块都可以包含自己的状态、获取器、变异和动作。</p>
+<p>例如，让我们创建一个管理待办事项列表的应用程序。首先，为待办事项操作创建一个新的模块，它负责获取所有待办事项，并根据需要更新状态。</p>
+<p>我们的目标是为大中型应用程序构建模块，因此，最好将变异类型、称为函数的动作和模块实现拆分到单独的文件中:</p>
+<ul>
+<li><code>mutation-types.ts</code>:包含所有功能名称</li>
+<li><code>actions.ts</code>:负责所有异步操作</li>
+<li><code>index.ts</code>:模块实现</li>
+</ul>
+<pre class="language-typescript hljs">import { IToDo } from '@/types/todo';
+import {Module, VuexModule, Mutation, Action} from 'vuex-module-decorators';
+import TodoActions from './actions';
+import * as mutationTypes from './mutation-types';
+
+@Module({namespaced: true, name: "Todos"})
+export class ToDoModule extends VuexModule {
+  todos:Array&lt;IToDo&gt; = [];
+  loading = false;
+  get completedTodos(){
+    return this.todos.filter((todo:IToDo)=&gt; todo.completed);
+  }
+  @Mutation
+  [mutationTypes.ON_FETCH_TODOS_STARTED]() {
+    this.loading = true;
+  }
+  @Mutation
+  \[mutationTypes.ON_FETCH_TODOS_SUCCESS\](data: Array&lt;IToDo&gt;) {
+    this.loading = false;
+    this.todos = data;
+  }
+  @Mutation
+  [mutationTypes.ON_FETCH_TODOS_FAILED]() {
+    this.loading = false;
+    this.todos = [];
+  }
+
+  @Action({rawError: true})
+  public async fetchTodos():Promise&lt;void&gt; {
+      try {
+          this.context.commit(mutationTypes.ON_FETCH_TODOS_STARTED);
+          const response: Array&lt;IToDo&gt; = await TodoActions.fetchTodos();
+          this.context.commit(mutationTypes.ON_FETCH_TODOS_SUCCESS, response);
+        } catch (error) {
+          this.context.commit(mutationTypes.ON_FETCH_TODOS_FAILED);
+        }
+  }
+
+}
+</pre>
+<p>上面的代码片段包含以下实现:</p>
+<ul>
+<li><code>fetchTodos Action</code>:从REST API获取待办事项，并提交变更</li>
+<li><code>ON_FETCH_TODOS_STARTED</code>突变:更新<code>loading</code>状态属性</li>
+<li><code>ON_FETCH_TODOS_SUCCESS</code>突变:更新<code>todos</code>状态数组</li>
+<li><code>ON_FETCH_TODOS_FAILED</code>突变:重置<code>todos</code>并将<code>loading</code>更新为假</li>
+<li>getter:仅获取已完成的待办事项</li>
+</ul>
+<h2 id="initialize-tests">初始化测试</h2>
+<p>我们将使用<a href="https://blog.logrocket.com/jest-testing-top-features/"> J </a> <a href="https://blog.logrocket.com/jest-testing-top-features/"> est框架进行单元测试</a>；Jest只是一个JavaScript测试框架，可以很容易地安装到任何基于节点的包管理器中，比如npm或Yarn。使用Jest的优势很少，例如，Jest测试并行运行，包含内置代码覆盖，支持隔离测试、模仿和快照测试。</p>
+<p>您可以通过创建存储、将Vuex附加到Vue并注册存储来初始化测试。<code>localVue</code>是我们可以在不影响全局Vue构造函数的情况下改变的作用域Vue构造函数。下面的代码片段将初始化商店:</p>
+<pre class="language-typescript hljs">describe('Todos Module', function() {
+    let store: any;
+    let todosInstance: ToDoModule;
+
+    beforeEach(function() {
+      localVue.use(Vuex);
+      store = new Vuex.Store({});
+      registerStoreModules(store);
+      todosInstance = getModule(ToDoModule, store);
+    });
+
+    it('should exists', function() {
+      expect(todosInstance).toBeDefined();
+    });
+});
+</pre>
+<h2 id="testing-actions">测试操作</h2>
+<p>在<code>todos</code>模块中，我们创建了<code>fetchTodos</code>动作，它从REST API获取数据，并使用突变填充状态。由于REST API是一个外部调用，我们可以使用Jest函数模拟它，然后验证它是否被调用以及状态是否被更新:</p>
+<pre class="language-typescript hljs">it('fetchTodos action should fill todos state', async function() {
+      // arrange
+      const todosMocked = todos as Array&lt;IToDo&gt;;
+       // act
+      jest.spyOn(TodoActions, 'fetchTodos').mockImplementation(
+        (): Promise&lt;Array&lt;IToDo&gt;&gt; =&gt; {
+          return Promise.resolve(todosMocked);
+        }
+      );
+      await todosInstance.fetchTodos();
+      // assert
+      expect(todosInstance.todos.length &gt;0).toEqual(true);
+      expect(TodoActions.fetchTodos).toHaveBeenCalled();
+});
+</pre>
+<h2 id="testing-getters">测试吸气剂</h2>
+<p>Getter函数只是返回状态对象。在我们的示例中，我们有一个getter函数<code>completedTodos</code>，它应该返回已完成的待办事项:</p>
+<pre class="language-typescript hljs">  it('completedTodos getter should return only completed todos', async function() {
+      // arrange
+      const completedTodos = todosInstance.completedTodos;
+      // assert
+      expect(completedTodos.every((todo:IToDo)=&gt; todo.completed)).toEqual(true);
+    });
+</pre>
+<h2 id="testing-mutations">测试突变</h2>
+<p>我们已经知道，突变是改变状态的唯一方式。我们可以通过发送模拟待办任务并验证状态是否被修改来测试<code>ON_FETCH_TODOS_SUCCESS</code>突变。</p>
+<p>下面的代码片段是针对<code>success</code>突变的。这同样适用于<code>started</code>和<code>error</code>突变:</p>
+<pre class="language-typescript hljs">it('ON_FETCH_TODOS_SUCCESS mutation should update given todos',  function() {
+      // arrange 
+      const todosTest = [
+        {
+          userId: 13,
+          id: 12,
+          title: "Move to new city",
+          completed: false
+        },
+        {
+          userId: 15,
+          id: 21,
+          title: "Finish a novel",
+          completed: true
+        },
+      ];
+      // act
+      todosInstance.ON_FETCH_TODOS_SUCCESS(todosTest);
+      // assert
+      expect(todosInstance.todos.length).toEqual(2);
+      expect(todosInstance.todos).toEqual(todosTest);
+    });
+</pre>
+<h2 id="wrappingup">结论</h2>
+<p>在本教程中，我们通过用TypeScript和Jest创建和单元测试一个Vuex模块来了解Vuex。我们讨论了Vuex存储的四个核心概念，包括状态、getters、突变和动作。通过Vuex的集中式状态管理，您可以简化您的应用程序并利用Flux-like架构。</p>
+<p>希望你学到了新的东西，有问题一定要留下评论。编码快乐！</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,168 @@
+<html>
+<head>
+<title>What you need to know about the React useEvent Hook RFC - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>关于React useEvent Hook RFC - LogRocket博客，你需要知道什么</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/what-you-need-know-react-useevent-hook-rfc/#0001-01-01">https://blog.logrocket.com/what-you-need-know-react-useevent-hook-rfc/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在React中，引用相等是一个重要的概念，它影响应用程序中组件重新呈现的频率。在本文中，我们将探索React 的<a href="https://github.com/reactjs/rfcs/blob/useevent/text/0000-useevent.md"> <code>useEvent</code>钩子，它允许您定义一个具有始终稳定的函数标识的事件处理程序，帮助管理应用程序中的引用相等性。</a></p>
+<p>值得注意的是，在撰写本文时，<code>useEvent</code>钩子还不可用，目前React社区正在讨论它。</p>
+
+<h2 id="referential-equality-javascript">JavaScript中的引用相等</h2>
+<p>在JavaScript中，您可以使用identity运算符比较两个值是否相等，这也称为严格相等。例如，在下面的代码中，您将比较值<code>a</code>和<code>b</code>:</p>
+<pre class="language-javascript hljs">a === b; // strict equality or indentity operator
+</pre>
+<p>结果是一个布尔值，它告诉你值<code>a</code>是否等于<code>b</code>。</p>
+<p>对于原始数据类型，使用实际值进行比较。例如，如果<code>a</code> = <code>10</code>，<code>b</code> = <code>10</code>，那么身份运算符将返回<code>true</code>。</p>
+<p>像对象和函数一样，复数值也是一种引用类型。即使它们具有相同的代码，两个函数也不相等。看看下面的例子，其中identity操作符将返回<code>false</code>:</p>
+<pre class="language-javascript hljs">let add = (a, b) =&gt; a + b;
+let anotherAdd = (a, b) =&gt; a + b;
+console.log(add === anotherAdd); // false
+</pre>
+<p>但是，如果比较同一个函数的两个实例，它会返回<code>true</code>:</p>
+<pre class="language-javascript hljs">let thirdAdd = add;
+console.log(add === thridAdd); // true
+</pre>
+<p>换句话说，<code>thirdAdd</code>和<code>add</code>在指称上是相等的。</p>
+<h2 id="referential-equality-important-react">为什么referential equality在React中很重要？</h2>
+<p>理解React中的引用相等很重要，因为我们经常用相同的代码创建不同的函数。例如，考虑以下代码:</p>
+<pre class="language-javascript hljs">function AComponent() {
+  // handleEvent is created and destroyed on each re-render
+  const handleEvent = () =&gt; {
+    console.log('Event handler');
+  }
+  // ...
+}
+</pre>
+<p>React销毁当前版本的<code>handleEvent</code>函数，并在每次<code>AComponent</code>重新渲染时创建一个新版本。但是，在某些情况下，这种方法不是很有效，例如:</p>
+<ul>
+<li>您使用一个类似于<code>useEffect</code> 的<a href="https://blog.logrocket.com/underrated-react-hooks-youre-missing-out-on/">钩子，在其依赖数组中接受一个事件处理程序</a></li>
+<li>您有一个接受事件处理程序的内存化组件</li>
+</ul>
+<p>在这两种情况下，您都希望维护事件处理程序的单个实例。但是，每次重新呈现时，您都会得到一个新的函数实例，这会进一步影响性能，要么重新呈现一个内存化的组件，要么触发<code>useEffect</code>回调。</p>
+<p>你可以通过使用<code>useCallback</code>钩子很容易地解决这个问题，如下所示:</p>
+<pre class="language-javascript hljs">function AComponent() {
+  const handleEvent = useCallback(() =&gt; {
+    console.log('Event handled');
+  }, []);
+  // ...
+}
+</pre>
+<p><code>useCallback</code>钩子对函数进行记忆，这意味着无论何时用唯一的输入调用一个函数，<code>useCallback</code>钩子都会保存该函数的副本。因此，如果在重新渲染期间输入没有改变，您将得到相同的函数实例。</p>
+<p>但是，当您的事件处理程序依赖于一个状态或属性时，<code>useCallback</code>钩子会在每次改变时创建一个新的处理函数。例如，看一下下面的代码:</p>
+<pre class="language-javascript hljs">function AComponent() {
+  const [someState, setSomeState] = useState(0);
+  const handleEvent = useCallback(() =&gt; {
+    console.log('log some state: `, someState);
+  }, [someState]);
+
+  // ...
+}
+</pre>
+<p>现在，每次重新呈现组件时，都不会创建函数。但是，如果<code>someState</code>改变了，它将创建一个新的<code>handleEvent</code>实例，即使函数的定义保持不变。</p>
+<h2 id="useevent-hook"><code>useEvent</code>钩子</h2>
+<p><code>useEvent</code>钩子试图解决这个问题；您可以使用<code>useEvent</code>钩子来定义一个事件处理程序，它的函数标识总是稳定的。换句话说，在每次重新渲染期间，事件处理程序在引用上是相同的。本质上，事件处理程序将具有以下属性:</p>
+<ul>
+<li>不会在每次属性或状态改变时重新创建该函数</li>
+<li>该函数将访问属性和状态的最新值</li>
+</ul>
+<p>你可以如下使用<code>useEvent</code>钩子:</p>
+<pre class="language-javascript hljs">function AComponent() {
+  const [someState, setSomeState] = useState(0);
+  const handleEvent = useEvent(() =&gt; {
+    console.log('log some state: `, someState);
+  });
+  // ...
+}
+</pre>
+<p>因为<code>useEvent</code>钩子确保了一个函数只有一个实例，所以你不需要提供任何依赖。</p>
+<h2 id="implementing-useevent-hook-rfc">从RFC实现<code>useEvent</code>钩子</h2>
+<p>下面的例子是来自RFC 的<a href="https://github.com/reactjs/rfcs/blob/useevent/text/0000-useevent.md"> <code>useEvent</code>钩子的近似实现:</a></p>
+<pre class="language-javascript hljs">// (!) Approximate behavior
+
+function useEvent(handler) {
+  const handlerRef = useRef(null);
+
+  // In a real implementation, this would run before layout effects
+  useLayoutEffect(() =&gt; {
+    handlerRef.current = handler;
+  });
+
+  return useCallback((...args) =&gt; {
+    // In a real implementation, this would throw if called during render
+    const fn = handlerRef.current;
+    return fn(...args);
+  }, []);
+}
+</pre>
+<p>在组件的每次渲染中，都会调用<code>useEvent</code>钩子。每次渲染时，<code>handler</code>函数被传递给<code>useEvent</code>钩子。<code>handler</code>函数总是有最新的<code>props</code>和<code>state</code>值，因为它本质上是渲染组件时的一个新函数。</p>
+<p>在<code>useEvent</code>钩子内，<code>useLayoutEffect</code>钩子也被每次渲染调用，并将<code>handlerRef</code>改变为<code>handler</code>函数的最新值。</p>
+<p><span>在真实版本中，在所有</span> <code>useLayoutEffect</code> <span>函数被调用之前，</span> <code>handlerRef</code> <span>会被切换到最新的处理函数。</span></p>
+<p>最后一块是<code>useCallback</code>返回。<code>useEvent</code>钩子返回一个用空的依赖数组<code>[]</code>包装在<code>useCallback</code>钩子中的函数。这就是函数总是具有稳定的引用标识的原因。</p>
+<p>你可能想知道这个函数怎么总是有新的值<code>props</code>和<code>state</code>。如果仔细观察一下，用于<code>useCallback</code>钩子的匿名函数使用了<code>handlerRef</code>的当前值。这个<code>current</code>值代表了<code>handler</code>的最新版本，因为它在<code>useLayoutEffect</code>被调用时被切换。</p>
+<h2 id="when-shouldnt-use-useevent-hook">什么时候不应该使用<code>useEvent</code>钩？</h2>
+<p>在某些情况下，你不应该使用<code>useEvent</code>钩子。我们来了解一下什么时候，为什么。</p>
+<p>首先，你不能在渲染过程中使用用<code>useEvent</code>钩子创建的函数。例如，下面的代码将失败:</p>
+<pre class="language-javascript hljs">function AComponent() { 
+  const getListOfData = useEvent(() =&gt; {
+    // do some magic and return some data
+    return [1, 2, 3];
+  });
+
+  return &lt;ul&gt;
+    {getListOfData().map(item =&gt; &lt;li&gt;{item}&lt;/li&gt;}
+  &lt;/ul&gt;;
+}
+</pre>
+<h2 id="unmounting-useeffect-uselayouteffect">卸载<code>useEffect</code>与<code>useLayoutEffect</code></h2>
+<p>未安装的<code>useEffect</code>挂钩和<code>useLayoutEffect</code>挂钩将具有不同版本的<code>useEvent</code>处理器。看一下下面的例子:</p>
+<pre class="language-javascript hljs">function Counter() {
+  const [counter, setCounter] = React.useState(0);
+  const getValue = useEvent(() =&gt; {
+    return counter;
+  });
+  React.useLayoutEffect(() =&gt; {
+    return () =&gt; {
+      const value = getValue();
+      console.log('unmounting layout effect:', value);
+    };
+  });
+  React.useEffect(() =&gt; {
+    return () =&gt; {
+      const value = getValue();
+      console.log('unmounting effect:', value);
+    };
+  });
+  return (
+    &lt;React.Fragment&gt;
+      Counter Value: {counter}
+      &lt;button onClick={() =&gt; setCounter(counter + 1)}&gt;+&lt;/button&gt;
+    &lt;/React.Fragment&gt;
+  );
+}
+</pre>
+<p>如果你运行这个程序，你会看到卸载的<code>useLayoutEffect</code>有旧版本的<code>getValue</code>事件处理程序。请随意查看<a href="https://react-ts-uuk4dv.stackblitz.io"> Stackblitz示例</a>。</p>
+<h2 id="conclusion">结论</h2>
+<p>虽然<code>useEvent</code>钩子还不能使用，但对React开发人员来说，它绝对是一个有前途的发展。在本文中，我们探索了<code>useEvent</code>钩子背后的逻辑，回顾了应该和不应该使用它的场景。</p>
+<p>关注这个<code>useEvent</code>钩子绝对是值得的，我期待着最终能够将它集成到我的应用程序中。我希望你喜欢这篇文章。编码快乐！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

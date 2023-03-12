@@ -1,0 +1,427 @@
+<html>
+<head>
+<title>Testing a website with Selenium and Docker - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Selenium和Docker - LogRocket博客测试网站</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/testing-website-selenium-docker/#0001-01-01">https://blog.logrocket.com/testing-website-selenium-docker/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Selenium是一个流行的浏览器自动化工具，主要用于测试web应用程序的自动化。Selenium支持大多数操作系统和浏览器，包括Chrome、Firefox、Edge等。</p>
+<p>Selenium Grid 是一个工具，它使您能够在多台机器上并行运行测试。它通过将客户端发送的命令路由到远程浏览器实例，允许在远程机器上执行浏览器会话脚本。</p>
+<p><a href="https://www.docker.com/" target="_blank" rel="noopener"> Docker </a> <a href="https://www.docker.com/">，</a>正如我在<a href="https://blog.logrocket.com/deploy-react-app-kubernetes-using-docker/" target="_blank" rel="noopener">这篇文章</a>中解释的，是一个开源软件容器化平台，它允许你将应用打包成标准化的、孤立的单元，称为容器。这些容器将应用程序的源代码与在任何环境中运行该代码所需的操作系统库和依赖项结合起来。</p>
+<p>在本教程中，您将了解为什么以及如何使用Selenium和Docker来测试网站。您还将学习如何启动一个Selenium网格，它将允许您同时在多个浏览器上测试一个网站。</p>
+<p>向前跳:</p>
+
+<h2 id="use-selenium-with-docker">为什么要用硒搭配Docker？</h2>
+<p>您应该将Selenium与Docker一起使用，以避免诸如会话创建、跨浏览器测试和可伸缩性之类的问题。</p>
+<h3 id="session-creation-issues">会话创建问题</h3>
+<p>让我们假设您希望使用Selenium来测试一个网站在Chrome浏览器上的行为。要做到这一点，你必须下载正确的Chrome驱动程序版本，该版本与你机器上安装的Chrome浏览器版本兼容。否则，您根本无法运行您的测试。有了Docker，你只需要运行一个Docker命令就可以获取包含你想要的Chrome浏览器版本的图片。</p>
+<h3 id="cross-browser-testing-issues">跨浏览器测试问题</h3>
+<p>现在，让我们假设您希望测试一个网站在一个只在特定操作系统中受支持的Chrome浏览器版本和一个只在另一个操作系统中受支持的Firefox浏览器版本上的行为。在这种情况下，您必须在两台独立的机器上安装两种不同的操作系统，仅仅是为了测试网站。使用Docker，您只需提取特定浏览器的图像，启动Selenium网格，并使用单台机器测试网站。</p>
+<h3 id="scalability-issues">可扩展性问题</h3>
+<p>想同时在多个浏览器版本上测试一个网站怎么办？同样，Docker通过为您提供配置和启动Selenium网格的最简单方法，让您轻松地做到这一点。</p>
+<h2 id="prerequisites">先决条件</h2>
+<p>要学习本教程，您将需要以下内容:</p>
+
+<h2 id="creating-project-root-directory">创建项目根目录</h2>
+<p>在本节中，您将创建一个目录，并在其中创建一个新的节点项目，并安装所需的依赖项。在接下来的部分中，这个目录将用于存储允许您测试网站的脚本。</p>
+<p>打开一个终端窗口，创建一个名为<code>selenium-docker</code>的新目录:</p>
+<pre class="language-command hljs">mkdir selenium-docker
+</pre>
+<p>导航到目录:</p>
+<pre class="language-command hljs">cd selenium-docker
+</pre>
+<p>使用<code>npm init</code>命令创建一个具有默认设置的新节点项目:</p>
+<pre class="language-command hljs">npm init -y
+</pre>
+<p>现在，使用<code>npm install</code>命令安装依赖项<code>selenium-webdriver</code>和<code>jest</code>:</p>
+<pre class="language-command hljs">npm install selenium-webdriver jest
+</pre>
+<p>运行上面的命令后，您已经安装了以下依赖项:</p>
+<ul>
+<li><code><a href="https://www.selenium.dev/documentation/webdriver/" target="_blank" rel="noopener">selenium-webdriver</a></code>:是一个节点模块，允许你控制Selenium的一个自动化浏览器实例。您将使用这个模块来控制Docker容器中运行的浏览器实例</li>
+<li><code><a href="https://jestjs.io/" target="_blank" rel="noopener">jest</a></code>:是一个专注于简单性的JavaScript测试框架。您将使用这个框架和Selenium一起测试一个网站</li>
+</ul>
+<p>打开您的<code>package.json</code>文件，替换<code>scripts</code>中<code>test</code>属性的内容，如下所示:</p>
+<pre class="language-json hljs">"scripts": {
+    "test": "jest"
+}
+</pre>
+<p>这里，您指定了，当您运行命令<code>npm run test</code>时，您想要调用<code>jest</code>命令并执行您的测试。</p>
+<h2 id="running-selenium-tests-chrome">对铬进行硒测试</h2>
+<p>在本节中，您将首先提取一个名为<code>selenium/standalone-chrome</code>的Docker图像，这将允许您控制一个在容器内运行的Chrome浏览器实例。提取图像后，您将创建一个包含该图像的容器。最后，您将编写一个脚本，允许您测试维基百科的主页。</p>
+<p>回到您的终端窗口，运行以下Docker命令:</p>
+<pre class="language-command hljs">docker pull selenium/standalone-chrome
+</pre>
+<p>使用上面的Docker命令，您可以获得允许您控制在容器内运行的Chrome浏览器实例的图像。</p>
+<p>现在使用下面的Docker命令创建一个容器，其中包含您刚刚提取的图像:</p>
+<pre class="language-command hljs">docker run -d -p 4444:4444 -p 7900:7900 --shm-size="2g" selenium/standalone-chrome
+</pre>
+<p>在这里，您指定了希望Docker容器以分离模式运行。</p>
+<p>指定模式后，您将容器的端口<code>4444</code>和<code>7900</code>分别映射到机器的端口<code>4444</code>和<code>7900</code>。您将能够通过将您的测试指向URL<a href="http://localhost:4444" rel="nofollow">http://localhost:4444</a>来控制Selenium浏览器实例，并通过访问URL<a href="http://localhost:7900">http://localhost:7900</a>(密码是<code>secret</code>)来查看您的容器中发生了什么。</p>
+<p>最后，将共享内存大小设置为<code>2g</code>，因为运行<code>selenium/standalone-chrome</code>映像的容器需要比Docker容器分配的默认<code>64M</code>更多的共享内存。</p>
+<p>容器准备好可以使用了，现在是时候编写脚本来测试Wikipedia的主页了。</p>
+<p>您将要编写的测试Wikipedia主页的脚本将使用Selenium来自动执行以下任务:</p>
+<ol>
+<li>启动Chrome浏览器实例</li>
+<li>导航到维基百科的主页</li>
+<li>将网页截图保存在您的工作目录中</li>
+<li>获取网页的标题</li>
+</ol>
+<p>创建一个名为<code>chrome.test.js</code>的文件，并向其中添加以下代码:</p>
+<pre class="language-javascript hljs">const webdriver = require('selenium-webdriver');
+const { Builder, Capabilities } = webdriver
+let capabilities = Capabilities.chrome();
+</pre>
+<p>在上面的代码块中，您需要<code>selenium-webdriver</code>模块并将其存储在名为<code>webdriver</code>的变量中。每个<code>webdriver</code>都提供了对浏览器会话的自动控制。</p>
+<p>导入模块后，您使用了一个析构赋值来解包<code>webdriver</code>对象的<code>Builder</code>和<code>capabilities</code>属性。</p>
+<p>最后，您使用<code>capabilities</code>属性指定您想要使用Selenium来自动化Chrome浏览器，并将该规范存储在名为<code>capabilities</code>的变量中。</p>
+<p>在<code>capabilities</code>变量下添加以下代码:</p>
+<pre class="language-javascript hljs">describe("Test if Wikipedia's home page's title is correct", () =&gt; {
+    let driver;
+
+    beforeAll(async () =&gt; {
+        driver = new Builder()
+            .usingServer('http://localhost:4444')
+            .withCapabilities(capabilities)
+            .build();
+        await driver.get("https://www.wikipedia.org/");
+    }, 30000);
+
+    afterAll(async () =&gt; {
+        await driver.quit();
+    }, 40000);
+});
+</pre>
+<p>在这里，您首先使用Jest提供的<code>describe</code>函数来编写测试描述。</p>
+<p>写完描述后，您创建了一个名为<code>driver</code>的变量。然后，您使用Jest提供的<code>beforeAll</code>函数来指定在测试运行之前需要进行的设置工作。在<code>beforeAll</code>函数中，您使用<code>Builder</code>属性创建了一个新的<code>webdriver</code>，并传递了URL<a href="http://localhost:4444" rel="nofollow">http://localhost:4444</a>和<code>capabilities</code>作为参数。然后，您将新的<code>webdriver</code>存储在一个名为<code>driver</code>的变量中，然后使用<code>driver.get()</code>方法导航到维基百科的主页。</p>
+<p>最后，您使用Jest提供的<code>afterAll</code>函数来指定运行测试后需要进行的工作。在<code>afterAll</code>函数中，您使用了<code>driver.quit()</code>方法来终止浏览器会话。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在<code>afterAll</code>函数下面添加以下代码:</p>
+<pre class="language-javascript hljs">it('test', async () =&gt; {
+    try {
+        await driver.takeScreenshot().then(
+            function (image) {
+                require('fs').writeFileSync('screenshot.png', image, 'base64');
+            }
+        );
+        let title = (await driver.getTitle()).trim()
+        expect(title).toEqual("Wikipedia");
+    } catch (err) {
+        throw err;
+    }
+}, 35000);
+</pre>
+<p>在上面的代码中，您使用Jest提供的<code>it</code>函数来指定需要在这个测试文件中运行的测试。</p>
+<p>首先你使用<code>driver.takeScreenshot()</code>方法对网页进行截图，然后你使用<code>fs</code>模块将截图保存在你的工作目录下，名字为<code>screenshot.png</code>。</p>
+<p>拍摄并保存截图后，您使用了<code>driver.getTitle()</code>方法来获取网页的标题，并将返回的值保存在一个名为<code>title</code>的变量中。</p>
+<p>最后，您使用Jest提供的<code>expect</code>函数来检查网页的标题是否等于“维基百科”。只有当网页的标题等于“维基百科”时，测试才会通过</p>
+<p>添加完最后一点代码后，您的<code>chrome.test.js</code>文件应该如下所示:</p>
+<pre class="language-javascript hljs">const webdriver = require('selenium-webdriver');
+const { Builder, Capabilities } = webdriver
+let capabilities = Capabilities.chrome();
+
+describe("Test if Wikipedia's home page's title is correct", () =&gt; {
+    let driver;
+    beforeAll(async () =&gt; {
+        driver = new Builder()
+            .usingServer('http://localhost:4444')
+            .withCapabilities(capabilities)
+            .build();
+        await driver.get("https://www.wikipedia.org/");
+    }, 30000);
+
+    afterAll(async () =&gt; {
+        await driver.quit();
+    }, 40000);
+
+    it('test', async () =&gt; {
+        try {
+            await driver.takeScreenshot().then(
+                function (image) {
+                    require('fs').writeFileSync('screenshot.png', image, 'base64');
+                }
+            );
+            let title = (await driver.getTitle()).trim()
+            expect(title).toEqual("Wikipedia");
+        } catch (err) {
+            throw err;
+        }
+    }, 35000);
+});
+</pre>
+<p>使用以下命令之一运行测试:</p>
+<pre class="language-command hljs">npm run test
+</pre>
+<p>或者:</p>
+<pre class="language-command hljs">npm test
+</pre>
+<p>您应该会看到类似如下的输出:</p>
+<pre class="language-plain hljs">PASS  ./chrome.test.js (7.399 s)
+  Test if Wikipedia's home page's title is correct
+    ✓ test (189 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        7.44 s
+Ran all test suites.
+</pre>
+<p>如果你的输出与上面的类似，这意味着你编写的在Chrome浏览器中测试维基百科主页的测试已经通过。</p>
+<p>在您的工作目录中，您会发现创建了一个名为<code>screenshot.png</code>的图像，如果您打开它，它将如下所示:</p>
+<p><img data-attachment-id="132823" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/wikipedia-homepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png" data-orig-size="730,595" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wikipedia homepage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage-300x245.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png" decoding="async" class="aligncenter size-full wp-image-132823 jetpack-lazy-image" src="../Images/819ae0402c85d74c3b0664b14a60e78e.png" alt="Wikipedia Homepage" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage-300x245.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="132823" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/wikipedia-homepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png" data-orig-size="730,595" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wikipedia homepage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage-300x245.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-132823" src="../Images/819ae0402c85d74c3b0664b14a60e78e.png" alt="Wikipedia Homepage" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage-300x245.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/wikipedia-homepage.png"/></noscript>
+<h2 id="running-selenium-tests-firefox">在Firefox上运行Selenium测试</h2>
+<p>在本节中，您将首先提取一个名为<code>selenium/standalone-firefox</code>的Docker映像，它将允许您控制一个在容器内运行的Firefox浏览器实例。提取图像后，您将创建一个包含该图像的容器。最后，您将编写一个脚本，允许您测试Wikipedia的搜索栏，然后您将学习如何观察容器内部发生的情况。</p>
+<p>回到您的终端窗口，运行以下Docker命令:</p>
+<pre class="language-command hljs">docker pull selenium/standalone-firefox
+</pre>
+<p>使用上面的Docker命令，您获得了允许您控制在容器内运行的Firefox浏览器实例的图像。</p>
+<p>在使用此映像创建容器之前，您必须停止在上一节中创建的容器:</p>
+<pre class="language-command hljs">docker stop container_id
+</pre>
+<p>现在使用下面的Docker命令创建一个容器，其中包含您刚刚提取的图像:</p>
+<pre class="language-command hljs">docker run -d -p 4444:4444 -p 7900:7900 --shm-size="2g" selenium/standalone-firefox
+</pre>
+<p>这里，您创建了一个带有<code>selenium/standalone-firefox</code>图像的Docker容器，其配置与您在上一节中使用的配置相同。</p>
+<p>容器准备好可以使用了，现在是时候编写脚本来测试Wikipedia的搜索栏了。</p>
+<p>您将要编写的测试Wikipedia搜索栏的脚本将使用Selenium来自动执行以下任务:</p>
+<ol>
+<li>启动Firefox浏览器实例</li>
+<li>导航到维基百科的主页</li>
+<li>单击搜索栏</li>
+<li>在搜索栏中写下主题“编程语言”</li>
+<li>提交包含搜索栏元素的表单并导航到新页面</li>
+<li>获取在新页面的元素中找到的文章的标题</li>
+</ol>
+<p>创建一个名为<code>firefox.test.js</code>的文件，并向其中添加以下代码:</p>
+<pre class="language-javascript hljs">const webdriver = require('selenium-webdriver');
+const { By, until, Builder, Capabilities } = webdriver
+let capabilities = Capabilities.firefox();
+</pre>
+<p>在上面的代码块中，您做了与上一节相同的事情，只是这次您还解包了属性<code>By</code>和<code>until</code>，并指定您想要使用Firefox浏览器。</p>
+<p>在<code>capabilities</code>变量下添加以下代码:</p>
+<pre class="language-javascript hljs">describe('Test if the search bar is working correctly', () =&gt; {
+  let driver;
+
+  beforeAll(async () =&gt; {
+    driver = new Builder()
+      .usingServer('http://localhost:4444/')
+      .withCapabilities(capabilities)
+      .build();
+    await driver.get("https://www.wikipedia.org/");
+    await driver.wait(until.titleMatches(/Wikipedia/i), 5000);
+  }, 30000);
+
+  afterAll(async () =&gt; {
+    await driver.quit();
+  }, 40000);
+});
+</pre>
+<p>这里，您使用了Jest提供的<code>describe</code>函数来编写测试的描述。</p>
+<p>在<code>beforeAll</code>函数中，首先，您创建了一个新的<code>webdriver</code>，就像您在上一节中所做的一样。创建一个新的<code>webdriver</code>后，您使用<code>driver.get()</code>方法导航到维基百科的主页。最后，您使用了<code>driver.wait()</code>方法和<code>until</code>属性，让<code>webdriver</code>等待进入下一步，直到网页标题与单词“Wikipedia”匹配</p>
+<p>在<code>afterAll</code>函数中，您做了与上一节相同的事情。</p>
+<p>在<code>afterAll</code>函数下面添加以下代码:</p>
+<pre class="language-javascript hljs">it('test', async () =&gt; {
+  try {
+    const searchBar = await driver.wait(until.elementLocated(By.id('searchInput')), 5000);
+    await searchBar.click()
+    await searchBar.sendKeys("Programming language")
+    await searchBar.submit()
+    let span = await driver.wait(until.elementLocated(By.className('mw-page-title-main')), 5000)
+    let title = await span.getText()
+    expect(title).toEqual("Programming language");
+  } catch (err) {
+    throw err;
+  }
+}, 35000);
+</pre>
+<p>在上面的代码中，您使用Jest提供的<code>it</code>函数来指定需要在这个测试文件中运行的测试。</p>
+<p>首先，您在<code>until</code>和<code>By</code>属性旁边使用了<code>driver.wait()</code>方法，让<code>webdriver</code>等待移动到下一步，直到搜索栏元素被定位。一旦定位了这个元素，就将它存储在一个名为<code>searchBar</code>的变量中。</p>
+<p>找到搜索栏后，您使用<code>click()</code>方法模拟在搜索栏元素中单击鼠标，使用<code>sendKeys()</code>方法在搜索栏中编写文本，然后使用<code>submit()</code>方法提交搜索栏元素所在的表单并导航到新页面。</p>
+<p>在新页面中，您使用了<code>driver.wait()</code>方法以及<code>until</code>和<code>By</code>属性，让<code>webdriver</code>等待移动到下一步，直到找到新页面中的一个元素。您将找到的元素存储在一个名为<code>span</code>的变量中。这个元素是存储文章标题的地方。</p>
+<p>一旦元素被存储在一个名为<code>span</code>的变量中，您使用<code>getText()</code>方法来检索这个元素的文本，然后将文本存储在一个名为<code>title</code>的变量中。</p>
+<p>最后，您使用Jest提供的<code>expect</code>函数来检查存储在名为<code>title</code>的变量中的值是否等于“编程语言”。只有当存储在变量<code>title</code>中的值等于“编程语言”时，测试才会通过</p>
+<p>您的<code>firefox.test.js</code>文件应该如下所示:</p>
+<pre class="language-javascript hljs">const webdriver = require('selenium-webdriver');
+const { By, until, Builder, Capabilities } = webdriver
+let capabilities = Capabilities.firefox();
+
+describe('Test if the search bar is working correctly', () =&gt; {
+    let driver;
+
+    beforeAll(async () =&gt; {
+        driver = new Builder()
+            .usingServer('http://localhost:4444/')
+            .withCapabilities(capabilities)
+            .build();
+        await driver.get("https://www.wikipedia.org/");
+        await driver.wait(until.titleMatches(/Wikipedia/i), 5000);
+    }, 30000);
+
+    afterAll(async () =&gt; {
+        await driver.quit();
+    }, 40000);
+
+    it('test', async () =&gt; {
+        try {
+            const searchBar = await driver.wait(until.elementLocated(By.id('searchInput')), 5000);
+            await searchBar.click()
+            await searchBar.sendKeys("Programming language")
+            await searchBar.submit()
+            let span = await driver.wait(until.elementLocated(By.className('mw-page-title-main')), 5000)
+            let title = await span.getText()
+            expect(title).toEqual("Programming language");
+        } catch (err) {
+            throw err;
+        }
+    }, 35000);
+});
+</pre>
+<p>使用以下命令运行测试:</p>
+<pre class="language-command hljs">npm test firefox.test.js
+</pre>
+<p>这里需要指定文件名，因为默认情况下，Jest会运行工作目录中所有扩展名为<code>.test.js</code>的文件。</p>
+<p>运行该命令后，您将看到如下输出:</p>
+<pre class="language-plain hljs">PASS  ./firefox.test.js (14.673 s)
+  Test if the search bar is working correctly
+    ✓ test (1563 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        14.719 s, estimated 18 s
+Ran all test suites matching /firefox.test.js/i.
+</pre>
+<p>如果您得到类似上面的输出，这意味着您编写的测试通过了。请注意，在撰写本文时，这项测试正在通过，但如果维基百科决定在未来改变网站的代码，这可能会发生变化。</p>
+<p>要查看容器内部发生了什么，打开web浏览器并导航到URL<a href="http://localhost:7900" rel="nofollow">http://localhost:7900</a>，输入密码<code>secret</code>，然后再次运行测试。</p>
+<p>您应该会看到类似下面的内容:</p>
+<p><img data-attachment-id="132827" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/firefox-searchbar-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif" data-orig-size="730,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Firefox searchbar test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test-300x151.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif" decoding="async" class="aligncenter size-full wp-image-132827 jetpack-lazy-image" src="../Images/939166dd94fa25b24404a3b9e74e06ac.png" alt="Firefox Searchbar Test" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="132827" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/firefox-searchbar-test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif" data-orig-size="730,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Firefox searchbar test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test-300x151.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-132827" src="../Images/939166dd94fa25b24404a3b9e74e06ac.png" alt="Firefox Searchbar Test" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/firefox-searchbar-test.gif"/></noscript>
+<p>请注意，在上面的gif中，您只能看到包含搜索主题的新页面，因为在初始化名为<code>span</code>的变量的代码行下面添加了一行，要求<code>webdriver</code>等待几秒钟。</p>
+<h2 id="running-selenium-tests-chrome-firefox">在Chrome和Firefox上并行运行Selenium测试</h2>
+<p>在本节中，您将首先提取Selenium Docker图像，这将允许您启动Selenium网格并在Chrome和Firefox浏览器上运行您的测试。拖动图像后，您将使用它们来开始一个网格。最后，您将使用您在上一节中编写的脚本同时在Chrome和Firefox上测试Wikipedia的搜索栏。</p>
+<p>Selenium网格有以下两个主要的不同组件:hub和node。</p>
+<ul>
+<li>hub是Selenium网格中控制网格节点的中心点。它接收测试命令并将它们发送到节点</li>
+<li>一个节点是Selenium网格的工作者，它接收并执行hub发送的测试命令。每当需要执行测试时，都会在该节点创建一个新的远程浏览器会话</li>
+</ul>
+<p>请注意，您在前面几节中使用的独立Docker映像已经附带了一个集线器和节点。</p>
+<p>回到您的终端窗口，使用以下命令停止您在上一节中启动的容器:</p>
+<pre class="language-command hljs">docker stop container_id
+</pre>
+<p>现在，调出允许您创建中枢的图像:</p>
+<pre class="language-command hljs">docker pull selenium/hub
+</pre>
+<p>拉出允许您创建Chrome浏览器节点的图像:</p>
+<pre class="language-command hljs">docker pull selenium/node-chrome
+</pre>
+<p>然后，提取允许您创建Firefox浏览器节点的图像:</p>
+<pre class="language-command hljs">docker pull selenium/node-firefox
+</pre>
+<p>在提取所需的Docker图像后，您将使用Docker Compose来创建Selenium网格。</p>
+<p>创建一个名为<code>docker-compose.yml</code>的Docker合成文件，并向其中添加以下代码:</p>
+<pre class="language-yaml hljs">version: "3"
+services:
+  chrome:
+    image: selenium/node-chrome
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  firefox:
+    image: selenium/node-firefox
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium-hub:
+    image: selenium/hub
+    container_name: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+</pre>
+<p>使用上面的代码，您指定了想要用来启动Selenium网格的图像，以及节点容器应该监听哪些端口的事件。您还将集线器容器端口<code>4442</code>、<code>4443</code>和<code>4444</code>映射到您机器上的相同端口。</p>
+<p>运行以下命令启动Selenium网格:</p>
+<pre class="language-command hljs">docker compose up
+</pre>
+<p>在使用网格运行测试之前，用以下内容替换您的<code>chrome.test.js</code>文件的所有内容:</p>
+<pre class="language-javascript hljs">const webdriver = require('selenium-webdriver');
+const { By, until, Builder, Capabilities } = webdriver
+let capabilities = Capabilities.chrome();
+
+
+describe('Test if the search bar is working correctly', () =&gt; {
+  let driver;
+
+  beforeAll(async () =&gt; {
+    driver = new Builder()
+      .usingServer('http://localhost:4444/')
+      .withCapabilities(capabilities)
+      .build();
+    await driver.get("https://www.wikipedia.org/");
+    await driver.wait(until.titleMatches(/Wikipedia/i), 5000);
+  }, 30000);
+
+  afterAll(async () =&gt; {
+    await driver.quit();
+  }, 40000);
+
+  it('test', async () =&gt; {
+    try {
+      const searchBar = await driver.wait(until.elementLocated(By.id('searchInput')), 5000);
+      await searchBar.click()
+      await searchBar.sendKeys("Programming language")
+      await searchBar.submit()
+      let span = await driver.wait(until.elementLocated(By.className('mw-page-title-main')), 5000)
+      let title = await span.getText()
+      expect(title).toEqual("Programming language");
+    } catch (err) {
+      throw err;
+    }
+  }, 35000);
+});
+</pre>
+<p>这里，您将<code>firefox.test.js</code>文件的内容粘贴到了<code>chrome.test.js</code>文件中，然后修改了指定浏览器为Chrome而不是Firefox的那一行。</p>
+<p>使用以下命令运行测试:</p>
+<pre class="language-command hljs">npm test 
+</pre>
+<p>打开您的浏览器并导航到URL<a href="http://localhost:4444/ui" rel="nofollow">http://localhost:4444/ui</a>，您应该会看到类似于以下内容的内容:</p>
+<p><img data-attachment-id="132831" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/selenium-grid-localhost/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png" data-orig-size="730,336" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selenium Grid localhost" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png" decoding="async" class="aligncenter size-full wp-image-132831 jetpack-lazy-image" src="../Images/1df04697aa6a865f656d67c7f65fecde.png" alt="Selenium Grid Localhost" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost-300x138.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="132831" data-permalink="https://blog.logrocket.com/testing-website-selenium-docker/attachment/selenium-grid-localhost/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png" data-orig-size="730,336" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selenium Grid localhost" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-132831" src="../Images/1df04697aa6a865f656d67c7f65fecde.png" alt="Selenium Grid Localhost" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost-300x138.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/selenium-grid-localhost.png"/></noscript>
+<p>上图显示你在Chrome和Firefox浏览器中并行运行测试。</p>
+<p>返回到您的终端窗口，您应该会看到以下输出:</p>
+<pre class="language-plain hljs">PASS  ./chrome.test.js (18.977 s)
+PASS  ./firefox.test.js (23.387 s)
+
+Test Suites: 2 passed, 2 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        23.682 s
+Ran all test suites.
+</pre>
+<p>上面的输出显示你为维基百科的搜索栏编写的测试在Chrome和Firefox上都通过了。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，您了解了为什么应该使用Selenium和Docker来测试网站。然后，您使用这些工具分别在Chrome和Firefox浏览器上测试一个网站，在这样做的同时，您还学习了如何可视化Docker容器内运行的测试。最后，您学习了如何同时在Chrome和Firefox浏览器上测试网站。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

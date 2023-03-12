@@ -1,0 +1,699 @@
+<html>
+<head>
+<title>Understanding AJAX requests in React Native - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在React Native - LogRocket博客中理解AJAX请求</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-ajax-requests-react-native/#0001-01-01">https://blog.logrocket.com/understanding-ajax-requests-react-native/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>曾经，大多数web应用程序通过用户操作刷新整个网页来与web服务器通信。后来，AJAX(异步JavaScript和XML)概念通过提供一种在后台与web服务器通信的方式，使web应用程序内容动态化，而无需重新加载网页。</p>
+<p>AJAX随后成为W3C认可的web标准。因此，开发人员现在可以在任何标准浏览器中使用AJAX APIs，通过HTTP协议获取web页面中的JSON、XML、HTML或原始字符串内容。</p>
+<p>React本机框架提供了一个跨平台的应用程序开发解决方案，其中包含嵌入式JavaScript引擎(Hermes)、特定于平台的UI元素包装器和React。React Native框架通过底层平台特定的网络API实现了AJAX浏览器API的polyfills，因此我们可以使用标准的JavaScript web APIs在React Native中发送AJAX请求。</p>
+<p>在本教程中，我将通过实例演示在React本地应用中处理AJAX请求的各种方法。此外，我将解释如何以用户友好的方式处理AJAX错误和网络延迟。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="ways-make-ajax-requests-react-native">在React Native中生成AJAX请求的方法</h2>
+<p>让我们首先确定在React Native中生成AJAX请求的可能方法——然后，我们可以用例子实际测试它们。我们可以称这些为HTTP客户端库或API，因为它们都帮助我们使用HTTP协议与服务器通信。</p>
+<p>我们可以使用以下内置的和基于库的方法来发出AJAX请求:</p>
+<h3 id="inbuilt-fetch-api">内置的获取API</h3>
+<p>2015年，<a href="https://blog.logrocket.com/data-fetching-react-native/#using-inbuilt-fetch-api" target="_blank" rel="noopener"> Fetch API </a>作为著名的遗留XMLHttpRequest API的现代继承者被引入。Fetch提供了一个基于promise的现代接口，用于发送带有许多HTTP配置的AJAX请求，比如HTTP方法、头、有效负载等。在React Native中使用Fetch不需要第三方polyfill，因为它是React Native框架中预先包含的功能。</p>
+<h3 id="inbuilt-xmlhttprequest-api">内置的XMLHttpRequest API</h3>
+<p>XMLHttpRequest(又名XHR)是Fetch API之前最古老的发送AJAX请求的标准API。XHR API为AJAX编程提供了传统的基于事件的方法。React Native为网络需求提供了这个API和Fetch API。现代开发人员现在不再尝试直接使用XHR API，这主要归功于Fetch和其他开发人员友好的AJAX库，如Axios。</p>
+<h3 id="axios">阿克斯</h3>
+<p><a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/" target="_blank" rel="noopener"> Axios </a>是一个流行的开源HTTP客户端库，可以在浏览器环境(包括IE 11)和Node.js上工作。如今大多数前端开发人员<a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/" target="_blank" rel="noopener">选择Axios </a>是因为它的最小化、基于承诺的API、自动请求/响应转换和全局配置支持。</p>
+<h3 id="alternative-ajax-libraries">可选的AJAX库</h3>
+<p>虽然Axios是一个流行的HTTP客户端库，但JavaScript库生态系统有数百种开源替代方案。这些备选方案充当了<code>XMLHttpRequest</code>对象或<code>Fetch</code>函数的包装器，就像Axios一样。</p>
+<p><a href="https://github.com/elbywan/wretch" target="_blank" rel="noopener">坏蛋</a>和<a href="https://github.com/visionmedia/superagent" target="_blank" rel="noopener">超级代理</a>库是Axios的流行替代品。</p>
+<h3 id="ajax-caching-libraries">带有缓存库的AJAX</h3>
+<p>大多数web应用程序通过与RESTful web API通信来执行CRUD操作，RESTful web API使用AJAX概念与其后端web API通信。开发人员经常需要编写额外的代码来提高前端CRUD操作的可用性。</p>
+<p>例如，我们可以通过在前端缓存数据来更快地在UI上加载经常使用的数据，并通过对网络调用进行重复数据删除来最小化带宽使用。类似于TanStack Query(以前的React Query)和SWR的缓存库帮助开发人员通过编写更少的代码，高效地、以用户友好的方式发出AJAX请求。</p>
+<h2 id="react-native-ajax-tutorial-six-ways">一个React原生AJAX教程六种方式</h2>
+<p>我们将创建一个列出图书详细信息的全栈移动应用程序。首先，让我们创建一个简单的RESTful API，然后我们可以使用上面的各种内置AJAX APIs和库来使用它，以了解如何在React Native中发出AJAX请求。</p>
+<h3 id="creating-restful-backend">创建RESTful后端</h3>
+<p>使用以下命令创建一个新的目录和Node.js项目:</p>
+<pre class="language-bash hljs">mkdir bookstore-backend
+cd bookstore-backend
+
+npm init
+# --- or ---
+yarn init
+</pre>
+<p>添加Express.js库，开始创建RESTful API:</p>
+<pre class="language-bash hljs">npm install express
+# --- or ---
+yarn add express
+</pre>
+<p>创建一个名为<code>server.js</code>的新文件，并添加以下代码:</p>
+<pre class="language-javascript hljs">const express = require('express');
+const app = express();
+const books = [
+    {
+        id: 100,
+        title: 'Golang experts',
+        author: 'John Stack',
+        price: 200
+    },
+    {
+        id: 101,
+        title: 'C++ for beginners',
+        author: 'John Doe',
+        price: 250
+    },
+    {
+        id: 102,
+        title: 'Flutter development',
+        author: 'Steven Doe',
+        price: 350
+    },
+    {
+        id: 103,
+        title: 'JavaScript internals',
+        author: 'John Stack',
+        price: 300
+    }
+];
+
+const port = 5000;
+
+app.get('/books', (req, res) =&gt; {
+  res.json(books);
+});
+
+app.listen(port, () =&gt; {
+    console.log(`Bookstore API is running at port ${port}`);
+});
+</pre>
+<p>这里，我们通过<code>GET /books</code>端点返回一个硬编码的图书列表。使用以下命令启动RESTful API服务器:</p>
+<pre class="language-bash hljs">node server.js
+</pre>
+<p>通过从浏览器导航到<a href="http://localhost:5000/books" target="_blank" rel="noopener"> <code>http://localhost:5000/books</code> </a>或使用<code>curl</code>命令发出请求来测试应用后端。您将获得JSON数组形式的图书列表，如下所示:</p>
+<figure id="attachment_129707" aria-describedby="caption-attachment-129707" class="wp-caption aligncenter"><img data-attachment-id="129707" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-api-returns-data-google-chrome/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png" data-orig-size="657,303" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-api-returns-data-google-chrome" data-image-description="" data-image-caption="&lt;p&gt;Our Bookstore API returns data in Google Chrome&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png" decoding="async" class="size-full wp-image-129707 jetpack-lazy-image" src="../Images/d7e4591e88ef12e7d28125e16660a133.png" alt="Our Bookstore API returns data in Google Chrome" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png 657w, https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome-300x138.png 300w" data-lazy-sizes="(max-width: 657px) 100vw, 657px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="129707" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-api-returns-data-google-chrome/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png" data-orig-size="657,303" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-api-returns-data-google-chrome" data-image-description="" data-image-caption="&lt;p&gt;Our Bookstore API returns data in Google Chrome&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png" decoding="async" loading="lazy" class="size-full wp-image-129707" src="../Images/d7e4591e88ef12e7d28125e16660a133.png" alt="Our Bookstore API returns data in Google Chrome" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png 657w, https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome-300x138.png 300w" sizes="(max-width: 657px) 100vw, 657px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-api-returns-data-google-chrome.png"/></noscript><figcaption id="caption-attachment-129707" class="wp-caption-text">Our Bookstore API returns data in Google Chrome</figcaption></figure>
+<p>让我们通过创建一个简单的React Native bookstore应用程序，使用上述API和库向<code>GET /books</code>端点发出AJAX请求。您可以让这个服务器实例在后台运行，因为我们在实现UI后不久就需要它。</p>
+<h3 id="creating-app-frontend">创建应用前端</h3>
+<p>现在，我们将创建我们的应用的React本地前端，它将具有最少的错误处理功能和本地加载指示器。</p>
+<p>首先，我们将在客户端开发带有硬编码图书列表的前端，然后我们将修改应用程序的源代码，通过各种AJAX APIs和库从后端获取图书信息。</p>
+<p>创建新的React本机项目:</p>
+<pre class="language-bash hljs">npx react-native init Bookstore
+</pre>
+<p>上面的命令将在<code>Bookstore</code>目录中搭建一个新项目。接下来，在物理设备或仿真器/模拟器上运行应用程序，以确保一切正常:</p>
+<pre class="language-bash hljs">cd Bookstore
+
+npm start
+# --- or ---
+yarn start
+
+npx react-native run-android
+# --- or ---
+npx react-native run-ios
+</pre>
+<p>用以下源代码替换您的<code>App.js</code>源文件的内容:</p>
+<pre class="language-javascript hljs">import React, { useState, useEffect } from 'react';
+import {
+  SafeAreaView,
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
+
+const BookItem = ({ title, author, price }) =&gt; (
+  &lt;View style={styles.item}&gt;
+    &lt;View style={styles.itemLeft}&gt;
+      &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+      &lt;Text style={styles.author}&gt;{author}&lt;/Text&gt;
+    &lt;/View&gt;
+    &lt;View style={styles.itemRight}&gt;
+      &lt;Text style={styles.price}&gt;${price}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+const BookList = () =&gt; {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  async function getBooks() {
+    await new Promise((resolve) =&gt; setTimeout(resolve, 2000));
+    setBooks([{
+        id: 100,
+        title: 'Golang experts',
+        author: 'John Stack',
+        price: 200
+    },
+    {
+        id: 101,
+        title: 'C++ for beginners',
+        author: 'John Doe',
+        price: 250
+    }]);
+    setLoading(false);
+  }
+
+  useEffect(() =&gt; {
+      getBooks();
+  }, []);
+
+  if(error)
+    return &lt;Text style={styles.errorMsg}&gt;Unable to connect to the server.&lt;/Text&gt;;
+
+  if(loading)
+      return &lt;ActivityIndicator size='large'/&gt;;
+
+  return (
+    &lt;FlatList
+      data={books}
+      renderItem={({ item }) =&gt; &lt;BookItem {...item} /&gt;}
+      keyExtractor={item =&gt; item.id}
+    /&gt;
+  );
+}
+
+const App = () =&gt; {
+  return (
+    &lt;SafeAreaView style={styles.container}&gt;
+      &lt;BookList/&gt;
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    marginTop: '10%',
+  },
+  item: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    backgroundColor: '#eee',
+    padding: 12,
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  itemLeft: {
+    width: '70%'
+  },
+  itemRight: {
+    width: '30%',
+  },
+  title: {
+    fontSize: 22,
+    color: '#222',
+  },
+  author: {
+    fontSize: 16,
+    color: '#333',
+  },
+  price: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'right'
+  },
+  errorMsg: {
+    color: '#ee8888',
+    fontSize: 20,
+    padding: 24,
+    textAlign: 'center'
+  },
+});
+
+export default App;
+</pre>
+<p>上面的代码使用内置的<a href="https://blog.logrocket.com/deep-dive-react-native-flatlist/" target="_blank" rel="noopener"> React Native <code>FlatList</code>组件</a>呈现图书列表。如前所述，我们还没有使用任何AJAX请求处理程序，但是我们用<code>getBooks</code>异步函数模拟了一个网络请求。我们最初使用模拟网络操作和硬编码数据来实现应用程序，只需修改<code>getBooks</code>函数就可以轻松演示所有AJAX处理方法。</p>
+<p><code>getBooks</code>函数用<code>setTimeout</code>函数模拟网络延迟，并在2000毫秒后返回硬编码数据。如果我们调用<code>setError(true)</code>，UI会呈现一个加载动画来指示网络延迟和错误消息。</p>
+<p>我在<code>App</code>组件中使用了<code>loading</code>和<code>error</code>状态变量，因为我只调用了一次<code>getBooks</code>函数。但是，如果我们在很多地方调用<code>getBooks</code>，为了更好的代码质量，我们可以实现一个可重用的自定义钩子<code>useBooks</code>。从本文的<a href="https://blog.logrocket.com/create-your-own-react-hooks/" target="_blank" rel="noopener">中了解更多关于创建定制钩子的信息。</a></p>
+<p>一旦运行以上代码，您将看到以下结果:</p>
+<figure id="attachment_129710" aria-describedby="caption-attachment-129710" class="wp-caption aligncenter"><img data-attachment-id="129710" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-hard-coded-data-frontend/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-hard-coded-data-frontend" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app with hard-coded data in the frontend&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend-485x1024.gif" decoding="async" class="size-full wp-image-129710 jetpack-lazy-image" src="../Images/18a17a338f93921f905a8b186f203975.png" alt="Our bookstore app with hard-coded data in the frontend" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="129710" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-hard-coded-data-frontend/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-hard-coded-data-frontend" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app with hard-coded data in the frontend&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend-485x1024.gif" decoding="async" loading="lazy" class="size-full wp-image-129710" src="../Images/18a17a338f93921f905a8b186f203975.png" alt="Our bookstore app with hard-coded data in the frontend" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-hard-coded-data-frontend.gif"/></noscript><figcaption id="caption-attachment-129710" class="wp-caption-text">Our bookstore app with hard-coded data in the frontend</figcaption></figure>
+<h3 id="using-fetch-api">使用获取API</h3>
+<p>让我们用内置的Fetch API将书籍从后端web服务加载到React Native bookstore应用程序中。我们不需要导入任何其他东西，因为<code>fetch</code>函数驻留在类似于浏览器环境的全局脚本范围内。</p>
+<p>对现有的<code>getBooks</code>功能使用以下代码:</p>
+<pre class="language-javascript hljs">async function getBooks() {
+    try {
+      const books = await fetch('http://&lt;computer_ip&gt;:5000/books')
+                      .then((response) =&gt; response.json() );
+      setBooks(books);
+    }
+    catch(err) {
+      setError(true);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
+</pre>
+<p>确保您的计算机和移动测试设备使用相同的WiFi网络，然后在上面显示<code>computer_ip</code>的URL中输入您计算机的本地IP地址。等待的<code>fetch</code>函数不直接返回JSON(它返回一个<a href="https://developer.mozilla.org/en-US/docs/Web/API/Response" target="_blank" rel="noopener"> <code>Response</code>对象</a>，所以我们必须使用<code>then</code>一次来获得承诺，然后解析为接收到的JSON内容。</p>
+<p>运行该应用程序后，您将看到来自后端的图书详细信息，如下所示:</p>
+<figure id="attachment_129713" aria-describedby="caption-attachment-129713" class="wp-caption aligncenter"><img data-attachment-id="129713" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-server-side-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-server-side-data" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app with server-side data&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data-485x1024.gif" decoding="async" class="size-full wp-image-129713 jetpack-lazy-image" src="../Images/4e9506b5fa8150e43cc5e9c8e8a671da.png" alt="Our bookstore app with server-side data" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="129713" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-server-side-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-server-side-data" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app with server-side data&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data-485x1024.gif" decoding="async" loading="lazy" class="size-full wp-image-129713" src="../Images/4e9506b5fa8150e43cc5e9c8e8a671da.png" alt="Our bookstore app with server-side data" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-server-side-data.gif"/></noscript><figcaption id="caption-attachment-129713" class="wp-caption-text">Our bookstore app with server-side data</figcaption></figure>
+<p><code>fetch</code>接受一个选项对象，让你设置HTTP方法、正文、标题等。看看下面执行一个<code>POST</code>请求的代码片段:</p>
+<pre class="language-javascript hljs">const options = {
+  method: 'POST',
+  body: JSON.stringify({inStock: false})
+};
+
+await fetch('/books', options)
+  .then((response) =&gt; response.json() );
+</pre>
+<p>如果向多个端点发出AJAX请求，可以使用Fetch API，如<code>fetch('/books')</code>、<code>fetch('/books/100')</code>等。通过实现一个全局的<a href="https://blog.logrocket.com/intercepting-javascript-fetch-api-requests-responses/" target="_blank" rel="noopener">获取拦截器</a>，使用一个全局的基本URL配置。</p>
+<p>之前，我们没有机会执行基本的错误处理测试，因为我们没有调用<code>setError(true)</code>函数。现在，我们可以通过运行前端而不运行服务器来测试它。您应该得到一条错误消息，而不是图书列表，如下所示:</p>
+<figure id="attachment_129715" aria-describedby="caption-attachment-129715" class="wp-caption aligncenter"><img data-attachment-id="129715" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/showing-ajax-error-message-bookstore-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="showing-ajax-error-message-bookstore-app" data-image-description="" data-image-caption="&lt;p&gt;Showing an AJAX error message in our bookstore app&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-485x1024.png" decoding="async" class="size-full wp-image-129715 jetpack-lazy-image" src="../Images/c4b7e971c55fb9827a3e27c0e0495bf6.png" alt="Showing an AJAX error message in our bookstore app" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-727x1536.png 727w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="129715" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/showing-ajax-error-message-bookstore-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="showing-ajax-error-message-bookstore-app" data-image-description="" data-image-caption="&lt;p&gt;Showing an AJAX error message in our bookstore app&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-485x1024.png" decoding="async" loading="lazy" class="size-full wp-image-129715" src="../Images/c4b7e971c55fb9827a3e27c0e0495bf6.png" alt="Showing an AJAX error message in our bookstore app" srcset="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app-727x1536.png 727w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/showing-ajax-error-message-bookstore-app.png"/></noscript><figcaption id="caption-attachment-129715" class="wp-caption-text">Showing an AJAX error message in our bookstore app</figcaption></figure>
+<p>我们将在单独的章节中讨论其他流行的AJAX错误处理策略。</p>
+<h3 id="using-axios">使用Axios</h3>
+<p>首先，安装Axios包:</p>
+<pre class="language-bash hljs">npm install axios
+# --- or ---
+yarn add axios
+</pre>
+<p>接下来，导入<code>axios</code>对象，如下图所示:</p>
+<pre class="language-bash hljs">import axios from 'axios';
+</pre>
+<p>现在，用下面的代码更新<code>getBooks</code>函数，用Axios发出AJAX请求:</p>
+<pre class="language-javascript hljs">async function getBooks() {
+    try {
+      const { data: books } = await  axios.get('http://&lt;computer-ip&gt;:5000/books');
+      setBooks(books);
+    }
+    catch(err) {
+      setError(true);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
+</pre>
+<p>Axios根据HTTP响应内容类型转换数据，因此我们不需要像在Fetch API示例中那样显式请求JSON。这里，我们使用JavaScript的<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment" target="_blank" rel="noopener">析构</a>语法将<code>data</code>属性值立即赋给<code>books</code>变量。</p>
+<p>Axios为我们提供了方便的HTTP方法函数。例如，我们可以发出如下的<code>POST</code>请求:</p>
+<pre class="language-javascript hljs">await axios.post('/books/101', {inStock: false});
+</pre>
+<p>类似于<code>GET</code>响应，我们可以不使用<code>JSON.stringify</code>函数直接发布JSON内容，不像使用<code>fetch</code>那样。</p>
+<p>如果向多个端点发出AJAX请求，可以使用像<code>axios.get('/books')</code>、<code>axios.patch('/books/100')</code>等Axios。，通过更新您的<a href="https://axios-http.com/docs/config_defaults" target="_blank" rel="noopener">配置默认值</a>，使用全局基本URL配置。</p>
+<h3 id="using-alternative-ajax-libraries-superagent-wretch">使用可选的AJAX库SuperAgent和unwrap</h3>
+<p>有许多Axios替代产品。让我们来试试两个趋势HTTP客户端库:<a href="https://github.com/visionmedia/superagent" target="_blank" rel="noopener"> SuperAgent </a>和<a href="https://github.com/elbywan/wretch" target="_blank" rel="noopener">wrough</a>。<br/>安装SuperAgent软件包开始使用:</p>
+<pre class="language-bash hljs">npm install superagent
+# --- or ---
+yarn add superagent
+</pre>
+<p>现在，导入<code>superagent</code> API，如下所示:</p>
+<pre class="language-bash hljs">import superagent from 'superagent';
+</pre>
+<p>将以下代码添加到<code>getBooks</code>函数中，以完成实现:</p>
+<pre class="language-javascript hljs">async function getBooks() {
+    try {
+      const { body: books } = await superagent.get('http://&lt;computer-ip&gt;:5000/books');
+      setBooks(books);
+    }
+    catch(err) {
+      setError(true);
+    }
+    finally {
+      setLoading(false);
+    }
+ }
+</pre>
+<p>SuperAgent提供了一个类似于Axios的基于承诺的API，所以我们可以使用modern <code>await</code>关键字，如上所示。它提供了一个插件系统来扩展库的功能。例如，我们可以使用<a href="https://github.com/koenpunt/superagent-use" target="_blank" rel="noopener"> <code>superagent-use</code>插件</a>来定义全局配置，使用<a href="https://github.com/johntron/superagent-prefix" target="_blank" rel="noopener"> <code>superagent-prefix</code> </a>来定义所有请求的基本URL。</p>
+<p>wrough是一个对<code>fetch</code>的包装器，具有比Fetch更可读的API。它消除了请求JSON数据时内置的<code>fetch</code>函数中过多的回调。让我们在应用程序中使用wrough！</p>
+<p>首先，安装坏蛋包:</p>
+<pre class="language-bash hljs">npm install wretch
+# --- or ---
+yarn add wretch
+</pre>
+<p>接下来，使用<code>getBooks</code>函数中的<code>wretch</code>函数，如下所示:</p>
+<pre class="language-javascript hljs">async function getBooks() {
+    try {
+      const books = await wretch('http://&lt;computer-ip&gt;:5000/books').get().json();
+      setBooks(books);
+    }
+    catch(err) {
+      setError(true);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
+</pre>
+<p>正如你所看到的，<code>wretch</code>试图提供一个比<code>fetch</code>更简单的API，使用一个对开发者更友好的语法。<code>json</code>函数提供了解析JSON内容的承诺——我们可以用比内置的<code>fetch</code>更直观的方式使用<code>await</code>。</p>
+<p>wrough为您提供预建的现代<a href="https://github.com/elbywan/wretch#middlewares" target="_blank" rel="noopener">中间件</a>，用于请求重复数据删除、缓存、重试和延迟请求。处理<code>POST</code>请求也像Axios一样简单:</p>
+<pre class="language-javascript hljs">await wretch('/books/101').post({inStock: false}).json();
+</pre>
+<h3 id="using-tanstack-query">使用临时查询</h3>
+<p>以上所有方法都为在React Native中处理AJAX请求提供了很好的解决方案——我们可以使用它们通过HTTP协议连接应用前端和RESTful后端。但是一个典型的现代React原生应用程序超越了基本的AJAX处理，具有缓存、请求重复数据删除、自动重试和各种可用性增强。有些AJAX库，如unworth，为这些需求提供了现代的中间件，但是使用专用的缓存库会为您带来许多预构建的可用性和处理AJAX数据的性能增强。</p>
+<p>您可以将缓存库与首选的AJAX库集成在一起，以提高可用性和性能。让我们结合Axios使用<a href="https://github.com/TanStack/query" target="_blank" rel="noopener"> TanStack Query </a>来更好地处理AJAX。</p>
+<p>确保您已经将Axios库安装到项目中。接下来，安装TanStack查询库，如下所示:</p>
+<pre class="language-bash hljs">npm install @tanstack/react-query
+# --- or ---
+yarn add @tanstack/react-query
+</pre>
+<p>现在，用下面的代码替换您的<code>App.js</code>源代码:</p>
+<pre class="language-javascript hljs">import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  useQuery,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+import axios from 'axios';
+
+const BookItem = ({ title, author, price }) =&gt; (
+  &lt;View style={styles.item}&gt;
+    &lt;View style={styles.itemLeft}&gt;
+      &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+      &lt;Text style={styles.author}&gt;{author}&lt;/Text&gt;
+    &lt;/View&gt;
+    &lt;View style={styles.itemRight}&gt;
+      &lt;Text style={styles.price}&gt;${price}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+const BookList = () =&gt; {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const query = useQuery(['books'], getBooks);
+
+  async function getBooks() {
+    const response = await axios.get('http://&lt;computer-ip&gt;:5000/books');
+    return response.data;
+  }
+
+  if(query.isLoading)
+    return &lt;ActivityIndicator size='large'/&gt;;
+
+  if(query.isError)
+    return &lt;Text style={styles.errorMsg}&gt;Unable to connect to the server.&lt;/Text&gt;;
+
+  return (
+    &lt;FlatList
+      data={query.data}
+      renderItem={({ item }) =&gt; &lt;BookItem {...item} /&gt;}
+      keyExtractor={item =&gt; item.id}
+    /&gt;
+  );
+}
+
+const App = () =&gt; {
+  const queryClient = new QueryClient();
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;SafeAreaView style={styles.container}&gt;
+        &lt;BookList/&gt;
+      &lt;/SafeAreaView&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    marginTop: '10%',
+  },
+  item: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    backgroundColor: '#eee',
+    padding: 12,
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  itemLeft: {
+    width: '70%'
+  },
+  itemRight: {
+    width: '30%',
+  },
+  title: {
+    fontSize: 22,
+    color: '#222',
+  },
+  author: {
+    fontSize: 16,
+    color: '#333',
+  },
+  price: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'right'
+  },
+  errorMsg: {
+    color: '#ee8888',
+    fontSize: 20,
+    padding: 24,
+    textAlign: 'center'
+  }
+});
+
+export default App;
+</pre>
+<p>如您所见，TanStack Query为您提供了数据加载和错误状态，因此您不需要定义多个状态变量或定制钩子来实现加载状态和错误消息。这里，我们根据<code>isLoading</code>属性显示加载动画，根据<code>isError</code>属性显示错误消息。</p>
+<p>TanStack Query默认实现查询重复数据删除，因此，如果您使用同一个请求两次，您的应用程序将只发出一个HTTP请求。使用两个<code>BookList</code>组件实例来验证它，如下所示:</p>
+<pre class="language-javascript hljs">&lt;SafeAreaView style={styles.container}&gt;
+  &lt;BookList/&gt;
+  &lt;BookList/&gt;
+&lt;/SafeAreaView&gt;
+</pre>
+<p>您可以通过使用一个断点或一个简单的<code>console.log</code>来查找<code>GET /books</code>端点的调用次数，如下所示:</p>
+<pre class="language-javascript hljs">app.get('/books', function (req, res) {
+  console.log('Test');
+  res.json(books);
+});
+</pre>
+<p>通过这篇文章学习更多关于缓存库的知识，并找到一个符合您需求的首选库。</p>
+<h2 id="handling-ajax-errors">处理AJAX错误</h2>
+<p>AJAX请求可能由于网络问题、服务器端故障和web域配置问题而失败。如果我们不在前端处理这样的错误，用户可能会面临非用户友好的应用行为。因此，在面向AJAX的React原生应用程序中实现错误处理策略以增强用户友好性总是好的。</p>
+<p>开发人员通常使用以下策略之一以用户友好的方式处理AJAX错误:</p>
+<ul>
+<li>通过解释失败原因向用户显示错误消息，就像我们在前面的例子中所做的那样</li>
+<li>自动重试几次AJAX请求，如果仍然失败，就显示一条错误消息</li>
+<li>为用户提供一种通过按钮手动重试失败请求的方法</li>
+<li>实现自动重试、开发人员友好的错误消息和手动重试操作</li>
+<li>当用户在AJAX请求传输期间离线后连接到互联网时重试</li>
+</ul>
+<p>TanStack Query会多次重试失败的请求，直到从数据提供程序函数接收到数据。Fetch用户可以使用<a href="https://github.com/jonbern/fetch-retry" target="_blank" rel="noopener"> <code>fetch-retry</code>包</a>，Axios用户可以使用<a href="https://github.com/softonic/axios-retry" target="_blank" rel="noopener"> <code>axios-retry</code>包</a>实现对AJAX请求的自动重试。</p>
+<p>例如，看看下面使用axios-retry的代码片段。</p>
+<pre class="language-javascript hljs">import axiosRetry from 'axios-retry';
+axiosRetry(axios, {
+  retryCondition: () =&gt; true,
+  retries: 3,
+  retryDelay: () =&gt; 1000
+});
+</pre>
+<p>这里，我们设置了三次重试，每次重试之间有1000毫秒的延迟。将上述代码添加到书店应用程序中，在不运行后端的情况下启动应用程序，让加载动画旋转一秒钟，然后启动RESTful服务器。由于自动重试，您将看到图书列表:</p>
+<figure id="attachment_129717" aria-describedby="caption-attachment-129717" class="wp-caption aligncenter"><img data-attachment-id="129717" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/loading-data-retrying-ajax-requests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loading-data-retrying-ajax-requests" data-image-description="" data-image-caption="&lt;p&gt;Loading data by retrying AJAX requests&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests-485x1024.gif" decoding="async" class="size-full wp-image-129717 jetpack-lazy-image" src="../Images/fd7174f97b88bd59c7cd9f3f1b4b7148.png" alt="Loading data by retrying AJAX requests" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="129717" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/loading-data-retrying-ajax-requests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="loading-data-retrying-ajax-requests" data-image-description="" data-image-caption="&lt;p&gt;Loading data by retrying AJAX requests&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests-485x1024.gif" decoding="async" loading="lazy" class="size-full wp-image-129717" src="../Images/fd7174f97b88bd59c7cd9f3f1b4b7148.png" alt="Loading data by retrying AJAX requests" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/loading-data-retrying-ajax-requests.gif"/></noscript><figcaption id="caption-attachment-129717" class="wp-caption-text">Loading data by retrying AJAX requests</figcaption></figure>
+<p><span>如果我们三秒钟不启动RESTful服务器，您将会看到错误消息，因为axios-retry库在上述设置下不会进行超过三次的重试:</span></p>
+<figure id="attachment_129720" aria-describedby="caption-attachment-129720" class="wp-caption aligncenter"><img data-attachment-id="129720" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-displays-ajax-error-after-several-retries/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-displays-ajax-error-after-several-retries" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app displays an AJAX error after several retries&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries-485x1024.gif" decoding="async" class="size-full wp-image-129720 jetpack-lazy-image" src="../Images/c976fef3aeaa67841e767804ed6b2db0.png" alt="Our bookstore app displays an AJAX error after several retries" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="129720" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/bookstore-app-displays-ajax-error-after-several-retries/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="bookstore-app-displays-ajax-error-after-several-retries" data-image-description="" data-image-caption="&lt;p&gt;Our bookstore app displays an AJAX error after several retries&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries-485x1024.gif" decoding="async" loading="lazy" class="size-full wp-image-129720" src="../Images/c976fef3aeaa67841e767804ed6b2db0.png" alt="Our bookstore app displays an AJAX error after several retries" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/bookstore-app-displays-ajax-error-after-several-retries.gif"/></noscript><figcaption id="caption-attachment-129720" class="wp-caption-text">Our bookstore app displays an AJAX error after several retries</figcaption></figure>
+<p>我们还可以使用<a href="https://en.wikipedia.org/wiki/Exponential_backoff" target="_blank" rel="noopener">指数补偿</a>重试概念，通过考虑设备和服务器端资源使用来实现重试。选择一个好的AJAX错误处理策略，比如自动重试，以提高应用程序的可用性。</p>
+<p>您还可以使用以下代码添加手动重试按钮:</p>
+<pre class="language-javascript hljs">import React, { useState, useEffect } from 'react';
+import {
+  Button,
+  SafeAreaView,
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
+import axios from 'axios';
+import axiosRetry from 'axios-retry';
+
+axiosRetry(axios, {
+  retryCondition: () =&gt; true,
+  retries: 3,
+  retryDelay: () =&gt; 1000
+});
+
+const BookItem = ({ title, author, price }) =&gt; (
+  &lt;View style={styles.item}&gt;
+    &lt;View style={styles.itemLeft}&gt;
+      &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+      &lt;Text style={styles.author}&gt;{author}&lt;/Text&gt;
+    &lt;/View&gt;
+    &lt;View style={styles.itemRight}&gt;
+      &lt;Text style={styles.price}&gt;${price}&lt;/Text&gt;
+    &lt;/View&gt;
+  &lt;/View&gt;
+);
+
+const BookList = () =&gt; {
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  async function getBooks() {
+    try {
+      setLoading(true);
+      setError(false);
+      const { data: books } = await axios.get('http://&lt;computer-ip&gt;:5000/books');
+      setBooks(books);
+    }
+    catch(err) {
+      setError(true);
+    }
+    finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() =&gt; {
+      getBooks();
+  }, []);
+
+  if(error)
+    return (
+      &lt;View&gt;
+        &lt;Text style={styles.errorMsg}&gt;Unable to connect to the server.&lt;/Text&gt;
+        &lt;View style={styles.btnWrapper}&gt;
+          &lt;Button onPress={() =&gt; getBooks()} title="Retry"&gt;&lt;/Button&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+    );
+
+  if(loading)
+      return &lt;ActivityIndicator size='large'/&gt;;
+
+  return (
+    &lt;FlatList
+      data={books}
+      renderItem={({ item }) =&gt; &lt;BookItem {...item} /&gt;}
+      keyExtractor={item =&gt; item.id}
+    /&gt;
+  );
+}
+
+const App = () =&gt; {
+  return (
+    &lt;SafeAreaView style={styles.container}&gt;
+      &lt;BookList/&gt;
+    &lt;/SafeAreaView&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    marginTop: '10%',
+  },
+  item: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    backgroundColor: '#eee',
+    padding: 12,
+    marginVertical: 8,
+    marginHorizontal: 16,
+  },
+  itemLeft: {
+    width: '70%'
+  },
+  itemRight: {
+    width: '30%',
+  },
+  title: {
+    fontSize: 22,
+    color: '#222',
+  },
+  author: {
+    fontSize: 16,
+    color: '#333',
+  },
+  price: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'right'
+  },
+  errorMsg: {
+    color: '#ee8888',
+    fontSize: 20,
+    padding: 24,
+    textAlign: 'center'
+  },
+  btnWrapper: {
+    paddingLeft: '15%',
+    paddingRight: '15%',
+    paddingTop: '15%'
+  },
+});
+
+export default App;
+</pre>
+<p>上面的代码在AJAX请求失败后产生一个重试按钮。如果点击<strong>重试</strong>按钮，网络服务器再次工作，图书列表将照常工作，如下图预览所示:</p>
+<figure id="attachment_129730" aria-describedby="caption-attachment-129730" class="wp-caption aligncenter"><img data-attachment-id="129730" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/manual-retry-button-bookstore-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="manual-retry-button-bookstore-app" data-image-description="" data-image-caption="&lt;p&gt;A manual &lt;strong&gt;Retry&lt;/strong&gt; button in the bookstore app&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app-485x1024.gif" decoding="async" class="size-full wp-image-129730 jetpack-lazy-image" src="../Images/f514f53fcb23e7cd1205de6d19ecb54f.png" alt="A manual retry button in the bookstore app" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="129730" data-permalink="https://blog.logrocket.com/understanding-ajax-requests-react-native/attachment/manual-retry-button-bookstore-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app.gif" data-orig-size="730,1542" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="manual-retry-button-bookstore-app" data-image-description="" data-image-caption="&lt;p&gt;A manual &lt;strong&gt;Retry&lt;/strong&gt; button in the bookstore app&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app-485x1024.gif" decoding="async" loading="lazy" class="size-full wp-image-129730" src="../Images/f514f53fcb23e7cd1205de6d19ecb54f.png" alt="A manual retry button in the bookstore app" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/manual-retry-button-bookstore-app.gif"/></noscript><figcaption id="caption-attachment-129730" class="wp-caption-text">A manual <strong>Retry</strong> button in the bookstore app</figcaption></figure>
+<h2 id="fetch-vs-axios-vs-other-http-clients-vs-tanstack-query">Fetch vs. Axios vs .其他HTTP客户端vs. TanStack查询</h2>
+<p>现在，我们已经通过内置的API和各种第三方库向RESTful web API发送了AJAX请求。每种方法都很有竞争力，但你打算在下一个React原生应用中使用哪一种呢？</p>
+<p>在您做出决定之前，值得注意的是，TanStack Query还不是另一个HTTP客户端——它是一个缓存库，您可以与任何HTTP客户端库一起使用，以同步您的应用程序前端和web服务。</p>
+<p>根据以下比较因素选择一个:</p>
+<table>
+<thead>
+<tr>
+<th>比较因素</th>
+<th>取得</th>
+<th>Axios</th>
+<th>其他客户(SuperAgent、wrough等。)</th>
+<th>转移查询</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API类型</td>
+<td>基于承诺的最小</td>
+<td>基于承诺的最小</td>
+<td>基于承诺的最小/详细、基于遗留事件或基于回拨</td>
+<td>基于回调的详细OOP</td>
+</tr>
+<tr>
+<td>全局配置支持</td>
+<td>不支持作为内置特性，但是通过创建包装器/拦截器是可能的</td>
+<td>受支持，称为配置默认值</td>
+<td>大多数库都支持通过创建自定义库实例来设置全局配置</td>
+<td>受支持，通过QueryClient类提供</td>
+</tr>
+<tr>
+<td>Hermes中使用的底层React本地JavaScript API</td>
+<td>取得</td>
+<td>XMLHttpRequest</td>
+<td>获取，XMLHttpRequest</td>
+<td>取决于HTTP客户端</td>
+</tr>
+<tr>
+<td>可用性和性能增强:缓存、重复数据删除请求等。</td>
+<td>开发人员必须自己实现它们或者使用社区库</td>
+<td>开发人员必须自己实现它们或者使用社区库</td>
+<td>开发人员必须自己实现它们，或者使用社区库。wrough为重复数据删除请求、重试、延迟请求和缓存提供了官方扩展</td>
+<td>缓存、缓存操作(用于构建实时ui)、重复数据删除请求和默认的自动重试。开发人员可以很容易地实现在焦点上重新获取数据、网络状态改变数据重新获取等。</td>
+</tr>
+<tr>
+<td>扩展AJAX请求/响应处理逻辑</td>
+<td>可能使用包装器/拦截器</td>
+<td>可能使用请求/响应拦截器</td>
+<td>大多数库都有内置的插件系统。即<a href="https://github.com/elbywan/wretch#middlewares" target="_blank" rel="noopener">坏蛋中间件</a>、<a href="https://github.com/elbywan/wretch#middlewares" target="_blank" rel="noopener">超级代理插件</a>等。</td>
+<td>发送AJAX请求的责任不属于这个库，因为它通过一个承诺期待数据。请扩展您的AJAX库。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，我们研究了在React Native中发送AJAX请求的各种方法。我们基于几个关键的比较因素对每种方法进行了比较。过去，web应用程序使用AJAX获取XML文档和HTML片段，以使网页动态化。Web和React本地移动应用程序通常通过AJAX使用基于RESTful JSON的web APIs。</p>
+<p>可以使用任何首选的文档格式，如YAML、XML等。，作为web服务的通信消息格式。但是，如今，JSON是业界使用AJAX传输数据的默认方式。React本地开发人员也可以使用WebSockets超越AJAX的请求-响应模型。</p>
+<p>许多开发人员更喜欢AJAX，因为它具有可读性和对开发人员友好的RESTful模型、内置的API和库可用性，以及易于进行面向HTTP的开发。从上述方法中选择一种方法发送AJAX请求，并以用户友好和硬件资源友好的方式处理错误。</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现React原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款React原生监控解决方案，可帮助您即时重现问题、确定bug的优先级并了解React原生应用的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的React原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

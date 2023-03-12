@@ -1,0 +1,545 @@
+<html>
+<head>
+<title>Intro to PyScript: Run Python in the browser - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>PyScript简介:在browser - LogRocket博客中运行Python</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/pyscript-run-python-browser/#0001-01-01">https://blog.logrocket.com/pyscript-run-python-browser/#0001-01-01</a></blockquote><div><article class="article-post">
+ <p>长期以来，JavaScript一直是前端开发中的主导语言，因为它能够在浏览器中本地运行，并通过DOM API与HTML和CSS进行交互。随着WebAssembly的出现，事情开始慢慢改变。诸如Go、Rust、C、C++和许多其他语言现在可以在浏览器中以接近本地的速度运行，Python也没有落后。</p>
+<p>随着PyScript的引入，前端开发人员现在可以用Python构建丰富的前端。此外，他们还可以利用Python生态系统，其中有有用的科学模块，如<a href="https://numpy.org/"> NumPy </a>、<a href="https://matplotlib.org/"> Matplotlib </a>等等。<br/>在本教程中，我们将讲述以下内容:</p>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>要充分利用本教程，您需要:</p>
+<ul>
+<li>对HTML、CSS和JavaScript有基本的了解</li>
+<li>熟悉Python语法</li>
+<li>网络服务器。我们将使用Python创建一个简单的服务器，所以请确保您的系统上安装了Python</li>
+<li>网络浏览器；PyScript文档目前推荐Chrome</li>
+</ul>
+<h2 id="what-is-pyscript">PyScript是什么？</h2>
+<p>PyScript是一个开源的web框架，允许您使用Python创建前端web应用程序。使用PyScript，您可以在HTML中嵌入Python代码，或者链接到Python文件，代码将在浏览器中执行——无需在后端运行Python。</p>
+<p>PyScript由Anaconda 创建，并于4月30日在PyCon US 2022上公开发布。在撰写本文时，PyScript处于alpha状态，并且正在积极开发中，因此由于它尚未稳定发布，因此可以预期会有突破性的变化和更新的功能。</p>
+<h2 id="how-does-pyscript-work">PyScript是如何工作的？</h2>
+<p>PyScript构建于<a href="http://pyodide.org/"> Pyodide </a>之上，它将CPython移植到WebAssembly。WebAssembly是一种低级二进制格式，允许您用其他语言编写程序，然后在浏览器中执行。通过WebAssembly中的CPython，我们可以在浏览器中安装和运行Python包，而PyScript抽象了大部分Pyodide操作，让你可以专注于在浏览器中用Python构建前端应用。</p>
+<h2 id="when-use-pyscript">你什么时候想使用PyScript？</h2>
+<ul>
+<li><strong>将Python后端移至前端</strong>:如果你有一个Python应用程序在后端运行，你可以使用PyScript将其移至前端，从而节省你的虚拟主机费用</li>
+<li><strong>利用Python的库生态系统</strong>:scikit-learn、numpy、pandas等科学包仅在Python中可用，在前端中不可用。但是使用PyScript，您可以在前端使用这些包，甚至可以使用您自己的Python模块</li>
+<li><strong>与本地文件系统交互</strong>:浏览器中的JavaScript没有读取或写入文件系统中文件的API。使用PyScript，您可以读取文件系统中的文件，操作数据，并将其注入DOM</li>
+</ul>
+<h2 id="setting-up-project-folder-pyscript">为PyScript设置项目文件夹</h2>
+<p>在我们开始使用PyScript之前，让我们创建代码所在的目录。</p>
+<p>为此，打开您的终端，在您选择的位置使用<code>mkdir</code>命令创建项目目录:</p>
+<pre class="language-bash hljs">mkdir pyscript_demo
+</pre>
+<p>接下来，使用<code>cd</code>命令进入刚刚创建的目录:</p>
+<pre class="language-bash hljs">cd pyscript_demo
+</pre>
+
+<p>通常，前端开发人员在他们的文本编辑器中使用自动格式化工具，如<a href="https://prettier.io/">appearlier</a>来格式化保存的代码。虽然这对于HTML、CSS和JavaScript很有效，但这可能会在Python代码中引起问题，因为Python对缩进有严格的要求。</p>
+<p>目前，像Prettier这样的自动格式化工具不能识别PyScript语法，在撰写本文时，PyScript语法才刚刚出现两个月。这些工具像JavaScript一样自动格式化Python代码，打破了代码缩进。为了解决这个问题，我们现在将禁用这个目录的自动格式化。</p>
+<p>假设您使用的是VS代码，我们可以如下禁用自动格式化。</p>
+<p>在您的项目目录中，创建一个<code>.vscode</code>目录，并使用以下命令导航到该目录:</p>
+<pre class="language-bash hljs">mkdir .vscode &amp;&amp; cd .vscode
+</pre>
+<p>接下来，创建一个<code>settings.json</code>文件并添加以下内容:</p>
+<pre class="language-json hljs">{
+  "editor.formatOnSave": false
+}
+</pre>
+<p>这个代码片段在VS代码中禁用了这个目录的“保存时”自动格式化特性。</p>
+<p>现在我们准备开始使用PyScript了！</p>
+<h2 id="getting-started">入门指南</h2>
+<p>现在我们的目录已经为PyScript设置好了，我们将首先在HTML页面的<code>&lt;head&gt;</code>部分添加到由CSS文件和JavaScript文件组成的PyScript资产的链接。</p>
+<p>添加资产后，您可以通过以下两种方式之一在HTML文件中使用PyScript:</p>
+<ul>
+<li><strong>内部PyScript </strong>:你可以在HTML文件的<code>&lt;py-script&gt;</code>标签中编写并放置你的Python代码；根据您手头的任务，可以将<code>&lt;py-script&gt;</code>标签添加到<code>&lt;head&gt;</code>或<code>&lt;body&gt;</code>标签中</li>
+<li><strong>外部PyScript </strong>:这是您在以<code>.py</code>扩展名结尾的文件中编写Python代码的地方，然后您可以使用<code>src</code>属性在<code>&lt;py-script&gt;</code>标签中引用它</li>
+</ul>
+<h2 id="internal-pyscript">内部PyScript</h2>
+<p>开始使用PyScript最简单、最快速的方法是在HTML文件中嵌入Python代码。就这么办吧！</p>
+<p>打开您喜欢的文本编辑器，创建<code>hello-world.html</code>文件，并添加以下内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Hello World!&lt;/title&gt;
+    &lt;!-- linking to PyScript assets --&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;!-- Put Python code inside the the &lt;py-script&gt; tag --&gt;
+    &lt;py-script&gt;display("Hello World!")&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;head&gt;</code>部分，我们链接到<code>pyscript.css</code>文件，该文件包含PyScript可视组件、REPL、PyScript加载器等的样式。接下来，我们链接到<code>pyscript.js</code>文件，它为使用PyScript设置了必要的特性，比如创建像<code>&lt;py-script&gt;</code>这样的标签，您可以在这里编写Python代码。</p>
+<p>请注意，我们链接到了发布版<code>2022.12.1</code>中的PyScript静态资产，这是撰写本文时PyScript的最新版本。这是因为PyScript仍在大量开发中，并在不断增加和减少功能。</p>
+<p>为了避免新版本破坏我们的代码，我们使用固定版本来代替<code>/latest/pyscript.js</code>。请务必查看<a href="https://github.com/pyscript/pyscript/releases"> PyScript GitHub页面</a>以跟踪新发布的版本。</p>
+<p>接下来，在<code>&lt;body&gt;</code>标签中，让我们将Python代码嵌入到<code>&lt;py-script&gt;</code>标签中。我们现在保持事情简单，所以我们只使用PyScript的<code>display()</code>方法将<code>Hello World</code>打印给用户，该方法将给定值嵌入页面。</p>
+<p>确保将文件保存在项目目录的根目录下，并在Chrome中打开<code>hello-world.html</code>文件。加载需要几秒钟的时间，一旦页面加载完毕，它将如下所示:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/30cf81c566364ba421c29bd53c2a959d.png" alt="Browser prints &quot;Hello, World!&quot;" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/browser-prints-hello-world.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/browser-prints-hello-world.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/30cf81c566364ba421c29bd53c2a959d.png" alt="Browser prints &quot;Hello, World!&quot;" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/browser-prints-hello-world.png"/></noscript>
+<h2 id="external-pyscript">外部PyScript</h2>
+<p>虽然将Python代码放在<code>&lt;py-script&gt;</code>标签中是可行的，但是更好且更具可伸缩性的方法是将代码添加到外部文件中，并在创建更多HTML页面或脚本变大时在HTML文件中引用它。</p>
+<p>以下是您应该考虑在外部文件中使用PyScript代码的一些原因:</p>
+<ul>
+<li>浏览器可以缓存该文件，从而提高性能</li>
+<li>您可以在多个页面中引用该文件，从而减少重复</li>
+<li>你的Python代码可以用像<a href="https://github.com/psf/black"> black </a>或者Python linters这样的工具格式化。这些工具目前不能处理嵌入在HTML文件中的Python代码</li>
+</ul>
+<p>为了在外部使用PyScript，我们将创建一个<code>index.html</code>文件，一个以<code>.py</code>扩展名结尾的包含我们的Python代码的Python文件，最后在<code>index.html</code>文件中引用Python文件。</p>
+<h3 id="creating-index-html-file">创建<code>index.html</code>文件</h3>
+<p>创建一个<code>index.html</code>文件并链接到PyScript资源:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Greetings!&lt;/title&gt;
+    &lt;!-- linking to PyScript assets --&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>文件没做什么；我们只是链接到PyScript资源。为了让它更有用，我们将创建一个<code>main.py</code>文件，Python代码将驻留在其中。</p>
+<h3 id="creating-main-py-file">创建<code>main.py</code>文件</h3>
+<p>让我们创建一个打印问候消息的Python函数。</p>
+<p>在您的文本编辑器中，创建<code>main.py</code>文件并添加以下代码:</p>
+<pre class="language-python hljs">def greetings(name):
+    print(f'Hi, {name}')
+
+greetings('John Doe')
+</pre>
+<p><code>greetings()</code>函数采用一个<code>name</code>参数。在该函数中，我们使用<code>print()</code>方法在<code>&lt;py-terminal&gt;</code>终端中打印一条问候消息。当我们用<code>John Doe</code>作为参数调用<code>greetings()</code>函数时，它打印<code>hi, John Doe</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="linking-main-py-file-html-file">在HTML文件中链接<code>main.py</code>文件</h3>
+<p>现在您已经创建了Python代码，您将在<code>index.html</code>文件中引用<code>main.py</code>文件。</p>
+<p>打开<code>index.html</code>并在<code>&lt;body&gt;</code>标签内添加该行:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Greetings!&lt;/title&gt;
+   &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+   &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+   add the following line
+  &lt;py-script src="./main.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p><code>&lt;py-script&gt;</code>标签有一个<code>src</code>标签，它接受Python文件的文件路径。</p>
+<h3 id="opening-index-html-file-browser">在浏览器中打开<code>index.html</code>文件</h3>
+<p>现在一切就绪，我们将在浏览器中打开<code>index.html</code>。</p>
+<p>但是，由于<a href="https://blog.logrocket.com/the-ultimate-guide-to-enabling-cross-origin-resource-sharing-cors/">跨源资源共享(CORS) </a>策略错误，浏览器会拒绝加载和执行外部Python文件。为了解决这个问题，我们需要使用服务器。好在Python附带了一个我们可以使用的web服务器！服务器不需要由Python创建，你可以使用<a href="https://www.npmjs.com/package/live-server">的实时服务器</a>或者任何你选择的服务器。</p>
+<p>要创建服务器，请在项目的根目录下打开终端并运行以下命令:</p>
+<pre class="language-python hljs">python -m http.server
+</pre>
+<p>接下来，打开Chrome，访问<code>[http://0.0.0.0:8000/](<a href="http://0.0.0.0:8000/" rel="nofollow">http://0.0.0.0:8000/</a>)</code>。服务器将自动加载<code>index.html</code>文件，您将看到以下内容:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/9ecbc083cdb30d04a9001057eefeab25.png" alt="The browser prints our greeting" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674578339675_Screenshot+from+2023-01-24+18-37-14.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674578339675_Screenshot+from+2023-01-24+18-37-14.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/9ecbc083cdb30d04a9001057eefeab25.png" alt="The browser prints our greeting" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674578339675_Screenshot+from+2023-01-24+18-37-14.png"/></noscript>
+<p>如你所见，文本<code>Hi, John Doe</code>已经被打印在<code>&lt;py-terminal&gt;</code>中，这是页面上的黑色区域。<code>&lt;py-terminal&gt;</code>为您的代码产生类似终端的输出。</p>
+<p>对于本教程的其余部分，我们将引用外部Python文件，这将要求我们使用服务器来避免CORS错误，有时为了简洁起见，我们将在HTML中嵌入Python代码。</p>
+<h2 id="using-pyscript-repl">使用PyScript REPL</h2>
+<p>PyScript附带了一个读取-评估-打印循环(REPL)，您可以使用它来试验和尝试Python代码。</p>
+<p>要使用REPL，请在您的<code>index.html</code>文件的<code>&lt;body&gt;</code>标签中添加<code>&lt;py-repl&gt;</code>标签:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+  ...
+  &lt;body&gt;
+   &lt;!-- comment out the following line --&gt;
+  &lt;!-- &lt;py-script src="./main.py"&gt;&lt;/py-script&gt; --&gt;
+  &lt;!-- add the following line --&gt;
+  &lt;py-repl&gt; &lt;/py-repl&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>我们注释掉对<code>main.js</code>文件的引用，只在页面上显示REPL。</p>
+<p>在服务器仍在运行的情况下，访问<code>[http://0.0.0.0:8000/](<a href="http://0.0.0.0:8000/" rel="nofollow">http://0.0.0.0:8000/</a>)</code>。您将看到一个新的部分，您可以在其中输入Python代码。</p>
+<p>您可以导入模块、计算表达式、创建函数，以及做更多的事情。要查看表达式的计算结果，您需要单击绿色的<strong> Play </strong>图标。</p>
+<p>下图显示了您可以执行的一些操作:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/f0f28b55e756c8fac48d42064a42665a.png" alt="The PyScript REPL in the browser" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674671931575_Jqo7DQKM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674671931575_Jqo7DQKM.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/f0f28b55e756c8fac48d42064a42665a.png" alt="The PyScript REPL in the browser" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674671931575_Jqo7DQKM.png"/></noscript>
+<p>现在您已经知道了如何使用REPL，让我们看看如何在PyScript中创建和使用模块。</p>
+<h2 id="using-python-modules-pyscript">在PyScript中使用Python模块</h2>
+<p>在本节中，我们将创建一个自定义Python模块，并在我们的代码中使用它。我们还将使用Python标准库中的模块，以及第三方模块。</p>
+<p>为了使用模块，我们将引入一个新标签<code>&lt;py-config&gt;</code>，它允许我们引用模块或模块文件路径。</p>
+<h3 id="creating-custom-modules">创建自定义模块</h3>
+<p>让我们创建一个包含两个函数的本地模块。</p>
+<p>首先，在项目目录中创建一个<code>mathslib.py</code>文件，并添加下面的代码:</p>
+<pre class="language-python hljs">def add(num1, num2):
+    return num1 + num2
+
+def subtract(num1, num2):
+    return num1 - num2
+</pre>
+<p>这里我们创建了两个做加法和减法运算的函数。</p>
+<p>接下来，创建一个<code>modules.html</code>文件，并添加以下内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;local modules&lt;/title&gt;
+    &lt;!-- linking to PyScript assets --&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt; 
+  &lt;/head&gt;
+  &lt;body&gt;
+      &lt;py-config&gt;
+        [[fetch]]
+        files = ["./mathslib.py"]
+      &lt;/py-config&gt;
+      &lt;py-script&gt;
+from mathslib import subtract
+print(subtract(8, 4))
+      &lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;body&gt;</code>标签中，我们使用<code>&lt;py-config&gt; [[fetch]]</code>，它可以远程或本地获取一个或多个文件。为了导入<code>mathslib.py</code>文件，我们将<code>files</code>设置为一个数组，该数组包含定制模块相对于<code>modules.html</code>文件的文件路径。一旦指定了自定义模块的路径，PyScript将在文件中导入该模块。</p>
+<p>接下来，在<code>&lt;py-script&gt;</code>标签中，我们从<code>mathslib.py</code>导入<code>subtract()</code>函数，并使用参数<code>8</code>和<code>4</code>调用该函数。</p>
+<p>在服务器运行的情况下，访问<code>[http://0.0.0.0:8000/modules.html](<a href="http://0.0.0.0:8000/modules.html" rel="nofollow">http://0.0.0.0:8000/modules.html</a>)</code>,您将看到一个类似如下的页面:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/6741cc505e939b0511df07b56cb67484.png" alt="The result of our subtraction function" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580517951_Screenshot+from+2023-01-24+19-15-00.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580517951_Screenshot+from+2023-01-24+19-15-00.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/6741cc505e939b0511df07b56cb67484.png" alt="The result of our subtraction function" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580517951_Screenshot+from+2023-01-24+19-15-00.png"/></noscript>
+<p>在这里，您可以看到代码的输出已经记录在<code>&lt;py-terminal&gt;</code>中。</p>
+<h3 id="importing-modules-python-standard-library">从Python标准库中导入模块</h3>
+<p>PyScript在Pyodide的帮助下，提供了对Python标准库中许多可用模块的访问，这些模块随时可供您使用，但以下模块除外:</p>
+
+<p>访问<a href="https://pyodide.org/en/stable/usage/wasm-constraints.html#python-standard-library">化脓文档</a>查看完整列表。此外，请注意包含的但不起作用的模块，如多处理、线程和套接字模块。</p>
+<p>默认情况下，标准库中的模块在PyScript命名空间中可用；您只需要导入它们就可以在文件中使用它们。</p>
+<p>仍然在<code>modules.html</code>文件中，修改<code>&lt;py-script&gt;</code>标签中的Python代码，使用<code>random</code>模块生成一个随机数:</p>
+<pre class="language-python hljs">from mathslib import subtract
+import random
+print(subtract(8, 4))
+print("random number generated: ")
+print(random.randint(1, 12))
+</pre>
+<p>现在访问<code>[http://0.0.0.0:8000/modules.html](<a href="http://0.0.0.0:8000/modules.html" rel="nofollow">http://0.0.0.0:8000/modules.html</a>)</code>页面，您会看到每次刷新页面时都会生成一个随机数:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/529df3dc20540c8cc021481b09d13118.png" alt="The result of our subtraction function and our randomly generated number" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580700880_Screenshot+from+2023-01-24+19-17-51.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580700880_Screenshot+from+2023-01-24+19-17-51.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/529df3dc20540c8cc021481b09d13118.png" alt="The result of our subtraction function and our randomly generated number" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674580700880_Screenshot+from+2023-01-24+19-17-51.png"/></noscript>
+<h3 id="using-third-party-packages">使用第三方包</h3>
+<p>除了使用内置的Python模块，您还可以使用Pyodide附带的第三方库，例如:</p>
+
+<p>有关受支持的第三方软件包的完整列表，请访问<a href="https://pyodide.org/en/stable/usage/packages-in-pyodide.html"> Pyodide文档</a>或密切关注Pyodide <a href="https://github.com/pyodide/pyodide/tree/main/packages"> GitHub repo </a>。</p>
+<p>要添加第三方包，请创建一个新的HTML文件<code>third-party.html</code>，并添加以下代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Third Party&lt;/title&gt;
+    &lt;!-- linking to PyScript assets --&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="graph"&gt;&lt;/div&gt;
+    &lt;!-- Add third-party dependencies here --&gt;
+      &lt;py-config&gt;
+        packages = ["numpy", "matplotlib"]
+      &lt;/py-config&gt;
+      &lt;py-script&gt;
+import numpy as np
+import matplotlib.pyplot as plt
+arr = np.array([1, 2, 3, 4, 5])
+plt.plot(arr)
+plt
+display(plt, target="graph")
+      &lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;py-config&gt;</code>标签中，我们将<code>packages</code>设置为我们希望在项目中使用的第三方包列表，它们是NumPy和Matplotlib包。接下来，在<code>&lt;py-script&gt;</code>标签中，我们导入NumPy作为<code>np</code>，Matplotlib作为<code>plt</code>。</p>
+<p>接下来，我们调用NumPy的<code>array</code>方法，它创建一个数组，然后存储在<code>arr</code>变量中。接下来，我们用数组<code>arr</code>作为参数调用Matplotlib的<code>plot()</code>方法来绘制图形。</p>
+<p>确保您的文件已保存，并访问<code>[http://0.0.0.0:8000/third-party.html](<a href="http://0.0.0.0:8000/third-party.html" rel="nofollow">http://0.0.0.0:8000/third-party.html</a>)</code>页面。您应该会看到类似于下图的图形:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/e6777f6c01841d8dbbd9d750dbbcc1b9.png" alt="Our example line graph" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/example-line-graph.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/example-line-graph.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/e6777f6c01841d8dbbd9d750dbbcc1b9.png" alt="Our example line graph" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/example-line-graph.png"/></noscript>
+<p>现在您已经了解了如何使用定制的内置模块和第三方包，我们将在下一节学习如何访问和操作HTML元素。</p>
+<h2 id="accessing-manipulating-html-elements-pyscript">使用PyScript访问和操作HTML元素</h2>
+<p>在本节中，我们将学习如何使用ID或CSS类选择HTML元素，修改元素，将事件附加到元素，以及使用PyScript创建新元素。</p>
+<h3 id="using-element-class">使用<code>Element</code>类</h3>
+<p>PyScript附带了<code>Element</code>类，该类允许您使用ID选择HTML元素。</p>
+<p>要查看它是如何工作的，创建一个<code>elements.html</code>文件并插入以下内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Element class&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/alpha/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;ul id="navigation"&gt;
+    &lt;li class="home"&gt;home&lt;/li&gt;
+    &lt;li class="about"&gt;about&lt;/li&gt;
+    &lt;li class="services"&gt;services&lt;/li&gt;
+    &lt;li class="contact"&gt;contact&lt;/li&gt;&lt;/ul&gt;
+  &lt;/div&gt;
+  &lt;div id="output"&gt;&lt;/div&gt;
+  &lt;py-script src="./access-elements.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;body&gt;</code>标签中，我们有一个ID为<code>navigation</code>的<code>&lt;ul&gt;</code>元素。我们将使用ID和<code>Element</code>类来选择这个元素。选定的实例将为我们提供一些方法，我们可以使用这些方法来选择后代并操纵它们。</p>
+<p>我们将使用的另一个标签是ID为<code>output</code>的<code>&lt;div&gt;</code>。我们将修改它的<code>innerHTML</code>来写一个新值。最后，在<code>&lt;div&gt;</code>标签之后，我们链接到将包含我们的Python代码的<code>access-elements.py</code>文件。它还不存在，所以让我们继续创建它。</p>
+<p>一旦创建了<code>access-elements.py</code>文件，向其中添加以下代码:</p>
+<pre class="language-python hljs">ul_element = Element("navigation")
+first_element = ul_element.select('.home').add_class('first')
+second_element = ul_element.select('.about').remove_class('about')
+div_element = Element("output")
+div_element.write("Value set from PyScript")
+</pre>
+<p>在前面的代码中，我们使用<code>Element</code>类通过<code>navigation</code> ID访问<code>&lt;ul&gt;</code>元素。</p>
+<p>当使用<code>Element</code>类选择一个元素时，您可以利用以下一些方法:</p>
+<pre class="language-python hljs">write(): Sets the innerHTML value
+select(): Uses a CSS selector to find descendant elements
+add_class(): Adds one or more classes to an element
+remove_class(): Removes one or more classes from an element
+</pre>
+<p>在第二行中，我们使用<code>select()</code>方法选择<code>&lt;ul&gt;</code>元素的第一个子元素，使用它的类名<code>home</code>。选择孩子后，我们调用<code>add_class()</code>方法向<code>&lt;li&gt;</code>元素添加一个新类<code>first</code>。</p>
+<p>在第三行中，我们通过类名<code>about</code>访问第二个子元素，然后使用<code>remove_class()</code>方法移除它的类<code>about</code>。</p>
+<p>接下来，我们调用ID为<code>output</code>的<code>Element</code>类，它提供了对位于<code>elements.html</code>文件中<code>ul</code>元素之后的<code>&lt;div&gt;</code>元素的引用。最后，我们用字符串<code>Value set from PyScript</code>调用<code>write()</code>方法。该方法将把<code>&lt;div&gt;</code>元素<code>innerHTML</code>的值设置为字符串参数。</p>
+<p>在服务器仍然运行的情况下，访问<code>[http://0.0.0.0:8000/elements.html](<a href="http://0.0.0.0:8000/elements.html" rel="nofollow">http://0.0.0.0:8000/elements.html</a>)</code>并检查<code>&lt;ul&gt;</code>元件。您将看到第一个<code>&lt;li&gt;</code>元素现在有了一个额外的类(<code>first</code>)，第二个元素没有类，<code>div</code>元素现在有了我们在Python中设置的文本:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/f6c3e53f9ef3e87eadcbc7de2e79cf75.png" alt="Our &lt;/p&gt; &lt;ul&gt; element when inspected" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/07/ul-element-when-inspected.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/ul-element-when-inspected.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/f6c3e53f9ef3e87eadcbc7de2e79cf75.png" alt="Our &lt;/p&gt; &lt;ul&gt; element when inspected" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/07/ul-element-when-inspected.png"/></noscript>
+<h3 id="attaching-events-elements">将事件附加到元素</h3>
+<p>我们现在可以选择HTML元素并进行一些基本的操作。在本节中，我们将向元素附加一个click事件，并在元素被单击时执行Python代码。</p>
+<p>创建一个<code>events.html</code>文件，并编写下面的代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Adding Events&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;button id="click-btn"  py-click="handle_click()"&gt;Click&lt;/button&gt;
+  &lt;div id="output"&gt;&lt;/div&gt;
+  &lt;py-script src="./event-handlers.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;body&gt;</code>标签中，我们定义了一个带有<code>py-click</code>属性的<code>&lt;button&gt;</code>，它将一个<code>click</code>事件附加到按钮上。<code>py-click</code>属性接受函数名<code>handle_click</code>，这将是点击按钮时运行的函数。注意，我们正在调用<code>handle_click()</code>函数。</p>
+<p>接下来，我们定义ID为<code>output</code>的<code>div</code>元素。我们将使用即将定义的<code>handle_click</code>函数来修改元素<code>innerHTML</code>。</p>
+<p>最后，我们链接到<code>event-handlers.py</code>文件，它将包含事件处理函数。</p>
+<p>让我们定义<code>event-handlers.py</code>并添加以下代码片段:</p>
+<pre class="language-python hljs">def handle_click():
+    display("you clicked the button", target="output")
+</pre>
+<p>我们定义了点击时运行的<code>handle_click()</code>函数。在函数内部，我们调用PyScript的<code>display()</code>方法，该方法有两个参数:我们想要写入的值<code>you clicked the button</code>，以及我们想要写入值的元素的ID <code>output</code>。</p>
+<p>确保您的服务器正在运行:</p>
+<pre class="language-python hljs">python -m http.server
+</pre>
+<p>然后访问Chrome中的网址<code>[http://0.0.0.0:8000/events.html](<a href="http://0.0.0.0:8000/events.html" rel="nofollow">http://0.0.0.0:8000/events.html</a>)</code>。当页面加载时，单击按钮，应该会出现一条消息“您单击了按钮”:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/f7956ad1e5ad71277f7a71af2aa7b26a.png" alt="The output after we click the button" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674674125613_Screenshot+from+2023-01-25+21-15-14.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674674125613_Screenshot+from+2023-01-25+21-15-14.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/f7956ad1e5ad71277f7a71af2aa7b26a.png" alt="The output after we click the button" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674674125613_Screenshot+from+2023-01-25+21-15-14.png"/></noscript>
+<h2 id="using-javascript-access-manipulate-dom">使用JavaScript访问和操作DOM</h2>
+<p>PyScript附带了一个<code>js</code>模块，该模块允许您访问JavaScript方法，如<code>querySelector()</code>、<code>createElement()</code>和<code>appendChild()</code>来访问和操作HTML元素。</p>
+<p>有了这些，您将能够混合JavaScript和Python来做一些很酷的DOM操作。这里有一个例子:</p>
+<pre class="language-python hljs">import js
+
+print(js.window.innerHeight)
+
+nav = js.document.createElement("div")
+js.document.body.prepend(nav)
+
+js.console.log("nav element created")
+</pre>
+<p>如你所见，我们将像<code>print()</code>这样的Python代码方法与JavaScript <code>window</code>或<code>document</code>属性混合在一起。</p>
+<p>在这一节中，我们将主要关注<code>document</code>方法。</p>
+<p>创建一个<code>dom.html</code>文件并添加以下代码:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Mixing JavaScript and Python&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;ul id="navigation"&gt;
+  &lt;/ul&gt;
+  &lt;py-script src="./js-dom.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;body&gt;</code>标签中，我们只有一个ID为<code>navigation</code>的空<code>&lt;ul&gt;</code>元素。接下来，我们引用包含Python代码的<code>js-dom.py</code>。</p>
+<p>创建<code>js-dom.py</code>文件，添加以下内容:</p>
+<pre class="language-python hljs">from js import document 
+nav_parent = document.querySelector('#navigation')
+nav_texts = ["home", "about", "services", "contact"]
+for text in nav_texts:
+    nav_item = document.createElement("li")
+    nav_item.textContent = text
+    nav_item.className = "nav_element"
+    nav_parent.appendChild(nav_item)
+</pre>
+<p>在第一行，我们从PyScript的<code>js</code>模块导入<code>document</code>。在第二行中，我们用<code>#navigation</code>作为参数调用了<code>document</code>模块的<code>querySelector()</code>方法。该方法将查找并返回一个ID为<code>navigation</code>的元素，即<code>dom.html</code>文件中的<code>&lt;ul&gt;</code>元素。</p>
+<p>在第三行中，我们创建了一个导航文本列表，并将其存储在<code>nav_texts</code>变量中。之后，我们迭代<code>nav_texts</code>列表。在每次迭代中，我们用字符串<code>li</code>调用<code>createElement()</code>方法来创建一个<code>&lt;li&gt;</code>元素。</p>
+<p>接下来，我们使用<code>textContent</code>属性将文本添加到<code>&lt;li&gt;</code>元素，并使用<code>className</code>属性将类名<code>nav_element</code>添加到<code>&lt;li&gt;</code>元素。最后，我们通过使用<code>nav_item</code>元素作为参数调用<code>appendChild()</code>来将<code>&lt;li&gt;</code>元素附加到<code>&lt;ul&gt;</code>元素。</p>
+<p>确保您的文件已保存，并且服务器仍在运行。访问<code>[http://0.0.0.0:8000/dom.html](<a href="http://0.0.0.0:8000/dom.html" rel="nofollow">http://0.0.0.0:8000/dom.html</a>)</code>，你会看到这样一个页面:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/ff5c061216a01bd0a9f958af46dfac42.png" alt="A list of navigation texts" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665104994_Screenshot+from+2023-01-25+18-44-43.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665104994_Screenshot+from+2023-01-25+18-44-43.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/ff5c061216a01bd0a9f958af46dfac42.png" alt="A list of navigation texts" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665104994_Screenshot+from+2023-01-25+18-44-43.png"/></noscript>
+<p>如果您进一步挖掘并检查这些元素，您将会看到<code>&lt;li&gt;</code>元素是用类名<code>nav_element</code>创建的，这个类名是我们在Python中设置的:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/8f299bcfcc57a9931fd01c6bdf6c052a.png" alt="List items with the &lt;code&gt;nav_element&lt;/code&gt; class" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665267367_Screenshot+from+2023-01-25+18-46-00.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665267367_Screenshot+from+2023-01-25+18-46-00.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/8f299bcfcc57a9931fd01c6bdf6c052a.png" alt="List items with the &lt;code&gt;nav_element&lt;/code&gt; class" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665267367_Screenshot+from+2023-01-25+18-46-00.png"/></noscript>
+<p>我们现在可以使用<code>Element</code>类访问和操作DOM，将事件附加到元素，并使用JavaScript查询和修改DOM。接下来，我们将使用PyScript从API获取数据。</p>
+<h2 id="fetching-rendering-data-api">从API获取和呈现数据</h2>
+<p>在本节中，我们将使用PyScript向API发送一个<code>GET</code>请求来检索数据。我们将使用的API是<a href="https://random-data-api.com/">随机数据API </a>。我们将创建一个带有click事件的按钮，该事件运行一个函数，该函数在每次单击按钮时调用API。</p>
+<p>在您的目录下创建一个<code>fetch_data.html</code>文件，并添加以下内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Fetch data from API&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;button id="get-name" py-click="get_random_name()"&gt;Generate Random Name&lt;/button&gt;
+  &lt;div id="output"&gt;&lt;/div&gt;
+  &lt;py-script src="./fetch.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>此时，代码应该很熟悉了。最重要的部分是<code>&lt;button&gt;</code>标签，它有接受<code>get_random_name()</code>函数的<code>py-click</code>属性。该功能将驻留在底部链接的<code>fetch.py</code>文件中。让我们继续创建文件。</p>
+<p>在文本编辑器中，创建一个名为<code>fetch.py</code>的新文件，内容如下:</p>
+<pre class="language-python hljs">from pyodide.http import pyfetch
+import asyncio
+
+async def get_random_name(): 
+    response = await pyfetch(url="https://random-data-api.com/api/name/random_name", method="GET")
+    data = await response.json()
+    first_name = data.get('first_name')
+    middle_name = data.get('middle_name')
+    last_name = data.get('last_name') 
+    output =  f"Random name: {first_name} {middle_name} {last_name}"
+    pyscript.write('output', output)
+</pre>
+<p>在第一行中，我们从<code>pyodide.http</code>模块导入了<code>pyfetch</code>方法，这允许我们发出异步网络请求。在第二行中，我们导入了<code>asyncio</code>模块，它是Python标准库的一部分，并提供了对创建异步函数有用的<code>async</code>和<code>await</code>关键字。</p>
+<p>接下来，我们通过在前面加上来自<code>asyncio</code>模块的<code>async</code>关键字来定义一个异步函数<code>get_random_name()</code>。在函数中，我们调用接受两个参数的<code>pyfetch()</code>方法:</p>
+<ul>
+<li><code>URL</code>:API端点</li>
+<li><code>method</code>:种类你要使用的HTTP方法，这里是<code>GET</code>方法</li>
+</ul>
+<p>当<code>pyfetch()</code>运行时，它返回一个对象，然后存储在<code>response</code>变量中。在接下来的代码行中，我们调用<code>response</code>对象上的<code>json()</code>来解析JSON并返回一个Python字典，然后存储在<code>data</code>变量中。</p>
+<p>在接下来的几行中，您从<code>data</code>字典中提取名字、中间名和姓氏，并将它们存储在各自的变量中。最后，我们使用Python的f字符串连接名称，并调用<code>pyscript.write()</code>方法将数据写入ID为<code>output</code>的<code>&lt;div&gt;</code>元素中。</p>
+<p>确保您的服务器正在运行，并访问<code>[http://0.0.0.0:8000/fetch_data.html](<a href="http://0.0.0.0:8000/fetch_data.html" rel="nofollow">http://0.0.0.0:8000/fetch_data.html</a>)</code>页面。一旦页面加载完毕，点击<strong>生成随机名</strong>按钮。您将看到，每次单击按钮时都会生成一个新名称:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/fb3c6c6f932d3c151ee3cf202cf438ce.png" alt="The random name from the Random Name API" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665468945_Screenshot+from+2023-01-25+18-50-52.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665468945_Screenshot+from+2023-01-25+18-50-52.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/fb3c6c6f932d3c151ee3cf202cf438ce.png" alt="The random name from the Random Name API" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665468945_Screenshot+from+2023-01-25+18-50-52.png"/></noscript>
+<h2 id="persisting-data-using-localstorage">使用<code>localStorage</code>保存数据</h2>
+<p>在本节中，我们将使用本地存储来保存和检索数据。本地存储是web浏览器中的一个对象，可以存储没有截止日期的数据。Python可以通过从<code>js</code>模块导入本地存储来使用它。</p>
+<p>为了使用本地存储，我们将创建一个允许用户输入评论的文本区域。如果他们想要保存评论，他们将点击一个<code>save</code>按钮，该按钮将运行一个将数据保存在本地存储器中的功能。每次访问页面时，将从本地存储中检索数据，并将文本区域设置为该数据。</p>
+<p>创建一个<code>storage.html</code>文件，添加以下内容:</p>
+<pre class="language-python hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Store data in local storage&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;textarea id="comment" class="block border"&gt;&lt;/textarea&gt;
+  &lt;button id="save" py-click="save_comment()"&gt;Save&lt;/button&gt;
+  &lt;py-script src="./local-storage.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;body&gt;</code>标签中，我们创建了一个ID为<code>comment</code>的<code>&lt;textarea&gt;</code>标签。我们将使用这个ID来获取Python中文本区域元素的引用。接下来，我们定义一个ID为<code>save</code>的按钮和一个将调用<code>save_comment()</code>的点击事件，我们还没有定义这个事件。最后，我们引用了<code>local-storage.py</code>，它将包含我们的Python代码。让我们现在创建文件。</p>
+<p>创建<code>local-storage.py</code>并添加以下内容:</p>
+<pre class="language-python hljs">from js import localStorage
+def save_comment():
+    text =  Element("comment").value
+    localStorage.setItem("comment", text)
+if localStorage.getItem("comment"):
+    text_area =  Element("comment")
+    text_area.write(localStorage.getItem("comment"))
+</pre>
+<p>首先，我们从<code>js</code>模块导入<code>localStorage</code>对象。接下来，我们定义<code>save_comment()</code>函数；在函数内部，我们调用ID为<code>comment</code>的<code>Element</code>类来获取文本区域的引用。一旦该方法找到了文本区域，我们就使用<code>value</code>属性来获取文本区域的内容，并将值存储在<code>text</code>变量中。在下一行中，我们调用<code>localStorage</code>对象的<code>setItem()</code>方法，在<code>comment</code>键下保存<code>localStorage</code>对象中的注释文本。</p>
+<p>现在，<code>save_comment()</code>功能只有在点击<code>save</code>按钮时才会运行。然而，在<code>save_comment()</code>函数之外，该函数后面的行将只在页面加载期间执行。</p>
+<p>当页面第一次加载时，我们使用<code>if</code>语句来检查<code>localStorage</code>对象在<code>comment</code>键下是否有数据。如果为真，我们使用<code>Element</code>类引用文本区域，并将它的实例存储在<code>text_area</code>变量中。接下来，我们调用<code>text_area</code>实例的<code>write()</code>方法，用本地存储中的数据更新文本区域内容。</p>
+<p>确保您的服务器正在运行，并访问<code>[http://0.0.0.0:8000/storage.html](<a href="http://0.0.0.0:8000/storage.html" rel="nofollow">http://0.0.0.0:8000/storage.html</a>)</code>。输入您喜欢的任何文本并点击<strong>保存</strong>按钮:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/4be912a97153799b05bc2659a4cbdbaf.png" alt="A text area containing text" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665738271_Screenshot+from+2023-01-25+18-55-12.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665738271_Screenshot+from+2023-01-25+18-55-12.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/4be912a97153799b05bc2659a4cbdbaf.png" alt="A text area containing text" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665738271_Screenshot+from+2023-01-25+18-55-12.png"/></noscript>
+<p>接下来，刷新URL，您将看到文本区域包含您在初次访问时保存的文本:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/44e3c32928ec60cdf6a72b6e92e7dec8.png" alt="Our text area, this time populated by text from localStorage" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665752779_Screenshot+from+2023-01-25+18-55-12.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665752779_Screenshot+from+2023-01-25+18-55-12.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/44e3c32928ec60cdf6a72b6e92e7dec8.png" alt="Our text area, this time populated by text from localStorage" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674665752779_Screenshot+from+2023-01-25+18-55-12.png"/></noscript>
+<p>至此，您已经知道如何使用PyScript来利用<code>localStorage</code>。接下来，我们将使用PyScript读取文件系统中的一个文件。</p>
+<h2 id="interacting-file-system">与文件系统交互</h2>
+<p>在这一节中，我们将使用PyScript从本地文件系统中的明文文件读取数据，并将其内容附加到DOM中。</p>
+<p>首先，让我们创建一个包含我们想要读取的数据的文件。在主项目目录中，运行以下命令创建并移入一个新目录:</p>
+<pre class="language-bash hljs">mkdir data &amp;&amp; cd data
+</pre>
+<p>接下来，创建一个<code>names.txt</code>文件，并添加以下内容，这些内容是Python web框架的名称:</p>
+<pre class="language-plaintext hljs">Django
+Flask
+FastAPI
+web2p
+</pre>
+<p>保存文件并返回到项目目录的根目录:</p>
+<pre class="language-bash hljs">cd ..
+</pre>
+<p>创建文件后，在文本编辑器中创建一个<code>file-system.html</code>文件，如下所示:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Read data from file system&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://pyscript.net/releases/2022.12.1/pyscript.css" /&gt;
+    &lt;script defer src="https://pyscript.net/releases/2022.12.1/pyscript.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;py-config&gt;
+    [[fetch]]
+    files = ["/data/names.txt"]
+  &lt;/py-config&gt;
+  &lt;ul id="frameworks"&gt;
+  &lt;/ul&gt;
+  &lt;py-script src="./read-file.py"&gt;&lt;/py-script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在<code>&lt;py-env&gt;</code>标签中，我们指定了<code>names.txt</code>的路径，它是相对于<code>file-system.html</code>路径的。接下来，我们创建一个带有<code>frameworks</code> ID的空<code>&lt;ul&gt;</code>标签。最后参考一下<code>read-file.py</code>，我们很快会定义。</p>
+<p>用以下内容创建一个<code>read-file.py</code>:</p>
+<pre class="language-python hljs">from js import document
+ul_element = document.querySelector("#frameworks")
+with open("data/names.txt") as f:
+    for line in f:
+        li_element = document.createElement("li")
+        li_element.innerText = line
+        ul_element.appendChild(li_element)
+</pre>
+<p>在第一行中，我们用一个ID选择器<code>#frameworks</code>调用<code>querySelector()</code>方法，它获取一个对<code>&lt;ul&gt;</code>元素的引用。在第二行中，我们用文件名<code>names.txt</code>调用<code>open()</code>方法，并将文件对象存储为<code>f</code>。在<code>with</code>语句中，我们迭代存储在文件对象<code>f</code>中的每一行。</p>
+<p>在每次迭代中，我们使用<code>document</code>对象的<code>createElement()</code>方法创建一个<code>&lt;li&gt;</code>元素。接下来，我们使用<code>li_element</code>实例的<code>innerText</code>属性将<code>&lt;li&gt;</code>文本内容设置为<code>line</code>变量中的值。最后，我们通过使用<code>li_element</code>作为参数调用<code>appendChild()</code>来将<code>&lt;li&gt;</code>元素附加到<code>&lt;ul&gt;</code>元素。</p>
+<p>再次启动服务器(如果您以前停止过):</p>
+<pre class="language-bash hljs">python -m http.server
+</pre>
+<p>访问<a href="http://0.0.0.0:8000/file-system.html">http://0 . 0 . 0 . 0:8000/file-system . html</a>查看页面上显示的明文文件的内容:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/8bd90564939f71cdbdf169106b8c8e36.png" alt="A list of names read from the plaintext file" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667600912_Screenshot+from+2023-01-25+19-25-44.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667600912_Screenshot+from+2023-01-25+19-25-44.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/8bd90564939f71cdbdf169106b8c8e36.png" alt="A list of names read from the plaintext file" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667600912_Screenshot+from+2023-01-25+19-25-44.png"/></noscript>
+<p>如果您检查这些元素，您会看到有四个<code>&lt;li&gt;</code>元素被附加到了<code>&lt;ul&gt;</code>元素上。</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/f1a5cb6c186230bc272757a9309d84d4.png" alt="A list of names inspected in the console" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667640463_Screenshot+from+2023-01-25+19-26-28.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667640463_Screenshot+from+2023-01-25+19-26-28.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/f1a5cb6c186230bc272757a9309d84d4.png" alt="A list of names inspected in the console" data-original-src="https://paper-attachments.dropboxusercontent.com/s_5AD2BCC0130A3EDEDF5827EEC79D2CEC4ADE673AEE1BA3383BC5188D94F763F8_1674667640463_Screenshot+from+2023-01-25+19-26-28.png"/></noscript>
+<p>这样，您现在可以读取文件系统中的文件了。您可以使用相同的方法来读取CSV文件和许多其他文件格式。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，我们学习了如何使用PyScript REPL、创建自定义模块、使用Python标准库中的模块以及导入第三方模块。我们还学习了如何使用PyScript访问和操作元素，发出API请求，使用<code>localStorage</code>，以及从文件系统中读取一个明文文件。</p>
+<p>要进一步了解PyScript，请访问<a href="https://pyscript.net/"> PyScript主页</a>。此外，参见<a href="https://pyodide.org/"> Pyodide文档页面</a>了解更多关于它在浏览器中实现的可能性。</p><div class="code-block code-block-28">
+<div class="blog-plug inline-plug js-libraries-plug"><h2>您是否添加了新的JS库来提高性能或构建新特性？如果他们反其道而行之呢？</h2><p>毫无疑问，前端变得越来越复杂。当您向应用程序添加新的JavaScript库和其他依赖项时，您将需要更多的可见性，以确保您的用户不会遇到未知的问题。</p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放JavaScript错误，就像它们发生在您自己的浏览器中一样，这样您就可以更有效地对错误做出反应。</p><a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a>
+<a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p><a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>自信地构建— <a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

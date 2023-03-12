@@ -1,0 +1,361 @@
+<html>
+<head>
+<title>Build a selfie camera timer: React Native stopwatch example - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>构建自拍相机定时器:React本机秒表示例</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/#0001-01-01">https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本文中，我们将在React Native中构建一个秒表，并将其连接到设备的摄像头，以从头开始创建自拍相机定时器。为了增加复杂性，用户有机会创建和保存自定义持续时间作为他们的计时器。<a href="https://youtube.com/shorts/FusTDvc0BXE?feature=share" target="_blank" rel="noopener">在这里</a>，你可以找到一个视频链接，展示演示应用的功能和外观。这个项目的<a href="https://github.com/kevintomas1995/logrocket_camera" target="_blank" rel="noopener">源代码可以在我的GitHub上找到。</a></p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>为了跟随本教程，一些JavaScript和React Native的基础知识会很有帮助。我用<a href="https://expo.dev/" target="_blank" rel="noopener"> Expo </a>开发了这个app。这是一个开源平台，旨在通过提供最常见用例所需的所有JavaScript APIs来增强React Native。</p>
+<p>要在您的机器上安装Expo客户端，请在您的shell中运行以下命令:</p>
+<pre class="language-bash hljs">npm i -global expo-cli</pre>
+<h2 id="initializing-project">正在初始化项目</h2>
+<p>导航到您想要存储这个项目的地方，并运行<code>expo init my-project</code>来初始化这个项目。然后，用<code>cd my-project</code>转到新创建的项目。</p>
+<p>作为第一步，让我们安装一些依赖项来帮助我们开发这个应用程序:<code><a href="https://docs.expo.dev/versions/latest/sdk/camera/" target="_blank" rel="noopener">expo-camera</a></code>和<code><a href="https://docs.expo.dev/versions/latest/sdk/media-library/" target="_blank" rel="noopener">expo-media-library</a></code>。在expo-camera的帮助下，我们可以访问设备的摄像头并拍照。世博媒体图书馆负责保存图片。</p>
+<p>在您的终端中运行<code>npm i expo-media-library expo-camera</code>来安装这些依赖项。然后，运行<code>npx expo start</code>启动开发服务器。</p>
+<h2 id="accessing-devices-camera-expo-camera">使用<code>expo-camera</code>访问设备的摄像头</h2>
+<p>我们需要解决的第一件事是访问设备的摄像头和用户的媒体库。为此，我在新创建的目录<code>src</code>中创建了一个名为<code>usePermission</code>的定制钩子。在<code>src</code>目录中，我创建了<code>usePermission.jsx</code>文件:</p>
+<pre class="language-javascript hljs">// scr/usePermission.jsx
+import { useEffect, useState } from "react";
+import * as MediaLibrary from "expo-media-library";
+
+const usePermission = (Camera) =&gt; {
+ const [hasCameraPermissions, setHasCameraPermissions] = useState(null);
+
+ useEffect(() =&gt; {
+   (async () =&gt; {
+     MediaLibrary.requestPermissionsAsync();
+     const cameraStatus = await Camera.requestCameraPermissionsAsync();
+     setHasCameraPermissions(cameraStatus.status === "granted");
+   })();
+ }, []);
+
+ return hasCameraPermissions;
+};
+
+export default usePermission;</pre>
+<p>在<a href="https://blog.logrocket.com/guide-to-react-useeffect-hook/" target="_blank" rel="noopener">的useEffect钩子</a>中，我们首先通过调用<code> MediaLibrary.requestPermissionsAsync()</code>请求访问媒体的许可。其次，我们要求用户通过调用<code>Camera</code>对象上的<code>requestCameraPermissionsAsync()</code>来授予我们的应用程序访问摄像头的权限，这个对象作为参数传递给这个自定义钩子。我们一会儿将看一看<code>Camera</code>物体。</p>
+<p>最后，我们返回<code>hasCameraPermissions</code>状态，这是一个布尔值，可以保存<code>true</code>或<code>false</code>作为一个值。</p>
+<p>在<code>App.js</code>文件中，我们现在可以使用<code>usePermission</code>钩子开始在屏幕上渲染摄像机。用以下代码替换<code>App.js</code>文件中的代码:</p>
+<pre class="language-javascript hljs">import { Camera } from "expo-camera";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import usePermission from "./src/usePermisson";
+
+export default function App() {
+ const hasCameraPermissions = usePermission(Camera);
+ const [type, setType] = useState(Camera.Constants.Type.front);
+ const cameraRef = useRef(null);
+
+ if (hasCameraPermissions === false) {
+   return &lt;Text&gt;No permission to access camera&lt;/Text&gt;;
+ }
+
+ return (
+   &lt;View style={styles.container}&gt;
+     &lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;&lt;/Camera&gt;
+   &lt;/View&gt;
+ );
+}
+
+const styles = StyleSheet.create({
+ container: {
+   flex: 1,
+   backgroundColor: "#000",
+   justifyContent: "center",
+   paddingBottom: 20,
+ },
+ camera: {
+   flex: 1,
+   position: "relative",
+ },
+});</pre>
+<p>让我们先来看看我们在<code>App</code>函数的前三行中声明的变量。</p>
+<p><code>hasCameraPermissions</code>保存从我们刚刚看过的<code>usePermission</code>钩子返回的值。请注意，我们正在将从<code>expo-camera</code>包中导入的<code>Camera</code>对象传递给我们的钩子。</p>
+<p>在下一行中，我们定义摄像机的类型。由于我们正在构建一个自拍相机，我最初将其设置为使用前置相机，并将此状态传递给相机组件。最后，我们创建一个<code>ref</code>,并将其传递给<code>camera</code>组件，以创建一个继承了<code>camera</code>属性的可变对象。这将允许我们稍后对<code>camera</code>组件进行更改。</p>
+<p>如果<code>usePermission</code>钩子返回<code>false</code>，我们不会渲染摄像头，而是显示一个文本框，说明我们无权访问摄像头。如果我们成功获准访问设备的摄像头，应用程序现在应该会在整个屏幕上显示前置摄像头，如下所示:</p>
+<p><img data-attachment-id="137111" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/taking-saving-pictures-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="taking-saving-pictures" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-473x1024.png" decoding="async" class="wp-image-137111 size-full aligncenter jetpack-lazy-image" src="../Images/dd3649eaed75da6fa7e6e61710b69a9c.png" alt="Taking and saving pictures" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-710x1536.png 710w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="137111" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/taking-saving-pictures-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="taking-saving-pictures" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-473x1024.png" decoding="async" loading="lazy" class="wp-image-137111 size-full aligncenter" src="../Images/dd3649eaed75da6fa7e6e61710b69a9c.png" alt="Taking and saving pictures" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1-710x1536.png 710w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/taking-saving-pictures-1.png"/></noscript>
+<h2 id="taking-saving-pictures">拍摄和保存照片</h2>
+<p>现在，我们将实现拍摄和保存图片的功能。为此，我在<code>src</code>目录中创建了一个<code>components</code>目录，并在那里添加了一个定制的<code>Button</code>组件:</p>
+<pre class="language-javascript hljs">import { Text, TouchableOpacity, StyleSheet } from "react-native";
+import React from "react";
+import { Entypo } from "@expo/vector-icons";
+
+export default function Button({ title, onPress, icon, color }) {
+ return (
+   &lt;TouchableOpacity onPress={onPress} style={styles.button}&gt;
+     &lt;Entypo name={icon} size={28} color={color ? color : "#f1f1f1"} /&gt;
+     &lt;Text style={styles.text}&gt;{title}&lt;/Text&gt;
+   &lt;/TouchableOpacity&gt;
+ );
+}
+
+const styles = StyleSheet.create({
+   button: {
+       height: 40,
+       flexDirection: "row",
+       justifyContent: "center",
+       alignItems: "center",
+   },
+   text: {
+       fontWeight: "bold",
+       fontSize: 16,
+       color: "#f1f1f1",
+       marginLeft: 10,
+   },
+ });</pre>
+<p>这个组件被设计成可以修改标题、<code>onPress</code>功能、图标和按钮的颜色。</p>
+<p>让我们在<code>App.js</code>文件中导入<code>Button</code>组件，并使用这个组件:</p>
+<pre class="language-javascript hljs">return (
+   &lt;View style={styles.container}&gt;
+     &lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;&lt;/Camera&gt;
+     &lt;View&gt;
+       &lt;Button title={"Photo"} icon={"camera"}/&gt;
+     &lt;/View&gt;
+   &lt;/View&gt;
+ );</pre>
+<p>这将在我们的应用程序底部添加一个按钮。这导致了我们的应用程序的如下外观:</p>
+<p><img data-attachment-id="137113" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/adding-button-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="adding-button-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-139x300.jpg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-473x1024.jpg" decoding="async" class="wp-image-137113 size-full aligncenter jetpack-lazy-image" src="../Images/b5f45140e941273b2161a4ff18386746.png" alt="Adding a button to our app." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-139x300.jpg 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-473x1024.jpg 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-710x1536.jpg 710w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="137113" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/adding-button-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="adding-button-app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-139x300.jpg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-473x1024.jpg" decoding="async" loading="lazy" class="wp-image-137113 size-full aligncenter" src="../Images/b5f45140e941273b2161a4ff18386746.png" alt="Adding a button to our app." srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-139x300.jpg 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-473x1024.jpg 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app-710x1536.jpg 710w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-button-app.jpg"/></noscript>
+<p>到目前为止，一切顺利。</p>
+<h3 id="managing-image-state">管理图像状态</h3>
+<p>现在让我们实现一个函数，它将确保我们可以实际拍摄照片并将其保存到我们的设备:</p>
+<pre class="language-javascript hljs">const [image, setImage] = useState(null);
+
+const takePicture = async () =&gt; {
+   if (cameraRef) {
+     try {
+       const data = await cameraRef.current.takePictureAsync();
+       setImage(data.uri);
+     } catch (error) {
+       console.log(error);
+     }
+   }
+ };</pre>
+<p>首先，我们需要创建一个管理图像的新状态。然后，我们创建<code>takePicture</code>函数，在这里我们调用我们的<code>cameraRef</code>对象上的<code>takePictureAsync()</code>方法，它拍摄一张照片并保存到应用程序的<code>cache</code>目录中。</p>
+<p>这里我们需要做的最后一件事是将函数分配给自定义<code>Button</code>组件的<code>onPress</code>属性:</p>
+<pre class="language-javascript hljs">&lt;Button title={"Photo"} icon={"camera"} onPress={takePicture}/&gt;</pre>
+<p>这种方法的缺点是拍摄的照片还没有显示在应用程序中。让我们改变这一切！</p>
+<h3 id="displaying-taken-photos-app">在应用程序中显示拍摄的照片</h3>
+<pre class="language-javascript hljs">&lt;View style={styles.container}&gt;
+     {!image ? (
+       &lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;&lt;/Camera&gt;
+     ) : (
+       &lt;Image style={styles.camera} source={{ uri: image }} /&gt;
+     )}
+
+     &lt;View&gt;
+       &lt;Button title={"Photo"} icon={"camera"} onPress={takePicture} /&gt;
+     &lt;/View&gt;
+&lt;/View&gt;</pre>
+<p>这种有条件的呈现确保了如果我们在<code>image</code>状态下存储了一个图像，那么它将呈现<code>&lt;Image style={styles.camera} source={{ uri: image }} /&gt;</code>组件；否则它会渲染摄像机。</p>
+<h3 id="saving-pictures-device">将图片保存到设备</h3>
+<p>接下来，我们希望让用户有机会将图片保存到设备:</p>
+<pre class="language-javascript hljs">import * as MediaLibrary from "expo-media-library";
+ 
+const savePicture = async () =&gt; {
+   if (image) {
+     try {
+       const asset = await MediaLibrary.createAssetAsync(image);
+       alert("Image saved!");
+       setImage(null);
+     } catch (error) {
+       console.log(error);
+     }
+   }
+ };</pre>
+<p>在<code>savePicture</code>函数中，我们调用<code>MediaLibrary.createAssetAsync(image)</code>方法，该方法从图像中创建一个资产，并将其存储在我们的设备上。请注意，在成功保存后，我们将图像设置为<code>null</code>。这对于条件渲染很重要，因为如果图像状态中没有存储真值，我们就要渲染摄像机。</p>
+<p>让我们用两个按钮来扩展我们的应用程序:一个用于保存图片，一个用于重新拍照:</p>
+<pre class="language-javascript hljs">return (
+   &lt;View style={styles.container}&gt;
+     {!image ? (
+       &lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;&lt;/Camera&gt;
+     ) : (
+       &lt;Image style={styles.camera} source={{ uri: image }} /&gt;
+     )}
+
+     &lt;View&gt;
+       {image ? (
+         &lt;View style={styles.takenImage}&gt;
+           &lt;Button
+             title={"Re-take"}
+             icon="retweet"
+             onPress={() =&gt; setImage(null)}
+           /&gt;
+           &lt;Button title={"Save"} icon="check" onPress={savePicture} /&gt;
+         &lt;/View&gt;
+       ) : (
+         &lt;Button title={"Photo"} icon={"camera"} onPress={takePicture} /&gt;
+       )}
+     &lt;/View&gt;
+   &lt;/View&gt;
+ );</pre>
+<p>这将导致拍照后出现以下结果:</p>
+<p><img data-attachment-id="137116" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/adding-retake-save-buttons/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="adding-retake-save-buttons" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-473x1024.png" decoding="async" class="wp-image-137116 size-full aligncenter jetpack-lazy-image" src="../Images/145d0059fce6d7b15c8536ee7a730b38.png" alt="Adding the retake and save buttons" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-710x1536.png 710w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="137116" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/adding-retake-save-buttons/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="adding-retake-save-buttons" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-473x1024.png" decoding="async" loading="lazy" class="wp-image-137116 size-full aligncenter" src="../Images/145d0059fce6d7b15c8536ee7a730b38.png" alt="Adding the retake and save buttons" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons-710x1536.png 710w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/adding-retake-save-buttons.png"/></noscript>
+<p>当点击<strong>重新拍摄</strong>按钮时，我们执行<code>onPress={() =&gt; setImage(null)}</code>以再次渲染摄像机。</p>
+<p>最后，让我们添加一个按钮，允许用户根据需要翻转相机。在<code>camera</code>组件中，我们将简单地添加一个额外的按钮:</p>
+<pre class="language-javascript hljs">&lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;
+         &lt;View style={styles.buttonContainer}&gt;
+           &lt;Button
+             icon={"retweet"}
+             title="Flip"
+             onPress={() =&gt;
+               setType(
+                 type === Camera.Constants.Type.back
+                   ? Camera.Constants.Type.front
+                   : Camera.Constants.Type.back
+               )
+             }
+             color="#f1f1f1"
+           /&gt;
+         &lt;/View&gt;
+&lt;/Camera&gt;</pre>
+<h2 id="adding-timer-app">将计时器添加到我们的应用程序</h2>
+<p>现在剩下的唯一事情就是实现定时器功能，并将其连接到我们的相机。我在<code>src/components</code>目录中创建了另一个名为<code>Timer.jsx</code>的组件。该组件的代码如下所示:</p>
+<pre class="language-javascript hljs">import {
+ View,
+ Text,
+ FlatList,
+ StyleSheet,
+ TouchableOpacity,
+} from "react-native";
+import { data } from "../data";
+
+export default function Timer({ onPress }) {
+ const onClick = (time) =&gt; {
+   onPress(time);
+ };
+ return (
+   &lt;View style={styles.timerContainer}&gt;
+     &lt;FlatList
+       data={data}
+       style={styles.timerList}
+       renderItem={({ item }) =&gt; (
+         &lt;TouchableOpacity onPress={() =&gt; onClick(item.time)}&gt;
+           &lt;Text style={styles.item}&gt;{item.key}&lt;/Text&gt;
+         &lt;/TouchableOpacity&gt;
+       )}
+     /&gt;
+   &lt;/View&gt;
+ );
+}
+
+const styles = StyleSheet.create({
+ timerContainer: {
+   position: "absolute",
+   width: "50%",
+   top: "25%",
+   right: "25%",
+   backgroundColor: "white",
+   zIndex: 1,
+   borderRadius: 10,
+   padding: 10,
+ },
+ timerList: {
+   paddingTop: 10,
+ },
+ item: {
+   fontSize: 18,
+   textAlign: "center",
+   height: 44,
+   fontWeight: "bold",
+ },
+});</pre>
+<p>最后，<code>Timer</code>组件由一个<a href="https://blog.logrocket.com/deep-dive-react-native-flatlist/">平面列表</a>组成，它呈现这样的键值对:</p>
+<pre class="language-javascript hljs">{key: "5s", time: 5}
+</pre>
+<p>回到我们的<code>App.js</code>，我们现在可以导入<code>Timer</code>组件并添加以下代码:</p>
+<pre class="language-javascript hljs">const [timerClicked, setTimerClicked] = useState(false);
+
+const onPressTimerItem = () =&gt; {
+   setTimerClicked((prevState) =&gt; !prevState);
+ };
+
+return (
+   &lt;View style={styles.container}&gt;
+     {timerClicked &amp;&amp; &lt;Timer onPress={onPressTimerItem} /&gt;}
+     {!image ? (
+       &lt;Camera style={styles.camera} type={type} ref={cameraRef}&gt;
+         &lt;View style={styles.buttonContainer}&gt;
+           &lt;Button
+             icon={"retweet"}
+             title="Flip"
+             onPress={() =&gt;
+               setType(
+                 type === Camera.Constants.Type.back
+                   ? Camera.Constants.Type.front
+                   : Camera.Constants.Type.back
+               )
+             }
+             color="#f1f1f1"
+           /&gt;
+           &lt;Button
+             icon={"back-in-time"}
+             title="Timer"
+             onPress={() =&gt; setTimerClicked((prevState) =&gt; !prevState)}
+           /&gt;
+         &lt;/View&gt;
+       &lt;/Camera&gt;
+………</pre>
+<p><code>timerClicked</code>状态和<code>onPressTimerItem</code>功能的目的是检查定时器组件是否应该被渲染。在<code>camera</code>组件中，我为计时器功能添加了另一个按钮。下图显示了点击<strong>定时器</strong>按钮前后的布局。</p>
+<p><img data-attachment-id="137121" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/before-adding-timer-button-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="before-adding-timer-button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-473x1024.png" decoding="async" class="wp-image-137121 size-full aligncenter jetpack-lazy-image" src="../Images/ceae20b1e16efc80df65816f51609656.png" alt="Before adding the timer button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-710x1536.png 710w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="137121" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/before-adding-timer-button-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="before-adding-timer-button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-473x1024.png" decoding="async" loading="lazy" class="wp-image-137121 size-full aligncenter" src="../Images/ceae20b1e16efc80df65816f51609656.png" alt="Before adding the timer button" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1-710x1536.png 710w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/before-adding-timer-button-1.png"/></noscript><img data-attachment-id="137123" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/after-adding-timer-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="after-adding-timer-button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-473x1024.png" decoding="async" class="aligncenter wp-image-137123 size-full jetpack-lazy-image" src="../Images/464eee9c8b27fb50d6aed17ef6f93c92.png" alt="After adding the timer button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-710x1536.png 710w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="137123" data-permalink="https://blog.logrocket.com/build-selfie-camera-timer-react-native-stopwatch-example/attachment/after-adding-timer-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png" data-orig-size="730,1579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="after-adding-timer-button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-139x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-473x1024.png" decoding="async" loading="lazy" class="aligncenter wp-image-137123 size-full" src="../Images/464eee9c8b27fb50d6aed17ef6f93c92.png" alt="After adding the timer button" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-139x300.png 139w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-473x1024.png 473w, https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button-710x1536.png 710w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/after-adding-timer-button.png"/></noscript>
+<p>从计时器背后的逻辑开始，我们首先需要添加一个新的状态来保存所需计时器的当前值。另外，我们会在<code>onPressTimerItem</code>函数内部调用<code>setTimer</code>。此外，我们希望在右上角的图标旁边显示计时器的当前值。为此，我们将计时器按钮包装在一个额外的<code>View</code>中，并添加一个新的<code>Text</code>元素:</p>
+<pre class="language-javascript hljs">&lt;View style={styles.timerContainer}&gt;
+             &lt;Button
+               icon={"back-in-time"}
+               title="Timer"
+               onPress={() =&gt; setTimerClicked((prevState) =&gt; !prevState)}
+             /&gt;
+           &lt;Text style={styles.timerText}&gt;{timer}s&lt;/Text&gt;
+&lt;/View&gt;</pre>
+<p>下一步，我们可以再次查看<code>takePicture</code>功能，并将计时器和拍照之间的功能联系起来。为此，我们可以将函数体包装在一个<code>setTimeout</code>方法中，如下所示:</p>
+<pre class="language-javascript hljs">const [timerOn, setTimerOn] = useState(false);
+
+const takePicture = async () =&gt; {
+ setTimerOn(true);
+ setTimeout(async function () {
+   if (cameraRef) {
+     try {
+       const data = await cameraRef.current.takePictureAsync();
+       setImage(data.uri);
+       setTimerOn(false);
+     } catch (error) {
+       console.log(error);
+     }
+   }
+ }, timer * 1000);
+};</pre>
+<p>实现新的状态<code>timerOn</code>来跟踪定时器是否仍在运行。这将与创建秒表的最后一步相关。</p>
+<p>如果您现在运行应用程序，为您的计时器选择一个持续时间，然后单击<strong>拍照</strong>按钮，照片应该会以与您选择的计时器相同的秒数延迟拍摄。</p>
+<h3 id="implementing-countdown-timer">实施倒计时定时器</h3>
+<p>完成这个应用程序的最后一步是实现一个元素，显示计时器倒计时，以增强用户友好性。我们不会使用<code>timer</code>状态来显示递减计数，而是使用另一个名为<code>displayTimer</code>的变量，因为我们希望保持<code>timer</code>状态的值不变。</p>
+<pre class="language-javascript hljs">const [displayTimer, setDisplayTimer] = useState(timer);
+
+useEffect(() =&gt; {
+ if (!timerOn) {
+   return;
+ }
+ setDisplayTimer(timer);
+
+ const interval = setInterval(() =&gt; {
+   setDisplayTimer((prevTimer) =&gt;
+     prevTimer &gt; 0 ? prevTimer - 1 : clearInterval(interval)
+   );
+ }, 1000);
+}, [timerOn, setTimerOn, timer]);</pre>
+<p>在上面的<code>useEffect</code>钩子中，我们使用的是<code>setInterval</code>方法，每秒钟将<code>displayTimer</code>的值减少<code>1</code>。如果<code>displayTimer</code>达到值<code>0</code>，我们想要调用<code> clearInterval(interval)</code>来停止函数的执行。</p>
+<h2>结论</h2>
+<p>在这篇文章中，我们介绍了如何在React Native中创建一个秒表，并将其连接到设备的摄像头，以从头开始创建自拍相机定时器。如果您在某个时候迷失了方向，请在我的GitHub 上查看相应的<a href="https://github.com/kevintomas1995/logrocket_camera" target="_blank" rel="noopener"> repo以获得完整的源代码。</a></p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现React原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款React原生监控解决方案，可帮助您即时重现问题、确定bug的优先级并了解React原生应用的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的React原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

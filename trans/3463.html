@@ -1,0 +1,341 @@
+<html>
+<head>
+<title>Learn how to read a file in Rust - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解如何阅读Rust - LogRocket博客中的文件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-read-files-rust/#0001-01-01">https://blog.logrocket.com/how-to-read-files-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>使用文件可能是软件工程中一个挑剔但不可避免的部分，作为一名开发人员，您经常需要从外部资源加载信息以在您的项目中使用。</p>
+<p>在这篇博文中，你将学习如何在<a href="https://blog.logrocket.com/tag/rust/"> Rust </a>中读取文件。具体来说，您将学习如何用Rust编程语言读取JSON文件、YAML文件和TOML文件。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="accessing-file">访问文件</h2>
+<p>首先，我们首先需要创建一个样本文件，我们将通过我们的项目来访问它。您可以手动创建该文件，也可以使用Rust标准库提供的write()函数。</p>
+<p>让我们在终端上使用以下命令引导Rust starter项目:</p>
+<pre class="language-shell hljs">cargo new sample_project
+</pre>
+<p>接下来，在我们项目的根目录下创建一个新文件，在那里我们将有我们的源代码。</p>
+<p>这个文件将被称为<code>info.txt</code>，它将包含一小段随机的文本，如下所示:</p>
+<pre>// info.txt
+Check out more Rust articles on LogRocket Blog
+</pre>
+<h2 id="reading-file-string">将文件作为字符串读取</h2>
+<p>首先，我们需要用一个<code>use</code>语句导入文件模块。Rust提供了一个标准库<code>std</code>箱，为<code>fs</code>模块提供文件读写操作。</p>
+<pre class="language-rust hljs">use std::fs;
+fn main() {
+    let file_contents = fs::read_to_string("info.txt")
+        .expect("LogRocket: Should have been able to read the file");
+    println!("info.txt context =\n{file_contents}");
+}
+</pre>
+<p>使用上面的代码片段，我们打开并读取位于路径值的文件，该路径值作为参数在<code>fs</code>模块的<code>read_to_string</code>函数中传递。此外，我们必须指定如果由于任何原因文件打不开会发生什么；例如，有一个权限错误或类似的问题。在<code>expect</code>函数中，我们传递文件打不开时要显示的文本。</p>
+<p>使用<code>cargo run</code>命令，上述程序将被编译并运行，然后输出我们之前创建的文件的内容。对于这个例子，它将与<code>info.txt</code>的内容具有相同的值。</p>
+<h2 id="reading-file-vector">将文件作为向量读取</h2>
+<p>如果您想将文件的内容存储在内存中以便于访问或修改，将文件作为向量读取会很有用。它对于读取二进制文件也很有用，因为字节向量比字符串更能准确地表示数据。将文件作为一个向量读取，可以让你一次将整个文件读入内存，而不是一段一段地读取。如果您需要多次访问该文件或者想要对整个文件执行操作，这可能会更方便。</p>
+<p>要将文件作为向量读取，可以使用<code>Read</code>特征的<code>read_to_end</code>方法:</p>
+<pre class="language-rust hljs">// Rust
+use std::fs::File;
+use std::io::Read;
+
+fn main() -&gt; std::io::Result&lt;()&gt; {
+    let mut file = File::open("info.txt")?;
+    let mut contents = Vec::new();
+    file.read_to_end(&amp;mut contents)?;
+
+    println!("File contents: {:?}", contents);
+
+    Ok(())
+}
+</pre>
+<p>这段代码打开一个名为<code>"info.txt"</code>的文件，并将其读入一个名为<code>contents</code>的字节向量。<code>read_to_end</code>方法从当前位置读取文件到文件末尾，并将数据附加到<code>contents</code>向量的末尾。</p>
+<h2 id="reading-file-buffer">用缓冲区读取文件</h2>
+<p>使用缓冲区读取Rust文件比一次读取整个文件更有效，因为它允许程序以块的形式处理数据。这对于可能无法完全放入内存的大文件尤其有用。</p>
+<p>要使用buffer读取文件，可以使用<code>BufReader</code> struct和<code>BufRead</code> trait:</p>
+<pre class="language-rust hljs">// Rust
+use std::fs::File;
+use std::io::{BufReader, BufRead};
+
+fn main() -&gt; std::io::Result&lt;()&gt; {
+    let file = File::open("info.txt")?;
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = line?;
+        println!("{}", line);
+    }
+
+    Ok(())
+}
+</pre>
+<p>这段代码打开一个名为<code>"info.txt"</code>的文件，并创建一个<code>BufReader</code>来逐行读取它。<code>BufReader</code>分块(或“缓冲区”)读取文件，而不是一次读取所有文件，这对大文件来说更有效。</p>
+<h2 id="handling-file-i-o-error-rust">在Rust中处理文件I/O错误</h2>
+<p>想知道当一个Rust文件无法打开或读取时如何处理错误？您可以使用<code>std::io::Result</code>类型和<code>?</code>运算符。在上面的例子中，<code>?</code>操作符用于传播打开或读取文件时出现的任何错误。如果出现错误，它将中断函数的执行，并将错误返回给调用者。</p>
+<p>下面是一个处理特定I/O错误的示例:</p>
+<pre class="language-rust hljs">// Rust
+use std::fs::File;
+use std::io::Read;
+
+fn main() -&gt; std::io::Result&lt;()&gt; {
+    let mut file = match File::open("info.txt") {
+        Ok(file) =&gt; file,
+        Err(error) =&gt; {
+            match error.kind() {
+                std::io::ErrorKind::NotFound =&gt; {
+                    println!("File not found");
+                    return Ok(());
+                }
+                _ =&gt; return Err(error),
+            }
+        }
+    };
+    let mut contents = Vec::new();
+    file.read_to_end(&amp;mut contents)?;
+
+    println!("File contents: {:?}", contents);
+
+    Ok(())
+}
+</pre>
+<p>在这个例子中，代码试图打开文件<code>"info.txt"</code>。如果没有找到该文件，它将打印一条消息并返回<code>Ok(())</code>。如果发生任何其他错误，它会将错误返回给调用者。如果文件成功打开，它会像以前一样将文件内容读入一个向量。</p>
+<h2 id="serde-framework">Serde框架</h2>
+<p><a href="https://serde.rs/" target="_blank" rel="noopener"> Serde </a>是一个框架，用于高效、通用地<strong>序列化</strong>和<strong>反序列化</strong> Rust数据结构。对于本文的这一部分，我们将利用<code>serde</code> crate来解析JSON文件和TOML文件。</p>
+<p><code>serde</code>库的基本优点是，它允许您直接将连接数据解析成Rust <code>structs</code>，该Rust<code>structs</code>与我们的源代码中定义的类型相匹配。这样，您的项目在源代码编译时就知道每个传入数据的预期类型。</p>
+<h2 id="reading-json-file">读取JSON文件</h2>
+<p>JSON格式是一种用于存储复杂数据的流行数据格式。在用于在网络上交换有线数据的常见数据格式中，这是最主要的数据格式。它在JavaScript项目中被广泛使用。</p>
+<p>我们可以通过静态类型的方法和动态类型的方法来解析Rust中的JSON数据。</p>
+<p>动态类型的方法最适合于根据源代码中预定义的数据结构不确定JSON数据格式的情况，而静态类型的方法用于确定JSON数据格式的情况。</p>
+<p>要开始，您必须安装所有必需的依赖项。</p>
+<p>在<code>Cargo.toml</code>文件中，我们将首先添加<code>serde</code>和<code>serde_json</code>板条箱作为依赖项。除此之外，确保可选的派生特性被启用，这将帮助我们生成(反)序列化的代码。</p>
+<pre class="language-toml hljs">//Cargo.toml
+[dependencies]
+serde = { version = 1.0, features = [“derived”] }
+serde_json = "1.0"
+</pre>
+<h3 id="parsing-json-dynamically">动态解析JSON</h3>
+<p>首先，我们编写一个<code>use</code>声明来导入<a href="https://docs.rs/serde_json/latest/serde_json/" target="_blank" rel="noopener"> <code>serde_json</code> </a>板条箱。<code>Value</code> enum是<code>serde_json</code> crate的一部分，它代表任何有效的JSON值——可以是字符串、空值、布尔值、数组等。</p>
+<p>在根目录中，我们将创建一个. json文件来存储任意JSON数据，我们将读取数据并将其解析为源代码中定义的有效数据结构。创建一个数据文件夹，然后创建一个sales.json文件并用这个<a href="https://github.com/IkehAkinyemi/json_dynamic/blob/main/data/sales.json" target="_blank" rel="noopener"> JSON数据</a>更新它。</p>
+<p>现在，我们有了连线数据，我们可以使用<code>serde_json</code> crate来更新main.rs文件，以编写解析JSON数据的代码:</p>
+<pre class="language-rust hljs">use serde_json::Value;
+use std::fs;
+fn main() {
+    let sales_and_products = {
+        let file_content = fs::read_to_string("./data/sales.json").expect("LogRocket: error reading file");
+        serde_json::from_str::&lt;Value&gt;(&amp;file_content).expect("LogRocket: error serializing to JSON")
+    };
+    println!("{:?}", serde_json::to_string_pretty(&amp;sales_and_products).expect("LogRocket: error parsing to JSON"));
+}
+</pre>
+<p>在上面的代码片段中，我们硬编码了<code>sales.json</code>文件的路径。然后，使用<code>serde_json</code>，我们为JSON数据格式提供(解)序列化支持。</p>
+<p>根据JSON格式的规则，<code>from_str</code>将一个连续的字节片作为参数，并从中反序列化一个类型为<code>Value</code>的实例。您可以检查<code>Value</code>类型以了解更多关于它的(反)序列化的信息。</p>
+<p>这是运行代码片段的输出:</p>
+<pre class="language-shell hljs">"{\n  \"products\": [\n    {\n      \"category\": \"fruit\",\n      \"id\": 591,\n      \"name\": \"orange\"\n    },\n    {\n      \"category\": \"furniture\",\n      \"id\": 190,\n      \"name\": \"chair\"\n    }\n  ],\n  \"sales\": [\n    {\n      \"date\": 1234527890,\n      \"id\": \"2020-7110\",\n      \"product_id\": 190,\n      \"quantity\": 2.0,\n      \"unit\": \"u.\"\n    },\n    {\n      \"date\": 1234567590,\n      \"id\": \"2020-2871\",\n      \"product_id\": 591,\n      \"quantity\": 2.14,\n      \"unit\": \"Kg\"\n    },\n    {\n      \"date\": 1234563890,\n      \"id\": \"2020-2583\",\n      \"product_id\": 190,\n      \"quantity\": 4.0,\n      \"unit\": \"u.\"\n    }\n  ]\n}"
+</pre>
+<p>在一个实际的项目中，除了显示输出之外，我们还想访问JSON数据中的不同字段，操纵数据，甚至试图将更新的数据存储在另一个文件或同一个文件中。</p>
+<p>记住这一点，让我们尝试访问<code>sales_and_products</code>变量上的一个字段，更新它的数据，并可能将其存储在另一个文件中:</p>
+<pre class="language-rust hljs">use serde_json::{Number, Value};
+// --snip--
+
+fn main() {
+    // --snip--
+    if let Value::Number(quantity) = &amp;sales_and_products\["sales"\][1]["quantity"] {
+        sales_and_products\["sales"\][1]["quantity"] =
+            Value::Number(Number::from_f64(quantity.as_f64().unwrap() + 3.5).unwrap());
+    }
+    fs::write(
+        "./data/sales.json",
+        serde_json::to_string_pretty(&amp;sales_and_products).expect("LogRocket: error parsing to JSON"),
+    )
+    .expect("LogRocket: error writing to file");
+}
+</pre>
+<p>在上面的代码片段中，我们利用<code>Value::Number</code>变量对<code>sales_and_products\["sales"\][1]["quantity"]</code>进行模式匹配，我们期望它是一个数值。</p>
+<p>使用<code>Number</code>结构上的<code>from_f64</code>函数，我们将从操作<code>quantity.as_f64().unwrap() + 3.5</code>返回的有限<code>f64</code>值转换回一个<code>Number</code>类型，然后我们将它存储回<code>sales_and_products\["sales"\][1]["quantity"]</code>，更新它的值。</p>
+<p>(注意:确保使<code>sales_and_products</code>成为可变变量)</p>
+<p>然后，使用write函数和一个文件路径作为参数，我们用调用<code>serde_json::to_string_pretty</code>函数的结果值创建和更新一个文件。这个结果值将与我们之前在终端上输出的值相同，但是格式良好。</p>
+<h3 id="parsing-json-statically">静态解析JSON</h3>
+<p>另一方面，如果我们完全确定JSON文件的结构，我们可以使用不同的方法，包括在项目中使用预定义的数据。</p>
+<p>这是反对动态解析数据的首选方法。静态版本的源代码在开头声明了三个结构:</p>
+<pre class="language-rust hljs">use serde::{Deserialize, Serialize};
+#[derive(Deserialize, Serialize, Debug)]
+struct SalesAndProducts {
+    products: Vec&lt;Product&gt;,
+    sales: Vec&lt;Sale&gt;
+}
+#[derive(Deserialize, Serialize, Debug)]
+struct Product {
+    id: u32,
+    category: String,
+    name: String
+}
+#[derive(Deserialize, Serialize, Debug)]
+struct Sale {
+    id: String,
+    product_id: u32,
+    date: u64,
+    quantity: f32,
+    unit: String
+}
+fn main() {}
+</pre>
+<p>第一个结构将包含在JSON对象的<code>sales</code>和<code>products</code>字段中的内部数据格式分组。剩下的两个结构定义了存储在JSON对象外部字段中的预期数据格式。</p>
+<p>为了将JSON字符串解析(读取)到上述结构中，<code>Deserialize</code>特性是必要的。并且要将上述结构格式化(即写入)成有效的JSON数据格式，必须存在<code>Serialize</code>特征。简单地在终端上打印这个结构(调试跟踪)就是<code>Debug</code>特性派上用场的地方。</p>
+<p>我们的<code>main</code>函数体应该类似于下面的代码片段:</p>
+<pre class="language-rust hljs">use std::fs;
+use std::io;
+use serde::{Deserialize, Serialize};
+
+// --snip--
+
+fn main() -&gt; Result&lt;(), io::Error&gt; {
+    let mut sales_and_products: SalesAndProducts = {
+        let data = fs::read_to_string("./data/sales.json").expect("LogRocket: error reading file");
+        serde_json::from_str(&amp;data).unwrap()
+    };
+    sales_and_products.sales[1].quantity += 1.5;
+    fs::write("./data/sales.json", serde_json::to_string_pretty(&amp;sales_and_products).unwrap())?;
+
+    Ok(())
+}
+</pre>
+<p>函数<code>serde_json::from_str::SalesAndProducts</code>用于解析JSON字符串。增加橙子销售量的代码变得非常简单:</p>
+<pre>sales_and_products.sales[1].amount += 1.5
+</pre>
+<p>与我们的动态方法相比，源文件的其余部分保持不变。</p>
+<h2 id="parsing-toml-statically">静态解析TOML</h2>
+<p>在本节中，我们将重点阅读和解析TOML文件。大多数配置文件可以以TOML文件格式存储，由于其语法语义，它可以很容易地转换成类似字典或HashMap的数据结构。由于它的语义力求简洁，所以读和写都相当简单。</p>
+<p>我们将静态读取并解析这个<a href="https://github.com/IkehAkinyemi/toml_static/blob/main/data/config.toml" target="_blank" rel="noopener"> TOML文件</a>。这意味着我们知道我们的TOML文件的结构，我们将在这一节中使用预定义的数据。</p>
+<p>我们的源代码将包含以下将映射的<code>structs</code>；解析TOML文件时更正其内容:</p>
+<pre class="language-rust hljs">#![allow(dead_code)]
+use serde::{Deserialize, Serialize};
+use std::fs;
+
+#[derive(Deserialize, Debug, Serialize)]
+struct Input {
+    xml_file: String,
+    json_file: String,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+struct Redis {
+    host: String,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+struct Sqlite {
+    db_file: String
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+struct Postgresql {
+    username: String,
+    password: String,
+    host: String,
+    port: String,
+    database: String
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+struct Config {
+    input: Input,
+    redis: Redis,
+    sqlite: Sqlite,
+    postgresql: Postgresql
+}
+
+fn main() {}
+</pre>
+<p>仔细看看上面的代码片段，您会发现我们定义了每个结构来映射到TOML文件中的每个表/头，结构中的每个字段映射到表/头下的键/值对。</p>
+<p>接下来，使用<code>serde</code>、<code>serde_json</code>和<code>toml</code>箱子，我们将编写代码来读取和解析主函数体中的TOML文件。</p>
+<pre class="language-rust hljs">// --snip--
+fn main() {
+    let config: Config = {
+        let config_text = fs::read_to_string("./data/config.toml").expect("LogRocket: error reading file");
+        toml::from_str(&amp;config_text).expect("LogRocket: error reading stream")
+    };
+    println!("[postgresql].database: {}", config.postgresql.database); 
+}
+</pre>
+<p>输出:</p>
+<pre class="language-shell hljs">[postgresql].database: Rust2018
+</pre>
+<p>上面代码片段的不同部分是<code>toml::from_str</code>函数，它试图解析我们使用<code>fs::read_to_string</code>函数读取的<code>String</code>值。使用<code>Config</code>结构作为指导的<code>toml::from_str</code>函数知道从<code>String</code>值中期待什么。</p>
+<p>另外，我们可以使用下面几行代码轻松地将上面的<code>config</code>变量解析为JSON值:</p>
+<pre class="language-rust hljs">// --snip--
+fn main() {
+    // --snip--
+    let _serialized = serde_json::to_string(&amp;config).expect("LogRocket: error serializing to json");
+    println!("{}", serialized);
+}
+</pre>
+<p>输出:</p>
+<pre class="language-shell hljs">{"input":{"xml_file":"../data/sales.xml","json_file":"../data/sales.json"},"redis":{"host":"localhost"},"sqlite":{"db_file":"../data/sales.db"},"postgresql":{"username":"postgres","password":"post","host":"localhost","port":"5432","database":"Rust2018"}}
+</pre>
+<h2 id="parsing-yaml-statically">静态解析YAML</h2>
+<p>项目中使用的另一个流行的配置文件是YAML文件格式。在本节中，我们静态地阅读和解析Rust项目中的YAML文件。我们将使用这个<a href="https://github.com/IkehAkinyemi/zero2prod/blob/main/configuration.yaml" target="_blank" rel="noopener"> YAML文件</a>作为本节的示例。</p>
+<p>我们将利用配置箱来解析YAML文件，作为第一种方法，我们将定义必要的结构来充分解析我们的YAML文件的内容。</p>
+<pre class="language-rust hljs">#[derive(serde::Deserialize)]
+pub struct Settings {
+    pub database: DatabaseSettings,
+    pub application_port: u16,
+}
+#[derive(serde::Deserialize)]
+pub struct DatabaseSettings {
+    pub username: String,
+    pub password: String,
+    pub port: u16,
+    pub host: String,
+    pub database_name: String,
+}
+fn main() {}
+</pre>
+<p>接下来，我们将在我们的<code>main</code>函数中读取并解析YAML文件。</p>
+<pre class="language-rust hljs">// --snip--
+fn main() -&gt; Result&lt;(), config::ConfigError&gt; {
+    let mut settings = config::Config::default(); // --&gt; 1
+      let Settings{database, application_port}: Settings = {
+        settings.merge(config::File::with_name("configuration"))?; // --&gt; 2
+        settings.try_into()? // --&gt; 3
+      };
+
+      println!("{}", database.connection_string());
+      println!("{}", application_port);
+      Ok(())
+}
+
+impl DatabaseSettings {
+    pub fn connection_string(&amp;self) -&gt; String { // --&gt; 4 
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database_name
+        )
+    }
+}
+</pre>
+<p>上面的代码片段比前面的例子有更多可移动的部分，所以让我们解释每一部分:</p>
+<ol>
+<li>我们使用字段类型的默认值来初始化<code>Config</code>结构。您可以检查<code>Config</code>结构来查看默认字段</li>
+<li>使用config::File::with_name函数，我们搜索并定位一个名为configuration的YAML文件。如文档所定义的，我们使用<code>Config</code>结构上的合并功能合并到一个配置属性源中</li>
+<li>使用前一行代码的源代码，我们尝试将YAML文件内容解析为我们定义的<code>Settings</code>结构</li>
+<li>这是一个在<code>DatabaseSettings</code>结构上定义的实用函数，用于格式化和返回Postgres连接字符串</li>
+</ol>
+<p>以上示例的成功执行将输出:</p>
+<pre class="language-shell hljs">postgres://postgres:<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c4c5d4f4f4b534e587c0d0e0b120c120c120d">[email protected]</a>:5432/newsletter
+8000
+</pre>
+<h2 id="conclusion"><strong>结论</strong></h2>
+<p>在本文中，我们探讨了如何在Rust项目中读取不同的文件。Rust标准库提供了各种执行文件操作的方法，特别是读/写操作，我希望这篇文章对展示如何在Rust中读取文件有用。</p>
+<p>我们还冒昧地查看了Serde crate，以及它如何在帮助我们将YAML、JSON或TOML等不同文件格式解析为Rust程序可以理解的数据结构方面发挥重要作用。</p>
+<p>我们研究了三种流行的文件格式；YAML、JSON和TOML。作为本文的一部分，您可以探索Rust <a href="https://crates.io/" target="_blank" rel="noopener"> crates.io </a>来发现您可以用来读/写本文范围之外的配置管理文件的其他crates，如INI、XML，以及您的下一个Rust项目中的更多内容。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

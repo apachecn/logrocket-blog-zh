@@ -1,0 +1,308 @@
+<html>
+<head>
+<title>Exploring the repository pattern with TypeScript and Node - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用TypeScript和Node - LogRocket Blog探索存储库模式</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/exploring-repository-pattern-typescript-node/#0001-01-01">https://blog.logrocket.com/exploring-repository-pattern-typescript-node/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>存储库模式可以定义为数据存储的抽象，允许将数据访问逻辑从业务逻辑中分离出来。存储库模式有很多好处:</p>
+<ul>
+<li>它实施了<a href="https://en.wikipedia.org/wiki/Dependency_inversion_principle" target="_blank" rel="noopener">依赖性反转原则</a></li>
+<li>因为业务逻辑和数据访问逻辑是松散耦合的，所以它们可以分开测试</li>
+<li>它有助于保持代码的结构化和组织化</li>
+<li>它减少了代码的重复，增强了代码的可维护性</li>
+</ul>
+<p>像大多数设计模式一样，存储库模式是语言不可知的。考虑到这一点，我将展示如何用TypeScript和Node.js实现存储库。</p>
+
+<h2 id="getting-started">入门指南</h2>
+<h3 id="create-a-new-nest-app">创建新的Nest应用程序</h3>
+<p>就像我前面说的，我们将使用嵌套框架。所以，让我们从创建一个新的嵌套应用程序开始。</p>
+<p>首先，如果您还没有安装Nest CLI，请安装它:</p>
+<pre class="language-shell hljs">npm install -g @nestjs/cli
+</pre>
+<p>安装完成后，我们可以使用CLI创建一个新的嵌套应用程序:</p>
+<pre class="language-shell hljs">nest new nest-repository-pattern
+</pre>
+<p>为了演示存储库模式，我们将使用<code>post</code>的概念。让我们为它创建模块和控制器:</p>
+<pre class="language-shell hljs">nest generate module post
+
+nest generate controller post --no-spec
+</pre>
+<p>这些命令会在<code>src</code>目录下的<code>post</code>目录下分别生成一个<code>post.module.ts</code>文件和一个<code>post.controller.ts</code>文件。</p>
+<h3 id="database-setup">数据库设置</h3>
+<p>接下来，让我们为新创建的Nest应用程序设置数据库。我将使用PostgreSQL，但是您可以使用Knex支持的任何数据库。为了与我们的数据库进行交互，我们将使用<a href="http://vincit.github.io/objection.js/" target="_blank" rel="noopener"> Objection.js </a>，这是构建在<a href="https://blog.logrocket.com/querying-databases-with-knex-js/" target="_blank" rel="noopener"> Knex </a>之上的Node.js的ORM。在本教程中，我们将使用<a href="https://github.com/willsoto/nestjs-objection" target="_blank" rel="noopener">嵌套异议</a>，一个用于异议的嵌套模块。</p>
+<p>因此，让我们安装所有必要的依赖项:</p>
+<pre class="language-shell hljs">npm install knex objection @willsoto/nestjs-objection pg
+</pre>
+<p>安装完成后，我们可以在<code>src/app.module.ts</code>的<code>imports</code>数组中注册Nest Objection模块，并传递我们的数据库详细信息:</p>
+<pre class="language-typescript hljs">// src/app.module.ts
+
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { ObjectionModule } from '@willsoto/nestjs-objection';
+
+@Module({
+  imports: [
+    ObjectionModule.register({
+      config: {
+        client: 'pg',
+        useNullAsDefault: true,
+        connection: {
+          host: '127.0.0.1',
+          port: 5432,
+          user: 'postgres',
+          password: '',
+          database: 'nest-repository-pattern',
+        },
+      },
+    }),
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<h3 id="model-and-migration">模型和迁移</h3>
+<p>为了演示存储库模式，我们将使用post的概念。所以让我们创建一个<code>Post</code>模型和相应的迁移来创建一个<code>posts</code>表。</p>
+<p>让我们从模型开始。在<code>post</code>目录下，创建一个新的<code>post.model.ts</code>文件，并在其中粘贴以下代码:</p>
+<pre class="language-typescript hljs">// src/post/post.model.ts
+
+import { Model } from 'objection';
+
+export default class Post extends Model {
+  static tableName = 'posts';
+
+  id: number;
+  title: string;
+  content: string;
+}
+</pre>
+<p><code>Post</code>模型从异议扩展了基础模型。然后我们定义这个模型将使用的表的名称。最后，我们定义表将拥有的列及其类型。</p>
+<p>接下来，让我们通过更新模块，用<code>PostModule</code>注册模型，如下所示:</p>
+<pre class="language-typescript hljs">// src/post/post.module.ts
+
+import { Module } from '@nestjs/common';
+import { ObjectionModule } from '@willsoto/nestjs-objection';
+import { PostController } from './post.controller';
+import Post from './post.model';
+
+@Module({
+  imports: [ObjectionModule.forFeature([Post])],
+  controllers: [PostController],
+})
+export class PostModule {}
+</pre>
+<p>让我们为<code>posts</code>表创建迁移。在我们创建迁移之前，我们的项目需要有一个<code>knexfile</code>，我们可以通过运行下面的命令来创建文件:</p>
+<pre class="language-shell hljs">npx knex init -x ts
+</pre>
+<p>默认情况下，<code>init</code>命令会创建一个<code>knexfile.js</code>，但是因为我们使用的是TypeScript，传递<code>-x ts</code>会指示<code>init</code>命令创建一个<code>knexfile.ts</code>。该文件将在项目的根目录下创建。然后，我们用以下内容替换它的内容:</p>
+<pre class="language-typescript hljs">// knexfile.ts
+
+import type { Knex } from 'knex';
+
+const config: { [key: string]: Knex.Config } = {
+  development: {
+    client: 'pg',
+    connection: {
+      host: '127.0.0.1',
+      port: 5432,
+      user: 'postgres',
+      password: '',
+      database: 'nest-repository-pattern',
+    },
+    migrations: {
+      directory: './src/database/migrations',
+    },
+  },
+};
+
+module.exports = config;
+</pre>
+<p>理想情况下，您可能希望针对不同的环境(开发、试运行、生产等)拥有不同的配置。)，但是出于本教程的目的，我只添加了开发环境的配置。除了数据库配置细节，我们还指定了迁移将驻留的目录。</p>
+<p>现在，我们可以为<code>posts</code>表创建迁移:</p>
+<pre class="language-shell hljs">npx knex migrate:make create_posts_table
+</pre>
+<p>如在<code>knexfile.js</code>中所指定的，迁移将在<code>src/database/migrations</code>中创建。打开它并更新它，如下所示:</p>
+<pre class="language-typescript hljs">// src/database/migrations/TIMESTAMP_create_posts_table.ts
+
+import { Knex } from 'knex';
+
+export async function up(knex: Knex): Promise&lt;void&gt; {
+  return knex.schema.createTable('posts', function (table) {
+    table.increments('id');
+    table.string('title').notNullable();
+    table.text('content').notNullable();
+  });
+}
+
+export async function down(knex: Knex): Promise&lt;void&gt; {
+  return knex.schema.dropTable('posts');
+}
+</pre>
+<p>在<code>up</code>函数中，我们在数据库中创建一个<code>posts</code>表，它有三列:<code>id</code>、<code>title</code>和<code>content</code>。当我们运行迁移时，将执行<code>up</code>功能。然后在<code>down</code>函数中，我们简单地删除可能已经创建的<code>posts</code>表。当我们回滚迁移时，将执行<code>down</code>功能。</p>
+<p>最后，让我们运行迁移:</p>
+<pre class="language-shell hljs">npx knex migrate:up
+</pre>
+<h2 id="implementing-the-repository-pattern">实现存储库模式</h2>
+<p>现在，让我们进入本教程的核心部分。存储库模式利用了契约(接口)和具体实现的概念。基本上，我们定义了我们希望具体实现(类)遵守的契约/接口。</p>
+<h3 id="creating-the-repository-contract">创建存储库合同</h3>
+<p>说到这里，我们来创建后契约/接口。在<code>src</code>中，创建一个新的<code>repositories</code>目录。这是我们存放所有仓库的地方。在新创建的目录中，创建一个包含以下内容的<code>PostRepositoryInterface.ts</code>文件:</p>
+<pre class="language-typescript hljs">// src/repositories/PostRepositoryInterface.ts
+
+import Post from '../post/post.model';
+
+export default interface PostRepositoryInterface {
+  all(): Promise&lt;Post[]&gt;;
+  find(id: number): Promise&lt;Post&gt;;
+  create(data: object): Promise&lt;Post&gt;;
+}
+</pre>
+<p>这是我们希望我们所有岗位具体实施都要遵守的契约。为了简单明了，我只添加了三个方法。</p>
+<h3 id="creating-the-concrete-implementation">创建具体的实现</h3>
+<p>接下来，让我们创建具体的实现。因为我们的应用程序当前使用Knex与数据库交互，所以这将是Knex实现。仍然在<code>repositories</code>目录中，用以下内容创建一个新的<code>KnexPostRepository.ts</code>文件:</p>
+<pre class="language-typescript hljs">// src/repositories/KnexPostRepository.ts
+
+import { Inject } from '@nestjs/common';
+import Post from 'src/post/post.model';
+import PostRepositoryInterface from './PostRepositoryInterface';
+
+export default class KnexPostRepository implements PostRepositoryInterface {
+  constructor(@Inject(Post) private readonly postModel: typeof Post) {}
+
+  async all(): Promise&lt;Post[]&gt; {
+    return this.postModel.query();
+  }
+
+  async find(id: number): Promise&lt;Post&gt; {
+    return this.postModel.query().where('id', id).first();
+  }
+
+  async create(data: object): Promise&lt;Post&gt; {
+    return this.postModel.query().insert(data);
+  }
+}
+</pre>
+<p><code>KnexPostRepository</code>类实现了我们之前创建的<code>PostRepositoryInterface</code>，因此它必须遵守契约的条款；也就是说，实现接口中定义的那些方法。在类构造函数中，我们将<code>Post</code>模型注入到类中。既然我们现在可以访问<code>Post</code>模型，我们可以使用它在各自的方法中执行必要的操作。</p>
+<h3 id="using-the-repository">使用存储库</h3>
+<p>现在，要使用我们刚刚创建的<code>KnexPostRepository</code>,我们需要首先向嵌套IoC容器注册。我们可以通过将它添加到<code>PostModule</code>的<code>providers</code>数组中来实现:</p>
+<pre class="language-typescript hljs">// src/post/post.module.ts
+
+...
+import KnexPostRepository from 'src/repositories/KnexPostRepository';
+
+@Module({
+  ...
+  providers: [
+    { provide: 'PostRepository', useClass: KnexPostRepository },
+  ],
+  ...
+})
+
+export class PostModule {}
+</pre>
+<p>在<code>providers</code>数组中，我们说，“嘿，Nest，我们想要将<code>PostRepository</code>令牌解析为<code>KnexPostRepository</code>类。”这样，每当我们注入<code>PostRepository</code>(稍后会有更多介绍)，我们都会得到一个<code>KnexPostRepository</code>的实例。</p>
+<p>现在，让我们实际利用存储库。更新<code>PostController</code>:</p>
+<pre class="language-typescript hljs">// src/post/post.controller.ts
+
+import { Controller, Get, Inject } from '@nestjs/common';
+import PostRepositoryInterface from 'src/repositories/PostRepositoryInterface';
+import Post from './post.model';
+
+@Controller('post')
+export class PostController {
+  constructor(
+    @Inject('PostRepository')
+    private readonly postRepository: PostRepositoryInterface,
+  ) {}
+
+  @Get()
+  async findAll() {
+    return this.postRepository.all();
+  }
+}
+</pre>
+<p>神奇的事情发生在构造函数内部。还记得上面的<code>PostRepository</code>令牌吗？我们通过它的构造函数将它注入到控制器中，结果,<code>postRepository</code>属性将是<code>KnexPostRepository</code>的一个实例，如上所述。然后我们可以方便地使用存储库中定义的任何方法。</p>
+<p>这就是如何使用存储库。如果在项目过程中我们决定将数据访问层切换到类似于<a href="https://www.prisma.io/" target="_blank" rel="noopener"> Prisma </a>的东西，我们只需要创建一个实现<code>PostRepositoryInterface</code>的<code>PrismaPostRepository</code>类:</p>
+<pre class="language-typescript hljs">// src/repositories/PrismaPostRepository.ts
+
+import PostRepositoryInterface from './PostRepositoryInterface';
+
+export default class PrismaPostRepository implements PostRepositoryInterface {  
+  async all(): Promise&lt;Post[]&gt; {
+    // Prisma logic
+  }
+
+  async find(id: number): Promise&lt;Post&gt; {
+    // Prisma logic
+  }
+
+  async create(data: object): Promise&lt;Post&gt; {
+    // Prisma logic
+  }
+}
+</pre>
+<p>然后简单地在嵌套IoC容器中注册:</p>
+<pre class="language-typescript hljs">// src/post/post.module.ts
+
+...
+import KnexPostRepository from 'src/repositories/KnexPostRepository';
+
+@Module({
+  ...
+  providers: [
+    // { provide: 'PostRepository', useClass: KnexPostRepository },
+    { provide: 'PostRepository', useClass: PrismaPostRepository },
+  ],
+  ...
+})
+
+export class PostModule {}
+</pre>
+<p>控制器代码将基本保持不变。</p>
+<h2 id="refactoring-the-repository-contract-to-use-generics">重构存储库契约以使用泛型</h2>
+<p>目前，我们已经成功地实现了存储库模式，我们可以简单地到此为止了。不过，您会注意到:<code>PostRepositoryInterface</code>与<code>Post</code>模型紧密耦合，这本身并不是问题，但是假设我们想在应用程序中添加评论功能。我们可能倾向于创建一个与<code>PostRepositoryInterface</code>具有相同方法和结构的<code>CommentRepositoryInterface</code>。然后，我们将创建一个实现<code>CommentRepositoryInterface</code>的<code>KnexCommentRepository</code>。</p>
+<p>您可以立即看到代码重复的模式，因为<code>PostRepositoryInterface</code>和<code>CommentRepositoryInterface</code>基本上是相同的，只是型号不同。因此，我们将重构接口，以便它可以在任何模型中重用。</p>
+<p>我们需要一种方法将模型传递给接口。幸运的是，我们可以使用TypeScript <a href="https://www.typescriptlang.org/docs/handbook/2/generics.html" target="_blank" rel="noopener">泛型</a>轻松实现这一点。</p>
+<p>我们将把<code>PostRepositoryInterface</code>重命名为<code>RepositoryInterface</code>，并更新代码:</p>
+<pre class="language-typescript hljs">// src/repositories/RepositoryInterface.ts
+
+export default interface RepositoryInterface&lt;T&gt; {
+  all(): Promise&lt;T[]&gt;;
+  find(id: number): Promise&lt;T&gt;;
+  create(data: object): Promise&lt;T&gt;;
+}
+</pre>
+<p>这里，<code>T</code>将是具体实现的模型。任何想要使用这个接口的类都必须将模型传递给它，以完全遵守契约。</p>
+<p>现在，我们可以通过将<code>Post</code>模型传递给<code>RepositoryInterface</code>来对<code>KnexPostRepository</code>做一点小小的调整:</p>
+<pre class="language-typescript hljs">// src/repositories/KnexPostRepository.ts
+
+import RepositoryInterface from './RepositoryInterface';
+
+export default class KnexPostRepository implements RepositoryInterface&lt;Post&gt; {
+  // rest of the code remain the same
+}
+</pre>
+<p>然后，<code>KnexCommentRepository</code>可以这样看:</p>
+<pre class="language-typescript hljs">// src/repositories/KnexCommentRepository.ts
+
+import RepositoryInterface from './RepositoryInterface';
+
+export default class KnexCommentRepository implements RepositoryInterface&lt;Comment&gt; {
+  // methods implementation for commenting functionality
+}
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>在本教程中，我们学习了存储库模式、它的一些优点，以及如何用TypeScript和Node.js实现存储库模式。此外，我们还了解了如何使用TypeScript泛型减少代码重复。</p>
+<p>您可以从这个<a href="https://github.com/ammezie/nest-repository-pattern" target="_blank" rel="noopener"> GitHub库</a>获得我们演示的完整源代码。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,170 @@
+<html>
+<head>
+<title>Frontend caching in Vue with Workbox service workers - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Vue中的前端缓存与Workbox服务工作者- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/#0001-01-01">https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>缓存是指将经常需要的信息存储在缓存中以便可以快速访问内容的过程。缓存是硬件或软件，用于临时存储经常使用的数据，从而改善其内存访问时间。</p>
+<p>我们可以使用各种方法和工具来为前端和后端应用程序执行缓存。如果您是阅读本文的全栈开发人员，您应该已经熟悉使用Redis的<a href="https://blog.logrocket.com/add-redis-cache-nestjs-app/">缓存，Redis是一个开源的内存中的</a>数据存储。</p>
+<p>在本教程中，我们将重点介绍如何使用Vue和Workbox设置前端缓存。要阅读本文，您需要熟悉以下内容:</p>
+<ul>
+<li>基本的HTML、CSS和JavaScript</li>
+<li>Vue和Node.js</li>
+</ul>
+<p>我们将讨论以下内容:</p>
+
+<h2 id="what-frontend-caching-important">什么是前端缓存，为什么它很重要？</h2>
+<p>客户端缓存是一项非常强大的技术，可以优化您的应用程序并改善您的用户体验。将web应用程序的数据缓存在浏览器中的想法源于这样一种认识，即从本地缓存或浏览器存储API获取数据比网络请求更具成本效益。</p>
+<h2 id="what-workbox-service-worker">什么是工作箱维修人员？</h2>
+<p>Workbox部署了一组模块和工具，<a href="https://blog.logrocket.com/pwa-create-react-app-service-workers/#what-service-worker">通过处理路由和缓存来简化与服务人员</a>的交互。Workbox旨在简化服务人员的开发，同时为复杂的应用程序需求腾出空间。工具箱中的每个<a href="https://developer.chrome.com/docs/workbox/modules/">独立模块为维修工人提供特定的功能。</a></p>
+<p>渐进式web应用程序使用服务工作者来提供离线功能并提高web应用程序的页面性能。一个典型的web应用程序依赖多个数据源向最终用户显示大量内容，它需要一种介质来缓存和呈现信息，即使应用程序处于脱机状态。</p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">服务工作器API </a>有许多复杂的交互，处理网络请求、缓存、缓存管理、预缓存等等。</p>
+<p><a href="https://developer.chrome.com/docs/workbox/"> Workbox </a>是服务工作者API的抽象。它是一组JavaScript模块，每个模块处理服务工作者API的特定部分:</p>
+
+<p>这些模块以声明的方式组成服务工作者，这使得它们比直接与服务工作者API交互更容易阅读和维护。</p>
+<h2 id="when-caching-needed">什么时候需要缓存？</h2>
+<p>只要性能仍然是软件应用程序用户非常关心的问题，缓存就会继续发展，并且会出现更多的解决方案和策略。以下是一些需要缓存的应用程序:</p>
+<ul>
+<li>具有大量静态资产的单页应用程序</li>
+<li>针对移动用户优化的Web应用</li>
+<li>新的在线平台</li>
+</ul>
+<h2 id="service-worker-strategies">服务人员策略</h2>
+<p>服务工作者策略是服务工作者的<code>fetch</code>事件与其缓存接口之间的通信。软件开发人员经常利用五种流行的服务工作者策略来提高应用程序的性能:</p>
+<ul>
+<li>高速缓存优先:向服务工作高速缓存发送请求。如果找到响应，它将服务于该响应。否则，它会退回到网络</li>
+<li>网络优先:向网络发送请求。如果找到响应，它将服务于该响应。否则，它会退回到服务工作者的缓存中</li>
+<li>仅缓存:将当前网页上的所有请求转发到工作缓存上与之匹配的响应</li>
+<li>仅网络:通过服务工作线程将所有请求发送到网络，而不与缓存进行任何交互</li>
+<li>失效时失效:第一个请求被发送到网络并存储在缓存中。当网络请求在后台运行并更新缓存(如果有新的更新)时，后续请求被发送到服务工作者的缓存</li>
+</ul>
+<h2 id="workbox-caching-vue">使用Vue进行工具箱缓存</h2>
+<p>首先，让我们在全球范围内安装Vue:</p>
+<pre class="language-bash hljs">npm install -g @vue/cli
+# OR
+yarn global add @vue/cli
+</pre>
+<p>安装完成后，运行以下代码以确认Vue版本:</p>
+<pre class="language-javascript hljs">vue --version
+</pre>
+<p>然后，创建一个新的Vue项目:</p>
+<pre class="language-javascript hljs">vue create vue workbox
+</pre>
+<p>导航到新创建的<code>workbox</code>文件夹，用下面的命令启动项目:</p>
+<pre class="language-javascript hljs">cd vue
+yarn serve
+</pre>
+<h2 id="generating-service-worker-vue-workbox-cli">使用Workbox CLI为Vue应用程序生成服务人员</h2>
+<p>使用以下命令添加Vue的工具箱插件:</p>
+<pre class="language-javascript hljs">vue add pwa
+</pre>
+<p>上面的命令将安装Workbox以及在CDN mood中与Workbox通信所需的所有依赖项。</p>
+<h2 id="configuration">配置</h2>
+<p>接下来，用下面的代码更新您的<code>vue.config.js</code>文件:</p>
+<pre class="language-javascript hljs">const { defineConfig } = require('@vue/cli-service')
+module.exports = defineConfig({
+  transpileDependencies: true,
+   pwa: {
+    name: "workbox",
+    themeColor: "#fff3e0",
+    msTileColor: "#fff3e0",
+    appleMobileWbeAppCapable: "yes",
+    appleMobileWebAppStatusBarStyle: "#fff3e0",
+    workboxPluginMode: "InjectManifest",
+    workboxOptions: {
+      swSrc: "./service-worker.js",
+      exclude: [/_redirect/, /\.map$/, /_headers/],
+    },
+    manifestOptions: {
+      background_color: "#ffe24a",
+    }
+  }
+})
+</pre>
+<p><a href="https://developers.google.com/web/tools/workbox/modules/workbox-webpack-plugin"> <code>workbox-webpack-plugin</code> </a>支持两种模式。在上面的配置中，我们将<code>workboxPluginMode</code>设置为<code>InjectManifest</code>。<a href="https://developer.chrome.com/docs/workbox/reference/workbox-webpack-plugin/#type-InjectManifest"> <code>InjectManifest</code> </a>情绪要求您在<code>workBoxOptions</code>对象中指定您的<code>service-worker</code>路径<code>swSrc</code>。另一个选项<code>GenerateSW</code>不需要服务。</p>
+<p>请注意，我们用下面的代码为服务人员指定了目录:</p>
+<pre class="language-javascript hljs">swSrc: 'src/service-worker.js',
+</pre>
+<p>如果您打算自己编写您的<code>service-worker</code>文件，您可以跳到使用<code>InjectManifest</code> 的<a href="#using-inject-manifest-mood">部分。否则，请遵循以下步骤。</a></p>
+<h2 id="using-generate-sw-mood">使用<code>GenerateSW</code>语气</h2>
+<p>首先，用下面的代码设置<code>workboxPluginMode</code>:</p>
+<pre class="language-javascript hljs">workboxPluginMode: "GenerateSW"
+// swSrc: "./service-worker.js" comment out this line of code,
+</pre>
+<p>然后，构建应用程序的生产版本，如下所示:</p>
+<pre class="language-bash hljs">yarn build
+</pre>
+<h2 id="test-application">测试应用程序</h2>
+<p>一旦构建完成，您应该将<code>manifest.json</code>和<code>service-worker.js</code>添加到<code>/dist</code>目录中。要在生产服务器中测试应用程序，下载并安装Chrome的<a href="https://chrome.google.com/webstore/detail/web-server-for-chrome/ofhbbkphhbklhfoeikjpcbhemlocgigb/related?hl=en-GB&amp;utm_source=chrome-ntp-launcher"> Web服务器</a>，并将文件夹设置为应用程序的<code>./dist</code>，如下图所示:</p>
+<p><img data-attachment-id="136124" data-permalink="https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/attachment/download-install-web-server-chrome/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png" data-orig-size="730,638" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="download-install-web-server-chrome" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome-300x262.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png" decoding="async" class="aligncenter wp-image-136124 size-full jetpack-lazy-image" src="../Images/f1bb86b50f9f0a35b460a01863dc9da7.png" alt="Download Install Web Server Chrome" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome-300x262.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="136124" data-permalink="https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/attachment/download-install-web-server-chrome/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png" data-orig-size="730,638" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="download-install-web-server-chrome" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome-300x262.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png" decoding="async" loading="lazy" class="aligncenter wp-image-136124 size-full" src="../Images/f1bb86b50f9f0a35b460a01863dc9da7.png" alt="Download Install Web Server Chrome" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome-300x262.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/download-install-web-server-chrome.png"/></noscript>
+<p>要查看您的应用程序，请单击web服务器提供的URL。检查网页并导航至应用程序。在框架部分，你应该已经看到了<code>images</code>、<code>script</code>和<code>stylesheet</code>文件夹。这表明所有web应用程序的静态资产都已被预缓存，即使在脱机模式下也仍然可以工作:</p>
+<p><img data-attachment-id="136126" data-permalink="https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/attachment/vue-static-assets-pre-cached/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png" data-orig-size="730,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vue-static-assets-pre-cached" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached-300x163.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png" decoding="async" class="aligncenter wp-image-136126 size-full jetpack-lazy-image" src="../Images/6ae58c2e431e347cc735f43ba6467d50.png" alt="Vue Static Assets Precached" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached-300x163.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="136126" data-permalink="https://blog.logrocket.com/frontend-caching-in-vue-with-workbox-service-workers/attachment/vue-static-assets-pre-cached/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png" data-orig-size="730,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vue-static-assets-pre-cached" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached-300x163.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png" decoding="async" loading="lazy" class="aligncenter wp-image-136126 size-full" src="../Images/6ae58c2e431e347cc735f43ba6467d50.png" alt="Vue Static Assets Precached" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached-300x163.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/vue-static-assets-pre-cached.png"/></noscript>
+<h2 id="using-inject-manifest-mood">使用<code>InjectManifest</code>语气</h2>
+<p>打开<code>service-worker.js</code>并添加以下代码:</p>
+<pre class="language-javascript hljs">const { precacheAndRoute } = workbox.precaching;
+const { registerRoute } = workbox.routing;
+const { CacheFirst, StaleWhileRevalidate } = workbox.strategies;
+const { Plugin: ExpirationPlugin } = workbox.expiration;
+const { Plugin: CacheableResponsePlugin } = workbox.cacheableResponse;
+</pre>
+<p>由于Workbox CDN v4.3.1中的Workbox功能，Vue 3会自动添加CDN。上面的代码注册了应用程序执行缓存所依赖的一些工作箱端点:</p>
+<pre class="language-javascript hljs">workbox.core.setCacheNameDetails({ prefix: "appname" });
+
+self.addEventListener("message", (event) =&gt; {
+  if (event.data &amp;&amp; event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+/**
+ * The workboxSW.precacheAndRoute() method efficiently caches and responds to
+ * requests for URLs in the manifest.
+ */
+self.__precacheManifest = [].concat(self.__precacheManifest || []);
+precacheAndRoute(self.__precacheManifest, {});
+
+// cache image and render from the cache if it exists or go t the network
+registerRoute(
+  ({ request }) =&gt; request.destination === "image",
+  new CacheFirst({
+    cacheName: "images",
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+      new ExpirationPlugin({
+        maxEntries: 60,
+        maxAgeSeconds: 2 * 24 * 60 * 60, // cache the images for only 2 Days
+      }),
+    ],
+  })
+);
+</pre>
+<p>上面的代码从Vue <code>/dist</code>文件夹中取出图像，并缓存两天。<br/>要从工具箱API获得响应，请在<code>service-worker.js</code>中的<code>registerRoute</code>后添加以下代码:</p>
+<pre class="language-bash hljs">registerRoute(
+  ({ url }) =&gt; url.pathname.startsWith("https://dog.ceo/api/"),
+  new StaleWhileRevalidate()
+);
+</pre>
+<p>我们使用<code>StaleWhileRevalidate</code>函数来缓存API响应，如果它存在或进入网络，就从缓存中提供它。一旦您对服务人员感到满意，您就可以按照前面的说明来测试应用程序。</p>
+<p>请记住，这是一个示例<code>service-worker</code>文件。您的<code>service-worker</code>文件可以只包含适用于您的用例的逻辑。</p>
+<h2 id="challenges-caching">缓存面临的挑战</h2>
+<p>缓存web应用程序资产可以改善整体用户体验，但是，当出现故障并且旧的web应用程序源代码而不是最新的缓存版本提供给用户时，它也会破坏用户体验。虽然这种情况很少发生，但我建议您在部署之前始终确认您的缓存和回退逻辑是正确的，以避免这种情况。</p>
+<h2 id="conclusion">结论</h2>
+<p>缓存提高了我们网站或应用程序的整体性能。一旦所有的资源都被下载到用户的机器上，即使在糟糕的网络环境下，向用户显示网站内容的预缓存版本也变得非常方便。</p>
+<p>在本文中，我们探索了在应用程序中使用带有Vue的Workbox service workers来处理路由和缓存。我们讨论了什么是服务工作者，什么时候需要缓存，最后，缓存可能带来的一些潜在问题。</p>
+<p>我希望你喜欢这篇文章，如果你有任何问题，一定要留下评论。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

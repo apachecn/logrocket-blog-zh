@@ -1,0 +1,457 @@
+<html>
+<head>
+<title>Implementing 3D animations in React Native - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在React Native - LogRocket博客中实现3D动画</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implementing-3d-animations-react-native/#0001-01-01">https://blog.logrocket.com/implementing-3d-animations-react-native/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>本文的范围将涵盖对<a href="https://threejs.org/" target="_blank" rel="noopener"> Three.js </a>库和<a href="https://reactnative.dev/docs/animated" target="_blank" rel="noopener">动画API </a>的探索。你应该对JavaScript有基本的了解，并能自然地理解它；要了解更多关于React Native的精彩内容，LogRocket博客上的<a href="https://blog.logrocket.com/tag/react-native/" target="_blank" rel="noopener"> React Native archives </a>是一个复习的好地方。</p>
+<p>我们将把这篇文章一分为二。在第一部分中，我们探索在React Native中创建高级3D动画。我们将依赖于<a href="https://threejs.org/" target="_blank" rel="noopener"> Three.js </a>库，这是一个跨平台的JavaScript 3D库，用于在web环境中创建3D内容，如图形和动画。Three.js整合了<a href="https://get.webgl.org/" target="_blank" rel="noopener"> WebGL </a>增强行为以在网络上渲染3D模型，以及<a href="https://greensock.com/tweenmax/" target="_blank" rel="noopener"> TweenMax </a>以增强动画质量。</p>
+<p>文章的第二部分将探索动画API ，它让我们的动画更加流畅。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="installation-prerequisites">安装和先决条件</h2>
+<p>首先，我们需要创建React本地应用程序。安装<a href="https://docs.expo.dev/workflow/expo-cli/" target="_blank" rel="noopener"> Expo CLI </a>为我们的项目服务；它与<a href="https://docs.expo.dev/get-started/installation/#2-expo-go-app-for-ios-and" target="_blank" rel="noopener"> Expo GO </a> library携手合作，后者是一个移动客户端应用程序，我们将使用它在iOS或Android平台上打开我们的项目。</p>
+<p>安装Expo CLI后，继续在终端中运行以下命令。此应用程序将使用TypeScript模板。</p>
+<pre class="language-bash hljs">expo init reactNative3D
+cd reactNative3D
+yarn start</pre>
+<p>在继续之前，我们需要安装一些核心依赖项。打开终端窗口，运行以下命令。</p>
+<pre class="language-bash hljs">yarn add three expo-three expo-gl
+yarn add --dev @types/three</pre>
+<p>让我们回顾一下这些依赖关系:</p>
+<ul>
+<li><a href="https://docs.expo.dev/versions/latest/sdk/gl-view/" target="_blank" rel="noopener"> expo-gl </a>:这提供了一个<code>View</code>作为<a href="https://www.opengl.org/" target="_blank" rel="noopener"> OpenGL </a> ES渲染目标，这对于渲染2D和3D图形都很有用。一旦挂载，就会创建一个接受<code><a href="https://docs.expo.dev/versions/latest/sdk/gl-view/#oncontextcreate" target="_blank" rel="noopener">onContextCreate prop</a></code>的OpenGL上下文，它有一个<a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" target="_blank" rel="noopener"> WebGL RenderingContext接口</a></li>
+<li><a href="https://github.com/expo/expo-three" target="_blank" rel="noopener"> expo-three </a>:充当Three.js与ExpoGL之间的桥梁；它还为React Native中的原生OpenGL-ES提供了一个WebGL接口，这有助于将DOM从Three.js中抽象出来</li>
+<li><a href="https://threejs.org/manual/#en/fundamentals" target="_blank" rel="noopener">三个</a>:用于在网页上创建3D内容的3D库</li>
+</ul>
+<h2 id="how-rendering-3d-models-three-js-works">如何使用Three.js渲染3D模型</h2>
+<p>当使用Three.js渲染3D模型时，我们首先创建一个场景作为模型渲染的场景。下图说明了一个Three.js应用程序的基本结构，在这里需要创建对象并将它们连接在一起。</p>
+<figure id="attachment_131534" aria-describedby="caption-attachment-131534" class="wp-caption aligncenter"><img data-attachment-id="131534" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/three-js-rendering-models/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png" data-orig-size="730,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="three-js-rendering-models" data-image-description="" data-image-caption="&lt;p&gt;Source: &lt;a href=&quot;https://threejs.org&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;Three.js&lt;/a&gt;.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png" decoding="async" class="size-full wp-image-131534 jetpack-lazy-image" src="../Images/a58525f4932aa8689f715185218d24ea.png" alt="Three.js rendering models" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="131534" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/three-js-rendering-models/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png" data-orig-size="730,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="three-js-rendering-models" data-image-description="" data-image-caption="&lt;p&gt;Source: &lt;a href=&quot;https://threejs.org&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;Three.js&lt;/a&gt;.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png" decoding="async" loading="lazy" class="size-full wp-image-131534" src="../Images/a58525f4932aa8689f715185218d24ea.png" alt="Three.js rendering models" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/three-js-rendering-models.png"/></noscript><figcaption id="caption-attachment-131534" class="wp-caption-text">Source: <a href="https://threejs.org" target="_blank" rel="noopener">Three.js</a></figcaption></figure>
+<p>让我们研究一下上面的图表。</p>
+<ul>
+<li>关键部分是Three.js的主要对象<code>renderer</code>，我们创建的<code>scene</code>和<code>camera</code>被传递给渲染器，渲染器渲染(绘制)3D场景的一部分</li>
+<li><code>scene</code>是一个对象，它定义了<code><a href="https://threejs.org/" target="_blank" rel="noopener">scenegraph</a></code>的根，并包含一些属性，比如背景颜色</li>
+<li><code>Mesh</code>是代表具有特定<code><a href="https://threejs.org/docs/#api/en/materials/Material" target="_blank" rel="noopener">Material</a></code>类的特定<code>Geometry</code>的绘图的对象</li>
+<li>一块<code>Geometry</code>(球体，立方体)的顶点数据用<code>Geometry</code>对象表示。Three.js提供了内置的几何图元</li>
+<li>用于绘制几何图形的表面属性由<code><a href="https://threejs.org/docs/#api/en/materials/Material" target="_blank" rel="noopener">Material</a></code>对象表示。它接受诸如<code>color</code>和<code>texture</code>这样的值</li>
+<li><code><a href="https://threejs.org/docs/#api/en/textures/Texture" target="_blank" rel="noopener">Texture</a></code>对象代表从图像文件加载的图像</li>
+</ul>
+<p>在下面的章节中，我们将使用这些结构来创建一个3D动画。</p>
+<h2 id="create-scene-3d-cube">使用3D立方体创建场景</h2>
+<p>在项目目录根目录下的<code>App.tsx</code>组件中，我们将创建一个基本的React本地组件。将所需的包导入到<code>App.tsx</code>组件中。</p>
+<pre class="language-bash hljs">code App.tsx</pre>
+<pre class="language-typescript hljs">import React from 'react';
+import { View } from 'react-native';
+import Expo from 'expo';
+import {Scene, Mesh, MeshBasicMaterial, PerspectiveCamera} from 'three';
+import ExpoTHREE, {Renderer} from 'expo-three';
+import { ExpoWebGLRenderingContext, GLView } from 'expo-gl';
+</pre>
+<p>继续创建场景，从<code>expo-gl</code>导出的<code>GLView</code>提供了一个充当OpenGL ES渲染目标的视图。这对于渲染我们正在创建的3D对象非常有用。</p>
+<p>在<code>App.tsx</code>组件中，创建一个功能组件。</p>
+<pre class="language-typescript">const App = () =&gt; {
+  const onContextCreate = async (gl: Object) =&gt; {}
+  return (
+    &lt;View&gt;
+      &lt;GLView
+      onContextCreate={onContextCreate}
+      /&gt;
+    &lt;/View&gt;
+  )
+}
+
+export default App;
+</pre>
+<p>我们的应用程序的基本框架已经完成。<code>onContextCreate</code>属性通过一个参数<code>gl</code>传递给<code><a href="https://docs.expo.dev/versions/latest/sdk/gl-view/#oncontextcreate" target="_blank" rel="noopener">GLView</a></code>，后者有一个<a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" target="_blank" rel="noopener"> WebGL RenderingContext </a>接口。</p>
+<p>转移我们的焦点，让我们创建<code>onContextCreate</code>函数。</p>
+<pre class="language-typescript hljs">  const onContextCreate = async (gl: any) =&gt; {
+    // three.js implementation.
+    const scene = new Scene();
+    const camera = new PerspectiveCamera(
+      75,
+      gl.drawingBufferWidth / gl.drawingBufferHeight,
+      0.1,
+      1000
+    );
+    gl.canvas = {
+      width: gl.drawingBufferWidth,
+      height: gl.drawingBufferHeight,
+    };
+
+    // set camera position away from cube
+    camera.position.z = 2;
+
+    const renderer = new Renderer({ gl });
+    // set size of buffer to be equal to drawing buffer width
+    renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // create cube
+    // define geometry
+    const geometry = new BoxBufferGeometry(1, 1, 1);
+    const material = new MeshBasicMaterial({
+      color: "cyan",
+    });
+
+    const cube = new Mesh(geometry, material);
+
+    // add cube to scene
+    scene.add(cube);
+
+    // create render function
+    const render = () =&gt; {
+      requestAnimationFrame(render);
+      // create rotate functionality
+      // rotate around x axis
+      cube.rotation.x += 0.01;
+
+      // rotate around y axis
+      cube.rotation.y += 0.01;
+
+      renderer.render(scene, camera);
+      gl.endFrameEXP();
+    };
+
+    // call render
+    render();
+  };
+</pre>
+<p>随着<code>onContextCreate</code>功能的完成，我们的3D立方体就完成了。</p>
+<p>您的<code>App.tsx</code>文件应该如下所示:</p>
+<pre class="language-typescript hljs">import React from "react";
+import { View } from "react-native";
+import Expo from "expo";
+import {
+  Scene,
+  Mesh,
+  MeshBasicMaterial,
+  PerspectiveCamera,
+  BoxBufferGeometry,
+} from "three";
+import ExpoTHREE, { Renderer } from "expo-three";
+import { ExpoWebGLRenderingContext, GLView } from "expo-gl";
+import { StatusBar } from "expo-status-bar";
+
+const App = () =&gt; {
+
+  const onContextCreate = async (gl: any) =&gt; {
+    // three.js implementation.
+    const scene = new Scene();
+    const camera = new PerspectiveCamera(
+      75,
+      gl.drawingBufferWidth / gl.drawingBufferHeight,
+      0.1,
+      1000
+    );
+    gl.canvas = {
+      width: gl.drawingBufferWidth,
+      height: gl.drawingBufferHeight,
+    };
+
+    // set camera position away from cube
+    camera.position.z = 2;
+
+    const renderer = new Renderer({ gl });
+    // set size of buffer to be equal to drawing buffer width
+    renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // create cube
+    // define geometry
+    const geometry = new BoxBufferGeometry(1, 1, 1);
+    const material = new MeshBasicMaterial({
+      color: "cyan",
+    });
+
+    const cube = new Mesh(geometry, material);
+
+    // add cube to scene
+    scene.add(cube);
+
+    // create render function
+    const render = () =&gt; {
+      requestAnimationFrame(render);
+      // create rotate functionality
+      // rotate around x axis
+      cube.rotation.x += 0.01;
+
+      // rotate around y axis
+      cube.rotation.y += 0.01;
+
+      renderer.render(scene, camera);
+      gl.endFrameEXP();
+    };
+
+    // call render
+    render();
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;GLView
+        onContextCreate={onContextCreate}
+        // set height and width of GLView
+        style={{ width: 400, height: 400 }}
+      /&gt;
+    &lt;/View&gt;
+  );
+};
+
+export default App;
+</pre>
+<p>停止Metro服务器以确保所有新文件都已添加，然后再次启动它。</p>
+<pre class="language-bash hljs">ctrl c
+yarn start</pre>
+<p>用Expo app打开应用。</p>
+<p id="gdcalert2"><img data-attachment-id="131952" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/scene-3d-cube/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube.gif" data-orig-size="730,1578" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scene-3d-cube" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube-474x1024.gif" decoding="async" class="aligncenter size-full wp-image-131952 jetpack-lazy-image" src="../Images/f78e78064f3112d77e6eeb039e59a454.png" alt="Our scene with a 3D cube" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="131952" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/scene-3d-cube/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube.gif" data-orig-size="730,1578" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scene-3d-cube" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube-474x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-131952" src="../Images/f78e78064f3112d77e6eeb039e59a454.png" alt="Our scene with a 3D cube" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/scene-3d-cube.gif"/></noscript>
+<h2 id="exploring-animated-api">探索动画API</h2>
+<p>在这一节中，我们将使用<code>FlatList</code>和动画API创建一个3D旋转木马。让我们首先创建没有3D效果的旋转木马。</p>
+<p>在<code>App.tsx</code>中，注释掉之前的代码，从头开始新的实现。我们从安装项目中需要的依赖项开始。</p>
+<p>安装<a href="https://www.npmjs.com/package/react-native-uuid" target="_blank" rel="noopener"> react-native-uuid </a>库和<a href="https://docs.expo.dev/guides/icons/" target="_blank" rel="noopener"> @expo/vector-icons </a>。</p>
+<pre class="language-bash hljs">yarn add react-native-uuid @expo/vector-icons</pre>
+<p>现在，将所需的库导入组件。</p>
+<pre class="language-typescript hljs">import * as React from "react";
+import {
+  FlatList,
+  Image,
+  Text,
+  View,
+  Dimensions,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+} from "react-native";
+import { SafeAreaView } from "react-native";
+import { AntDesign } from "@expo/vector-icons";
+import uuid from "react-native-uuid";
+import { StatusBar } from "expo-status-bar";
+const { width, height } = Dimensions.get("screen");
+</pre>
+<p>创建图像轮播时，指定轮播中图像的<code>width</code>和<code>height</code>属性可以获得更好的视图。<code>Spacing</code>变量支持跨不同样式需求的可重用性。</p>
+<pre class="language-typescript hljs">const IMAGE_WIDTH = width * 0.65;
+const IMAGE_HEIGHT = height * 0.7;
+const SPACING = 20;
+</pre>
+<p>使用<a href="https://www.pexels.com/api/documentation/#photos-overview" target="_blank" rel="noopener"> Pexels Images API </a>，我们可以生成一组图像来填充我们的应用程序。</p>
+<pre class="language-typescript hljs">const images = [
+  "https://images.pexels.com/photos/1799912/pexels-photo-1799912.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1769524/pexels-photo-1769524.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1758101/pexels-photo-1758101.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1738434/pexels-photo-1738434.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1698394/pexels-photo-1698394.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1684429/pexels-photo-1684429.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1690351/pexels-photo-1690351.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1668211/pexels-photo-1668211.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1647372/pexels-photo-1647372.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1616164/pexels-photo-1616164.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1799901/pexels-photo-1799901.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1789968/pexels-photo-1789968.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1774301/pexels-photo-1774301.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1734364/pexels-photo-1734364.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+  "https://images.pexels.com/photos/1724888/pexels-photo-1724888.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=1&amp;w=500",
+];
+</pre>
+<p>我们将使用<a href="https://www.npmjs.com/package/react-native-uuid" target="_blank" rel="noopener"> react-native-uuid库</a>将随机数据植入应用程序。</p>
+<pre class="language-typescript hljs">const DATA = [...Array(images.length).keys()].map((_, i) =&gt; {
+  return {
+    key: uuid.v4(),
+    image: images[i],
+  };
+});
+</pre>
+<p>现在是时候实现我们的旋转视图了。</p>
+<pre class="language-typescript hljs">export default () =&gt; {
+  return (
+    &lt;View style={{ backgroundColor: "#A5F1FA", flex: 1 }}&gt;
+      &lt;StatusBar hidden /&gt;
+      &lt;SafeAreaView style={{ marginTop: SPACING * 1 }}&gt;
+        &lt;View style={{ height: IMAGE_HEIGHT * 2.1 }}&gt;
+          &lt;FlatList
+            data={DATA}
+            keyExtractor={(item) =&gt; item.key}
+            horizontal
+            pagingEnabled
+            bounces={false}
+            style={{ flexGrow: 0, zIndex: 9999 }}
+            contentContainerStyle={{
+              height: IMAGE_HEIGHT + SPACING * 2,
+              paddingHorizontal: SPACING * 4,
+            }}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item, index }) =&gt; {
+              return (
+                &lt;View
+                  style={{
+                    width,
+                    paddingVertical: SPACING,
+                  }}
+                &gt;
+                  &lt;Image
+                    source={{ uri: item.image }}
+                    style={{
+                      width: IMAGE_WIDTH,
+                      height: IMAGE_HEIGHT,
+                      resizeMode: "cover",
+                    }}
+                  /&gt;
+                &lt;/View&gt;
+              );
+            }}
+          /&gt;
+        &lt;/View&gt;
+      &lt;/SafeAreaView&gt;
+    &lt;/View&gt;
+  );
+};
+</pre>
+<p id="gdcalert3"><img data-attachment-id="131959" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1.gif" data-orig-size="730,1578" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1-474x1024.gif" decoding="async" class="aligncenter size-full wp-image-131959 jetpack-lazy-image" src="../Images/4e124ed2ca54c036e21c258c3c95e289.png" alt="Our image carousel" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="131959" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1.gif" data-orig-size="730,1578" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1-474x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-131959" src="../Images/4e124ed2ca54c036e21c258c3c95e289.png" alt="Our image carousel" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-1.gif"/></noscript>
+<p>图像轮播已成功创建。</p>
+<h2 id="creating-3d-effects-animated-api">使用动画API创建3D效果</h2>
+<p>下一步是使用动画API来创建3D效果。为了利用这个动画API，我们需要将我们的<code>FlatList</code>改为<code>Animated.FlatList</code>，并添加一个<code>onScroll</code>事件，在这个事件中，我们将传入一个<code>NativeEvent</code>。</p>
+<p>变量<code>scrollX</code>将被定义为x轴的值。我们将传入一个<code>useRef()</code>钩子来让React跟踪动画。即使在重新渲染后，这也能保持<code>scrollX</code>值。</p>
+<pre class="language-typescript hljs">export default () =&gt; {
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  return (
+    &lt;View style={{ backgroundColor: "#A5F1FA", flex: 1 }}&gt;
+      &lt;StatusBar hidden /&gt;
+      &lt;SafeAreaView style={{ marginTop: SPACING * 1 }}&gt;
+        &lt;View style={{ height: IMAGE_HEIGHT * 2.1 }}&gt;
+          &lt;Animated.FlatList
+            data={DATA}
+            keyExtractor={(item) =&gt; item.key}
+            horizontal
+            pagingEnabled
+            onScroll={Animated.event(
+              [
+                {
+                  nativeEvent: { contentOffset: { x: scrollX } },
+                },
+              ],
+              {
+                useNativeDriver: true,
+              }
+            )}
+</pre>
+<p>现在我们可以在依靠<code>scrollX</code>创建动画的同时插值。在我们的<code>FlatList</code>的<code>renderItem</code>中，创建一个<code>inputRange</code>。我们将使用输入范围数字进行插值。然后，在<code>renderItem</code>中创建一个<code>opacity</code>变量。</p>
+<pre class="language-typescript hljs">           renderItem={({ item, index }) =&gt; {
+              const inputRange = [
+                (index - 1) * width, // next slide
+                index * width, // current slide
+                (index + 1) * width, // previous slide
+              ];
+              const opacity = scrollX.interpolate({
+                inputRange,
+                outputRange: [0, 1, 0],
+              });
+         const translateY = scrollX.interpolate({
+                inputRange,
+                outputRange: [50, 0, 20] // create a wave
+              })
+</pre>
+<p>接下来，我们已经将项目中的视图转换为一个<code>Animated.View</code>，我们之前创建的<code>opacity</code>变量将作为样式传入。</p>
+<pre class="language-typescript hljs">             return (
+                &lt;Animated.View
+                  style={{
+                    width,
+                    paddingVertical: SPACING,
+                    opacity,
+                    transform: [{ translateY }]
+                  }}
+                &gt;
+                  &lt;Image
+                    source={{ uri: item.image }}
+                    style={{
+                      width: IMAGE_WIDTH,
+                      height: IMAGE_HEIGHT,
+                      resizeMode: "cover",
+                    }}
+                  /&gt;
+                &lt;/Animated.View&gt;
+              );
+</pre>
+<p id="gdcalert4"><img data-attachment-id="131962" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-with-opacity-input-range/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range.gif" data-orig-size="730,1582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-with-opacity-input-range" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range-473x1024.gif" decoding="async" class="aligncenter size-full wp-image-131962 jetpack-lazy-image" src="../Images/7a1606cdf69673cdb856357525e98bd6.png" alt="Our image carousel with the opacity input range applied" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="131962" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-with-opacity-input-range/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range.gif" data-orig-size="730,1582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-with-opacity-input-range" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range-473x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-131962" src="../Images/7a1606cdf69673cdb856357525e98bd6.png" alt="Our image carousel with the opacity input range applied" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-with-opacity-input-range.gif"/></noscript>
+<p>现在，当滑动时，不透明度是基于输入范围应用的。</p>
+<h3 id="adding-backgrounds">添加背景</h3>
+<p>让我们添加一个白色背景，以便在滑动图像时突出3D动画。</p>
+<p>在<code>View</code>下面，粘贴下面的代码块。</p>
+<pre class="language-typescript hljs"> &lt;View
+            style={{
+              width: IMAGE_WIDTH + SPACING * 4,
+              height: 450,
+              position: "absolute",
+              backgroundColor: "white",
+              backfaceVisibility: true,
+              zIndex: -1,
+              top: SPACING * 1,
+              left: SPACING * 1.7,
+              bottom: 0,
+              shadowColor: "#000",
+              shadowOpacity: 0.2,
+              shadowRadius: 24,
+              shadowOffset: {
+                width: 0,
+                height: 0,
+              },
+            }}
+          /&gt;
+        &lt;/View&gt;
+
+
+</pre>
+<p id="gdcalert5"><img data-attachment-id="131964" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-white-background/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png" data-orig-size="730,1006" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-white-background" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background-218x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png" decoding="async" class="aligncenter size-full wp-image-131964 jetpack-lazy-image" src="../Images/215b96401198ff1721d26060d66f258c.png" alt="Our image carousel with the white background" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background-218x300.png 218w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="131964" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/image-carousel-white-background/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png" data-orig-size="730,1006" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image-carousel-white-background" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background-218x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-131964" src="../Images/215b96401198ff1721d26060d66f258c.png" alt="Our image carousel with the white background" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background-218x300.png 218w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/image-carousel-white-background.png"/></noscript>
+<p>下一步是制作白色背景的动画，使其在3D视图中旋转。但在此之前，让我们想出一种方法来查看<code>0</code>和<code>1</code>之间的<code>inputRange</code>。</p>
+<p>在我们的<code>Carousel</code>组件的顶部，使用来自动画API的方法<code>divide()</code>和<code>modulo()</code>创建一个进度变量，让我们修改并获得<code>0</code>和<code>1</code>之间的值。<code>progress</code>变量使我们能够将值固定在<code>0</code>和<code>1</code>之间。</p>
+<pre class="language-typescript hljs">export default () =&gt; {
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const progress = Animated.modulo(Animated.divide(scrollX, width), width);
+</pre>
+<p>我们现在准备开始修改保存白色背景的<code>View</code>组件。正如我们之前所做的，将<code>View</code>组件转换成一个<code>Animated.View</code>。</p>
+<p>一个<code>transform</code>输入被传递到<code>Animated.View</code>组件；<code>transform</code>收到一个<code>perspective</code>和一个<code>rotateY</code>。</p>
+<pre class="language-typescript hljs">          &lt;Animated.View
+            style={{
+              width: IMAGE_WIDTH + SPACING * 4,
+              height: 450,
+              position: "absolute",
+              backgroundColor: "white",
+              backfaceVisibility: true,
+              zIndex: -1,
+              top: SPACING * 1,
+              left: SPACING * 1.7,
+              bottom: 0,
+              shadowColor: "#000",
+              shadowOpacity: 0.2,
+              shadowRadius: 24,
+              shadowOffset: {
+                width: 0,
+                height: 0,
+              },
+              transform: [
+                {
+                  perspective: IMAGE_WIDTH * 4,
+                },
+                {
+                  rotateY: progress.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: ["0deg", "90deg", "180deg"],
+                  }),
+                },
+
+              ],
+            }}
+          /&gt;
+</pre>
+<p id="gdcalert6"><img data-attachment-id="131966" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/final-image-carousel-white-background/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background.gif" data-orig-size="730,1582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-image-carousel-white-background" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background-473x1024.gif" decoding="async" class="aligncenter size-full wp-image-131966 jetpack-lazy-image" src="../Images/8fec4e1e6a8389e7771da1ea62169fea.png" alt="Our final image carousel, with the white background and opacity input range" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="131966" data-permalink="https://blog.logrocket.com/implementing-3d-animations-react-native/attachment/final-image-carousel-white-background/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background.gif" data-orig-size="730,1582" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-image-carousel-white-background" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background-138x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background-473x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-131966" src="../Images/8fec4e1e6a8389e7771da1ea62169fea.png" alt="Our final image carousel, with the white background and opacity input range" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/final-image-carousel-white-background.gif"/></noscript>
+<p>该项目的<a href="https://github.com/dueka/react-native-3d-animation" target="_blank" rel="noopener">回购可在GitHub上</a>获得。</p>
+<h2>结论</h2>
+<p>在本文中，我们探索了如何使用Three.js在React Native中创建3D内容。Three.js支持在React本地环境中渲染3D模型。当与动画API结合使用时，这些工具可以为我们提供额外的灵活性，使我们能够为用户构建更流畅、更吸引人的视图。这仅仅是可以用动画API实现的令人惊奇的动画的一个例子。</p>
+<p>希望这篇文章能为未来的开发人员提供一个探索性的指南，帮助他们创造更好的用户体验。</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现React原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款React原生监控解决方案，可帮助您即时重现问题、确定bug的优先级并了解React原生应用的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的React原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

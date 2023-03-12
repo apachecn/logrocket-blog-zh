@@ -1,0 +1,214 @@
+<html>
+<head>
+<title>Dynamic imports and code splitting with Next.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Next.js - LogRocket博客进行动态导入和代码拆分</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/dynamic-imports-code-splitting-next-js/#0001-01-01">https://blog.logrocket.com/dynamic-imports-code-splitting-next-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>优化生产环境中的性能有时是一项艰巨的任务。不能忽视对网站性能的微调，因为缺点会导致网页速度慢，UX不好。这些网站往往加载缓慢，图像渲染缓慢，从长远来看，会导致网站访问者的跳出率增加，因为大多数用户不愿意等待内容弹出。</p>
+<p>在本教程中，我们将介绍在Next.js应用程序中提高站点性能的不同模式。</p>
+<h3>目标和前提条件</h3>
+<p>在本文结束时，读者将清楚地了解如何在Next.js web应用程序中最大化性能。我们将讨论以下内容:</p>
+
+<p>要阅读本文，需要先了解Next.js框架。</p>
+<h2 id="dynamic-imports-code-splitting">什么是动态导入和代码拆分？</h2>
+<p>动态导入，也称为代码分割，指的是将JavaScript代码束分割成更小的块，然后将它们拼凑在一起并加载到应用程序的运行时，作为大幅提升站点性能的一种方法。</p>
+<p>它是作为JavaScript中静态导入的升级而开发的，静态导入是使用导入语法为JavaScript模块顶层的模块或组件添加导入的标准方式。</p>
+<p>虽然这是一种常用的方法，但在性能优化方面存在一些缺点，尤其是在以下情况下:</p>
+<ul>
+<li>大型代码库，它会创建更大的包，并导致更长的加载时间，因为构建过程会将所有需要的文件编译成一个包</li>
+<li>需要某些用户操作的网页，例如单击导航菜单项以触发页面加载。这里，仅当满足导航标准时才呈现所需的页面，并且当静态导入组件时，可能会触发缓慢的初始页面加载</li>
+</ul>
+<h2 id="dynamic-imports-differ-static-imports">动态导入与静态导入有何不同？</h2>
+<p>与静态导入不同，动态导入通过应用一种称为代码拆分的方法来工作。代码分割是将代码分成不同的包，这些包使用树格式并行排列，其中模块是动态加载的——模块仅在需要时导入并包含在JavaScript包中。代码分割得越多，包的大小就越小，页面加载就越快。</p>
+<p>该方法创建了在网页运行时动态加载的多个包。动态导入利用作为内联函数调用编写的导入语句。</p>
+<p>我们来看一个对比。假设我们希望在应用程序中导入一个导航组件；导航组件的静态和动态导入示例如下所示:</p>
+<p>静态导入:</p>
+<pre class="language-javascript hljs">import Nav from './components/Nav'
+export default function Home() {
+  return (
+    &lt;div&gt;
+      &lt;Nav/&gt;
+    &lt;/div&gt;
+  )
+}
+</pre>
+<p>动态导入:</p>
+<pre class="language-javascript hljs">import dynamic from "next/dynamic";
+import { Suspense } from "react";
+export default function Home() {
+  const Navigation = dynamic(() =&gt; import("./components/Nav.js"), {
+    suspense: true,
+  });
+  return (
+    &lt;div&gt;
+      &lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+        &lt;Navigation /&gt;
+      &lt;/Suspense&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>这里，导航组件的相关部分在<code>import()</code>块中指定。注意<code>next/dynamic</code>不允许在<code>import()</code>参数中使用模板文字或变量。</p>
+<p>另外，<code>react/suspense</code>有一个指定的fallback元素，它会一直显示，直到导入的组件可用。</p>
+<h2 id="benefits-dynamic-imports-next-js">Next.js中动态导入的好处</h2>
+<p>作为实施动态导入的结果，优化站点性能将反过来带来以下站点优势:</p>
+<ul>
+<li>更快的页面加载速度:网站加载和显示内容的速度至关重要，因为你的受众希望快速完成工作，不会停留在慢速网页上<ul>
+<li>动态导入对映像加载时间也有积极的影响</li>
+</ul>
+</li>
+<li>跳出率低:跳出率是指用户在没有与网站互动的情况下退出网页的比率，通常表明(并由)加载速度慢。较低的跳出率通常意味着更快的网站性能</li>
+<li>改进的站点交互时间:这处理TTI，或交互时间，即用户请求一个动作和用户得到结果之间的时间间隔。这些交互可以包括点击链接、滚动页面、在搜索字段中输入内容、向购物车添加商品等。</li>
+<li>更高的网站转换率:随着越来越多的用户从使用优化良好的网站中获得满足感，他们将更有可能转化</li>
+</ul>
+<p>有了这些好处，您可能会考虑如何在应用程序中使用动态导入。那么，最大的问题是，我们如何在Next.js应用程序中实现动态导入和代码拆分？下一节将展示如何实现这一点的详细步骤。</p>
+<h2 id="implementing-dynamic-imports-code-splitting-next-js">在Next.js中实现动态导入和代码拆分</h2>
+<p>如上所示，Next.js使得通过<code>next/dynamic</code>模块在下一个应用程序中创建动态导入变得容易。<code>next/dynamic</code>模块实现React组件的惰性加载导入，并构建在<a href="https://reactjs.org/docs/code-splitting.html#reactlazy" target="_blank" rel="noopener"> React Lazy </a>之上。</p>
+<p>它还利用<a href="https://blog.logrocket.com/async-rendering-react-suspense/" target="_blank" rel="noopener"> React暂记库</a>来允许应用程序推迟加载组件，直到需要它们，从而由于更轻的JavaScript构建而提高初始加载性能。</p>
+<h3 id="dynamically-importing-named-exports">动态导入命名导出</h3>
+<p>在本文的前面，我们演示了使用<code>next/dynamic</code>导入组件。但是我们也可以对从另一个文件导出的函数或方法进行动态导入。这一点如下所示:</p>
+<pre class="language-javascript hljs">import React from 'react'
+
+export function SayWelcome() {
+  return (
+    &lt;div&gt;Welcome to my application&lt;/div&gt;
+  )
+}
+const SayHello = () =&gt; {
+  return (
+    &lt;div&gt;SayHello&lt;/div&gt;
+  )
+}
+export default SayHello
+</pre>
+<p>在上面的代码中，我们有一个组件<code>SayHello</code>和一个命名的导入<code>SayWelcome</code>。我们可以只对<code>SayWelcome</code>方法进行动态显式导入，如下所示:</p>
+<pre class="language-javascript hljs">import dynamic from "next/dynamic";
+import { Suspense } from "react";
+export default function Home() {
+  const SayWelcome = dynamic(
+    () =&gt; import("./components/SayHello").then((res) =&gt; res.SayWelcome)
+  );
+  return (
+    &lt;div&gt;
+      &lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+        &lt;SayWelcome /&gt;
+      &lt;/Suspense&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>上面的代码导入<code>SayHello</code>组件，然后从响应中返回<code>SayWelcome</code>导出。</p>
+<h3 id="dynamically-importing-multiple-components">动态导入多个组件</h3>
+<p>假设我们有<code>UserDetails</code>和<code>UserImage</code>组件。我们可以导入并显示这两个组件，如下所示:</p>
+<pre class="language-javascript hljs">import dynamic from 'next/dynamic'
+
+const details = dynamic(() =&gt; import('./components/UserDetails'))
+const image = dynamic(() =&gt; import('./components/UserImage'))
+
+function UserAccount() {
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Profile Page&lt;/h1&gt;
+      &lt;details /&gt;
+      &lt;image /&gt;
+    &lt;/div&gt;
+  )
+}
+
+const App = () =&gt; {
+  return (
+    &lt;&gt;
+      &lt;UserAccount /&gt;
+  )
+    &lt;/&gt;
+}
+
+export default App
+</pre>
+<p>在上面的代码中，我们为<code>UserDetails</code>和<code>UserImage</code>组件添加了动态导入，然后我们将这些组件放入一个单独的组件<code>UserAccount</code>。最后，我们返回了应用程序中的<code>UserAccount</code>组件。</p>
+<h2 id="dynamic-imports-client-side-rendering">客户端渲染的动态导入</h2>
+<p>使用<code>next/dynamic</code>模块，我们还可以禁用导入组件的服务器端呈现，而是在客户端呈现这些组件。这特别适合于不需要太多用户交互或者具有外部依赖性的组件，比如API。这可以通过在导入组件时将<code>ssr</code>属性设置为<code>false</code>来实现:</p>
+<pre class="language-javascript hljs">import dynamic from 'next/dynamic'
+
+const HeroItem = dynamic(() =&gt; import('../components/HeroItem'), {
+  ssr: false,
+})
+
+const App = () =&gt; {
+  return (
+    &lt;&gt;
+      &lt;HeroItem /&gt;
+  )
+    &lt;/&gt;
+}
+</pre>
+<p>这里，<code>HeroItem</code>组件的服务器端呈现设置为<code>false</code>，因此它在客户端呈现。</p>
+<h3 id="dynamic-imports-libraries">库的动态导入</h3>
+<p>除了导入本地组件，我们还可以为外部依赖项添加动态导入。</p>
+<p>例如，假设我们希望<a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/" target="_blank" rel="noopener">在用户请求时使用Axios <code>fetch</code> </a>从API获取数据。我们可以为<code>Axios</code>定义一个动态导入并实现它，如下所示:</p>
+<pre class="language-javascript hljs">import styles from "../styles/Home.module.css";
+import { React, useState } from "react";
+
+export default function Home() {
+  const [search, setSearch] = useState("");
+  let [response, setResponse] = useState([]);
+  const api_url = `https://api.github.com/search/users?q=${search}&amp;per_page=5`;
+
+  return (
+    &lt;div className={styles.main}&gt;
+      &lt;input
+        type="text"
+        placeholder="Search Github Users"
+        value={search}
+        onChange={(e) =&gt; setSearch(e.target.value)}
+      /&gt;
+
+      &lt;button
+        onClick={async () =&gt; {
+          // dynamically load the axios dependency
+          const axios = (await import("axios")).default;
+          const res = await axios.get(api_url).then((res) =&gt; {
+            setResponse(res);
+          });
+
+        }}
+      &gt;
+        Search for GitHub users
+      &lt;/button&gt;
+
+      &lt;div&gt;
+        &lt;h1&gt;{search} Results&lt;/h1&gt;
+        &lt;ul&gt;
+          {response?.data ? (
+            response &amp;&amp; response?.data.items.map((item, index) =&gt; (
+              &lt;span key={index}&gt;
+                &lt;p&gt;{item.login}&lt;/p&gt;
+              &lt;/span&gt;
+            ))
+          ) : (
+            &lt;p&gt;No Results&lt;/p&gt;
+          )}
+        &lt;/ul&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>在上面的代码中，我们有一个输入字段来搜索GitHub上的用户名。我们使用<code>useState()</code>钩子来管理和更新输入字段的状态，并且我们已经设置了当点击按钮<code>Search for GitHub users</code>时动态导入的<code>Axios</code>依赖项。</p>
+<p>当返回响应时，我们对其进行映射并显示五个用户的<code>usernames</code>,这五个用户的名字与输入字段中输入的搜索查询相对应。<br/>下面的GIF演示了上面的代码块:</p>
+<p><img data-attachment-id="129131" data-permalink="https://blog.logrocket.com/dynamic-imports-code-splitting-next-js/attachment/dynamically-importing-library/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif" data-orig-size="730,298" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dynamically-importing-library" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library-300x122.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif" decoding="async" class="aligncenter size-full wp-image-129131 jetpack-lazy-image" src="../Images/1da6041fd997d7dad3eeb36513c0219e.png" alt="Dynamically importing libraries to a Next.js app" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129131" data-permalink="https://blog.logrocket.com/dynamic-imports-code-splitting-next-js/attachment/dynamically-importing-library/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif" data-orig-size="730,298" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dynamically-importing-library" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library-300x122.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129131" src="../Images/1da6041fd997d7dad3eeb36513c0219e.png" alt="Dynamically importing libraries to a Next.js app" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/08/dynamically-importing-library.gif"/></noscript>
+<h2>结论</h2>
+<p>在本文中，我们学习了动态导入/代码分割，它的优点，以及如何在Next.js应用程序中使用它。</p>
+<p>总的来说，如果你想缩短网站加载的时间，动态导入和代码拆分是一个必须的方法。如果你的网站有图片，或者显示的结果依赖于用户的交互，那么动态导入将会显著提高网站的性能和用户体验。</p><div class="code-block code-block-30">
+<div class="blog-plug inline-plug next-plug"><h2><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank"> LogRocket </a>:全面了解生产Next.js应用</h2><p>调试下一个应用程序可能会很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪状态、自动显示JavaScript错误、跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-lazy-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/></noscript></a><a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用的DVR，记录下你的Next.js应用上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用程序的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p><p>让您调试Next.js应用的方式现代化— <a class="signup" href="https://lp.logrocket.com/blg/nextjs-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

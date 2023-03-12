@@ -1,0 +1,298 @@
+<html>
+<head>
+<title>Creating social logins in NestJS - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在NestJS - LogRocket博客中创建社交登录</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/social-logins-nestjs/#0001-01-01">https://blog.logrocket.com/social-logins-nestjs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本文中，我们将从实际出发，看看如何将GitHub社交登录集成到NestJS应用程序中，该应用程序可以轻松应用于其他社交平台，如脸书、谷歌等。然后，我们将学习如何使用NestJS中提供的guards和各种身份验证和授权机制来保护私有路由。您可以在这个<a href="https://github.com/devgson/nestjs-social-login" target="_blank" rel="noopener"> GitHub资源库</a>中获得本文的完整源代码。</p>
+<p>向前跳:</p>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>要继续阅读本文，至少对Node.js有一个基本的了解是很重要的，还需要安装Node.js和节点包管理器。你可以在这里下载这些<a href="https://nodejs.org/en/" target="_blank" rel="noopener"/>(Node . js附带的节点包管理器)。你也有必要拥有一个GitHub帐户，因为我们将集成GitHub社交登录。</p>
+<p>有了这些分类，让我们设置应用程序所需的基本包。</p>
+<h2 id="setting-up-nest-project">建立我们的NestJS项目</h2>
+<p>在本文中，我们将使用一个名为Passport的库来帮助我们实现社交登录。Passport通过提供称为策略的机制来简化社交登录过程，以帮助整合外部社交平台的社交登录，如GitHub、谷歌、脸书等。</p>
+<p>我们将使用GitHub Passport策略和相应的NestJS卫士来实现一系列步骤:</p>
+<ul>
+<li>首先，我们将通过GitHub OAuth认证一个用户</li>
+<li>然后，我们将创建一个JWT令牌，用基于从GitHub接收的用户认证状态的有效负载进行编码</li>
+<li>最后，我们将保护私有路由，只允许具有有效JWT令牌的请求访问这些路由</li>
+</ul>
+<p>让我们建立项目！</p>
+<p>首先，安装NestJS CLI，因为它提供了一个单命令机制来帮助我们创建一个新项目。在终端中运行以下命令:</p>
+<pre class="language-bash hljs">npm i -g @nestjs/cli
+</pre>
+<p>安装完成后，我们可以通过在终端中运行以下命令来构建一个新的NestJS项目:</p>
+<pre class="language-bash hljs">nest new nestjs-social-login
+</pre>
+<p>然后，NestJS将使用一些重要的文件和模块创建一个新的应用程序。还有一个我们必须安装的叫做<code>@nestjs/config</code>的重要模块。我们将特别使用该库提供的服务来检索现有的环境变量。要安装此模块，请在终端中运行以下命令:</p>
+<pre class="language-bash hljs">npm install @nestjs/config
+</pre>
+<p>之后，只需将该模块导入到基础应用程序模块中，并将其设置为全局模块，以便子模块可以无缝地使用它:</p>
+<pre class="language-typescript hljs">//app.module.ts
+
+import { ConfigModule } from '@nestjs/config';
+...
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+  ],
+
+...
+</pre>
+<p>在本文的整个过程中，我们将根据需要安装其他的包，但是现在这应该足够了。</p>
+<p>如前所述，我们将设置GitHub社交登录，因此我们需要向GitHub注册一个新的OAuth应用程序，以获得一些重要的凭证。</p>
+<h2 id="registering-oauth-application-github">向GitHub注册OAuth应用程序</h2>
+<p>要注册一个新的应用程序，请前往<a href="https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fsettings%2Fapplications%2Fnew" target="_blank" rel="noopener"> GitHub </a>并填写必要的详细信息:</p>
+<p><img data-attachment-id="135213" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/registering-oauth-application-github/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png" data-orig-size="584,637" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Registering an Oauth application with GitHub" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github-275x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png" decoding="async" class="aligncenter size-full wp-image-135213 jetpack-lazy-image" src="../Images/e5058602fe61665379440057adac737d.png" alt="Registering An OAuth Application With GitHub" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png 584w, https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github-275x300.png 275w" data-lazy-sizes="(max-width: 584px) 100vw, 584px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135213" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/registering-oauth-application-github/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png" data-orig-size="584,637" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Registering an Oauth application with GitHub" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github-275x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135213" src="../Images/e5058602fe61665379440057adac737d.png" alt="Registering An OAuth Application With GitHub" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png 584w, https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github-275x300.png 275w" sizes="(max-width: 584px) 100vw, 584px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/registering-oauth-application-github.png"/></noscript>
+<p>一旦GitHub验证了用户，用户将被重定向到在<strong>授权回调URL </strong>字段中指定的URL。稍后，我们将在应用程序中用这个路径实现一个路由来处理接收到的数据。</p>
+<p>填写完该表格后，点击<strong>注册申请</strong>按钮；它应该会注册一个新的应用程序，并将您重定向到一个新的页面，显示有关新创建的应用程序的信息:</p>
+<p><img data-attachment-id="135217" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/generate-new-client-secret-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png" data-orig-size="730,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Generate a new client secret button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button-300x82.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png" decoding="async" class="aligncenter size-full wp-image-135217 jetpack-lazy-image" src="../Images/4f3b58e06d73411f37af5d301cc8c259.png" alt="Generate A New Client Secret Button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button-300x82.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135217" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/generate-new-client-secret-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png" data-orig-size="730,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Generate a new client secret button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button-300x82.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135217" src="../Images/4f3b58e06d73411f37af5d301cc8c259.png" alt="Generate A New Client Secret Button" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button-300x82.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/generate-new-client-secret-button.png"/></noscript>
+<p>在这个页面上，有一个<strong>客户ID </strong>和<strong>客户机密</strong>；我们很快就会在应用程序中用到这两个值，所以单击<strong>生成新的客户端密码</strong>按钮来获取客户端密码，然后复制客户端ID和新生成的客户端密码。</p>
+<p>现在，让我们将这些值添加到应用程序中。转到嵌套应用程序的根目录，创建一个<code>.env</code>文件。这个文件保存了应用程序的环境变量。现在，粘贴这些值，使<code>.env</code>文件看起来像这样:</p>
+<pre class="language-typescript hljs">//.env
+
+GITHUB_CLIENT_ID=YOUR_CLIENT_ID
+GITHUB_CLIENT_SECRET=YOUR_CLIENT_SECRET
+</pre>
+<blockquote><p>注意:客户端秘密是保密的，不应与任何人共享；这就是为什么我们把它们作为环境变量加入。同样重要的是，不要将它们提交给任何版本控制系统。如果您正在使用Git，请确保已经将<code>.env</code>文件添加到了<code>.gitignore</code>中。</p></blockquote>
+<p>这就是注册OAuth应用程序的全部内容；让我们继续，开始编写一些代码来使用我们到目前为止所做的。</p>
+<h2 id="implementing-github-sociallogin">实现GitHub社交登录</h2>
+<p>前面，我们列出了一系列要实现的步骤。第一个是通过GitHub认证用户。让我们开始努力吧。</p>
+<h3 id="authenticate-user-github">通过GitHub认证用户</h3>
+<p>继续安装Passport库和Passport GitHub策略库。导航到应用程序目录，并在终端中运行以下命令:</p>
+<pre class="language-bash hljs">npm install passport @nestjs/passport passport-github
+</pre>
+<p>让我们简单看一下我们刚刚安装的三个库以及它们有什么帮助:</p>
+<ul>
+<li><code>passport</code>是一个身份验证中间件，它提供了一套全面的策略来支持多种身份验证方法，如用户名/密码、SSO、OpenID等</li>
+<li><code>@nestjs/passport</code>是围绕Passport库的包装器；它打包了Passport库中的实用程序，使我们能够在NestJS应用程序中无缝地使用它们</li>
+<li>另一方面，<code>passport-github</code>为GitHub实现了一个认证策略，并允许我们将其插入Passport</li>
+</ul>
+<p>现在，让我们创建一个单独的嵌套模块，称为<code>auth</code>，用于实现所有的身份验证。然后，导航到应用程序中的<code>src</code>文件夹，并运行以下命令来提供新模块:</p>
+<pre class="language-typescript hljs">nest generate module auth
+</pre>
+<p>该命令生成一个名为<code>auth</code>的新模块。导航到<code>auth</code>文件夹，创建一个名为<code>auth.strategy.ts</code>的文件。我们将在这个文件中实现所有的Passport策略(在本例中是GitHub策略)。</p>
+<p>将下面的代码粘贴到<code>auth.strategy.ts</code>文件中，我们将在后面浏览它:</p>
+<pre class="language-typescript hljs">//auth.strategy.ts
+
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Profile, Strategy } from 'passport-github';
+
+@Injectable()
+export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
+  constructor(configService: ConfigService) {
+    super({
+      clientID: configService.get&lt;string&gt;('GITHUB_CLIENT_ID'),
+      clientSecret: configService.get&lt;string&gt;('GITHUB_CLIENT_SECRET'),
+      callbackURL: '&lt;http://localhost:8000/auth/callback&gt;',
+      scope: ['public_profile'],
+    });
+  }
+
+  async validate(accessToken: string, _refreshToken: string, profile: Profile) {
+    return profile;
+  }
+}
+</pre>
+<p>上面的代码片段中发生了很多事情，所以让我们来分解一下:</p>
+<p>我们创建了一个名为<code>GithubStrategy</code>的类，这个类继承自Passport模块公开的基类。我们还注册了我们想要使用的特定策略，在本例中是GitHub，在这个代码片段中举例说明:<code>PassportStrategy(Strategy, 'github')</code>。</p>
+<p>然后，在类构造函数中，我们传递以前向GitHub注册OAuth应用程序时获得的凭证。还传入了一个<code>scope</code>属性；我们使用该属性通知GitHub我们想要为特定用户检索的数据类型。在这种情况下，我们只对获取特定用户的公开资料细节感兴趣。我们可以在这里的找到一个可能值的详尽列表，这些值将被传递到<code>scope</code>属性<a href="https://docs.github.com/en/developers/apps/building-oauth-apps/scopes-for-oauth-apps" target="_blank" rel="noopener">中。</a></p>
+<p>还有一个<code>validate</code>方法；该方法包含特定于Passport GitHub策略的参数。GitHub认证一个用户后，用特定的参数调用这个函数；profile参数包含经过身份验证的用户的GitHub公共配置文件数据。理想情况下，我们还将在该函数中执行额外的验证，例如检查数据库中是否已经存在具有该特定电子邮件的用户。</p>
+<p>为了简单起见，在本文中，我们将只返回从GitHub中检索到的用户资料细节。在另一个场景中，我们实现了一些额外的验证，但它失败了，Passport希望这个方法返回一个空值。</p>
+<p>还需要将新策略作为提供者添加到<code>auth</code>模块中。我们只需将它添加到提供商的阵列中即可:</p>
+<pre class="language-typescript hljs">//auth.module
+
+...
+
+providers: [GithubStrategy]
+
+...
+</pre>
+<h3 id="creating-authentication-routes-nest-app">在我们的NestJS应用程序中创建认证路由</h3>
+<p>最后，对于这一部分，让我们创建身份验证路由，当用户想要登录我们的应用程序时，这些路由充当用户的入口点。</p>
+<p>再次打开<code>auth</code>文件夹，在终端中运行以下命令:</p>
+<pre class="language-typescript hljs">nest generate controller auth --flat
+</pre>
+<p>然后，将下面的代码粘贴到新创建的<code>controller</code>文件中，我们将在后面浏览它:</p>
+<pre class="language-typescript hljs">//auth.controller.ts
+
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Controller('auth')
+export class AuthController {
+  constructor() {}
+
+  @Get()
+  @UseGuards(AuthGuard('github'))
+  async login() {
+    //
+  }
+
+  @Get('callback')
+  @UseGuards(AuthGuard('github'))
+  async authCallback(@Req() req) {
+    return req.user;
+  }
+}
+</pre>
+<p>在上面的代码片段中，我们可能注意到的第一件事是这个语句:<code>@UseGuards(AuthGuard('github'))</code>。通常，我们使用NestJS守卫来防止未经授权的用户访问特定的路由。<code>@nestjs/passport</code>包提供了内置的guard功能，并支持将各种策略与这些guard集成在一起(在这种情况下，guard将使用GitHub策略)。</p>
+<p>我们来看看流程。</p>
+<p>当用户访问第一个route/auth时，它会触发特定用户的GitHub登录。如果成功并且用户通过了身份验证，GitHub会将用户重定向到我们指定的回调URL:<code>/auth/callback</code>路由。</p>
+<p>在用户可以访问这个回调路由之前，我们之前定义的<code>GithubStrategy</code>类中的<code>validate</code>方法会使用用户的GitHub配置文件细节等参数来执行。假设该方法不返回null(在我们的例子中，我们返回用户配置文件细节)。Passport自动将validate方法的返回值作为用户属性附加到req对象。这使我们能够从请求对象访问用户详细信息。</p>
+<p>目前，我们返回<code>req.user</code>，但是我们希望使用这些细节来创建一个JWT令牌，当用户想要访问特定的私有路由时，可以发送这个令牌。这是我们要实现的下一件事。</p>
+<h2 id="jwt-token-strategy-nest-app">在我们的NestJS应用程序中设置JWT令牌策略</h2>
+<p>这一步非常重要，因为我们希望确保只有经过身份验证的用户才能访问受保护的路由。幸运的是，NestJS还提供了<code>@nestjs/jwt</code>库，帮助我们相当容易地实现这一点。首先要做的是安装库:</p>
+<pre class="language-typescript hljs">npm install @nestjs/jwt
+</pre>
+<p>完成后，我们需要设置这个库，并将其作为一个模块导入到应用程序的auth模块中。下面的代码处理这个问题；我们将在以下时间后讨论:</p>
+<pre class="language-typescript hljs">//auth.module.ts
+
+...
+
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+
+imports: [
+
+...
+
+JwtModule.registerAsync({
+  useFactory: async (configService: ConfigService) =&gt; {
+    return {
+      signOptions: { expiresIn: '10h' },
+      secret: configService.get&lt;string&gt;('JWT_SECRET'),
+    };
+  },
+  inject: [ConfigService],
+}),
+
+...
+
+]
+
+...
+</pre>
+<p>上面的代码片段注册了JWT模块，并设置了一些重要的选项，比如一个已签名的JWT应该保持有效多长时间，以及一个用于对编码的有效载荷进行签名的秘密字符串。将秘密添加到<code>.env</code>文件中也很重要，因为任何掌握它的人都可以签署有效的jwt并将它们发送到我们的应用程序。本质上，这是一个重大的安全风险，必须避免。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>因此，在<code>.env</code>文件中添加一个安全字符串:</p>
+<pre class="language-typescript hljs">//.env
+
+JWT_SECRET=YOUR_JWT_SECRET
+</pre>
+<p>完成后，我们需要返回到<code>auth.controller</code>文件中的认证回调路径，并做一些调整。我们现在需要做的就是使用经过身份验证的用户的详细信息创建一个有效负载，用它创建一个新的JWT令牌，并将其返回给用户。用户将在访问受保护的路由时提供此令牌(我们稍后将创建这些路由)。</p>
+<p>对授权回调路由的调整相对简单:</p>
+<pre class="language-typescript hljs">//auth.controller.ts
+
+import { JwtService } from '@nestjs/jwt';
+
+...
+
+constructor(private jwtService: JwtService) {}
+
+@Get('callback')
+  @UseGuards(AuthGuard('github'))
+  async authCallback(@Req() req) {
+    const user = req.user;
+    const payload = { sub: user.id, username: user.username };
+    return { accessToken: this.jwtService.sign(payload) };
+  }
+
+...
+</pre>
+<p>在上面的代码片段中，我们提取了从GitHub接收到的经过身份验证的用户的个人资料细节，并将用户的id和用户名作为有效载荷传递给JWT。<code>@nestjs/jwt</code>包提供了一个方便的服务，该服务公开了一个<code>sign</code>方法，该方法接收一个有效载荷并返回一个有效的已签名的JWT令牌；然后我们可以将它返回给用户。</p>
+<h2 id="jwt-tokens-protect-private-routes">使用JWT令牌保护私有路由</h2>
+<p>在最后一步中，我们将使用JWT策略来自动验证当用户试图访问受保护的路由时从用户那里收到的jwt。第一步是安装一个实现JWT策略的库，名为<code>passport-jwt</code>:</p>
+<pre class="language-typescript hljs">npm install passport-jwt
+</pre>
+<p>接下来的事情是制定战略。这与我们实现GitHub策略的方式非常相似，所以为了简单起见，我们不妨将它们放在同一个文件中。转到<code>auth.strategy.ts</code>文件，添加以下代码:</p>
+<pre class="language-typescript hljs">//auth.strategy.ts
+
+import { ExtractJwt, Strategy as PassportJwtStrategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
+
+...
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(PassportJwtStrategy) {
+  constructor(configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: configService.get&lt;string&gt;('JWT_SECRET'),
+    });
+  }
+
+  async validate(payload: any) {
+    return { id: payload.sub, username: payload.username };
+  }
+}
+
+...
+</pre>
+<p>让我们来看一下用于设置JWT战略的参数:</p>
+<ul>
+<li><code>jwtFromRequest</code>:提供指示如何从请求中提取JWT的方法。在这个实例中，我们将指定一种从<code>Authorization</code>报头中提取令牌作为承载令牌的方法</li>
+<li><code>ignoreExpiration</code>:该属性告诉Passport模块拒绝在<code>Authorization</code>报头中发送过期JWT的请求</li>
+<li><code>secretOrKey</code>:这里我们从我们的<code>.env</code>文件中提供一个秘密来签署令牌。但是，在某些特定情况下，PEM编码的公钥可能更合适，例如在生产应用程序中</li>
+</ul>
+<p>最后，使用来自JWT的解码有效负载调用validate方法。然后，我们可以返回此信息，并允许访问该路由。</p>
+<p>我们必须再次将这个新策略作为提供者添加到<code>auth</code>模块中；我们只需将它添加到提供商的阵列中即可:</p>
+<pre class="language-typescript hljs">// auth.module
+...
+
+providers: [GithubStrategy, JwtStrategy]
+
+...
+</pre>
+<p>最后一部分是守卫我们要保护的路线。</p>
+<p>让我们创建这样一条路线，然后使用NestJS guard保护它。只需转到<code>app.controller.ts</code>文件并添加以下代码:</p>
+<pre class="language-typescript hljs">// app.controller.ts
+
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+...
+
+@UseGuards(AuthGuard('jwt'))
+@Get('profile')
+getProfile(@Req() req) {
+  return req.user;
+}
+
+...
+</pre>
+<p>当用户试图访问配置文件路由时，<code>AuthGuard('jwt')</code>语句会自动使用我们刚刚定义的JWT策略来验证从用户处收到的令牌。如果验证失败，则路由为<code>401 Unauthorized</code>；否则，它返回用户详细信息。</p>
+<p>让我们测试整个流程。</p>
+<p>首先，导航到<code>/auth</code>路线，用GitHub登录。我们将获得一个访问令牌:</p>
+<p><img data-attachment-id="135219" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/access-token-github-login/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png" data-orig-size="730,76" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Access token for login with GitHub" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login-300x31.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png" decoding="async" class="aligncenter size-full wp-image-135219 jetpack-lazy-image" src="../Images/001ed0da540b9802e2ef755b37eac42e.png" alt="Access Token For Login With GitHub" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login-300x31.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135219" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/access-token-github-login/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png" data-orig-size="730,76" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Access token for login with GitHub" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login-300x31.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135219" src="../Images/001ed0da540b9802e2ef755b37eac42e.png" alt="Access Token For Login With GitHub" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login-300x31.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/access-token-github-login.png"/></noscript>
+<p>然后，我们可以在尝试访问受保护的配置文件路由时发送该令牌:</p>
+<p><img data-attachment-id="135228" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/accessing-protected-profile-route/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png" data-orig-size="730,269" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing protected profile route" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route-300x111.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png" decoding="async" class="aligncenter size-full wp-image-135228 jetpack-lazy-image" src="../Images/d2985975cccf270c455c32d1cc5c14f8.png" alt="Accessing Protected Profile Route" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route-300x111.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135228" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/accessing-protected-profile-route/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png" data-orig-size="730,269" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing protected profile route" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route-300x111.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135228" src="../Images/d2985975cccf270c455c32d1cc5c14f8.png" alt="Accessing Protected Profile Route" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route-300x111.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/accessing-protected-profile-route.png"/></noscript>
+<p>如果我们试图使用无效令牌或根本没有令牌来访问路由，我们将会得到一个<code>401 Unauthorized</code>错误:</p>
+<p><img data-attachment-id="135230" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/error-accessing-route-invalid-token/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png" data-orig-size="730,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Error when trying to access the route with an invalid token or no token" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token-300x108.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png" decoding="async" class="aligncenter size-full wp-image-135230 jetpack-lazy-image" src="../Images/c620f2c3a66d32f9a2cb6466ca63c047.png" alt="Error When Trying To Access The Route With An Invalid Token Or No Token" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token-300x108.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="135230" data-permalink="https://blog.logrocket.com/social-logins-nestjs/attachment/error-accessing-route-invalid-token/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png" data-orig-size="730,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Error when trying to access the route with an invalid token or no token" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token-300x108.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-135230" src="../Images/c620f2c3a66d32f9a2cb6466ca63c047.png" alt="Error When Trying To Access The Route With An Invalid Token Or No Token" srcset="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token-300x108.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/09/error-accessing-route-invalid-token.png"/></noscript>
+<p>瞧，这就是我们为GitHub集成社交登录所需要做的一切。好的一面是，我们可以很容易地在多个社交平台上复制同样的过程。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们介绍了将GitHub social login集成到NestJS应用程序中的过程。我们学习了如何使用GitHub进行身份验证，使用Passport实现特定的策略，然后最终建立了一个保护私有路由的JWT策略。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

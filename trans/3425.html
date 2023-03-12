@@ -1,0 +1,165 @@
+<html>
+<head>
+<title>A quick guide to optimizing Laravel apps with Octane - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用辛烷-日志火箭博客优化Laravel应用程序的快速指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/optimizing-laravel-apps-octane/#0001-01-01">https://blog.logrocket.com/optimizing-laravel-apps-octane/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Laravel团队宣布在2021年发布Laravel Octane，其目的是通过在RAM内存中缓存Laravel依赖容器的实例来减少请求/响应时间，从而提高Laravel应用程序的速度和性能。这个过程是由名为<a href="https://openswoole.com/" target="_blank" rel="noopener"> Swoole </a>和<a href="https://roadrunner.dev/" target="_blank" rel="noopener"> RoadRunner </a>的工具完成的。</p>
+<p>在本帖中，我们将就如何使用Octane优化您的Laravel应用进行快速入门指导，同时考虑一项基准分析，以展示RoadRunner、Swoole和Nginx之间的性能差异。</p>
+<p><em>向前跳转:</em></p>
+
+
+<ul>
+<li><strong> Swoole </strong> <strong> : </strong> Swoole是一个PHP扩展，它帮助低级或传统的无状态模型(如事件循环和异步)提高PHP的性能。与用Go构建的roadrunner相比，Swoole更受欢迎，因为它是一个PHP扩展</li>
+<li><strong>road runner</strong><strong>:</strong>road runner是一个用Go编写的高性能PHP应用服务器、负载平衡器和进程管理器——它是一个二进制应用程序，需要在使用前安装</li>
+<li><a href="https://github.com/mcollina/autocannon" target="_blank" rel="noopener"><strong>auto cannon</strong></a><strong>:</strong>auto cannon是一个用Node.js编写的HTTP基准测试工具，用于评估web应用的性能</li>
+</ul>
+<h2 id="why-laravel-octane">为什么是Laravel辛烷？</h2>
+<p><a href="https://laravel.com/docs/9.x/octane" target="_blank" rel="noopener"> Laravel Octane </a>是一个为带有Swoole或RoadRunner的Laravel应用程序提供服务的包，有助于提高性能。</p>
+<p>传统的Laravel应用程序由Apache、Nginx和Lighttpd等web服务器提供服务，每个请求都会产生一个PHP-FPM工作器。这种方法导致在每次请求时创建进程和引导Laravel应用程序的开销，这被称为无状态方法，因为在每次请求时没有PHP进程被重用。</p>
+<p>虽然Swoole和RoadRunner仍然对所有请求使用工作进程，但它们只服务于引导框架的第一个请求(依赖容器)，其他任何请求都来自框架的引导版本。</p>
+<h2 id="pros-octane">辛烷的优点</h2>
+<ul>
+<li>它提升了你的应用程序的性能</li>
+<li>与传统的Laravel应用程序相比，它节省了资源</li>
+</ul>
+<h2 id="challenges-octane">辛烷的挑战</h2>
+<ul>
+<li>代码更改可能是一个挑战，因为Octane将你的应用程序缓存在内存中，在浏览器刷新后，你的代码更改可能看不到，除非Octane正在运行或处于<strong>手表</strong>模式</li>
+<li>由于应用程序在内存中运行，内存泄漏可能是另一个需要研究的挑战，因为所有数据都存储在内存中——尤其是静态和全局变量</li>
+</ul>
+<h2 id="setting-up-laravel-octane-app">设置Laravel Octane应用程序</h2>
+<p>既然我们已经详细了解了辛烷的组成和作用，让我们开始把它付诸行动吧。</p>
+<p>以下是开始的方法:</p>
+<pre class="language-bash hljs">❯ composer create-project laravel/laravel laravel-octane
+
+
+❯ composer require laravel/octane
+
+
+❯ php artisan octane:install
+
+
+ Which application server you would like to use?:
+  [0] roadrunner
+  [1] swoole
+ &gt; 0
+</pre>
+<h2 id="installing-application-servers">安装应用程序服务器</h2>
+<p>RoadRunner或Swoole需要为您的应用提供服务，因为它们都是外部包，但大多数情况下，RoadRunner将在选择应用服务器后安装。如果没有，请使用下面的命令手动安装:</p>
+<pre class="language-bash hljs">composer require spiral/roadrunner
+</pre>
+<p>安装Swoole可能有点不同，因为它是一个PHP扩展，而不是一个包，需要的过程很少。以下命令用于安装它并开始安装过程:</p>
+<pre class="language-bash hljs">pecl install swoole
+</pre>
+<p>(注意:我们不会介绍用PHP安装和设置Swoole的过程，但这里有一个简单的<a href="https://medium.com/@mfkhao2009/install-or-update-php-swoole-extension-by-make-from-source-code-on-mac-4810ee807831" target="_blank" rel="noopener">指南</a>来做这件事)</p>
+<p>使用以下命令启动您的应用程序，然后导航到您的浏览器。</p>
+<pre class="language-bash hljs"> php artisan octane:start
+
+   INFO  Server running…
+
+  Local: http://127.0.0.1:8000
+</pre>
+<p>您还可以根据您环境的CPU线程指定使用哪种技术/服务器以及运行多少线程，如下所示。</p>
+<pre class="language-bash hljs">php artisan octane:start --workers=4 --server=roadrunner
+</pre>
+<h2 id="benchmarking-app-servers-autocannon">使用AutoCannon对应用服务器进行基准测试</h2>
+<p>本文中使用的项目是一个简单的页面，其中包含一些数据。我们将在测试的每个阶段更换应用服务器(RoadRunner、Swoole和Nginx)，以便通过使用AutoCannon来评估和比较每个服务器的性能。</p>
+<p>这个过程将帮助您决定哪个应用服务器最适合您的项目。</p>
+<p>AutoCannon能够产生大量的流量，即使在单个多核CPU上运行也是如此；我们将使用100个并发连接、10个管道连接和3个工作线程运行基准测试10秒钟来触发请求。</p>
+<h3 id="swoole"><strong> Swoole </strong></h3>
+<pre class="language-bash hljs">❯ autocannon http://127.0.0.1:8000 -d 10 -w 3 -c 100 -p 10
+Running 10s test @ http://127.0.0.1:8000
+100 connections with 10 pipelining factor
+3 workers
+
+/
+┌─────────┬────────┬─────────┬─────────┬─────────┬────────────┬───────────┬─────────┐
+│ Stat    │ 2.5%   │ 50%     │ 97.5%   │ 99%     │ Avg        │ Stdev     │ Max     │
+├─────────┼────────┼─────────┼─────────┼─────────┼────────────┼───────────┼─────────┤
+│ Latency │ 201 ms │ 1773 ms │ 3175 ms │ 3304 ms │ 1854.07 ms │ 657.15 ms │ 4201 ms │
+└─────────┴────────┴─────────┴─────────┴─────────┴────────────┴───────────┴─────────┘
+┌───────────┬─────┬──────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ Stat      │ 1%  │ 2.5% │ 50%     │ 97.5%   │ Avg     │ Stdev   │ Min     │
+├───────────┼─────┼──────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Req/Sec   │ 0   │ 0    │ 503     │ 576     │ 475.3   │ 166.71  │ 440     │
+├───────────┼─────┼──────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Bytes/Sec │ 0 B │ 0 B  │ 4.13 MB │ 4.73 MB │ 3.91 MB │ 1.37 MB │ 3.62 MB │
+└───────────┴─────┴──────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Req/Bytes counts sampled once per second.
+# of samples: 30
+
+6k requests in 10.02s, 39.1 MB read
+</pre>
+<h3 id="roadrunner"><strong>走鹃</strong></h3>
+<pre class="language-bash hljs">❯ autocannon http://127.0.0.1:8000 -d 10 -w 3 -c 100 -p 10
+Running 10s test @ http://127.0.0.1:8000
+100 connections with 10 pipelining factor
+3 workers
+
+-
+┌─────────┬────────┬─────────┬─────────┬─────────┬────────────┬───────────┬─────────┐
+│ Stat    │ 2.5%   │ 50%     │ 97.5%   │ 99%     │ Avg        │ Stdev     │ Max     │
+├─────────┼────────┼─────────┼─────────┼─────────┼────────────┼───────────┼─────────┤
+│ Latency │ 119 ms │ 1692 ms │ 2314 ms │ 2587 ms │ 1617.82 ms │ 574.62 ms │ 3153 ms │
+└─────────┴────────┴─────────┴─────────┴─────────┴────────────┴───────────┴─────────┘
+┌───────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+│ Stat      │ 1%      │ 2.5%    │ 50%     │ 97.5%   │ Avg     │ Stdev   │ Min     │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Req/Sec   │ 366     │ 366     │ 544     │ 861     │ 546.3   │ 124.68  │ 366     │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+│ Bytes/Sec │ 3.01 MB │ 3.01 MB │ 4.47 MB │ 7.08 MB │ 4.49 MB │ 1.02 MB │ 3.01 MB │
+└───────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Req/Bytes counts sampled once per second.
+# of samples: 30
+
+6k requests in 10.02s, 44.9 MB read
+</pre>
+<p>要通过Nginx对应用进行基准测试，我们需要设置Laravel <a href="https://laravel.com/docs/9.x/valet" target="_blank" rel="noopener"> Valet </a>，然后继续运行相同的命令；但是在这种情况下，我们使用<code>127.0.0.1</code>，因为它运行在端口<code>80</code>上。</p>
+<pre class="language-bash hljs">❯ autocannon http://127.0.0.1 -d 10 -w 3 -c 100 -p 10
+Running 10s test @ http://127.0.0.1
+100 connections with 10 pipelining factor
+3 workers
+
+/
+┌─────────┬────────┬────────┬────────┬────────┬───────────┬─────────┬────────┐
+│ Stat    │ 2.5%   │ 50%    │ 97.5%  │ 99%    │ Avg       │ Stdev   │ Max    │
+├─────────┼────────┼────────┼────────┼────────┼───────────┼─────────┼────────┤
+│ Latency │ 111 ms │ 169 ms │ 202 ms │ 235 ms │ 166.22 ms │ 23.1 ms │ 290 ms │
+└─────────┴────────┴────────┴────────┴────────┴───────────┴─────────┴────────┘
+┌───────────┬─────────┬─────────┬─────────┬─────────┬─────────┬────────┬─────────┐
+│ Stat      │ 1%      │ 2.5%    │ 50%     │ 97.5%   │ Avg     │ Stdev  │ Min     │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼────────┼─────────┤
+│ Req/Sec   │ 4551    │ 4551    │ 5691    │ 6343    │ 5718.8  │ 464.3  │ 4548    │
+├───────────┼─────────┼─────────┼─────────┼─────────┼─────────┼────────┼─────────┤
+│ Bytes/Sec │ 2.13 MB │ 2.13 MB │ 2.67 MB │ 2.98 MB │ 2.68 MB │ 218 kB │ 2.13 MB │
+└───────────┴─────────┴─────────┴─────────┴─────────┴─────────┴────────┴─────────┘
+
+Req/Bytes counts sampled once per second.
+# of samples: 32
+
+0 2xx responses, 62950 non 2xx responses
+64k requests in 10.01s, 29.5 MB read
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>根据bechmark的分析，您会注意到Nginx总共运行了64k 的请求，这比Swoole和RoadRunner发出的请求都要多得多，大约是12k 的<strong>，或者说每个都是6k。</strong></p>
+<p>总之，我认为在这种情况下Swoole和RoadRunner是更好的选择，但这并不意味着Nginx或其他web服务器(如Apache和lighttpd)不应该被考虑，因为它们仍然被许多人用于为数百万个拥有大量并发用户的网站提供服务，并且仍然是很好的选择。</p>
+<p>感谢您的阅读，请告诉我您对Laravel Octane(或其他web服务器)的看法，以及您喜欢在自己的项目中使用哪些服务器。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>
