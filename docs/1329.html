@@ -1,0 +1,165 @@
+<html>
+<head>
+<title>Rust traits: A deep dive - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Rust traits:一个深入探讨的博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rust-traits-a-deep-dive/#0001-01-01">https://blog.logrocket.com/rust-traits-a-deep-dive/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当学习Rust时，很可能你会很快遇到特征的概念。</p>
+<p/>
+<p>特征允许我们跨类型共享行为，并促进代码重用。它们还使我们能够编写接受不同类型参数的函数，只要该类型以特征的形式实现了所需的行为。</p>
+<p>在本教程中，我们将回顾Rust的基本特征，并涵盖一些你最常遇到的问题。</p>
+<h2>什么是铁锈性状？</h2>
+<p>特征是Rust中定义共享行为的一种方式。正如<a href="https://doc.rust-lang.org/rust-by-example/trait.html" target="_blank" rel="noopener noreferrer">锈由例</a>所说:</p>
+<blockquote><p>一个<code>trait</code>是为未知类型<code>Self</code>定义的方法集合。它们可以访问在同一特征中声明的其他方法。</p></blockquote>
+<p>当我们想要定义一个可以应用于任何类型的函数时，我们使用特征。</p>
+<h2>铁锈的特性</h2>
+<p>首先，让我们看看一些特征基础，包括我们如何定义和实现它们，一些术语和语法，以及我们可以在特征上定义什么方法类型。</p>
+<h3>确定铁锈的特征</h3>
+<p>为了定义一个特征，我们使用<code>trait</code>关键字:</p>
+<pre>trait WithName {
+    fn new(name: String) -&gt; Self;
+
+    fn get_name(&amp;self) -&gt; &amp;str;
+
+    fn print(&amp;self) {
+    println!("My name is {}", self.get_name())
+    }
+}
+</pre>
+<p>因为特征是定义共享行为的一种方式，所以我们可以(并且通常会)定义属于我们正在定义的特征的方法。虽然大多数特征是为了共享行为而存在的，但Rust也有一种叫做标记特征的东西。标记特征没有任何行为，但是用来给编译器一些保证。你可以在<a href="https://doc.rust-lang.org/std/marker/index.html" target="_blank" rel="noopener noreferrer"> Rust文档</a>中阅读更多关于<code>std::marker</code>模块的内容。</p>
+<p>在上面的trait定义中，有三种方法的行为都稍有不同。我们一会儿会更仔细地看这个，但是首先，让我们检查一下<code>Self</code>和<code>&amp;self</code>的用法。</p>
+<h3>什么是<code>Self</code>和<code>&amp;self</code>？</h3>
+<p>在一个特征定义中(包括上面的一个)，我们可以访问一个特殊的类型:<code>Self</code>。<code>Self</code>是一个特殊的关键字，仅在类型定义、特征定义和<code>impl</code>块中可用(根据<a href="https://doc.rust-lang.org/std/keyword.Self.html" target="_blank" rel="noopener noreferrer">Rust文档</a>)。</p>
+<p>在特征定义中，它指的是实现类型。换句话说，如果我们要声明一个结构<code>A</code>并为其实现<code>WithName</code>特征，那么由<code>new</code>方法返回的<code>Self</code>类型将是<code>A</code>。对于结构<code>B</code>，类型应该是<code>B</code>。</p>
+<p><code>&amp;self</code>参数是<code>self: &amp;Self</code>的语法糖。这意味着方法的第一个参数是实现类型的实例。要要求对自身的可变引用，请使用<code>&amp;mut self</code>。当在一个类型的实例上调用实例方法(<code>let name = x.get_name()</code>)时，<code>&amp;self</code>参数是隐式的。</p>
+<h3>方法:实例、静态上下文和默认实现</h3>
+<p>因为trait方法中的<code>&amp;self</code>参数需要实现类型的实例，所以这些方法被称为实例方法。不需要实例的Trait方法称为静态方法。与上面的<code>new</code>方法一样，这些方法通常用于实例化实现特征的类型。</p>
+<p>方法也可以有默认的实现，比如<code>WithName</code>特征的<code>print</code>方法。这使得在实现trait时实现这个方法是可选的。如果未被重写，则使用默认实现。</p>
+<h3>在Rust中实现一个特性</h3>
+<p>要实现一个特征，为您想要实现该特征的类型声明一个<code>impl</code>块。语法是<code>impl &lt;trait&gt; for &lt;type&gt;</code>。您需要实现所有没有默认实现的方法。</p>
+<p>例如，如果我们想为一个结构<code>Name(String)</code>实现<code>WithName</code>特征，我们可以这样做:</p>
+<pre>trait WithName {
+    fn new(name: String) -&gt; Self;
+
+    fn get_name(&amp;self) -&gt; &amp;str;
+
+    fn print(&amp;self) {
+    println!("My name is {}", self.get_name())
+    }
+}
+
+struct Name(String);
+
+impl WithName for Name {
+    fn new(name: String) -&gt; Self {
+    Name(name)
+    }
+
+    fn get_name(&amp;self) -&gt; &amp;str {
+    &amp;self.0
+    }
+}
+</pre>
+<p>如果你的实现不完整，你信任的朋友编译器会让你知道。</p>
+<h3>从外部机箱导入特征</h3>
+<p>要从外部机箱导入特征，使用常规的<code>use</code>语句。例如，如果您想从Serde导入<code>Serialize</code>特征，Serde是Rust 的一个流行的<a href="https://blog.logrocket.com/rust-serialization-whats-ready-for-production-today/" target="_blank" rel="noopener noreferrer">序列化/反序列化箱，您可以这样做:</a></p>
+<pre>use serde::Serialize;
+
+struct A;
+
+impl Serialize for A {
+    fn serialize&lt;S&gt;(
+    &amp;self,
+    _: S,
+    ) -&gt; Result&lt;&lt;S as serde::Serializer&gt;::Ok, &lt;S as serde::Serializer&gt;::Error&gt;
+    where
+    S: serde::Serializer,
+    {
+    todo!()
+    }
+}
+</pre>
+<h2>如何在Rust中使用特征</h2>
+<p>已经讨论了我们如何定义和实现特征，让我们来看看如何在实践中使用它们。</p>
+<h3>函数参数中的特征和特征界限</h3>
+<p>我们可以使用traits作为函数参数，允许函数接受任何可以做<code>x</code>的类型，其中<code>x</code>是由trait定义的一些行为。我们还可以使用特征界限来细化和限制泛型，比如说我们接受任何实现特定特征的类型<code>T</code>。</p>
+<p>乍一看，这两种使用特征的方式听起来好像实现了同样的事情，但是有一个微妙的区别。在有多个参数的情况下，我们可以通过使用特征界限来确保它们是相同的类型。</p>
+<p>考虑这两个函数:</p>
+<pre>use std::fmt::Debug;
+
+fn f(a: &amp;Debug, b: &amp;Debug) {
+    todo!()
+}
+
+fn g&lt;T: Debug&gt;(a: &amp;T, b: &amp;T) {
+    todo!()
+}
+</pre>
+<p>忽略它们不做任何事情的事实，函数<code>f</code>将接受实现<code>Debug</code>特征的任意两个参数，即使它们是两个不同的类型。另一方面，<code>g</code>将只接受相同类型的两个参数，但是该类型可以是实现<code>Debug</code>的任何类型。</p>
+<p>换句话说，<code>g</code>的参数必须是相同的类型，而<code>f</code>的参数可以是相同的类型，但也可以是两种不同的类型。</p>
+<h3>回归性状</h3>
+<p>我们可以使用特征作为函数的返回类型。有两种不同的方法可以做到这一点:<code>impl Trait</code>和<code>Box&lt;dyn Trait&gt;</code>。同样，差异是微妙但重要的。</p>
+<pre>use std::fmt::Debug;
+
+fn dyn_trait(n: u8) -&gt; Box&lt;dyn Debug&gt; {
+    todo!()
+}
+
+fn impl_trait(n: u8) -&gt; impl Debug {
+    todo!()
+}
+</pre>
+<p><code>dyn_trait</code>函数可以返回任意数量的实现<code>Debug</code>特征的类型，甚至可以根据输入参数返回不同的类型。这就是所谓的特征对象。“Rust编程语言”这本书有一节是关于使用trait对象进行动态调度的<a href="https://doc.rust-lang.org/book/ch17-02-trait-objects.html#using-trait-objects-that-allow-for-values-of-different-types" target="_blank" rel="noopener noreferrer">的，如果你想深入研究的话。</a></p>
+<p>另一方面，<code>impl_trait</code>方法只能返回实现<code>Debug</code>特征的单一类型。换句话说，函数将总是返回相同的类型。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>虽然这种差异可能使<code>impl Trait</code>看起来不如trait对象有用，但它有一个非常重要的特性(除了更容易键入和操作之外):可以用它来返回迭代器和闭包。这在本书关于特征的章节中有进一步的解释，“返回实现特征的类型”</p>
+<h3>特质组合</h3>
+<p>你可能想同时使用多种特征。这就是所谓的特质组合。要做到这一点，你要把这些特征加在一起:<code>T: Trait1 + Trait2 + Trait3</code>。</p>
+<p>在写这篇文章的时候，还没有办法用稳定锈病的另一个名字来指代一个特定的特征组合。然而，这种被称为特征别名的功能在晚间频道上可以看到。在<a href="https://github.com/rust-lang/rust/issues/41517" target="_blank" rel="noopener noreferrer"> GitHub </a>上查看跟踪问题。</p>
+<h3>超级列车</h3>
+<p>Rust有办法指定一个特征是另一个特征的扩展，给了我们类似于其他语言中子类化的东西。</p>
+<p>若要创建子trait，请指示它以与类型相同的方式实现父trait:</p>
+<pre>trait MyDebug : std::fmt::Debug {
+    fn my_subtrait_function(&amp;self);
+}
+</pre>
+<p>要实现这个新的子线索，您必须实现父线索上所有必需的方法以及子线索上所有必需的方法。</p>
+<h3>关联类型</h3>
+<p>当处理特征时，<a href="https://blog.thomasheartman.com/posts/on-generics-and-associated-types" target="_blank" rel="noopener noreferrer">关联类型</a>是一个经常出现的术语。一个最突出的例子是在<code>Iterator</code>特征中，它用于指示<code>next</code>函数的返回类型应该是什么。它们与泛型(或类型参数)有许多相似之处，但也有一些关键的区别。</p>
+<p>简而言之，泛型可以做任何关联类型可以做的事情。但是，使用关联类型会将实现类型限制为只有该特征的一个实现。这在很多情况下都很有用，比如在<code><a href="https://doc.rust-lang.org/std/iter/trait.Iterator.html" target="_blank" rel="noopener noreferrer">Iterator</a></code>和<code><a href="https://doc.rust-lang.org/std/ops/trait.Deref.html" target="_blank" rel="noopener noreferrer">Deref</a></code>特征中。</p>
+<p>要阅读更多关于关联类型的内容，请查看本书标题为“<a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html?highlight=associated,types#specifying-placeholder-types-in-trait-definitions-with-associated-types" target="_blank" rel="noopener noreferrer">的部分，在Trait定义中指定占位符类型，并使用关联类型</a>。</p>
+<h3>特征常数</h3>
+<p>特征也可以有相关的常数。这种方法不如特征方法常见，但也有它的用处。像方法一样，常量可以提供默认值。</p>
+<pre>trait ConstTrait {
+    const GREETING: &amp;'static str;
+    const NUMBER: i32 = 42;
+}
+</pre>
+<h3><code>#[derive]</code></h3>
+<p>有些特征可以自动派生，这意味着编译器可以为您实现这些特征。<a href="https://doc.rust-lang.org/rust-by-example/trait/derive.html" target="_blank" rel="noopener noreferrer"> Rust by Example </a>很好地解释了如何做到这一点以及它是如何工作的。这在<code>std::fmt::Debug</code>特质(<code>#[derive(Debug)]</code>)和其他特质中很常见。</p>
+<p>派生特征是为您的类型获得额外功能的一个很好的方法，而无需您自己动手。</p>
+<h3>孤儿规则</h3>
+<p>在处理traits时，您可能会遇到这样的情况:您希望用一个外部机箱中的trait来实现另一个外部机箱中的type。这不起作用是因为所谓的孤儿规则:如果你不拥有特征或类型，你就不能为类型实现特征。但是如果你拥有其中一个，你就可以。</p>
+<p>根据<a href="https://doc.rust-lang.org/book/ch10-02-traits.html#traits-defining-shared-behavior" target="_blank" rel="noopener noreferrer">这本书</a>，</p>
+<blockquote><p>如果没有[这个]规则，两个板条箱可以为相同的类型实现相同的特征，Rust不知道使用哪个实现。</p></blockquote>
+<p>如果您遇到需要解决这个限制的情况，您可以使用<a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-the-newtype-pattern-to-implement-external-traits-on-external-types" target="_blank" rel="noopener noreferrer"> newtype模式</a>。</p>
+<h2>进一步阅读</h2>
+<p>特征是Rust的一个重要组成部分，所以有很多内容需要讨论。希望本教程已经让您理解了什么是特征，它们是如何工作的，以及如何处理高级用例。</p>
+<p>如果你想自己了解更多关于这些主题的知识，我强烈建议你看一下贯穿全文的参考资料。如果你想在阅读本指南后更深入，我推荐你查看“<a href="https://doc.rust-lang.org/book/title-page.html#the-rust-programming-language" target="_blank" rel="noopener noreferrer"> The Rust编程语言</a>”中关于<a href="https://doc.rust-lang.org/book/ch10-02-traits.html#traits-defining-shared-behavior" target="_blank" rel="noopener noreferrer">特征</a>和<a href="https://doc.rust-lang.org/book/ch19-03-advanced-traits.html#using-the-newtype-pattern-to-implement-external-traits-on-external-types" target="_blank" rel="noopener noreferrer">高级特征</a>的章节，以及《Rust by Example》中关于特征的<a href="https://doc.rust-lang.org/rust-by-example/trait.html" target="_blank" rel="noopener noreferrer">章节。</a></p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

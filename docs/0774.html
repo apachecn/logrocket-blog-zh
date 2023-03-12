@@ -1,0 +1,705 @@
+<html>
+<head>
+<title>How to build reusable forms using vue-form-generator - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何使用vue-form-generator - LogRocket博客构建可重用的表单</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/#0001-01-01">https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当开发小规模或大规模的应用程序时，表单输入是从用户那里收集数据的主要来源。</p>
+<p>随着我们的应用程序越来越大，我们发现需要重用捕获相似数据的表单，而不是通过重复违反<a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself" target="_blank" rel="noopener noreferrer"> DRY原则</a>的表单来创建冗余文件。为了应对这种增长或保持我们的代码库干净，我们将利用<a href="https://github.com/vue-generators/vue-form-generator" target="_blank" rel="noopener noreferrer"> vue-form-generato </a> r包。</p>
+<p>vue-form-generator是vue.js的一个基于模式的表单生成器组件，可用于创建基于数据模型或模式的反应式表单。它支持21种字段类型，有一个内置的表单验证器，可以很容易地定制，高度可扩展，并且是轻量级的。</p>
+<p>为了测试这个库，我们将创建一个简单的用户管理应用程序，演示如何对用户记录执行CRUD操作。我们还将探索一些基本的Vue表单生成器特性，如定制、验证、扩展等。这些基本特性将使我们能够学习如何通过基于数据模型生成可重用的表单组件来更好地管理表单。</p>
+<h2>先决条件</h2>
+<p>要学习本教程，需要具备以下条件:</p>
+<ol>
+<li>您选择的IDE，例如<a href="https://code.visualstudio.com/" target="_blank" rel="noopener noreferrer"> Visual Studio代码</a></li>
+<li>安装在您电脑上的<a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer"> Node.js </a>(最小节点v10x)</li>
+<li>基本了解JavaScript和<a href="https://vuejs.org/" target="_blank" rel="noopener noreferrer"> Vue </a></li>
+<li>安装在您电脑上的Vue CLI </li>
+</ol>
+<h2>装置</h2>
+<p>如果尚未安装，您可以使用此命令在PC上安装Vue CLI:</p>
+<pre>npm install @vue/cli -g
+</pre>
+<p>现在用这个命令创建一个新的Vue项目:</p>
+<pre>vue create user-management-app</pre>
+<p>接下来，将目录更改为新创建的项目:</p>
+<pre>cd user-management-app</pre>
+<p>安装vue表单生成器:</p>
+<pre>npm install vue-form-generator</pre>
+<p>让我们安装完成项目所需的附加包。</p>
+<ul>
+<li><code>axios</code>进行API调用</li>
+<li><code>vue-router</code>在我们的应用中处理路线功能</li>
+<li><code>vue-tel-input</code>获取功能国家代码和电话号码输入</li>
+</ul>
+<p>通过运行以下命令安装这些依赖项:</p>
+<pre>npm install axios vue-router vue-tel-input</pre>
+<p>我们的<code>package.json</code>中的<code>dependencies</code>对象应该是这样的:</p>
+<pre>"dependencies": {
+  "axios": "^0.19.2",
+  "core-js": "^3.6.4",
+  "vue": "^2.6.11",
+  "vue-form-generator": "^2.3.4",
+  "vue-router": "^3.1.6",
+  "vue-tel-input": "^4.3.0"
+}</pre>
+<h2>入门指南</h2>
+<p>出于演示的目的，本文构建了一个<a href="https://repl.it/@enkaypeter/user-management-api" target="_blank" rel="noopener noreferrer"> node-express后端</a>。这个基于express的服务器将帮助我们执行CRUD操作。</p>
+<p>在本教程结束时，我们将构建一个看起来像下面的GIF的应用程序:</p>
+<p><img data-attachment-id="16359" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/demo-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif" data-orig-size="730,539" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1-300x222.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif" decoding="async" class="aligncenter size-full wp-image-16359 jetpack-lazy-image" src="../Images/ed041028fc9b4b785767829edd022b8a.png" alt="finished tutorial vue forms" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="16359" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/demo-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif" data-orig-size="730,539" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1-300x222.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-16359" src="../Images/ed041028fc9b4b785767829edd022b8a.png" alt="finished tutorial vue forms" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/demo-1.gif"/></noscript>
+<h2>设置</h2>
+<p>让我们将包添加到我们的应用程序中，有两种方法可以将包添加到我们的项目中，可以手动添加，也可以直接导入到项目中。</p>
+<p>手动的话，你需要下载压缩的包，打开它，从<code>/dist</code>文件夹中添加<code>vfg.css</code>和<code>vfg.js</code>文件到你的项目中。</p>
+<p>对于这个项目，我们将使用导入选项。为此，您将把包添加到您的<code>main.js</code>文件中，这样表单组件可以在我们的应用程序中重用:</p>
+<pre>// src/main.js
+
+import Vue from 'vue'
+import App from './App.vue'
+import VueFormGenerator from 'vue-form-generator'
+
+Vue.use(VueFormGenerator);
+
+Vue.config.productionTip = false;
+
+new Vue({
+  render: h =&gt; h(App),
+}).$mount('#app');</pre>
+<h2>添加引导</h2>
+<p>为了在我们的应用程序中获得一些预定义的样式，我们将通过内容交付网络(CDN)添加引导程序，如下所示:</p>
+<pre>// public/index.html
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    ...
+    &lt;link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"&gt;
+    ...
+  &lt;/head&gt;
+&lt;/html&gt;</pre>
+<p>接下来，我们将通过更新<code>src/App.vue</code>将导航条添加到我们的应用程序中，如下所示:</p>
+<pre>// src/App.js
+
+&lt;template&gt;
+  &lt;div id="app"&gt;
+    &lt;nav class="navbar navbar-expand-lg navbar-dark bg-dark"&gt;
+      &lt;div class="container"&gt;
+        &lt;a class="navbar-brand" href="#"&gt;VFG&lt;/a&gt;
+        &lt;button class="navbar-toggler" type="button"
+                data-toggle="collapse"
+                data-target="#navbarNavDropdown"
+                aria-controls="navbarNavDropdown"
+                aria-expanded="false"
+                aria-label="Toggle navigation"&gt;
+          &lt;span class="navbar-toggler-icon"&gt;&lt;/span&gt;
+        &lt;/button&gt;
+        &lt;div class="collapse navbar-collapse" id="navbarNavDropdown"&gt;
+          &lt;ul class="navbar-nav"&gt;
+            &lt;li class="nav-item active"&gt;
+              &lt;a class="nav-link" href="#"&gt;Manage Users &lt;span class="sr-only"&gt;(current)&lt;/span&gt;&lt;/a&gt;
+            &lt;/li&gt;
+          &lt;/ul&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/nav&gt;
+    &lt;div class="container my-5"&gt;
+      &lt;router-view/&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+...</pre>
+<h2>配置Vue路由器</h2>
+<p>在本节中，我们将通过在我们的<code>src</code>目录中创建一个<code>router</code>文件夹来为我们的应用程序配置路由，如下所示:</p>
+<pre>$ mkdir src/router &amp;&amp; touch src/router/index.js</pre>
+<p><code>index.js</code>文件将包含我们所有的路由逻辑和配置。我们将为我们的应用程序创建如下路线:</p>
+<pre>// src/router/index.js
+
+import Vue from 'vue'
+import Router from 'vue-router'
+import Users from '../pages/Users'
+import CreateUser from '../pages/CreateUser'
+import EditUser from '../pages/EditUser'
+
+Vue.use(Router)
+
+export default new Router({
+  routes: [
+    {
+      path: '/',
+      name: 'Users',
+      component: Users
+    },
+    {
+      path: '/create',
+      name: 'CreateUser',
+      component: CreateUser
+    },
+    {
+      path: '/edit/:id',
+      name: 'EditUser',
+      component: EditUser
+    }
+  ]
+})</pre>
+<blockquote><p>在上面的代码片段中，我们已经导入了几个尚未创建的组件。这些组件将随着我们的进展而创建。</p></blockquote>
+<p>为了将我们的路由引导到我们的应用程序，我们将把它添加到Vue实例中，如下面的代码片段所示:</p>
+<pre>// src/main.js
+
+...
+
+import router from './router'
+
+...
+
+new Vue({
+  render: h =&gt; h(App),
+  router, // add the router config to vue instance
+}).$mount('#app');</pre>
+<p>在接下来的部分中，我们将通过在<code>src</code>目录中创建一个<code>pages</code>文件夹来创建之前导入到我们的<code>src/router/index.js</code>文件中的组件。这是我们存储所有路由器视图的地方。</p>
+<h2>用户列表视图</h2>
+<p>对于我们的用户列表视图，我们将创建一个名为<code>Users.vue</code>的文件，并添加下面的代码片段:</p>
+<pre>// src/pages/Users.vue
+
+&lt;template&gt;
+    &lt;div class="container"&gt;
+        &lt;div class="d-flex justify-content-between align-items-center"&gt;
+            &lt;div class="d-flex flex-column align-items-start"&gt;
+                &lt;h2&gt;All users&lt;/h2&gt;&lt;span class="text-muted"&gt;list of all users&lt;/span&gt;
+            &lt;/div&gt;
+            &lt;router-link to="/create" class="btn btn-primary"&gt;Create new user&lt;/router-link&gt;
+        &lt;/div&gt;
+        &lt;div class="table-responsive mt-5 bg-white"&gt;
+            &lt;div class="text-center" v-if="isLoading"&gt;Fetching Users&lt;/div&gt;
+            &lt;table v-if="!isLoading &amp;&amp; users.length" class="table"&gt;
+                &lt;thead&gt;
+                &lt;tr&gt;
+                    &lt;th&gt;SN&lt;/th&gt;
+                    &lt;th&gt;First Name&lt;/th&gt;
+                    &lt;th&gt;Last Name&lt;/th&gt;
+                    &lt;th&gt;Email&lt;/th&gt;
+                    &lt;th&gt;Phone Number&lt;/th&gt;
+                    &lt;th&gt;&lt;/th&gt;
+                &lt;/tr&gt;
+                &lt;/thead&gt;
+                &lt;tbody&gt;
+                &lt;tr v-for="(user, index) in users" :key="index"&gt;
+                    &lt;td&gt;{{index+1}}&lt;/td&gt;
+                    &lt;td&gt;{{user.first_name}}&lt;/td&gt;
+                    &lt;td&gt;{{user.last_name}}&lt;/td&gt;
+                    &lt;td&gt;{{user.email}}&lt;/td&gt;
+                    &lt;td&gt;{{user.phone_number}}&lt;/td&gt;
+                    &lt;td&gt;
+                        &lt;div class="button-group"&gt;
+                            &lt;button class="btn btn-sm"&gt;view&lt;/button&gt;
+                            &lt;router-link :to="`/edit/${user.id}`" class="btn btn-sm btn-secondary"&gt;edit&lt;/router-link&gt;
+                        &lt;/div&gt;
+                    &lt;/td&gt;
+                &lt;/tr&gt;
+                &lt;/tbody&gt;
+            &lt;/table&gt;
+            &lt;div class="text-center" v-if="!isLoading &amp;&amp; !users.length"&gt;No users found&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import axios from 'axios'
+
+export default {
+  name: 'Users',
+  mounted () {
+    this.fetchUsers()
+  },
+  data () {
+    return {
+      users: [],
+      isLoading: true
+    }
+  },
+  methods: {
+    async fetchUsers () {
+      try {
+        this.users = (await axios.get('https://user-management-api.enkaypeter.repl.co/users')).data
+      } catch (e) {
+        console.log(e)
+        alert(e.message)
+      }
+      this.isLoading = false
+    }
+  }
+
+}
+&lt;/script&gt;
+
+&lt;style scoped&gt;&lt;/style&gt;</pre>
+<p>在上面的代码片段中，我们创建了一个列表视图，显示我们用户的记录细节。我们还创建了一个链接到<code>create users</code>表单的<code>Create new user</code>按钮。</p>
+<h2>用户创建表单</h2>
+<p>在我们继续创建用户表单之前，让我们回顾一下将在表单实现中使用的<code>vue-form-generator</code>组件的一些属性。</p>
+<p><strong>模式</strong>:模式对象是我们定义表单字段的地方。这些表单域可以分组，也可以不分组。对于我们的<code>create user form</code>,我们将使用分组表单字段。要了解更多关于不同模式格式的信息，你可以访问<a href="https://vue-generators.gitbook.io/vue-generators/component/schema" target="_blank" rel="noopener noreferrer">文档</a>。</p>
+<p><strong>Options</strong>:Vue表单组件的选项，这些选项可以用来定义如何在表单上运行验证。</p>
+<p><strong>模型</strong>:模型是一个本地JSON对象。如果字段值发生变化，<code>VueFormGenerator</code>将修改此模型。</p>
+<p><strong>标签</strong>:这个属性可以用来改变域和组的主HTML元素包装器，默认值是一个<code>fieldset</code>。</p>
+<p>现在我们已经熟悉了一些基本的<code>vue-form-generator</code>属性，让我们创建我们的用户表单模式。为此，我们将创建一个名为<code>forms</code>的文件夹，其中包含我们的表单模式<code>userFromSchema.js</code>，如下所示:</p>
+<pre>$ mkdir src/forms &amp;&amp; touch src/forms/userFromSchema.js</pre>
+<p>完成后，我们将vue-form-generator导入到一个模式文件中，如下所示:</p>
+<pre>// src/forms/userFormSchema.js
+
+import VueFormGenerator from 'vue-form-generator'
+
+export default {
+  groups: []
+}
+
+...</pre>
+<p>我们的表格将由四个组组成，即个人信息、联系方式、个人资料和登录信息，如下面的子部分所定义。</p>
+<h2>个人信息</h2>
+<p>该组包含用于收集用户个人信息的表单字段，并对每个字段进行基本验证，如下所示:</p>
+<pre>// src/forms/userFormSchema.js
+...
+
+  {
+      legend: 'Personal Info',
+      fields: [
+        {
+          type: 'input',
+          inputType: 'text',
+          label: 'First Name',
+          model: 'first_name',
+          required: true,
+          validator: ['string', 'required']
+        },
+        {
+          type: 'input',
+          inputType: 'text',
+          label: 'Last Name',
+          model: 'last_name',
+          required: true,
+          validator: ['string', 'required']
+        },
+        {
+          type: 'select',
+          label: 'Gender',
+          model: 'gender',
+          values: [
+            {id: 'male', name: 'Male'},
+            {id: 'female', name: 'Female'}
+          ],
+          selectOptions: {
+            noneSelectedText: 'Choose One'
+          },
+          required: true,
+          validator: ['string', 'required']
+        },
+        {
+          type: 'input',
+          inputType: 'number',
+          label: 'Age',
+          model: 'age',
+          required: true,
+          hint: 'Age is required &amp; must be a between 18 and 35.',
+          validator: ['number', 'required'],
+          min: 18,
+          max: 35
+        },
+        {
+          type: 'input',
+          inputType: 'text',
+          label: 'City',
+          model: 'city',
+          required: true,
+          validator: ['string', 'required']
+        }
+      ]
+    }
+
+...</pre>
+<h2>联系方式</h2>
+<p>此部分包含收集用户电子邮件地址和电话号码的表单字段。该部分包含一个名为<code>tel-input</code>的自定义输入字段。我们将在这篇文章的“如何添加自定义输入字段”部分详细讨论这是如何定义的。</p>
+<pre>// src/forms/userFormSchema.js
+...
+
+  {
+      legend: 'Contact Details',
+      fields: [
+        {
+          type: 'input',
+          inputType: 'email',
+          label: 'Email',
+          model: 'email',
+          required: true,
+          validator: VueFormGenerator.validators.email
+        },
+        {
+          type: 'tel-input',
+          label: 'Phone Number',
+          model: 'phone_number'
+        }
+      ]
+    }
+...</pre>
+<h2>轮廓</h2>
+<p>顾名思义，这个组包含我们将用来收集用户资料信息的表单字段。文本区域用于收集关于用户的信息，清单用于收集用户的技能。</p>
+<pre>// src/forms/userFormSchema.js
+...
+
+  {
+      legend: 'Profile',
+      fields: [
+        {
+          type: 'textArea',
+          inputType: 'textArea',
+          rows: 4,
+          label: 'About',
+          model: 'about',
+          required: true,
+          validator: ['string', 'required']
+        },
+        {
+          type: 'checklist',
+          label: 'Skills',
+          model: 'skills',
+          values: ['Javascript', 'VueJS', 'CSS3', 'HTML5'],
+          multiSelect: true,
+          multi: true,
+          required: true,
+          validator: ['array', 'required'],
+          selectOptions: {
+            noneSelectedText: 'Choose One'
+          }
+        }
+      ]
+    }
+...</pre>
+<h2>登录详细信息</h2>
+<p>该组用于收集用户的建议用户名和密码。该组还包含自定义验证规则，这将在本文的“如何添加自定义验证规则”一节中阐述。</p>
+<pre>// src/forms/userFormSchema.js
+...
+  {
+      legend: 'Login Details',
+      fields: [
+        {
+          type: 'input',
+          inputType: 'text',
+          label: 'Username',
+          model: 'username',
+          required: true,
+          validator: ['string', 'required']
+        },
+        {
+          type: 'input',
+          inputType: 'password',
+          label: 'Password',
+          model: 'password',
+          required: true,
+          validator: ['strongPassword', 'required']
+        }
+      ]
+    }
+...</pre>
+<p>这四个组组成了我们的<code>create user form</code>模式，并将决定我们的表单域将如何呈现。要了解它们是如何组合在一起的，你可以查看GitHub上的<a href="https://github.com/enkaypeter/user-management-app/blob/master/src/forms/userFormSchema.js" target="_blank" rel="noopener noreferrer">项目库</a>。</p>
+<h2>自定义vue表单生成器</h2>
+<p>预定义的输入类型和字段有时不能满足要求，因为不是每个表单都是通用的。因此，vue-form-generator可以添加定制的输入类型和内置的定制特性。</p>
+<p>在本节中，我们将了解如何添加自定义输入类型，以及如何为表单字段添加自定义验证规则。</p>
+<h3>如何添加自定义输入字段</h3>
+<p>在位于<code>src/forms/userFormSchema.js</code>的<code>Contact Details</code>组中，我们正在添加自定义字段<code>tel-input</code>，如下所示:</p>
+<pre>...
+
+{
+          type: 'tel-input',
+          label: 'Phone Number',
+          model: 'phone_number'
+}
+
+...</pre>
+<p>为了创建这个字段，我们将在<code>components</code>文件夹中创建一个文件<code>tel-input.vue</code>，并添加下面的代码片段:</p>
+<pre>// src/components/tel-input.vue
+
+&lt;template&gt;
+    &lt;vue-tel-input v-model="value"&gt;&lt;/vue-tel-input&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { VueTelInput } from 'vue-tel-input'
+import { abstractField } from 'vue-form-generator'
+
+export default {
+  name: 'TelephoneInput',
+  mixins: [abstractField],
+  components: {VueTelInput}
+}
+&lt;/script&gt;</pre>
+<p>完成后，我们需要将<code>tel-input</code>组件注册为<code>src/main.js</code>文件中的全局组件，如下所示:</p>
+<pre>// src/main.js
+...
+Vue.component('field-tel-input', TelInput)
+...</pre>
+<h2>如何添加自定义验证规则</h2>
+<p>正如在<code>Login Details</code>组中看到的，我们添加了一个<code>strongPassword</code>验证规则。这是因为我们希望定义适合我们应用需求的自定义密码验证规则:</p>
+<pre>...
+
+{
+          type: 'input',
+          inputType: 'password',
+          label: 'Password',
+          model: 'password',
+          required: true,
+          validator: ['strongPassword', 'required']
+}
+
+...</pre>
+<p>为了创建这个规则，我们将打开我们的<code>main.js</code>文件，并像这样更新<code>Vue.use(VueFormGenerator);</code>:</p>
+<pre>// src/main.js
+...
+
+Vue.use(VueFormGenerator, {
+  validators: {
+    strongPassword: (value, field, model) =&gt; {
+      let regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{5,}$/
+
+      if (!regex.test(value)) {
+        return [ 'Password should be a minimum five characters, at least one uppercase letter, ' +
+        'one lowercase letter and one number']
+      } else {
+        return []
+      }
+    }
+  }
+})
+
+...</pre>
+<p>在上面的代码片段中，我们使用regex来检查我们的密码是否至少有五个字符，至少有一个大写字母、一个小写字母和一个数字。</p>
+<h2>创建用户组件</h2>
+<p>我们实现的下一步将是添加包含创建表单的用户创建页面。我们将使用下面的代码片段在<code>pages</code>文件夹中创建一个名为<code>CreateUser.vue</code>的文件:</p>
+<pre>&lt;template&gt;
+    &lt;div class="container"&gt;
+        &lt;div class="d-flex justify-content-start     mb-3"&gt;
+            &lt;router-link to="/" class="btn btn-sm btn-outline-secondary"&gt;back&lt;/router-link&gt;
+        &lt;/div&gt;
+        &lt;div class="d-flex justify-content-between align-items-center"&gt;
+            &lt;div class="d-flex flex-column align-items-start"&gt;
+                &lt;h2&gt;Create User&lt;/h2&gt;&lt;span class="text-muted"&gt;Add new user record&lt;/span&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="card pl-4 pt-5 pb-5 pr-4 mt-5"&gt;
+            &lt;form action="" @submit.prevent="submitUserDetails"&gt;
+                &lt;vue-form-generator tag="div" :schema="schema" :options="formOptions" :model="model" /&gt;
+                &lt;div class="d-flex justify-content-end mt-3 pr-4"&gt;
+                    &lt;button type="submit" class="btn btn-primary btn-lg"&gt;
+                        {{ isSaving ? 'Saving...' : 'Submit'}}
+                    &lt;/button&gt;
+                &lt;/div&gt;
+            &lt;/form&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import userFormSchema from '../forms/userFormSchema'
+import axios from 'axios'
+
+export default {
+  name: 'CreateUser',
+  mounted () {
+  },
+  data () {
+    return {
+      model: {
+        first_name: '',
+        last_name: '',
+        gender: '',
+        skills: ['Javascript', 'VueJS'],
+        email: '',
+        age: '',
+        phone_number: '',
+        city: '',
+        about: '',
+        username: '',
+        password: ''
+      },
+      schema: userFormSchema,
+      formOptions: {
+        validateAfterChanged: true
+      },
+      isSaving: false
+    }
+  },
+  methods: {
+    async submitUserDetails () {
+      try {
+        await axios.post('https://user-management-api.enkaypeter.repl.co/users', {
+          ...this.model
+        })
+        alert('Saved Successfully')
+      } catch (e) {greate
+        console.log(e)
+        alert(e.message)
+      }
+    }
+  }
+}
+&lt;/script&gt;
+
+&lt;style&gt;&lt;/style&gt;</pre>
+<p>正如在上面的代码片段中看到的，我们正在导入前面创建的<code>userFormSchema</code>来帮助确定我们的表单字段将如何呈现，以及<code>axios</code>来帮助我们进行API调用。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>然后，我们在组件的<code>data</code>方法中添加了一个<code>model</code>属性，用于从表单中获取输入数据。</p>
+<p>最后，我们将<code>formOptions</code>属性添加到我们的数据方法中。将<code>validateAfterChanged</code>设置为<code>true</code>将指示vue-form-generator在每次字段更改时验证我们的表单。</p>
+<h2>用户编辑表单</h2>
+<p>该文件与我们的用户创建表单非常相似，只是字段是根据从用户列表视图中选择的用户记录预先填充的。</p>
+<p>我们将通过在<code>pages</code>文件夹中创建名为<code>EditUser.vue</code>的新文件来创建我们的<code>EditUser</code>视图，如下所示:</p>
+<pre>&lt;template&gt;
+    &lt;div class="container"&gt;
+        &lt;div class="d-flex justify-content-start     mb-3"&gt;
+            &lt;router-link to="/" class="btn btn-sm btn-outline-secondary"&gt;back&lt;/router-link&gt;
+        &lt;/div&gt;
+        &lt;div class="d-flex justify-content-between align-items-center"&gt;
+            &lt;div class="d-flex flex-column align-items-start"&gt;
+                &lt;h2&gt;Edit User&lt;/h2&gt;&lt;span class="text-muted"&gt;Edit new user record&lt;/span&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="card pl-4 pt-5 pb-5 pr-4 mt-5"&gt;
+            &lt;form action="" @submit.prevent="updateUserDetails"&gt;
+                &lt;vue-form-generator tag="div" :schema="schema" :model="model" /&gt;
+                &lt;div class="d-flex justify-content-end mt-3 pr-4"&gt;
+                    &lt;button class="btn btn-primary btn-lg"&gt;
+                        {{ isSaving ? 'Saving...' : 'Update'}}
+                    &lt;/button&gt;
+                &lt;/div&gt;
+            &lt;/form&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import userFormSchema from '../forms/userFormSchema'
+    import axios from 'axios'
+
+    export default {
+        name: 'EditUser',
+        mounted () {
+            this.fetchUser(this.$route.params.id)
+        },
+        data () {
+            return {
+                model: {},
+                schema: userFormSchema,
+                id: this.$route.params.id,
+                isSaving: false
+            }
+        },
+        methods: {
+            async fetchUser () {
+                try {
+                    this.model = (await axios.get(`https://user-management-api.enkaypeter.repl.co/users/${this.id}`)).data
+                } catch (e) {
+                    console.log(e);
+                    alert(e.message)
+                }
+            },
+            async updateUserDetails () {
+                this.isSaving = true;
+                try {
+                    await axios.put(`https://user-management-api.enkaypeter.repl.co/users/${this.id}`, this.model);
+                    alert('User details updated')
+                } catch (e) {
+                    console.log(e);
+                    alert(e.message)
+                }
+                this.isSaving = false
+            }
+        }
+    }
+&lt;/script&gt;
+
+&lt;style&gt;&lt;/style&gt;</pre>
+<p>上面的组件包含两个方法；<code>fetchUse()</code>和<code>updateUserDetails()</code>。</p>
+<p><code>fetchUser</code>方法根据用户的<code>id</code>获取用户的记录，而<code>updateUserDetails</code>更新用户的详细信息。</p>
+<p>让我们休息一下，测试一下我们的应用程序，看看它是什么样子的。为此，让我们在项目目录中运行下面的代码:</p>
+<pre>$ npm run serve</pre>
+<p>如果一切顺利，当您访问显示的URL时，应该会看到如下所示的页面:</p>
+<p><img data-attachment-id="16351" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/usermanagementdev/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png" data-orig-size="1188,988" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="usermanagementdev" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-300x249.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-1024x852.png" decoding="async" class="aligncenter size-full wp-image-16351 jetpack-lazy-image" src="../Images/4916af61e58e352645df4e8bce79508e.png" alt="user management app created page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png 1188w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-300x249.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-1024x852.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-768x639.png 768w" data-lazy-sizes="(max-width: 1188px) 100vw, 1188px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="16351" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/usermanagementdev/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png" data-orig-size="1188,988" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="usermanagementdev" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-300x249.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-1024x852.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-16351" src="../Images/4916af61e58e352645df4e8bce79508e.png" alt="user management app created page" srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png 1188w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-300x249.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-1024x852.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev-768x639.png 768w" sizes="(max-width: 1188px) 100vw, 1188px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/usermanagementdev.png"/></noscript>
+<p>现在我们已经有了一个运行的应用程序，接下来我们要做的就是通过设计来增加表单的美感。</p>
+<h2>造型模板生成器</h2>
+<p>vue-form-generator是引导友好的，并且有一些开箱即用的默认样式。要使用其默认样式，您可以将此文件<code>vue-form-generator/dist/vfg.css</code>导入到您的应用程序中。您还可以使用该文件作为起点来修改表单的外观。</p>
+<p>对于本教程，我们将编写我们的自定义样式。这将帮助我们更好地理解如何设计组件的样式。</p>
+<p>用以下样式替换<code>src/App.vue</code>中的样式部分:</p>
+<pre>&lt;style&gt;
+  body {
+    background-color: #fafafa !important;
+  }
+
+  #app {
+    font-family: 'Avenir', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: center;
+    color: #2c3e50;
+  }
+
+  .vue-form-generator &gt; div{
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    flex-grow: 1;
+  }
+
+  .form-group{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 2%;
+    width: 50%;
+  }
+
+  .field-wrap, .wrapper{
+    width: 100%;
+  }
+
+  .dropList{
+    z-index: 10;
+    background-color: #FFF;
+    position: relative;
+    width: 40%;
+    top: 5px;
+    right: 12px;
+  }
+
+  legend{
+    margin: 10px 0 20px 18px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: left;
+  }
+
+  .hint{
+    font-size: 10px;
+    font-style: italic;
+    color: purple;
+  }
+
+  .help-block{
+    color: red;
+  }
+&lt;/style&gt;</pre>
+<p>在我们应用样式后，我们应该会看到类似下图的东西:<br/> <img data-attachment-id="16355" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/user-create-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png" data-orig-size="1140,991" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="User create page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-300x261.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-1024x890.png" decoding="async" class="aligncenter size-full wp-image-16355 jetpack-lazy-image" src="../Images/b37de8b1438ac8b72434992bc132a6ed.png" alt="User create page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png 1140w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-300x261.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-1024x890.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-768x668.png 768w" data-lazy-sizes="(max-width: 1140px) 100vw, 1140px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="16355" data-permalink="https://blog.logrocket.com/how-to-build-reusable-forms-using-vue-form-generator/user-create-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png" data-orig-size="1140,991" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="User create page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-300x261.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-1024x890.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-16355" src="../Images/b37de8b1438ac8b72434992bc132a6ed.png" alt="User create page" srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png 1140w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-300x261.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-1024x890.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page-768x668.png 768w" sizes="(max-width: 1140px) 100vw, 1140px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/User-create-page.png"/></noscript>
+<h2>结论</h2>
+<p>在本文中，我们学习了如何在我们的Vue应用程序中创建和管理可重用的表单，方法是使用<a href="https://github.com/vue-generators/vue-form-generator" target="_blank" rel="noopener noreferrer"> vue-form-generator </a>包基于表单组件的数据模型生成表单组件，这些组件可以在不同的场合重用。</p>
+<p>以下每个片段的源代码都可以在<a href="https://github.com/enkaypeter/user-management-app" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到。你可以随意复制它，叉它，或者提交一个问题。</p>
+<p>这里有一个到vue表单生成器文档的链接，它有更多的例子和详细的解释。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>更新您调试Vue应用程序的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

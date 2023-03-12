@@ -1,0 +1,142 @@
+<html>
+<head>
+<title>How to use AccessControl for RBAC and ABAC in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Node.js - LogRocket博客中为RBAC和ABAC使用AccessControl</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-accesscontrol-for-rbac-and-abac-in-node-js/#0001-01-01">https://blog.logrocket.com/using-accesscontrol-for-rbac-and-abac-in-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当构建软件时，系统安全性是一个关键的考虑因素，并且有多种机制用于确保软件系统的安全性。常见的有基于角色的访问控制(RBAC)和基于属性的访问控制(ABAC)。</p>
+<p><a href="https://www.npmjs.com/package/accesscontrol" target="_blank" rel="noopener noreferrer"> AccessControl </a>，Node.js模块，可以用来实现这两种访问控制机制。在深入研究AccessControl如何工作之前，让我们简要解释一下这两种机制以及它们是如何工作的。</p>
+<h2>基于角色的访问控制(RBAC)</h2>
+<p>基于角色的访问控制，也称为基于角色的安全性，是一种限制用户使用其角色、特权和权限访问系统的机制。</p>
+<p>在应用程序中，为各种用户类型(例如，作者或读者)创建角色。执行某些操作或访问应用程序资源的权限被分配给特定的角色。例如，在写作应用程序中，作者可以被授予创建、更新、阅读和删除帖子的权限，而读者只能阅读帖子。</p>
+<p>使用RBAC时，有<a href="https://en.wikipedia.org/wiki/Role-based_access_control">三条指导原则</a>:</p>
+<ol>
+<li>角色分配:只有当主体选择或被分配了角色时，主体(即用户)才能行使权限。</li>
+<li>角色授权:必须为主体授权主体的活动角色。对于上面的规则1，该规则确保用户只能担当他们被授权的角色。</li>
+<li>权限授权:只有当权限被授权给主体的活动角色时，主体才能行使权限。对于规则1和规则2，该规则确保用户只能行使他们被授权的权限。</li>
+</ol>
+<p>一个用户可以有多个角色，一个角色可以有多个权限。RBAC还支持角色层次结构，其中高级角色继承其子角色的权限。可以应用附加约束来对来自另一个角色的权限的潜在继承设置限制性规则。一些约束的例子是:</p>
+<ul>
+<li>角色不能继承自身</li>
+<li>不允许交叉继承(如果编写器从读取器继承，则读取器不能从编写器继承)</li>
+<li>角色不能预先扩展不存在的角色</li>
+</ul>
+<h2>基于属性的访问控制(ABAC)</h2>
+<p><a href="https://en.wikipedia.org/wiki/Attribute-based_access_control" target="_blank" rel="noopener noreferrer">基于属性的访问控制</a>，也称为IAM的基于策略的访问控制，定义了一种访问控制范式，通过使用将属性结合在一起的策略，将访问权限授予用户。策略可以使用任何类型的属性，例如用户属性、资源属性、对象和环境属性。</p>
+<p>ABAC可用于补充RBAC，因为除了角色和权限之外，策略可用于定义允许或不允许的属性。</p>
+<h2>使用AccessControl的Node.js RBAC-ABAC</h2>
+<p>Node.js模块融合了RBAC和ABAC的精华。它实现了RBAC基础，也关注资源和动作属性。有关该模块功能的完整列表，请查看文档。</p>
+<h3>装置</h3>
+<p>与<a href="https://www.npmjs.com/package/accesscontrol" target="_blank" rel="noopener noreferrer"> npm </a> : <code>npm i accesscontrol --save</code>。<br/>带<a href="https://yarnpkg.com/package/accesscontrol" target="_blank" rel="noopener noreferrer">纱</a> : <code>yarn add accesscontrol</code></p>
+<h3>角色</h3>
+<p>角色充当权限的容器。根据用户的责任将它们分配给用户。您可以简单地通过在一个<code>AccessControl</code>实例上调用<code>.grant(&lt;role&gt;)</code>或<code>.deny(&lt;role&gt;)</code>方法来创建和定义角色。</p>
+<pre>import { AccessControl } from 'accesscontrol';
+
+const ac = new AccessControl();
+ac.grant('reader');
+</pre>
+<p>角色可以扩展其他角色。您可以通过在现有角色上调用<code>.extend</code>来扩展角色。</p>
+<pre>ac.grant('reader').extend('writer');
+</pre>
+<h3>动作和动作属性</h3>
+<p>动作和动作属性表示角色可以对资源执行的操作。它们是基于经典CRUD的有限固定列表。有两个动作属性定义了角色对资源的占有:own和any。</p>
+<p>例如，<code>editor</code>角色可以<code>create</code>、<code>read</code>、<code>update</code>或<code>delete</code> (CRUD)任何<code>post</code>资源。但是<code>writer</code>角色可能只读取或更新它自己的<code>post</code>资源。</p>
+<p>您可以使用:<code>createOwn</code>、<code>readOwn</code>、<code>updateOwn</code>、<code>deleteOwn</code>、<code>createAny</code>、<code>readAny</code>、<code>updateAny</code>和<code>deleteAny</code>方法来定义对资源的操作和占有。</p>
+<pre>const ac = new AccessControl();
+ac.grant('reader')
+  .readAny('post')
+  .grant('writer')
+    .createOwn('post')             
+    .deleteOwn('post')
+    .readAny('post')
+  .grant('editor')                   
+    .extend('writer')                 
+    .updateAny('post')  
+    .deleteAny('post');
+</pre>
+<h3>资源和资源属性</h3>
+<p>这些代表我们想要保护的系统元素，比如<code>post</code>。多个角色可以访问特定的资源，但可能对资源的所有属性没有同等的访问权限。您可以使用Glob符号来定义允许或拒绝的属性。</p>
+<p>例如，我们有一个具有以下属性的<code>post</code>资源:<code>id</code>、<code>title</code>和<code>description</code>。任何<code>post</code>资源的所有属性都可以被<code>editor</code>角色读取:</p>
+<pre>ac.grant('editor').readAny('post', ['*']);
+</pre>
+<p>但是<code>id</code>属性不应该被<code>reader</code>角色读取。</p>
+<pre>ac.grant('reader').readAny('post', ['!id']);
+</pre>
+<h3>检查权限和过滤属性</h3>
+<p>使用角色、操作和资源的组合来确定授予的权限。您可以在一个<code>AccessControl</code>实例上添加<code>.can(&lt;role&gt;).&lt;action&gt;(&lt;resource&gt;)</code>,以检查特定资源和动作的授权许可。</p>
+<pre>const permission = ac.can('reader').readAny('post');
+permission.granted;
+permission.attributes;
+permission.filter(data);
+</pre>
+<h3>一次定义所有授权</h3>
+<p>您可以将授权直接传递给<code>AccessControl</code>构造函数。它接受一个<code>Object</code>:</p>
+<pre>let grantObjects = {
+reader: {
+        post: {
+            'read:any': ['*', '!id]
+        }
+    },
+    writer: {
+        post: {
+            'create:own': ['*'],
+            'read:any': ['*'],
+            'update:own': ['*'],
+            'delete:own': ['*']
+        }
+    },
+    editor: {
+        post: {
+            'create:any': ['*'],
+            'read:any': ['*'],
+            'update:any': ['*'],
+            'delete:any': ['*']
+        }
+    }
+}
+
+const ac = new AccessControl(grantsObject);</pre>
+<p>或者一个数组:</p>
+<pre>let grantArray = [
+  { role: 'reader', resource: 'post', action: 'read:any', attributes: '*, !id' },
+  { role: 'writer', resource: 'post', action: 'read:any', attributes: '*' },
+  { role: 'writer', resource: 'post', action: 'create:own', attributes: '*' },
+  { role: 'writer', resource: 'post', action: 'update:own', attributes: '*' },
+  { role: 'writer', resource: 'post', action: 'delete:own', attributes: '*' },
+  { role: 'editor', resource: 'post', action: 'read:any', attributes: '*' },
+  { role: 'editor', resource: 'post', action: 'create:any', attributes: '*' },
+  { role: 'editor', resource: 'post', action: 'update:any', attributes: '*' },
+  { role: 'editor', resource: 'post', action: 'delete:any', attributes: '*' },
+]
+
+const ac = new AccessControl(grantArray);
+</pre>
+<h3>Express.js示例</h3>
+<pre>const ac = new AccessControl(grants);
+
+router.get('/posts/:title', function (req, res, next) {
+    const permission = ac.can(req.user.role).readAny('post');
+    if (permission.granted) {
+        Video.find(req.params.title, function (err, data) {
+            if (err || !data) return res.status(404).end();
+            res.json(permission.filter(data));
+        });
+    } else {
+        res.status(403).end();
+    }
+});
+</pre>
+<h2>结论</h2>
+<p>我们已经展示了如何在服务器端应用程序中使用<code>AccessControl</code>进行授权。我们还可以使用它来授权客户端应用程序中的路由和UI元素，这可以通过对服务器和客户端使用相同的grant对象来完成。<code>AccessControl</code>是Node.js中唯一实现访问控制的库，Node-casbin和CASL也是实现访问控制的Node.js库。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

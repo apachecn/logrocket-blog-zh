@@ -1,0 +1,308 @@
+<html>
+<head>
+<title>Frustrations in Python - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Python - LogRocket博客中的挫折</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/frustrations-in-python/#0001-01-01">https://blog.logrocket.com/frustrations-in-python/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>黑暗势力施展他们邪恶的魔法，侵入我们珍贵的Python程序领域。</p>
+<p>他们不受控制地发送他们扭曲的魔法，污染我们可读的代码。</p>
+<p>今天，我将展示几个可能已经存在于你的代码库中的生物，它们已经习惯于开始制定自己的规则。我们需要一个英雄来保护我们和平的世界免受这些邪恶实体的侵害。你将成为与他们战斗的英雄！</p>
+<p><img decoding="async" class="size-full aligncenter jetpack-lazy-image" src="../Images/c1005556d44667289238506c1d68cbdd.png" data-lazy-src="https://i.imgur.com/FinOtnL.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://i.imgur.com/FinOtnL.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="size-full aligncenter" src="../Images/c1005556d44667289238506c1d68cbdd.png" data-original-src="https://i.imgur.com/FinOtnL.png"/></noscript>
+<p>在史诗般的战斗中，所有的英雄都需要被光魔法附体的武器来为他们服务。</p>
+<p><a href="https://github.com/wemake-services/wemake-python-styleguide" target="_blank" rel="noopener noreferrer"> wemake-python-styleguide </a>将是你的利器，也是你最好的伴侣。</p>
+<p>让我们开始我们的旅程吧！</p>
+<h3>太空入侵者</h3>
+<p>不久前，太空入侵者在Python 中被<a href="https://twitter.com/raymondh/status/1131103570856632321" target="_blank" rel="noopener noreferrer">发现。它们采取奇异的形式。</a></p>
+<pre>  5:5      E225  missing whitespace around operator
+  x -=- x
+      ^
+
+  5:5      WPS346 Found wrong operation sign
+  x -=- x
+      ^
+
+  10:2     E225  missing whitespace around operator
+  o+=+o
+   ^
+
+  14:10    E225  missing whitespace around operator
+  print(3 --0-- 5 == 8)
+           ^
+
+  14:10    WPS346 Found wrong operation sign
+  print(3 --0-- 5 == 8)
+           ^
+
+  14:11    WPS345 Found meaningless number operation
+  print(3 --0-- 5 == 8)
+            ^
+
+  14:12    E226  missing whitespace around arithmetic operator
+  print(3 --0-- 5 == 8)
+             ^
+
+  14:13    WPS346 Found wrong operation sign
+  print(3 --0-- 5 == 8)
+              ^
+</pre>
+<p>我们的代码库应该是这样的:</p>
+<pre>x = 1
+x += x
+
+o = 2
+o += o
+
+print(3 + 5 == 8)
+</pre>
+<p>可读性和干净！</p>
+<h3>神秘的点</h3>
+<p>一些市民报告说一些奇怪的代码开始出现。看，他们在这里！</p>
+<pre>print(0..__eq__(0))
+# =&gt; True
+
+print(....__eq__(((...))))
+# =&gt; True
+</pre>
+<p>这是怎么回事？在我看来像是部分<code>float</code>和<code>Ellipsis</code>，但最好确定一下。</p>
+<pre>  21:7     WPS609 Found direct magic attribute usage: __eq__
+  print(0..__eq__(0))
+        ^
+
+  21:7     WPS304 Found partial float: 0.
+  print(0..__eq__(0))
+        ^
+
+  24:7     WPS609 Found direct magic attribute usage: __eq__
+  print(....__eq__(((...))))
+        ^
+</pre>
+<p>哎哟！现在我们确定了。确实是点属性访问的分部<code>float</code>和点访问相同的<code>Elipsis</code>。现在让我们揭示所有隐藏的东西:</p>
+<pre>print(0.0 == 0)
+print(... == ...)
+</pre>
+<p>尽管如此，最好不要激怒别人，也不要在其他地方比较常数。</p>
+<h3>误导的道路</h3>
+<p>我们有一个新的事件。有些值从未从函数中返回。让我们弄清楚这是怎么回事。</p>
+<pre>def some_func():
+    try:
+       return 'from_try'
+    finally:
+       return 'from_finally'
+
+some_func()
+# =&gt; 'from_finally'
+</pre>
+<p>由于我们的代码中有一个损坏的实体，我们丢失了<code>'from_try'</code>，如何解决这个问题？</p>
+<pre> 31:5 WPS419 Found `try`/`else`/`finally` with multiple return paths
+ try:
+ ^
+</pre>
+<p>原来<code>wemake-python-styleguide</code>一直都知道！它教导我们永远不要从<code>finally</code>返回。让我们服从它。</p>
+<pre>def some_func():
+  try:
+      return 'from_try'
+  finally:
+      print('now in finally')
+</pre>
+<h3>继承的遗产</h3>
+<p>一些远古生物正在苏醒。几十年没见过了。而现在它已经<a href="https://twitter.com/dabeaz/status/1199376319961849861" target="_blank" rel="noopener noreferrer">返回了</a>。</p>
+<pre>a = [(0, 'Hello'), (1, 'world')]
+for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+    print(x)
+</pre>
+<p>这是怎么回事？人们可以在循环中隐式解包值。解包的目标几乎可以是任何有效的Python表达式。</p>
+<p>但是，我们不应该从这个例子中做很多事情:</p>
+<pre>  44:1     WPS414 Found incorrect unpacking target
+  for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+  ^
+
+  44:5     WPS405 Found wrong `for` loop variable definition
+  for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+      ^
+
+  44:11    WPS308 Found constant compare
+  for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+            ^
+
+  44:14    E225  missing whitespace around operator
+  for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+               ^
+
+  44:21    WPS111 Found too short name: x
+  for ['&gt;']['&gt;'&gt;'&gt;'], x in a:
+                      ^
+</pre>
+<p>看起来<code>['&gt;'\]['&gt;'&gt;'&gt;']</code>只是<code>['&gt;'\][0]</code>，因为<code>'&gt;' &gt; '&gt;'</code>是<code>False</code>。</p>
+<p>这个案子解决了。</p>
+<h3>黑巫师的签名</h3>
+<p><a href="https://sobolevn.me/2019/10/complexity-waterfall" target="_blank" rel="noopener noreferrer">Python中的表达式可以有多复杂</a>？黑巫师在他接触的所有职业上都留下了复杂的印记:</p>
+<pre>class _:
+    # There are four of them, do you see it?
+    _: [(),...,()] = {((),...,()): {(),...,()}}[((),...,())]
+
+print(_._) # this operator also looks familiar 🤔
+# =&gt; {(), Ellipsis}
+</pre>
+<p>这个签名怎么看，怎么评价？看起来是由几个部分组成:<br/>-声明和类型注释:<code>_: [(),...,()] = </code><br/>-以set为值的字典定义:<code>= { ((),...,()): {(),...,()} }</code><br/>-Key access:<code>[((),...,())]<br/> </code><br/>虽然它对这个世界的人类没有任何意义，但它仍然是一个有效的Python代码，可以用来做一些邪恶的事情。让我们删除它:</p>
+<pre>  55:5     WPS122 Found all unused variables definition: _
+  _: [(),...,()] = {((),...,()): {(),...,()}}[((),...,())]
+  ^
+
+  55:5     WPS221 Found line with high Jones Complexity: 19
+  _: [(),...,()] = {((),...,()): {(),...,()}}[((),...,())]
+  ^
+
+  55:36    WPS417 Found non-unique item in hash: ()
+  _: [(),...,()] = {((),...,()): {(),...,()}}[((),...,())]
+                                 ^
+
+  57:7     WPS121 Found usage of a variable marked as unused: _
+  print(_._)  # this operator also looks familiar 
+        ^
+</pre>
+<p>现在这个复杂的表达式(琼斯复杂度为19)被移除或重构。任何黑色来源的签名从这个可怜的职业中移除。让我们平静地离开它。</p>
+<h3>超魔法</h3>
+<p>我们的普通班开始和一些可疑的人混在一起。我们需要保护他们免受这种不良影响。<br/>目前，他们的产量真的很奇怪:</p>
+<pre>class Example(type((lambda: 0.)())):
+ ...
+
+print(Example(1) + Example(3))
+# =&gt; 4.0
+</pre>
+<p>为什么<code>1 + 3</code>是<code>4.0</code>而不是<code>4</code>？为了找到答案，让我们打开<code>type((lambda: 0.)())</code>的包装:<br/>–<code>(lambda: 0.)()</code>就是<code>0.</code>，而<code>0.</code>就是<code>0.0</code>。<br/>–<code>type(0.0)</code>是<code>float</code><br/>–当我们写<code>Example(1)</code>时，它在类内部被转换为<code>Example(1.0)</code>。<br/>–<code>Example(1.0) + Example(3.0)</code>是<code>Example(4.0)</code></p>
+<p>让我们确保我们的武器一如既往的锋利:</p>
+<pre>  63:15    WPS606 Found incorrect base class
+  class Example(type((lambda: 0.)())):
+                ^
+
+  63:21    WPS522 Found implicit primitive in a form of lambda
+  class Example(type((lambda: 0.)())):
+                      ^
+
+  63:29    WPS304 Found partial float: 0.
+  class Example(type((lambda: 0.)())):
+                              ^
+
+  64:5     WPS428 Found statement that has no effect
+  ...
+  ^
+
+  64:5     WPS604 Found incorrect node inside `class` body
+  ...
+  ^
+</pre>
+<p>我们在这里发现了所有可能的问题。我们的班级是安全的。是时候向前看了。</p>
+<h3>再生器</h3>
+<p>如此相似又如此不同。再生器<a href="https://stackoverflow.com/questions/32139885/yield-in-list-comprehensions-and-generator-expressions" target="_blank" rel="noopener noreferrer">在我们的源代码中找到</a>。它看起来像一个普通的生成器表达式，但它是完全不同的东西。</p>
+<pre>a = ['a', 'b']
+print(set(x + '!' for x in a))
+# =&gt; {'b!', 'a!'}
+
+print(set((yield x + '!') for x in a))
+# =&gt; {'b!', None, 'a!'}
+</pre>
+<p>这是Python中的一个bug是的，它们确实存在。并且由于<code>python3.8</code>是一个<code>SyntaxError</code>，不应该在发生器功能之外使用<code>yield</code>和<code>yield from</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>以下是我们对该事件的常规报道:</p>
+<pre>  73:7     C401  Unnecessary generator - rewrite as a set comprehension.
+  print(set(x + '!' for x in a))
+        ^
+
+  76:7     C401  Unnecessary generator - rewrite as a set comprehension.
+  print(set((yield x + '!') for x in a))
+        ^
+
+  76:11    WPS416 Found `yield` inside comprehension
+  print(set((yield x + '!') for x in a))</pre>
+<p> </p>
+<p>此外，让我们按照建议正确地写理解。</p>
+<pre>print({x + '!' for x in a})
+</pre>
+<p>这是一个很难解决的问题。但最终，再生器消失了，错误的理解也消失了。下一步是什么？</p>
+<h3>电子邮件邪恶克隆</h3>
+<p>如果需要写电子邮件地址，就用字符串。对吗？不对！</p>
+<p>做常规的事情有不寻常的方法。还有常规数据类型的邪恶克隆。我们将会发现它们。</p>
+<pre>class G:
+    def __init__(self, s):
+        self.s = s
+    def __getattr__(self, t):
+        return G(self.s + '.' + str(t))
+    def __rmatmul__(self, other):
+        return other + '@' + self.s
+
+username, example = 'username', G('example')
+print(<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2f5a5c4a5d414e424a6f4a574e425f434a014c4042">[email protected]</a>)
+# =&gt; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="186d6b7d6a7679757d587d60797568747d367b7775">[email protected]</a>
+</pre>
+<p>它是如何工作的？<br/>–<code>@</code>是Python中的一个操作符，它的行为可以通过<code>__matmul__</code>和<code>__rmatmul__</code>魔法方法修改<br/>–<code>.com</code>是一个属性<code>com</code>点访问，它可以通过<code>__getattr__<br/> </code> <br/>修改，这段代码和其他例子的一个很大的区别是这段代码实际上是有效的。只是不寻常。我们可能不应该使用它。但是，让我们把这个写进我们的知识探索书。</p>
+<h3>海象的谬误</h3>
+<p>黑暗降临到了Python身上。它分裂了友好的开发人员社区，带来了争议。你已经获得了字符串编程的能力:</p>
+<pre>from math import radians
+for angle in range(360):
+    print(f'{angle=} {(th:=radians(angle))=:.3f}')
+    print(th)
+
+# =&gt; angle=0 (th:=radians(angle))=0.000
+# =&gt; 0.0
+# =&gt; angle=1 (th:=radians(angle))=0.017
+# =&gt; 0.017453292519943295
+# =&gt; angle=2 (th:=radians(angle))=0.035
+# =&gt; 0.03490658503988659
+</pre>
+<p>这是怎么回事？<br/>–<code>f'{angle=}</code>是一种新的(python3.8+)编写方式<code>f'angle={angle}</code><br/>–<code>(th:=radians(angle))</code>是一个赋值表达式，是的，你现在可以在字符串中进行赋值了<br/>–<code>=:.3f</code>是格式化部分，它返回表达式及其舍入结果值<br/>–<code>print(th)</code>起作用，因为<code>(th:=radians(angle))</code>具有局部范围效应</p>
+<p>应该使用赋值表达式吗？这取决于你。应该在字符串内部赋值吗？绝对不行。</p>
+<p>这里有一个友好的提示，提醒你可以(但也可能不应该)用<code>f</code>字符串本身做些什么:</p>
+<pre>print(f"{getattr(__import__('os'), 'eman'[None:None:-1])}")
+# =&gt; posix
+</pre>
+<p>只是一个字符串中的常规模块导入——继续，这里没什么可看的。</p>
+<p>幸运的是，我们不允许在真实代码中写这一行:</p>
+<pre>105:1    WPS221 Found line with high Jones Complexity: 16
+  print(f"{getattr(__import__('os'), 'eman'[None:None:-1])}")
+  ^
+
+  105:7    WPS305 Found `f` string
+  print(f"{getattr(__import__('os'), 'eman'[None:None:-1])}")
+        ^
+
+  105:18   WPS421 Found wrong function call: __import__
+  print(f"{getattr(__import__('os'), 'eman'[None:None:-1])}")
+                   ^
+
+  105:36   WPS349 Found redundant subscript slice
+  print(f"{getattr(__import__('os'), 'eman'[None:None:-1])}")
+                                     ^
+</pre>
+<p>还有一点:<code>f</code>string不能用作docstrings:</p>
+<pre>def main():
+    f"""My name is {__file__}/{__name__}!"""
+
+print(main().__doc__)
+# =&gt; None
+</pre>
+<h3>结论</h3>
+<p>我们与许多滋生在我们代码中的丑陋怪物战斗，让Python的土地成为一个更好的居住地。你应该为自己感到骄傲，英雄！</p>
+<p>那是一次史诗般的旅程。我希望你学到了新的东西:在接下来的战斗中变得更强大。世界需要你！</p>
+<p>今天到此为止。注意安全，旅行者。</p>
+<h3>有用的链接</h3>
+
+<p>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p>
+<p>Focus on the bugs that matter — <a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">try LogRocket today</a>.</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

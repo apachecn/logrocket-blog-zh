@@ -1,0 +1,243 @@
+<html>
+<head>
+<title>Using Mapbox GL JS with React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>将Mapbox GL JS与React - LogRocket Blog一起使用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-mapbox-gl-js-react/#0001-01-01">https://blog.logrocket.com/using-mapbox-gl-js-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本文于2022年6月27日更新，包含故障排除提示和更多关于Mapbox GL JS的最新信息。</em></p>
+<h2>什么是Mapbox GL JS？</h2>
+<p>Mapbox 是一个实时定位平台，允许开发者为各种应用程序创建交互式和直观的地图界面。在网络上，这是通过一个名为<a href="https://docs.mapbox.com/mapbox-gl-js/api/" target="_blank" rel="noopener"> Mapbox GL JS </a>的JavaScript库来完成的，该库使用<a href="https://get.webgl.org/" target="_blank" rel="noopener"> Web GL </a>来渲染来自<a href="https://docs.mapbox.com/help/glossary/vector-tiles/" target="_blank" rel="noopener">矢量图块</a>和<a href="https://docs.mapbox.com/mapbox-gl-js/style-spec/" target="_blank" rel="noopener"> Mapbox样式</a>的交互式地图。</p>
+<p>如果你要向React应用程序添加地图接口，优步工程团队已经创建了一个名为<a href="https://visgl.github.io/react-map-gl/" target="_blank" rel="noopener"> react-map-gl </a>的React包，使这个过程变得更加容易。这个包为Mapbox GL JS提供了一个集成，以及一个易于使用的组件库。</p>
+<p>在本文中，我们将利用react-map-gl构建两个地图组件:一个显示我们的当前位置，另一个允许我们在全球范围内搜索位置。</p>
+<h3 id="3contents">内容</h3>
+
+<h2 id="getting-started">入门指南</h2>
+<p>首先，让我们使用以下命令创建一个新的React应用程序:</p>
+<pre class="language-shell hljs">npx create-react-app mapbox-react
+</pre>
+<p>要开始使用react-map-gl包，我们还需要在我们的应用程序中安装npm，以及Mapbox GL JS库(<code>mapbox-gl</code>)，以便我们可以导入它的样式。</p>
+<p>我们也可以使用下面的命令来实现这一点:</p>
+<pre class="language-shell hljs">npm install react-map-gl mapbox-gl
+</pre>
+<h2 id="locating-your-position-react-map-gl">使用react-map-gl定位您的位置</h2>
+<p>让我们从确定我们目前的位置开始。使用react-map-gl包，我们可以通过导入一个名为<code>GeolocateControl</code>的内置组件来实现这一点，该组件允许我们通过浏览器跟踪用户的位置，只需单击一个按钮。</p>
+<p>然而，在我们开始使用地图框样式之前，我们需要创建一个免费的帐户来检索我们的<code>MAPBOX_TOKEN</code>。如果你还没有，你可以前往<a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noopener">他们的注册页面</a>T3】e。</p>
+<p>让我们通过使用以下代码创建一个新的React组件来尝试一下:</p>
+<pre class="language-js hljs">import Map, { GeolocateControl } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+
+function MyMap() {
+  return (
+    &lt;div&gt;
+      &lt;Map
+        mapboxAccessToken="MAPBOX_TOKEN"
+        initialViewState={{
+          longitude: -100,
+          latitude: 40,
+          zoom: 3.5,
+        }}
+        mapStyle="mapbox://styles/mapbox/streets-v11"
+      &gt;
+        &lt;GeolocateControl
+          positionOptions={{ enableHighAccuracy: true }}
+          trackUserLocation={true}
+        /&gt;
+      &lt;/Map&gt;
+    &lt;/div&gt;
+  );
+}
+export default MyMap;
+</pre>
+<p>请务必用您从自己的Mapbox仪表板中检索到的令牌更新上面第八行的<code>MAPBOX_TOKEN</code>。</p>
+<p>上面显示的代码创建了一个地图，能够通过点击页面左上角的按钮来获取我们的当前位置，我们可以看到，只需几行代码从<code>react-map-gl</code>库中导入两个组件，这是多么简单。</p>
+<p>我们还使用了<code>&lt;Map/&gt;</code>组件来设置地图视图，并通过<code>initialViewState</code>属性设置了默认的经度和纬度。接下来，我们导入了第二个组件<code>&lt;GeolocateControl/&gt;</code>，它负责让我们检索当前位置的图标。</p>
+<h2 id="using-geolocation-api">使用地理定位API</h2>
+<p>我们的例子的一个缺陷是，在我们的地图被激活后，我们的当前位置没有被立即加载；我们仍然需要点击一个按钮来得到它。我们可以通过利用浏览器的<a href="https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API" target="_blank" rel="noopener">地理定位API </a>在加载时获取我们的当前位置，并将结果设置为我们的默认视口来解决这个问题。</p>
+<p>下面是一个更新的示例，展示了如何做到这一点:</p>
+<pre class="language-js hljs">import { useState, useEffect } from "react";
+import Map, { Marker } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+
+function MyMap() {
+  const [viewport, setViewport] = useState({});
+  useEffect(() =&gt; {
+    navigator.geolocation.getCurrentPosition((pos) =&gt; {
+      setViewport({
+        ...viewport,
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        zoom: 3.5,
+      });
+    });
+  }, []);
+  return (
+    &lt;div&gt;
+      {viewport.latitude &amp;&amp; viewport.longitude &amp;&amp; (
+        &lt;div&gt;
+          &lt;h1&gt;Your Location:&lt;/h1&gt;
+          &lt;Map
+            mapboxAccessToken="MAPBOX_TOKEN"
+            initialViewState={viewport}
+            mapStyle="mapbox://styles/mapbox/streets-v11"
+          &gt;
+            &lt;Marker
+              longitude={viewport.longitude}
+              latitude={viewport.latitude}
+            /&gt;
+          &lt;/Map&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/div&gt;
+  );
+}
+export default MyMap;
+</pre>
+<p>在这个新示例中，我们使用React的<code>useState</code>钩子创建了一个新的<code>viewport</code>状态，并使用<code>useEffect</code>钩子，将这个状态的值更新为从浏览器的导航API中检索到的当前位置。你可能还注意到我们已经抛弃了<code>GeolocateControl</code>组件，因为我们现在可以自动获取当前位置。</p>
+<p>最后，我们进一步通过<code>Marker</code>组件为我们的位置添加了一个标记。</p>
+<p>这样，每当我们的React应用程序被加载时，我们就能够通过一个标记看到我们的当前位置。</p>
+<h2 id="searching-for-location-using-react-map-gl">使用react-map-gl搜索位置</h2>
+<p>为了能够搜索用户的位置，我们将使用名为<a href="https://www.npmjs.com/package/react-map-gl-geocoder" target="_blank" rel="noopener"> react-map-gl-geocoder </a>的包来构建react-map-gl的功能，这是一个用于react-map-gl的mapbox-gl-geocoder的react包装器。此外，为了添加覆盖，我们将在地图上标记我们搜索过的区域。</p>
+<p>为了提高可读性，我们还将采用另一个可视化框架，<a href="https://deck.gl/#/" target="_blank" rel="noopener"> deck-gl </a>，也是由优步工程团队创建的。我们可以用下面的命令安装这两个库:</p>
+<pre class="language-shell hljs">npm install react-map-gl-geocoder deck.gl
+</pre>
+<p>一旦我们设置好这些，让我们用下面的代码创建一个新的<code>SearchableMap</code>地图:</p>
+<pre class="language-js hljs">import "mapbox-gl/dist/mapbox-gl.css";
+import "react-map-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import { useEffect, useRef, useState } from "react";
+import Map from "react-map-gl";
+import DeckGL, { GeoJsonLayer } from "deck.gl";
+import Geocoder from "react-map-gl-geocoder";
+
+const token = "MAPBOX_TOKEN";
+
+const SearchableMap = () =&gt; {
+  const [viewport, setViewPort] = useState({
+    latitude: 0,
+    longitude: 0,
+    zoom: 1,
+    transitionDuration: 100,
+  });
+  const [searchResultLayer, setSearchResult] = useState(null);
+  const mapRef = useRef();
+  const handleOnResult = (event) =&gt; {
+    console.log(event.result);
+    setSearchResult(
+      new GeoJsonLayer({
+        id: "search-result",
+        data: event.result.geometry,
+        getFillColor: [255, 0, 0, 128],
+        getRadius: 1000,
+        pointRadiusMinPixels: 10,
+        pointRadiusMaxPixels: 10,
+      })
+    );
+  };
+  const handleGeocoderViewportChange = (viewport) =&gt; {
+    const geocoderDefaultOverrides = { transitionDuration: 1000 };
+    console.log("Updating");
+    return setViewPort({
+      ...viewport,
+      ...geocoderDefaultOverrides,
+    });
+  };
+  useEffect(() =&gt; {
+    console.log({ viewport });
+  }, [viewport]);
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Use the search bar to find a location on the map&lt;/h1&gt;
+      &lt;Map
+        ref={mapRef}
+        {...viewport}
+        mapStyle="mapbox://styles/mapbox/streets-v9"
+        width="100%"
+        height="70vh"
+        onViewportChange={setViewPort}
+        mapboxAccessToken={token}
+      &gt;
+        &lt;Geocoder
+          mapRef={mapRef}
+          onResult={handleOnResult}
+          onViewportChange={handleGeocoderViewportChange}
+          mapboxAccessToken={token}
+          position="top-left"
+        /&gt;
+      &lt;/Map&gt;
+      &lt;DeckGL {...viewport} layers={[searchResultLayer]} /&gt;
+    &lt;/div&gt;
+  );
+};
+export default SearchableMap;
+</pre>
+<p>首先，我们用<code>&lt;Map/&gt;</code>组件创建一个地图容器，就像我们在前面的例子中所做的那样。接下来，我们使用react-map-gl-geocoder中的<code>Geocoder</code>组件，它作为一个搜索组件，从Mapbox API返回给定位置的坐标。</p>
+<p>它需要一些道具；<code>onResult</code> prop是一个函数，当搜索返回一个结果参数时会调用这个函数，在我们的例子中，它会创建一个<code>GeoJsonLayer</code>对象，并将其状态设为<code>searchResultLayer</code>。该<code>GeoJsonLayer</code>然后用于在地图上创建一个deck-gl层，指示在地图中搜索的位置。</p>
+<p>就像<code>&lt;Map/&gt;</code>组件一样，<code>Geocoder</code>也有一个被调用来更新地图的<code>onViewportChange</code>函数；在我们的例子中，我们选择创建一个单独的函数来处理这个名为<code>handleGeocoderViewportChange</code>的函数，以便在更新地图上的视区时覆盖过渡持续时间。</p>
+<p>如果您希望使用默认值，可以使用与Mapbox相同的视口更改处理程序。地理编码器还需要Mapbox令牌来访问Mapbox API和获取位置。</p>
+<p>搜索时，我们的地理编码器会建议一些位置，如下所示。</p>
+<p><img data-attachment-id="121642" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-location-suggestion/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png" data-orig-size="427,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl location suggestion" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion-250x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png" decoding="async" class="size-full wp-image-121642 aligncenter jetpack-lazy-image" src="../Images/40a9bf98165d69c6663d68befb6de8b4.png" alt="mapbox react gl location suggestion" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png 427w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion-250x300.png 250w" data-lazy-sizes="(max-width: 427px) 100vw, 427px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121642" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-location-suggestion/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png" data-orig-size="427,512" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl location suggestion" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion-250x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png" decoding="async" loading="lazy" class="size-full wp-image-121642 aligncenter" src="../Images/40a9bf98165d69c6663d68befb6de8b4.png" alt="mapbox react gl location suggestion" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png 427w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion-250x300.png 250w" sizes="(max-width: 427px) 100vw, 427px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-location-suggestion.png"/></noscript>
+<p>您还会注意到，我们创建并使用了一个集成了这两个组件的ref，并作为一个<code>mapRef</code> prop传递给这两个组件。</p>
+<p>我们的可搜索地图中的最后一块是我们为其创建数据的deck.gl图层。当我们搜索一个区域时，这将在地图上呈现。它被传递了视口细节和<code>searchResultLayer</code>，用来在我们的位置上生成点，如下所示。</p>
+<p><img data-attachment-id="121644" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-map-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png" data-orig-size="512,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl map display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png" decoding="async" class="size-full wp-image-121644 aligncenter jetpack-lazy-image" src="../Images/f8d846ef66bbc3e6a8d7e4f943e31bb5.png" alt="mapbox react gl map display" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display-300x172.png 300w" data-lazy-sizes="(max-width: 512px) 100vw, 512px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121644" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-map-display/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png" data-orig-size="512,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl map display" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png" decoding="async" loading="lazy" class="size-full wp-image-121644 aligncenter" src="../Images/f8d846ef66bbc3e6a8d7e4f943e31bb5.png" alt="mapbox react gl map display" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display-300x172.png 300w" sizes="(max-width: 512px) 100vw, 512px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-map-display.png"/></noscript>
+<p>就这样，我们有了一个可搜索的地图！</p>
+<h2 id="routing-mapbox-gl-js">Mapbox GL JS中的工艺路线</h2>
+<p>到目前为止，我们已经为我们的地图示例创建了两个React组件(<code>MyMap</code>和<code>SearchableMap</code>)。让我们通过在这两个组件之间进行路由，让我们的应用程序更进一步。我们可以通过简单地安装react-router-dom来做到这一点:</p>
+<pre class="language-shell hljs">npm install react-router-dom
+</pre>
+<p>为了实现路由，让我们用下面的代码更新我们的<code>App.js</code>文件:</p>
+<pre class="language-js hljs">import MyMap from  './components/MyMap'
+import SearchableMap from './components/SearchableMap';
+import { Route, Switch, BrowserRouter } from 'react-router-dom'
+
+function App() {
+  return (
+      &lt;div&gt;
+        &lt;div style={{ margin: '0 auto', textAlign: 'center', fontSize: '2rem'}}&gt;
+          &lt;a href="/"&gt;Show My Location&lt;/a&gt; or &lt;a href="/search"&gt;Search&lt;/a&gt;
+        &lt;/div&gt;
+        &lt;BrowserRouter &gt;
+        &lt;Switch&gt;
+            &lt;Route exact path="/" component={Map} /&gt;
+            &lt;Route exact path="/search" component={SearchableMap} /&gt;
+        &lt;/Switch&gt;
+        &lt;/BrowserRouter&gt;
+      &lt;/div&gt;
+  )
+}
+
+export default App
+</pre>
+<p>我们都准备好了！运行您的应用程序来玩两个组件。这是它们完成后的样子。我们可以使用页面顶部的链接在搜索和位置页面之间导航。</p>
+<p><img data-attachment-id="121646" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-gl-react-geolocator/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png" data-orig-size="512,296" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox gl react geolocator" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png" decoding="async" class="size-full wp-image-121646 aligncenter jetpack-lazy-image" src="../Images/d68f83c0251eb5a2a824449cecc93e06.png" alt="mapbox gl react geolocator" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator-300x173.png 300w" data-lazy-sizes="(max-width: 512px) 100vw, 512px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121646" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-gl-react-geolocator/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png" data-orig-size="512,296" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox gl react geolocator" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png" decoding="async" loading="lazy" class="size-full wp-image-121646 aligncenter" src="../Images/d68f83c0251eb5a2a824449cecc93e06.png" alt="mapbox gl react geolocator" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator-300x173.png 300w" sizes="(max-width: 512px) 100vw, 512px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-gl-react-geolocator.png"/></noscript>
+<p><img data-attachment-id="121648" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-geolocator-location/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png" data-orig-size="730,356" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl geolocator location" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png" decoding="async" class="size-full wp-image-121648 aligncenter jetpack-lazy-image" src="../Images/11b4c3903fd3475b6b6169c72085b65d.png" alt="mapbox react gl geolocator location" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location-300x146.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="121648" data-permalink="https://blog.logrocket.com/using-mapbox-gl-js-react/attachment/mapbox-react-gl-geolocator-location/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png" data-orig-size="730,356" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mapbox react gl geolocator location" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png" decoding="async" loading="lazy" class="size-full wp-image-121648 aligncenter" src="../Images/11b4c3903fd3475b6b6169c72085b65d.png" alt="mapbox react gl geolocator location" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location-300x146.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/mapbox-react-gl-geolocator-location.png"/></noscript>
+<h2 id="troubleshooting-errors">故障排除错误</h2>
+<p>如果您使用的是react-map-gl-geocoder包的不兼容版本，在尝试导入<code>Geocoder</code>组件时，您可能会遇到以下错误:</p>
+<pre class="language-shell hljs">export 'FlyToInterpolator' (imported as 'r') was not found in 'react-map-gl'
+</pre>
+<p>出现此错误是因为react-map-gl-geocoder包所依赖的组件可能与您安装的react-map-gl库版本不兼容。为了解决这个问题，我们需要通过安装并遵循<a href="https://github.com/visgl/react-map-gl/tree/7.0-release/examples/geocoder" target="_blank" rel="noopener"> this GitHub repository </a>中强调的说明，从头开始重新创建<code>Geocoder</code>组件。</p>
+<p>对于其他错误，请确保您已经安装了所有必要的软件包，因为没有它们，您的地图可能无法正常工作。</p>
+<h2>结论</h2>
+<p>Mapbox GL JS是一个创建交互式地图界面的伟大工具，有了react-map-gl，集成到react应用程序中就更容易了。除了来自优步的软件包的周围生态系统，您可以扩展其功能，使用deck-gl创建各种好看的界面，以创建令人惊叹的外观覆盖。</p>
+<p>优步更加重视网络地理空间技术，如Mapbox到vis.gl，他们的各种框架套件(包括Mapbox)都属于这种技术，看看他们的未来会怎样将会很有趣。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

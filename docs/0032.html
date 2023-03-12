@@ -1,0 +1,231 @@
+<html>
+<head>
+<title>Understanding React compound components - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解React复合组件- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-react-compound-components/#0001-01-01">https://blog.logrocket.com/understanding-react-compound-components/#0001-01-01</a></blockquote><div><article class="article-post">
+ <p><em> <strong>编者按:</strong>这篇文章于2021年11月5日进行了审查和更新，提供了相关信息和代码块。</em></p>
+<p>复合组件是一种高级模式，因此使用起来可能会有些力不从心。本指南旨在帮助您理解该模式，以便您能够自信而清晰地有效使用它。在本文中，我们将使用<a href="https://reactjs.org/docs/context.html" target="_blank" rel="noopener noreferrer">上下文API。</a></p>
+<h3>React中的复合成分是什么？</h3>
+<p>复合组件是一种模式，在这种模式中，组件一起使用，从而共享一种隐式状态，使它们可以在后台相互通信。</p>
+<p>换句话说，当多个组件一起工作以具有共享状态并一起处理逻辑时，它们被称为复合组件。</p>
+<blockquote><p>想想HTML中的复合组件，如<code><em>&lt;select&gt;</em></code>和<code><em>&lt;option&gt;</em></code>元素。分开时，它们不会做太多，但合在一起时，它们能让你创造完整的体验。— <a href="https://blog.kentcdodds.com/advanced-react-component-patterns-56af2b74bc5f" target="_blank" rel="noopener noreferrer">肯特·c·多兹</a></p></blockquote>
+<p>当你点击一个选项时，<code>select</code>知道你点击了哪个<code>option</code>。像<code>select</code>和<code>option</code>一样，组件自己共享状态，所以你不必显式地配置它们。</p>
+<h3>复合组分的例子</h3>
+<pre>&lt;TabSwitcher&gt;
+  &lt;header&gt;
+    &lt;ul className="tablist"&gt;
+      &lt;li&gt;
+        &lt;Tab id="a"&gt;
+          &lt;button&gt;Tab A&lt;/button&gt;
+        &lt;/Tab&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;Tab id="b"&gt;
+          &lt;button&gt;Tab B&lt;/button&gt;
+        &lt;/Tab&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/header&gt;
+  &lt;main&gt;
+    &lt;TabPanel whenActive="a"&gt;
+      &lt;div&gt;
+        a panel
+      &lt;/div&gt;
+    &lt;/TabPanel&gt;
+
+    &lt;TabPanel whenActive="b"&gt;
+      &lt;div&gt;
+        b panel
+      &lt;/div&gt;
+    &lt;/TabPanel&gt;
+  &lt;/main&gt;
+&lt;/TabSwitcher&gt;</pre>
+<p>当您点击<code>Tab</code>组件内的按钮时，相应选项卡面板的内容被渲染。此外，请注意，我们正在使用多个组件来创建一个复合组件。因此，这有助于代码的可重用性。</p>
+<h3>为什么我有渲染道具还需要它？</h3>
+<p>渲染道具是一个很好的模式。它功能多样，易于理解。然而，这并不意味着我们必须在任何地方都使用它。如果使用不慎，可能会导致代码混乱。</p>
+<p>在标记中有太多的嵌套函数会使阅读变得困难。记住，没有什么是银弹，即使是渲染道具。</p>
+<h3>使用复合组件模式的优势</h3>
+<p>通过看这个例子，使用复合组件的一些优点是非常明显的。</p>
+<p>例如，开发人员拥有标记。<code>TabSwitcher</code>的实现不需要固定的标记结构。你可以做任何你想做的事情，嵌套一个10层深的标签(我不是在评判)，它仍然可以工作。因为它们是复合在一起的，所以它们可以无缝地相互共享状态数据</p>
+<p>此外，开发人员可以按任何顺序重新排列组件。假设您希望<code>Tabs</code>位于<code>Tab Panels</code>的下方。组件实现中不需要任何改变，我们只需要在标记中重新排列组件</p>
+<p>最后，组件不必明确地挤在一起。它们可以独立编写，但仍然能够交流。在这个例子中，<code>Tab</code>和<code>TabPanel</code>组件没有直接连接，但是它们能够通过它们的父<code>TabSwitcher</code>组件进行通信。</p>
+<h3>复合组件如何工作</h3>
+<ul>
+<li>父组件(<code>TabSwitcher</code>)有一些状态</li>
+<li>使用上下文api，<code>TabSwitcher</code>与子组件共享它的状态和方法。在这种情况下，我们的子组件是<code>Tab</code>和<code>TabPanel</code></li>
+<li>子组件<code>Tab</code>使用共享方法与<code>TabSwitcher</code>通信</li>
+<li>子组件<code>TabPanel</code>使用共享状态来决定是否应该呈现其内容</li>
+</ul>
+<h3>在React中实现<code>TabSwitcher</code>复合组件</h3>
+<p>为了实现复合组件，我通常遵循以下步骤。</p>
+<ol>
+<li>列出所需的组件</li>
+<li>写样板文件</li>
+<li>实现单个组件</li>
+</ol>
+<h4>列出所需的组件</h4>
+<p>对于<code>TabSwitcher</code>，我们需要有两样东西。首先，您需要知道显示哪个选项卡内容，其次，它应该在用户单击时切换选项卡面板。</p>
+<p>这意味着我们需要控制选项卡面板内容的呈现，并在选项卡上有一个单击事件监听器，所以当单击<code>Tab</code>时，相应的选项卡面板内容就会显示出来。</p>
+<p>为此，我们需要三个组件:</p>
+<ol>
+<li><code>TabSwitcher</code>:保持状态的父组件</li>
+<li><code>Tab </code>:告诉其父组件它是否被点击的组件</li>
+<li><code>TabPanel</code>:当父元素告诉组件呈现时，组件呈现</li>
+</ol>
+<h4>写样板文件</h4>
+<p>复合组件模式有一些样板代码。这很好，因为在大多数情况下，我们可以不用想太多就能写出来。</p>
+<pre>import React, { useState, createContext, useContext } from "react";
+
+//the name of this context will be DataContext
+const DataContext = createContext({});
+
+function Tab({ id, children }) {
+  //extract the 'setActiveTabID` method from the DataContext state.
+  const [, setActiveTabID] = useContext(DataContext);
+  return (
+    &lt;div&gt;
+      &lt;div onClick={() =&gt; setActiveTabID(id)}&gt;{children}&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+function TabPanel({ whenActive, children }) {
+  //get the 'activeTabID' state from DataContext.
+  const [activeTabID] = useContext(DataContext);
+  return &lt;div&gt;{activeTabID === whenActive ? children : null}&lt;/div&gt;;
+}
+
+function TabSwitcher(props) {
+  const [activeTabID, setActiveTabID] = useState("a");
+  //since this component will provide data to the child components, we will use DataContext.Provider
+  return (
+    &lt;DataContext.Provider value={[activeTabID, setActiveTabID]}&gt;
+      {props.children}
+    &lt;/DataContext.Provider&gt;
+  );
+}
+
+export default TabSwitcher;
+export { Tab, TabPanel };</pre>
+<p>在这里，我们正在创造一个环境。子组件将从上下文中获取数据和方法。数据将是由父节点共享的状态，方法将用于将状态的改变传递回父节点。</p>
+<h4>实现单个组件</h4>
+<p><code>Tab</code>组件需要监听点击事件，并告诉父组件哪个标签被点击了。它可以这样实现:</p>
+<pre>function Tab({ id, children }) {
+  //extract the 'setActiveTabID` method from the DataContext state.
+  const [, setActiveTabID] = useContext(DataContext);
+  return (
+    &lt;div&gt;
+      &lt;div onClick={() =&gt; setActiveTabID(id)}&gt;{children}&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>选项卡组件接受<code>id</code>属性和点击事件调用<code>setActiveTabID</code>方法，并传递其id。这样，家长就知道哪个<code>Tab</code>被点击了。</p>
+<p>只有当组件是活动面板时，它才需要呈现其子组件。它可以这样实现:</p>
+<pre>function TabPanel({ whenActive, children }) {
+  //get the 'activeTabID' state from DataContext.
+  const [activeTabID] = useContext(DataContext);
+  return &lt;div&gt;{activeTabID === whenActive ? children : null}&lt;/div&gt;;
+}
+</pre>
+<p><code>TabPanel</code>接受<code>whenActive</code>道具，告诉它什么时候渲染孩子。上下文提供了<code>activeTabId</code>，通过它<code>TabPanel</code>决定是否应该渲染其子节点。<code>TabSwitcher</code>需要维护活动标签状态，并将状态和方法传递给子组件。</p>
+<pre>function TabSwitcher(props) {
+  const [activeTabID, setActiveTabID] = useState("a");
+  //since this component will provide data to the child components, we will use DataContext.Provider
+  return (
+    &lt;DataContext.Provider value={[activeTabID, setActiveTabID]}&gt;
+      {props.children}
+    &lt;/DataContext.Provider&gt;
+  );
+}
+</pre>
+<p><code>TabSwitcher</code>组件存储<code>activeTabID</code>。默认情况下，是<code>a</code>。因此，第一个面板最初是可见的。它有一个用于更新<code>activeTabID</code>状态的方法。<code>TabSwitcher</code>把状态和方法分享给消费者。</p>
+<p>让我们看看它们是如何组合在一起的。</p>
+<pre>import React, { useState, createContext, useContext } from "react";
+
+//the name of this context will be DataContext
+const DataContext = createContext({});
+
+function Tab({ id, children }) {
+  //extract the 'setActiveTabID` method from the DataContext state.
+  const [, setActiveTabID] = useContext(DataContext);
+  return (
+    &lt;div&gt;
+      &lt;div onClick={() =&gt; setActiveTabID(id)}&gt;{children}&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+function TabPanel({ whenActive, children }) {
+  //get the 'activeTabID' state from DataContext.
+  const [activeTabID] = useContext(DataContext);
+  return &lt;div&gt;{activeTabID === whenActive ? children : null}&lt;/div&gt;;
+}
+
+function TabSwitcher(props) {
+  const [activeTabID, setActiveTabID] = useState("a");
+  //since this component will provide data to the child components, we will use DataContext.Provider
+  return (
+    &lt;DataContext.Provider value={[activeTabID, setActiveTabID]}&gt;
+      {props.children}
+    &lt;/DataContext.Provider&gt;
+  );
+}
+
+export default TabSwitcher;
+export { Tab, TabPanel };
+</pre>
+<p>复合组件可以这样使用:</p>
+<pre>import TabSwitcher, { Tab, TabPanel } from "./TabSwitcher";
+
+function App() {
+  return (
+    &lt;div className="App"&gt;
+      &lt;h1&gt;TabSwitcher with Compound Components&lt;/h1&gt;
+      &lt;TabSwitcher&gt;
+        &lt;Tab id="a"&gt;
+          &lt;button&gt;a&lt;/button&gt;
+        &lt;/Tab&gt;
+        &lt;Tab id="b"&gt;
+          &lt;button&gt;b&lt;/button&gt;
+        &lt;/Tab&gt;
+
+        &lt;TabPanel whenActive="a"&gt;
+          &lt;div&gt;a panel&lt;/div&gt;
+        &lt;/TabPanel&gt;
+
+        &lt;TabPanel whenActive="b"&gt;
+          &lt;div&gt;b panel&lt;/div&gt;
+        &lt;/TabPanel&gt;
+      &lt;/TabSwitcher&gt;
+    &lt;/div&gt;
+  );
+}
+export default App;
+</pre>
+<p>这将是输出:</p>
+<p><img data-attachment-id="78026" data-permalink="https://blog.logrocket.com/understanding-react-compound-components/image3-17/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif" data-orig-size="474,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="tabswitcher-compound-component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3-300x232.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif" decoding="async" class="aligncenter size-full wp-image-78026 jetpack-lazy-image" src="../Images/cbb57a73b5db1d6ee966d0adf882914d.png" alt="final demo of the tabswitcher compound component" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="78026" data-permalink="https://blog.logrocket.com/understanding-react-compound-components/image3-17/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif" data-orig-size="474,367" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="tabswitcher-compound-component" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3-300x232.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-78026" src="../Images/cbb57a73b5db1d6ee966d0adf882914d.png" alt="final demo of the tabswitcher compound component" data-original-src="https://blog.logrocket.com/wp-content/uploads/2018/08/image3.gif"/></noscript>
+<p>这就是你对化合物组分进行反应的快速指南。感谢阅读！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+<hr/>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

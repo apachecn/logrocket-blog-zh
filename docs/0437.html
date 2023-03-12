@@ -1,0 +1,217 @@
+<html>
+<head>
+<title>Angular reactive form validation with FormBuilder - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用FormBuilder进行角度反应式表单验证</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/angular-formbuilder-reactive-form-validation/#0001-01-01">https://blog.logrocket.com/angular-formbuilder-reactive-form-validation/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本帖更新于2020年12月23日。</em></p>
+<p>Angular中的反应式表单使你不用使用太多的指令就能构建干净的表单。这一点至关重要，因为:</p>
+<ul>
+<li>JavaScript框架通常反对使用集群模板</li>
+<li>表单逻辑现在位于组件类中</li>
+</ul>
+<p>本质上，<a href="https://angular.io/guide/reactive-forms" target="_blank" rel="noopener">角度反应形式</a>给了开发者更多的控制，因为每一个与输入和控制相关的决定都必须是有意的和明确的。</p>
+<p>为了确保数据的质量，最好的做法是<a href="https://angular.io/guide/form-validation" target="_blank" rel="noopener">验证反应式表单输入</a>的准确性和完整性。在本教程中，我们将向您展示如何使用<code>FormBuilder</code>在Angular中验证反应式表单。</p>
+<p>我们将详细介绍以下内容:</p>
+
+<p>为了跟进，请确保您安装了最新版本的<a href="https://nodejs.org/en/" target="_blank" rel="noopener"> Node.js (15.5.0) </a>和<a href="https://github.com/angular/angular" target="_blank" rel="noopener"> Angular (11.0.5) </a>，以及<a href="https://github.com/angular/angular-cli/releases" target="_blank" rel="noopener"> Angular CLI (11.0.5) </a>。你可以在<a href="https://github.com/viclotana/ng-group" target="_blank" rel="noopener"> GitHub </a>上下载启动项目。</p>
+<p>要快速查看角度形式验证，请查看下面的视频教程:</p>
+<p><iframe loading="lazy" src="https://www.youtube.com/embed/d8XONHXTv_4" frameborder="0" allowfullscreen="allowfullscreen">视频</iframe></p>
+<h2 id="formcontrolsandformgroupsinangular">角度中的表单控件和表单组</h2>
+<p>表单控件是可以保存任何表单元素的数据值和验证信息的类，这意味着您在反应式表单中的每个表单输入都应该由表单控件绑定。这些是组成反应形式的基本单位。</p>
+<p>是Angular中的一个类，用于跟踪单个表单控件的值和验证状态。Angular表单中的三个基本构件之一——与<code><span class="typ">FormGroup</span></code>和<code><span class="typ">FormArray</span></code> — <code><span class="typ">FormControl</span></code>一起——扩展了<code><span class="typ">AbstractControl</span></code>类，使其能够访问值、验证状态、用户交互和事件。</p>
+<p>表单组是基本上包装表单控件集合的结构。正如控件使您可以访问元素的状态一样，组也提供了相同的访问权限，但访问的是包装控件的状态。初始化时，表单组中的每个表单控件都由名称标识。</p>
+<p><code><span class="typ">FormGroup</span></code>与<code><span class="typ">FormControl</span></code>一起使用，用于跟踪值并验证表单控制的状态。实际上，<code><span class="typ">FormGroup</span></code>将每个子控件<code><span class="typ">FormControl</span></code>的值聚合到一个对象中，使用每个控件名作为键。它通过减少其子级的状态值来计算其状态，这样，如果一个组中的一个控件无效，则整个组都无效。</p>
+<p>为了更深入的了解，请查看我们关于<a href="https://blog.logrocket.com/reactive-form-controls-form-groups-angular/" target="_blank" rel="noopener">表单组和Angular </a>表单控件的综合教程。</p>
+<h2 id="whatisformvalidationinangular">Angular中的表单验证是什么？</h2>
+<p>Angular中的表单验证使您能够验证输入是否准确和完整。您可以从UI验证用户输入，并在模板驱动和反应式表单中显示有用的验证消息。</p>
+<p>在Angular中验证反应式表单时，验证器函数被直接添加到组件类中的表单控件模型中。每当控件的值改变时，Angular调用这些函数。</p>
+<p>验证器函数可以是同步的，也可以是异步的:</p>
+<ul>
+<li>同步验证器接受一个控件实例，并返回一组错误或null。当您创建一个<code>FormControl</code>时，您可以将sync函数作为第二个参数传入。</li>
+<li>异步验证器接受一个控件实例，并返回一个承诺或一个可观察对象，随后发出一组错误或null。当实例化一个<code>FormControl</code>时，可以将异步函数作为第三个参数传入。</li>
+</ul>
+<p>根据您项目的独特需求和目标，您可以选择<a href="https://angular.io/guide/form-validation#validating-input-in-reactive-forms" target="_blank" rel="noopener">编写定制的验证器函数</a>或者使用Angular的任何<a href="https://angular.io/api/forms/Validators" target="_blank" rel="noopener">内置验证器</a>。</p>
+<p>事不宜迟，让我们开始构建反应式表单。</p>
+<h2 id="whatisformbuilder">什么是<code>FormBuilder</code>？</h2>
+<p>设置表单控件，尤其是对于非常长的表单，很快就会变得既单调又紧张。Angular帮助您简化构建复杂表单的过程，同时避免重复。</p>
+<p>简而言之，<code><span class="typ">FormBuilder</span></code>提供了语法上的好处，减轻了创建<code><span class="typ">FormControl</span></code>、<code><span class="typ">FormGroup</span></code>或<code><span class="typ">FormArray</span></code>实例的负担，并减少了构建复杂表单所需的样板文件的数量。</p>
+<h2 id="howtouseformbuilder">如何使用<code>FormBuilder</code></h2>
+<p>以下示例显示了如何使用<code>FormBuilder</code>在Angular中构建反应式表单。</p>
+<p>你应该已经下载并打开了VS代码中的<a href="https://github.com/viclotana/ng-group">启动项目</a>。如果你打开<code>employee.component.ts</code>，文件应该是这样的:</p>
+<pre class="language-typescript hljs">import { Component, OnInit } from '@angular/core';
+import { FormControl, FormGroup } from '@angular/forms'
+@Component({
+  selector: 'app-employee',
+  templateUrl: './employee.component.html',
+  styleUrls: ['./employee.component.css']
+})
+export class EmployeeComponent implements OnInit {
+  bioSection = new FormGroup({
+    firstName: new FormControl(''),
+    lastName: new FormControl(''),
+    age: new FormControl(''),
+    stackDetails: new FormGroup({
+      stack: new FormControl(''),
+      experience: new FormControl('')
+    }),
+    address: new FormGroup({
+        country: new FormControl(''),
+        city: new FormControl('')
+    })
+  });
+constructor() { }
+ngOnInit() {
+  }
+  callingFunction() {
+    console.log(this.bioSection.value);
+   }
+}</pre>
+<p>您可以看到每一个表单控件——甚至是划分它的表单组——都是拼写出来的，所以随着时间的推移，您最终会重复自己的操作。<code>FormBuilder</code>有助于解决这个效率问题。</p>
+<h3 id="registeringformbuilder">注册<code>FormBuilder</code></h3>
+<p>要使用<code>FormBuilder</code>，必须先注册。要在组件中注册<code>FormBuilder</code>，从角度表单中导入它:</p>
+<pre>import { FormBuilder } from ‘@angular/forms’;</pre>
+<p>下一步是注入form builder服务，这是一个可注入的提供者，它与反应式表单模块一起提供。注入表单生成器后，您就可以使用它了。导航到<code>employee.component.ts</code>文件并复制到下面的代码块中。</p>
+<pre class="language-typescript hljs">import { Component, OnInit } from '@angular/core';
+import { FormBuilder } from '@angular/forms'
+@Component({
+  selector: 'app-employee',
+  templateUrl: './employee.component.html',
+  styleUrls: ['./employee.component.css']
+})
+export class EmployeeComponent implements OnInit {
+  bioSection = this.fb.group({
+    firstName: [''],
+    lastName: [''],
+    age: [''],
+    stackDetails: this.fb.group({
+      stack: [''],
+      experience: ['']
+    }),
+    address: this.fb.group({
+        country: [''],
+        city: ['']
+    })
+  });
+constructor(private fb: FormBuilder) { }
+ngOnInit() {
+  }
+  callingFunction() {
+    console.log(this.bioSection.value);
+   }
+}</pre>
+<p>这与您在开始时看到的前一个代码块做了完全相同的事情，但是您可以看到代码更少，结构更多——因此，资源得到了最佳利用。表单生成器不仅有助于提高反应式表单的代码效率，而且对表单验证也很重要。</p>
+<h2 id="howtovalidateformsinangular">如何在Angular中验证表单</h2>
+<p>使用Angular中的反应式表单，您可以在表单生成器中验证表单。</p>
+<p>使用以下命令运行开发中的应用程序:</p>
+<pre>ng serve</pre>
+<p>您会发现，即使您没有在文本框中输入值，表单也会提交。这可以很容易地用反应式表单中的表单验证器来检查。第一件要做的事，就像反应形式的所有元素一样，是从角度形式中导入它。</p>
+<pre>import { Validators } from '@angular/forms';</pre>
+<p>现在，您可以通过指定表单控件来试验验证器，为了激活提交按钮，必须填写表单控件。将下面的代码块复制到<code>employee.component.ts</code>文件中:</p>
+<pre class="language-typescript hljs">import { Component, OnInit } from '@angular/core';
+import { FormBuilder } from '@angular/forms';
+import { Validators } from '@angular/forms';
+@Component({
+  selector: 'app-employee',
+  templateUrl: './employee.component.html',
+  styleUrls: ['./employee.component.css']
+})
+export class EmployeeComponent implements OnInit {
+  bioSection = this.fb.group({
+    firstName: ['', Validators.required],
+    lastName: [''],
+    age: [''],
+    stackDetails: this.fb.group({
+      stack: [''],
+      experience: ['']
+    }),
+    address: this.fb.group({
+        country: [''],
+        city: ['']
+    })
+  });
+constructor(private fb: FormBuilder) { }
+ngOnInit() {
+  }
+  callingFunction() {
+    console.log(this.bioSection.value);
+   }
+}
+</pre>
+<p>最后要做的是确保提交按钮的活动设置得到相应的设置。导航到<code>employee.component.html</code>文件并确保提交语句如下所示:</p>
+<pre>&lt;button type=”submit” [disabled]=”!bioSection.valid”&gt;Submit Application&lt;/button&gt;</pre>
+<p>如果您现在运行您的应用程序，您会看到如果您不为名字设置输入，您就不能提交表单——这不是很酷吗？</p>
+<h3 id="displayinginputvaluesandstatus">显示输入值和状态</h3>
+<p>假设您想要使用value和status属性来实时显示您的反应式表单的输入值，以及它是否可以被提交。</p>
+<p>反应式表单API允许您在模板部分的表单组或表单控件上使用值和状态属性。打开您的<code>employee.component.html</code>文件，复制下面的代码块:</p>
+<pre class="language-html hljs">&lt;form [formGroup]="bioSection" (ngSubmit)="callingFunction()"&gt;
+    &lt;h3&gt;Bio Details
+&lt;/h3&gt;
+
+  &lt;label&gt;
+    First Name:
+    &lt;input type="text" formControlName="firstName"&gt;
+  &lt;/label&gt; &lt;br&gt;
+&lt;label&gt;
+    Last Name:
+    &lt;input type="text" formControlName="lastName"&gt;
+  &lt;/label&gt; &lt;br&gt;
+&lt;label&gt;
+    Age:
+    &lt;input type="text" formControlName="age"&gt;
+  &lt;/label&gt;
+&lt;div formGroupName="stackDetails"&gt;
+    &lt;h3&gt;Stack Details&lt;/h3&gt;
+
+    &lt;label&gt;
+      Stack:
+      &lt;input type="text" formControlName="stack"&gt;
+    &lt;/label&gt; &lt;br&gt;
+
+    &lt;label&gt;
+      Experience:
+      &lt;input type="text" formControlName="experience"&gt;
+    &lt;/label&gt;
+  &lt;/div&gt;
+&lt;div formGroupName="address"&gt;
+    &lt;h3&gt;Address&lt;/h3&gt;
+
+    &lt;label&gt;
+      Country:
+      &lt;input type="text" formControlName="country"&gt;
+    &lt;/label&gt; &lt;br&gt;
+
+    &lt;label&gt;
+      City:
+      &lt;input type="text" formControlName="city"&gt;
+    &lt;/label&gt;
+  &lt;/div&gt;
+&lt;button type="submit" [disabled]="!bioSection.valid"&gt;Submit Application&lt;/button&gt;
+  &lt;p&gt;
+    Real-time data: {{ bioSection.value | json }}
+  &lt;/p&gt;
+  &lt;p&gt;
+    Your form status is : {{ bioSection.status }}
+  &lt;/p&gt;
+&lt;/form&gt;</pre>
+<p>这将在您使用表单时，在界面中为您显示提交的值和状态。本教程的完整代码可以在GitHub 上找到。</p>
+<div class="blog-plug cro21">
+<h2 id="">不要只是验证你的表单，用<a href="https://www2.logrocket.com/angular-performance-monitoring"> LogRocket </a>验证你的Angular应用的用户体验</h2>
+<p>调试Angular应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，<a href="https://www2.logrocket.com/angular-performance-monitoring">请尝试LogRocket </a>。</p>
+<p><a class="signup" href="https://www2.logrocket.com/angular-performance-monitoring" target="_blank" rel="noopener noreferrer"> <img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/> <noscript> <img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/> </noscript></a></p>
+<p>LogRocket 就像是网络应用程序的DVR，记录你网站上发生的一切，包括网络请求、JavaScript错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p>
+<p>LogRocket NgRx插件将角度状态和动作记录到LogRocket控制台，为您提供导致错误的原因以及出现问题时应用程序所处的状态。</p>
+<p>现代化调试Angular应用的方式— <a class="signup" href="https://www2.logrocket.com/angular-performance-monitoring" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p>
+</div>
+<h2 id="">结论</h2>
+<p>本文概述了表单生成器，以及它是如何提高表单控件和表单组的效率的。它还展示了用反应式表单轻松处理表单验证是多么重要。黑客快乐！</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

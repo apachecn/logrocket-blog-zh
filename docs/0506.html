@@ -1,0 +1,288 @@
+<html>
+<head>
+<title>JWT authentication with Apollo Server 2: tips and tricks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Apollo Server 2的JWT认证:技巧和窍门</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/#0001-01-01">https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在构建端点(GraphQL或REST API)时的某个时刻，您会希望根据用户是否经过身份验证来限制对应用程序某些部分的访问。</p>
+<p>您可以使用JSON Web令牌(JWT)和Bcrypt来实现这一点。我们将在一个使用Prisma作为ORM选择的Apollo服务器上实现它，但是其他任何ORM都可以。</p>
+<p>在本文中，我们将探讨执行用户身份验证并确定他们是否登录的最有效和可伸缩的方法之一。</p>
+<p>有几种方法可以做到这一点:如果你是严格地为一个网页构建，通过cookie或者如果你是针对一个API，通过header。</p>
+<p>本文假设您熟悉在GraphQL中执行查询和变异的基础知识，以及上下文和解析器等其他概念。</p>
+<p>这里有一个快速指南，可以帮助你快速入门<a href="https://blog.logrocket.com/intro-to-graphql-with-prisma/" target="_blank" rel="noopener noreferrer">Prisma graph QL简介</a>。</p>
+<p>让我们运行下面的代码来快速设置一个Apollo服务器。</p>
+<pre>mkdir jwt-authentication
+cd jwt-authentication
+
+npm init --yes</pre>
+<p>项目目录现在包含一个<code>package.json</code>文件。</p>
+<pre>npm install apollo-server graphql
+touch index.js</pre>
+<p>为了保持简单和易于理解，index.js包含了足够引导应用程序的代码。</p>
+<p>在您喜欢的编辑器中打开<code>index.js</code>,然后粘贴以下代码:</p>
+<pre>const { ApolloServer, gql } = require('apollo-server');
+const typeDefs = gql`
+type User {
+name: String!
+email: String!
+id: Int
+}
+type Query {
+users: [User]
+}
+`;
+const users = [{
+name: 'Harry Potter',
+email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0b636a7979724b7b647f7f6e7925686466">[email protected]</a>',
+id: 23,},
+{name: 'Jurassic Park',
+email: '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b0ddd9d3d8d1d5dcf0d3c2d9d3d8c4dfde9ed3dfdd">[email protected]</a>',
+id: 34 }];
+
+const resolvers = {
+Query: {
+users: () =&gt; users,
+ },
+};
+
+const server = new ApolloServer({ typeDefs, resolvers });
+
+server.listen().then(({ url }) =&gt; {
+console.log(`🚀  Server ready at ${url}`);
+});</pre>
+<p>这只是为了确保我们已经正确设置了我们的应用程序。</p>
+<p>接下来，我们将设置我们的应用程序使用Prisma作为ORM的选择。</p>
+<figure id="attachment_8989" aria-describedby="caption-attachment-8989" class="wp-caption aligncenter"><img data-attachment-id="8989" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/jwt-authentication-no-cdn-mov/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png" data-orig-size="895,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-authentication-no-cdn.mov" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-300x159.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png" decoding="async" class="wp-image-8989 jetpack-lazy-image" src="../Images/76ec53974b8d95c48cd5ade8583061c2.png" alt="JWT authentication " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png 895w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-300x159.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-768x408.png 768w" data-lazy-sizes="(max-width: 750px) 100vw, 750px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="8989" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/jwt-authentication-no-cdn-mov/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png" data-orig-size="895,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-authentication-no-cdn.mov" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-300x159.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png" decoding="async" loading="lazy" class="wp-image-8989" src="../Images/76ec53974b8d95c48cd5ade8583061c2.png" alt="JWT authentication " srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png 895w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-300x159.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov-768x408.png 768w" sizes="(max-width: 750px) 100vw, 750px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-authentication-no-cdn.mov.png"/></noscript><figcaption id="caption-attachment-8989" class="wp-caption-text">Output of running query on the user resolver.</figcaption></figure>
+<p>要想成功，您需要安装Docker来运行接下来的步骤。</p>
+<p>我将使用PostgreSQL作为在Docker主机上配置的数据库。</p>
+<p>让我们在项目目录的根目录下运行以下命令cd:</p>
+<pre>mkdir prisma-client
+npm install -g prisma
+npm install prisma-client-lib
+prisma init</pre>
+<p>我们将依次选择以下选项:</p>
+<pre>Create new database                  Set up a local database using Docker</pre>
+<p>接下来，我们将选择以下内容:</p>
+<pre>PostgreSQL        PostgreSQL database</pre>
+<p>我们还将选择:</p>
+<pre>Prisma JavaScript Client</pre>
+<p>现在，我们可以运行以下命令来完成设置:</p>
+<pre>docker-compose up -d &amp;&amp; prisma deploy</pre>
+<p>成功运行这个命令后，我们将有必要的文件来充当我们的ORM，它是从<code>datamodel.prisma</code>文件生成的。</p>
+<p>我们现在要做的就是将Prisma实例导入到我们的应用程序中，这样当我们进行突变或查询时，我们就可以与真实的数据库而不是虚拟数据进行交互。</p>
+<p>我们通过在index.js中要求这个文件来做到这一点:</p>
+<pre>const { prisma } = require('./prisma-client/generated/prisma-client')</pre>
+<p>既然我们在这里，我们将不得不对我们的项目做一点调整。</p>
+<p>我们将删除上面第12到18行中出现的用户对象数组，并在我们的项目根目录中创建两个文件— <code>schema.js</code>和<code>resolver.js</code>。</p>
+<p>下面是我们的<code>index.js</code>文件现在的样子:</p>
+<pre>const { ApolloServer } = require('apollo-server');
+const typeDefs = require('./schema.js');
+const { prisma } = require('./prisma-client/generated/prisma-client')
+const resolvers = require('./resolver');
+
+const server = new ApolloServer({ 
+  typeDefs, 
+  resolvers,
+  context : () =&gt; ({
+    prisma
+  })
+ });
+server.listen().then(({ url }) =&gt; {
+  console.log(`🚀  Server ready at ${url}`);
+});</pre>
+<p>我们的<code>schema.js</code>文件现在看起来像这样:</p>
+<pre>const { gql } = require('apollo-server');
+const typeDefs = gql`
+  type User {
+    name: String!
+    email: String!
+    id: Int
+  }
+  type Query {
+    users: [User]
+  }
+`;
+module.exports = typeDefs;</pre>
+<p>我们的<code>resolvers.js</code>文件看起来像这样:</p>
+<pre>const resolvers = {
+  Query: {
+    users: async (root, args, { prisma }, info) =&gt; { 
+      try {
+        return prisma.users();
+      } catch (error) {
+        throw error;
+      }
+    },
+  },
+};
+module.exports = resolvers;</pre>
+<p>项目结构如下所示:</p>
+<p><img data-attachment-id="9005" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/prisma-client-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" data-orig-size="169,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Prisma-client-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" decoding="async" class="aligncenter wp-image-9005 jetpack-lazy-image" src="../Images/99dfd399c606179878f2852676d4388a.png" alt="Prisma client" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9005" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/prisma-client-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" data-orig-size="169,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Prisma-client-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-9005" src="../Images/99dfd399c606179878f2852676d4388a.png" alt="Prisma client" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/Prisma-client-nocdn.png"/></noscript>
+<p>现在我们已经设置好了，让我们开始实际的编码。</p>
+<p>我们需要安装一些库来帮助我们:</p>
+<pre>npm i bcrypt jsonwebtoken
+npm i nodemon -D</pre>
+<p>然后我们将打开<code>package.json</code>并将这一行添加到JSON文件的脚本部分:</p>
+<pre>"dev": "nodemon index.js"</pre>
+<p>这使我们能够通过运行以下命令来启动服务器:</p>
+<pre>npm run dev</pre>
+<p>它还监听并重启应用程序，即使我们对文件做了更改。</p>
+<p>现在我们已经建立了项目，让我们对我们的<code>datamodel.prisma</code>文件做一些修改。</p>
+<p>现在看起来是这样的:</p>
+<pre>type User {
+  id: ID! @id
+  email: String! @unique
+  name: String!
+  password: String!
+}</pre>
+<p>我们需要在终端中运行以下命令，以确保我们的<code>prisma-schema.js</code>保持更新:</p>
+<pre>prisma deploy
+prisma generated</pre>
+<p>现在我们的ORM文件已经更新了，我们需要对我们的<code>schema.js</code>文件做一些改变，以确保我们能够执行一些突变，例如<code>signupUser</code>和<code>loginUser</code>。</p>
+<p>这是我们更新后的<code>schema.js</code>的样子:</p>
+<pre>onst { gql } = require('apollo-server');
+const typeDefs = gql`
+  type User {
+    name: String!
+    email: String!
+    password: String!
+    id: Int
+  }
+type Mutation {
+  signupUser(data: UserCreateInput!) : AuthPayLoad!
+  loginUser(data: UserLoginInput!): AuthPayLoad!
+}
+input UserCreateInput {
+  email: String!
+  name: String!
+  password: String!
+}
+input UserLoginInput {
+  email: String!
+  password: String!
+}
+type AuthPayLoad {
+  token: String!
+}
+  type Query {
+    users: [User]
+  }
+`;
+module.exports = typeDefs;</pre>
+<p>我们要做的下一件事是在我们的解析器中实际实现变异函数，这样我们就可以实际注册用户并让用户登录:</p>
+<pre>const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const resolvers = {
+  ......., 
+  Mutation: {
+    signupUser: async (root, args, { prisma }, info) =&gt; {
+        const { data: { email, name, password } } = args;
+        const newUser = await prisma.createUser({
+          email,
+          name,
+          password: bcrypt.hashSync(password, 3)
+        });
+        return {token : jwt.sign(newUser, "supersecret")};
+    },
+    loginUser: async (root, args, { prisma }, info)  =&gt; {
+      const { data: { email, password } } = args;
+      const [ theUser ] = await prisma.users({
+        where: {
+          email
+        }
+      })
+      if (!theUser) throw new Error('Unable to Login');
+      const isMatch = bcrypt.compareSync(password, theUser.password);
+      if (!isMatch) throw new Error('Unable to Login');
+      return {token : jwt.sign(theUser, "supersecret")};
+    }
+  }
+};</pre>
+<p>下面是对这些解析器函数进行变异后的输出:</p>
+<p><img data-attachment-id="9015" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/jwt-apollo-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png" data-orig-size="984,455" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-Apollo-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png" decoding="async" class="aligncenter wp-image-9015 jetpack-lazy-image" src="../Images/d1cd2548cced74ac619c74b11d1d8676.png" alt="JWT authentication Apollo" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png 984w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-300x139.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-768x355.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9015" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/jwt-apollo-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png" data-orig-size="984,455" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-Apollo-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-9015" src="../Images/d1cd2548cced74ac619c74b11d1d8676.png" alt="JWT authentication Apollo" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png 984w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-300x139.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn-768x355.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/JWT-Apollo-nocdn.png"/></noscript><br/>
+<img data-attachment-id="9016" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/login-user-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png" data-orig-size="1003,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="login-user-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png" decoding="async" class="aligncenter wp-image-9016 jetpack-lazy-image" src="../Images/c120105c172685ff8b65846f04e52998.png" alt="User log-in" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png 1003w, https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-300x138.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-768x355.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="9016" data-permalink="https://blog.logrocket.com/jwt-authentication-with-apollo-server-2-tips-and-tricks/login-user-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png" data-orig-size="1003,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="login-user-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-9016" src="../Images/c120105c172685ff8b65846f04e52998.png" alt="User log-in" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png 1003w, https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-300x138.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn-768x355.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/login-user-nocdn.png"/></noscript>
+<p>现在我们已经成功地创建了一个令牌来存储用户的身份，我们需要在授予用户对数据库中某些受保护资源的访问权之前验证这个用户的身份。</p>
+<p>为了有效地做到这一点，我们必须修改在引导应用程序时声明的上下文函数，因为我们需要能够将标识用户的令牌从客户端传递到服务器。</p>
+<p>我们将通过向上下文函数传递一个请求参数来实现这一点，这样就可以在我们的解析器中使用它:</p>
+<pre>.....
+context : req =&gt; ({
+    prisma,
+    req
+  })
+.....</pre>
+<p>现在让我们在应用程序的根目录下创建一个名为<code>authenticate.js</code>的文件。该文件将处理用户在访问受保护的路由时是否登录。</p>
+<pre>touch decodedToken.js
+cd decodedToken.js</pre>
+<p>在<code>decodedToken.js</code>中，我们将简单地根据我们的秘密验证用户的令牌，以确定他们的身份，并让他们登录或用适当的消息进行响应。</p>
+<pre>const jwt = require('jsonwebtoken');
+const decodedToken = (req, requireAuth = true) =&gt; {
+  const header =  req.req.headers.authorization;
+    
+  if (header){
+    const token = header.replace('Bearer ', '');
+    const decoded = jwt.verify(token, 'supersecret');
+    return decoded;
+  }
+  if (requireAuth) {
+    throw new Error('Login in to access resource');
+  } 
+  return null
+}
+module.exports = { decodedToken }</pre>
+<p>出于测试目的，我们将通过localhost 4000的graphQL playground中的HTTP HEADERS部分提供我们的登录令牌。</p>
+<p>要执行返回所有用户的查询操作，您需要进行身份验证。我们将修改我们的<code>resolvers.js</code>文件来反映这些变化。</p>
+<p>打开<code>resolvers.js</code>并进行以下更改:</p>
+<pre>....
+const { decodedToken } = require('./decodedToken');
+
+....
+ Query: {
+    users: async (root, args, { prisma, req }, info) =&gt; { 
+        const decoded = decodedToken(req);
+        return prisma.users();
+    },
+  },
+.....</pre>
+<p>我们已经成功地认证了一个用户，但是我们需要使我们的<code>decodedToken.js</code>更加通用，这样我们就可以使用它进行授权。</p>
+<p>这是我们更新后的<code>decodedToken.js</code>现在的样子:</p>
+<pre>const jwt = require('jsonwebtoken');
+const decodedToken = (req, requireAuth = true) =&gt; {
+  const header =  req.req.headers.authorization;
+    
+  if (header){
+    const token = header.replace('Bearer ', '');
+    const decoded = jwt.verify(token, 'supersecret');
+    return decoded;
+  }
+  if (requireAuth) {
+    throw new Error('Login in to access resource');
+  } 
+  return null
+}
+module.exports = { decodedToken }</pre>
+<p>如果你陷入困境或者需要参考资料来编写代码，这里有托管在github 上的文件。</p>
+<h3>结论</h3>
+<p>我们已经看到了验证用户身份的细节。</p>
+<p>这里有一些我们没有提到的事情:</p>
+<ul>
+<li>此类用户即使在身份得到验证后仍将拥有的访问权限，换句话说，该用户是编辑、发布者还是来宾。</li>
+<li>通过查询关系来保护数据，等等。</li>
+</ul>
+<p>本文只是让您在Apollo服务器上使用JWT进行身份验证的开胃菜。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

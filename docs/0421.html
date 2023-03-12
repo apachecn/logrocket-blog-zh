@@ -1,0 +1,96 @@
+<html>
+<head>
+<title>Building full-stack web apps with Go, Vecty, and WebAssembly - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Go、Vecty和WebAssembly构建全栈web应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-full-stack-web-apps-with-go-vecty-and-webassembly/#0001-01-01">https://blog.logrocket.com/building-full-stack-web-apps-with-go-vecty-and-webassembly/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>我们中的许多人都听说过——也许还写过——全栈web应用程序。我们以各种不同的方式实现它们，但共同点通常是<a href="https://developer.mozilla.org/en-US/docs/Web/javascript" target="_blank" rel="noopener noreferrer"> JavaScript </a>和<a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer"> Node.js </a>。</p>
+<p>今天，我们将打破传统，编写一个完整的web应用程序——前端和后端——而不用编写一行JavaScript。我们会将开发者体验与JavaScript进行比较，但我们将只为整个项目编写<a href="https://golang.org" target="_blank" rel="noopener noreferrer"> Go </a>。</p>
+<p>我们将学习如何使用just Go构建一个单页面链接缩短应用程序，并且我们将以展示其运行的工作代码结束。</p>
+<h2>先决条件</h2>
+<p>今天，我们将关注Go，所以确保你已经在你的机器上<a href="https://golang.org/dl/" target="_blank" rel="noopener noreferrer">安装了</a>工具。我假设你已经掌握了围棋的基本知识，但是请查看免费的<a href="https://tour.golang.org" target="_blank" rel="noopener noreferrer">围棋之旅</a>来复习(或者学习！)如果需要的话。</p>
+<p>我将要展示的所有shell命令都可以在Mac上运行，但也应该可以在大多数Linux系统上运行(包括T2 WSL T3 )!).</p>
+<p>最后，确保用本文的代码克隆<a href="https://github.com/arschles/vectyshortener" target="_blank" rel="noopener noreferrer">存储库</a>。</p>
+<p>然后你就可以走了，让我们开始吧！</p>
+<h2>入门指南</h2>
+<p>首先，我们将让应用程序在本地运行。</p>
+<p>来自<a href="https://webpack.js.org/" target="_blank" rel="noopener noreferrer"> Webpack </a>和相关技术——你可以用它们来构建一个带有JavaScript的web应用程序——构建和运行这个应用程序非常容易。有一个前端和一个后端部分(下面会详细介绍)，你可以用<code>go</code>工具编译它们，这不需要任何配置。</p>
+<p>首先，运行后端服务器:</p>
+<pre>$ go run .</pre>
+<p>接下来，在新的终端窗口中构建前端:</p>
+<pre>$ cd frontend
+$ GOOS=js GOARCH=wasm go build -o ../public/frontend.wasm</pre>
+<p>最后，转到浏览器中的<a href="https://localhost:8081" target="_blank" rel="noopener noreferrer"> https://localhost:8081 </a>查看应用程序的运行情况。</p>
+<h2>这一切是如何运作的</h2>
+<p>像大多数网络应用一样，我们的链接缩短器有前端和后端两部分。在我们的应用程序中，后端只是一个用Go编写的静态服务器。所有的魔法都在前端目录中，所以让我们从那里开始吧！</p>
+<p>如果你熟悉<a href="https://reactjs.org" target="_blank" rel="noopener noreferrer"> React </a>或<a href="https://www.w3.org/TR/WD-DOM/introduction.html" target="_blank" rel="noopener noreferrer"> DOM </a>，你会认识到我们将涉及的许多概念。如果没有，这个东西自然就来了。</p>
+<p>我们正在使用一个名为<a href="https://github.com/gopherjs/vecty" target="_blank" rel="noopener noreferrer"> Vecty </a>的新Go框架来组织我们的应用程序。Vecty强迫你把你的应用程序分解成组件，并把它们排列成一棵树。整个方案实际上类似于HTML和DOM或React。</p>
+<p>如果是HTML，我们的应用程序的高级组件看起来会是这样:</p>
+<ul>
+<li>一个<code>h2</code>作为页面的标题</li>
+<li>A <code>form</code>进入缩短的环节</li>
+<li>一个<code>div</code>来保存缩短的链接(这个值随着用户在上面输入链接而动态更新)</li>
+<li>一个<code>a</code>保存的短链接</li>
+</ul>
+<p>Vecty组件与React非常相似，除了它们有更多的括号之外，它们看起来就像是JSX的Go等价物。</p>
+<p>让我们放大一个，看看它是如何工作的。下面是<code>form</code>组件的代码:</p>
+<pre>elem.Form(
+    elem.Input(vecty.Markup(
+        event.Input(func(e *vecty.Event) {
+            short := uuid.NewV4().String()[0:5]
+            h.shortened = short
+            vecty.Rerender(h)
+        }),
+    )),
+)</pre>
+<p>首先，第1行和第2行的<code>elem.Form</code>和<code>elem.Input</code>分别用于<code>&lt;form&gt;</code>和<code>&lt;input&gt;</code>标签。这两个函数都有一个或多个参数。每个参数都是介于HTML开始和结束标记之间的东西。例如，我们传递给<code>elem.Form</code>的东西在<code>&lt;form&gt;</code>和<code>&lt;/form&gt;</code>之间。这是上面的代码在HTML中的样子:</p>
+<pre>&lt;form&gt;
+    &lt;input&gt;
+    &lt;/input&gt;
+&lt;/form&gt;</pre>
+<p>很简单，对吧？</p>
+<p>我们没有看的最后一段代码是<code>event.Input</code>函数。这是一个事件处理器，就像在HTML/JavaScript中一样。这个函数接受<em>另一个</em>函数，在这个例子中大概是一个<code><a href="https://www.w3schools.com/jsref/event_onchange.asp" target="_blank" rel="noopener noreferrer">onchange</a></code>处理程序。正如您所料，处理程序接受的<code>*vecty.Event</code>参数与JavaScript事件大致相同。</p>
+<p>缩短链接的逻辑都在这个处理程序中，而且相当简单。下面是经过彻底注释的代码:</p>
+<pre>// First, make a new UUID and take the first 5 characters of it.
+// This will be our new shortcode
+short := uuid.NewV4().String()[0:5]
+// Next, write the shortcode to a variable. This variable is shared
+// with the &lt;div&gt;, so when we re-render this component, the &lt;div&gt; will
+// get updated
+h.shortened = short
+// Finally, re-render the component so that the &lt;div&gt; gets the new shortcode.
+// Unlike React, there's no automatic diff functionality. We tell Vecty
+// explicitly which components to re-render.
+vecty.Rerender(h)</pre>
+<h2>你可以免费获得web组件</h2>
+<p>由于这种组件结构，Vecty可以扩展到大型应用程序，我们可以通过根据需要添加更多组件来扩展我们的应用程序。例如，我们可以在当前顶层的上添加一个组件<em>，根据URL动态地路由到不同的子组件。这类似于一些流行的react-router实现。</em></p>
+<p>最后要记住的一点是<strong> WASM不是HTML </strong>，它完全背离了DOM和HTML的一切。</p>
+<p>我将上一节中的所有组件与HTML标记进行了比较，但它们不是！这就是维奇/ WASM和React之间的巨大差异所在。我们正在将我们的Go代码<em>直接</em>编译成WASM，它以不同于DOM的方式表示这些组件。</p>
+<h2>结论</h2>
+<p>最终，您会从使用Go和Vecty构建应用程序中获得一些巨大的好处:</p>
+<ol>
+<li>你可以考虑组件和嵌套，就像React和DOM一样</li>
+<li>你可以写尽可能多的动态逻辑，就在你的组件旁边，全部在pure Go中完成</li>
+<li>您可以在服务器和客户端之间共享代码，类似于编写React客户端和Node.js服务器</li>
+<li>你可以利用WASM<ol>
+<li>如果你愿意，你也可以把你的Vecty代码编译成HTML！那完全是另外一篇文章😉</li>
+</ol>
+</li>
+</ol>
+<p> </p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

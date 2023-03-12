@@ -1,0 +1,400 @@
+<html>
+<head>
+<title>Programmatic file downloads in the browser - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>browser - LogRocket博客中的程序文件下载</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/programmatic-file-downloads-in-the-browser-9a5186298d5c/#0001-01-01">https://blog.logrocket.com/programmatic-file-downloads-in-the-browser-9a5186298d5c/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>暴露的Blobs和对象URL</h2>
+<p>文件下载是网上冲浪的一个核心方面。每天都有大量的文件从互联网上下载，从二进制文件到纯文本文件。</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/PgOHF4u-d1E?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h3 id="6fef" class="graf graf--h3 graf-after--p">从服务器获取文件</h3>
+<p>传统上，要下载的文件首先通过<em class="markup--em markup--p-em">客户端</em>从<em class="markup--em markup--p-em">服务器</em>请求，例如用户的网络浏览器。然后，服务器返回一个响应，包含文件的<em class="markup--em markup--p-em">内容</em>和一些指示性的<em class="markup--em markup--p-em">头</em>，指定客户端应该如何下载文件。</p>
+<figure id="fe6c" class="graf graf--figure graf-after--p">
+<figcaption class="imageCaption">Schematic of Client-Server communication in fetching a file via HTTP</figcaption></figure>
+<p id="50d0" class="graf graf--p graf-after--figure">在这个图中，绿线显示了通过HTTP从客户机到服务器的请求流。橙色线显示了从服务器返回到客户端的响应流。</p>
+<p id="2438" class="graf graf--p graf-after--p">尽管该图指出了通信流，但它没有明确显示来自客户端的请求是什么样子，或者来自服务器的响应是什么样子。</p>
+<p id="66e6" class="graf graf--p graf-after--p">服务器的响应可能是这样的:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/258b2ebb0c4d6cff933bec16b250bbd6.png" data-src="https://cdn-images-1.medium.com/max/1600/0*VC25D77QFl73t34D.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*VC25D77QFl73t34D.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*VC25D77QFl73t34D.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/258b2ebb0c4d6cff933bec16b250bbd6.png" data-src="https://cdn-images-1.medium.com/max/1600/0*VC25D77QFl73t34D.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*VC25D77QFl73t34D.png"/></noscript>
+<figure id="a8a4" class="graf graf--figure graf-after--p"><figcaption class="imageCaption">Sample HTTP Response for a GIF image — the asterisks(*) represent the binary content of the image</figcaption></figure>
+<p id="13ed" class="graf graf--p graf-after--figure">在这个响应中，服务器简单地提供资源的原始内容(<em class="markup--em markup--p-em">用星号</em> — <code>*</code>表示)，这些内容将由客户端接收。</p>
+<p id="dc05" class="graf graf--p graf-after--p">响应还包含一些头，这些头为客户端提供了一些关于它接收到的内容的性质的信息——在这个示例响应中,<strong class="markup--strong markup--p-strong">内容类型</strong>和<strong class="markup--strong markup--p-strong">内容长度</strong>头提供了这些信息。</p>
+<p id="75d1" class="graf graf--p graf-after--p">当客户机(在本例中是web浏览器)收到这个HTTP响应时，它只是显示或呈现GIF图像——这不是我们想要的行为。<strong class="markup--strong markup--p-strong">期望的行为是图像应该被下载而不是显示。</strong></p>
+<h3>强制文件下载</h3>
+<p id="5938" class="graf graf--p graf-after--h3">为了通知客户机不打算显示资源的内容，服务器必须在响应中包含一个附加的头。<strong class="markup--strong markup--p-strong"> Content-Disposition </strong>报头是用于指定这种信息的正确报头。</p>
+<p id="5652" class="graf graf--p graf-after--p"><code><strong class="markup--strong markup--p-strong">Content-Disposition</strong></code>标题最初是为邮件用户代理设计的——因为电子邮件是多部分文档，可能包含几个文件附件。但是，它可以被包括web浏览器在内的几个HTTP客户端解释。该标题提供了关于<strong class="markup--strong markup--p-strong">处置类型</strong>和<strong class="markup--strong markup--p-strong">处置参数</strong>的信息。</p>
+<p id="e4e6" class="graf graf--p graf-after--p"><strong class="markup--strong markup--p-strong">处置类型</strong>通常是以下类型之一:</p>
+<ol class="postList">
+<li id="053e" class="graf graf--li graf-after--p"><strong class="markup--strong markup--li-strong"> inline </strong> —显示消息内容时，正文部分将自动显示</li>
+<li id="2bed" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong">附件</strong> —正文部分与消息的主要内容分开，除非用户提示，否则不应自动显示</li>
+</ol>
+<p id="ac54" class="graf graf--p graf-after--li"><strong class="markup--strong markup--p-strong">处置参数</strong>是指定关于主体部分或文件的信息的附加参数，例如文件名、创建日期、修改日期、读取日期、大小等。</p>
+<p id="4fa3" class="graf graf--p graf-after--p">下面是强制文件下载的GIF图像的HTTP响应:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/0cf744feb4751f69ae65daf0de855f1e.png" data-src="https://cdn-images-1.medium.com/max/1600/0*WTHXbqhdNuSPkhLj.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*WTHXbqhdNuSPkhLj.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*WTHXbqhdNuSPkhLj.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/0cf744feb4751f69ae65daf0de855f1e.png" data-src="https://cdn-images-1.medium.com/max/1600/0*WTHXbqhdNuSPkhLj.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*WTHXbqhdNuSPkhLj.png"/></noscript>
+<figure id="187c" class="graf graf--figure graf-after--p"><figcaption class="imageCaption">Sample HTTP Response for downloading a GIF image — the asterisks(*) represent the binary content of the image</figcaption></figure>
+<p id="5d9c" class="graf graf--p graf-after--figure">现在服务器强制下载GIF图像。大多数HTTP客户端在收到来自如上服务器的响应时，会提示用户下载资源内容。</p>
+<h3 id="ab48" class="graf graf--h3 graf-after--p">单击以在浏览器中下载</h3>
+<p id="0306" class="graf graf--p graf-after--h3">假设您有一个可下载资源的URL。当您尝试在web浏览器上访问该URL时，它会提示您下载资源文件—无论该文件是什么。</p>
+<p id="4b2b" class="graf graf--p graf-after--p">上述场景在web应用程序中是不可行的。对于web应用程序，期望的行为将是— <strong class="markup--strong markup--p-strong">下载文件以响应用户交互</strong>。例如，<em class="markup--em markup--p-em">点击保存照片</em>或<em class="markup--em markup--p-em">下载报告</em>。</p>
+<p id="dfb5" class="graf graf--p graf-after--p">使用HTML <strong class="markup--strong markup--p-strong">锚元素</strong> ( <code>&lt;a&gt;&lt;/a&gt;</code>)可以在浏览器中实现这样的行为。锚元素对于从HTML文档添加到其他资源和文档的超链接非常有用。链接资源的URL在锚元素的<code><strong class="markup--strong markup--p-strong">href</strong></code>属性中指定。</p>
+<p id="85c2" class="graf graf--p graf-after--p">下面是一个链接到PDF文档的传统HTML锚元素:<img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/0c4e75723a2fbe769954ca05c5f9adab.png" data-src="https://cdn-images-1.medium.com/max/1600/0*nOGDqhy9TkO86D3Y.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*nOGDqhy9TkO86D3Y.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*nOGDqhy9TkO86D3Y.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/0c4e75723a2fbe769954ca05c5f9adab.png" data-src="https://cdn-images-1.medium.com/max/1600/0*nOGDqhy9TkO86D3Y.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*nOGDqhy9TkO86D3Y.png"/></noscript>
+<figure id="e132" class="graf graf--figure graf-after--p"><figcaption class="imageCaption">A basic HTML anchor element (&lt;a&gt;&lt;/a&gt;)</figcaption></figure>
+<h3 id="cd75" class="graf graf--h3 graf-after--figure">下载属性</h3>
+<p id="e277" class="graf graf--p graf-after--h3">在HTML 5中，一个新的<code><strong class="markup--strong markup--p-strong">download</strong></code>属性被添加到锚元素中。<code>download</code>属性用于通知浏览器下载URL，而不是导航到它——因此会出现一个提示，要求用户保存文件。</p>
+<p id="17a0" class="graf graf--p graf-after--p">可以给<code>download</code>属性一个有效的文件名作为它的值。但是，用户仍然可以在弹出的保存提示中修改文件名。</p>
+<p id="be77" class="graf graf--p graf-after--p">关于<code><strong class="markup--strong markup--p-strong">download</strong></code>属性的行为，有几个<strong class="markup--strong markup--p-strong">值得注意的事实</strong>:</p>
+<ol class="postList">
+<li id="c7e4" class="graf graf--li graf-after--p">根据<em class="markup--em markup--li-em">同源策略</em>，该属性仅对同源URL有效。因此，它不能用于下载从不同来源提供的资源</li>
+<li id="7b81" class="graf graf--li graf-after--li">除了HTTP(s)URL，它还支持<code>blob:</code>和<code>data:</code>URL——这对于下载用JavaScript编程生成的内容非常有用</li>
+<li id="a2dd" class="graf graf--li graf-after--li">对于具有指定文件名的HTTP <code>Content-Disposition</code>标题的URL，标题文件名的优先级高于<code>download</code>属性的值</li>
+</ol>
+<p id="7889" class="graf graf--p graf-after--li">以下是用于下载PDF文档的更新的HTML锚元素:</p>
+<p class="graf graf--p graf-after--li"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/8f7a7ce36f8d3e713353279b4add5365.png" data-src="https://cdn-images-1.medium.com/max/1600/0*XHtFCc1R4W2u96bw.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*XHtFCc1R4W2u96bw.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*XHtFCc1R4W2u96bw.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/8f7a7ce36f8d3e713353279b4add5365.png" data-src="https://cdn-images-1.medium.com/max/1600/0*XHtFCc1R4W2u96bw.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*XHtFCc1R4W2u96bw.png"/></noscript>
+<figure id="2dd4" class="graf graf--figure graf-after--p"><figcaption class="imageCaption">HTML anchor element (&lt;a&gt;&lt;/a&gt;) for resource download</figcaption></figure>
+<h3 id="1d47" class="graf graf--h3 graf-after--figure">程序化内容生成</h3>
+<p id="5570" class="graf graf--p graf-after--h3">随着HTML5和新的Web APIs的出现，使用JavaScript在浏览器中完成大量复杂的工作而无需与服务器通信已经成为可能。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p id="e072" class="graf graf--p graf-after--p">现在有一些Web APIs可用于以编程方式:</p>
+<ul class="postList">
+<li id="b11c" class="graf graf--li graf-after--p">在画布上绘制和操作图像或视频帧— <strong class="markup--strong markup--li-strong">画布API </strong></li>
+<li id="594b" class="graf graf--li graf-after--li">读取文件的内容和属性，甚至为文件生成新的数据— <strong class="markup--strong markup--li-strong">文件API </strong></li>
+<li id="9612" class="graf graf--li graf-after--li">为二进制数据生成对象URL—<strong class="markup--strong markup--li-strong">URL API</strong></li>
+</ul>
+<p id="c348" class="graf graf--p graf-after--li">仅举几个例子。</p>
+<p id="746b" class="graf graf--p graf-after--p">在本节中，我们将研究如何在浏览器上使用Web APIs以编程方式生成内容。</p>
+<p id="5841" class="graf graf--p graf-after--p"><strong class="markup--strong markup--p-strong"> <em class="markup--em markup--p-em">我们来考虑两个常见的例子</em> </strong>。</p>
+<h3 id="9a30" class="graf graf--h3 graf-after--p">示例1 —从JSON数组生成CSV</h3>
+<p id="8eb0" class="graf graf--p graf-after--h3">在这个例子中，我们将使用<strong class="markup--strong markup--p-strong"> Fetch API </strong>从web服务中异步获取JSON数据，并将数据转换成一串可以写入CSV文件的<em class="markup--em markup--p-em">逗号分隔值</em>。下面是我们将要做的事情的分类:</p>
+<ul class="postList">
+<li id="959a" class="graf graf--li graf-after--p">从API获取JSON对象的数组集合</li>
+<li id="4027" class="graf graf--li graf-after--li">从数组中的每一项提取选定的字段</li>
+<li id="989c" class="graf graf--li graf-after--li">将提取的数据重新格式化为CSV格式</li>
+</ul>
+<p id="9543" class="graf graf--p graf-after--li">CSV生成脚本可能是这样的:</p>
+<pre>function squareImages({ width = 1, height = width } = {}) {
+  return width / height === 1;
+}
+
+function collectionToCSV(keys = []) {
+  return (collection = []) =&gt; {
+    const headers = keys.map(key =&gt; `"${key}"`).join(',');
+    const extractKeyValues = record =&gt; keys.map(key =&gt; `"${record[key]}"`).join(',');
+
+    return collection.reduce((csv, record) =&gt; {
+      return (`${csv}\n${extractKeyValues(record)}`).trim();
+    }, headers);
+  }
+}
+
+const exportFields = [ 'id', 'author', 'filename', 'format', 'width', 'height' ];
+
+fetch('https://picsum.photos/list')
+  .then(response =&gt; response.json())
+  .then(data =&gt; data.filter(squareImages))
+  .then(collectionToCSV(exportFields))
+  .then(console.log, console.error);</pre>
+<p/>
+<p id="744d" class="graf graf--p graf-after--figure">这里，我们使用由<strong class="markup--strong markup--p-strong">获取API </strong>提供的全局<code>fetch()</code>函数从<a class="markup--anchor markup--p-anchor" href="https://picsum.photos/" target="_blank" rel="noreferrer nofollow noopener" data-href="https://picsum.photos/"> Picsum Photos API </a>获取照片集合，过滤该集合并将集合数组转换为CSV字符串。代码片段只是将生成的CSV字符串记录到控制台。</p>
+<p id="4229" class="graf graf--p graf-after--p">首先，我们定义一个<code><strong class="markup--strong markup--p-strong">squareImages</strong></code> <em class="markup--em markup--p-em">过滤函数</em>，用于过滤集合中宽度和高度相等的图像。</p>
+<p id="e33c" class="graf graf--p graf-after--p">接下来，我们定义一个<code><strong class="markup--strong markup--p-strong">collectionToCSV</strong></code> <em class="markup--em markup--p-em">高阶函数</em>，它接受一个键数组并返回一个函数，该函数接受一个对象数组集合并将其转换为一个CSV字符串，仅从每个对象中提取指定的键。</p>
+<p id="6a0b" class="graf graf--p graf-after--p">最后，我们在<code><strong class="markup--strong markup--p-strong">exportFields</strong></code>数组中指定要从集合中的每个照片对象中提取的字段。</p>
+<p id="6bb4" class="graf graf--p graf-after--p">控制台上的输出如下所示:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/ec27109475c3a4f0abb9607a087c2382.png" data-src="https://cdn-images-1.medium.com/max/1600/0*19prgCNfHUJog5n2.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*19prgCNfHUJog5n2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*19prgCNfHUJog5n2.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/ec27109475c3a4f0abb9607a087c2382.png" data-src="https://cdn-images-1.medium.com/max/1600/0*19prgCNfHUJog5n2.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*19prgCNfHUJog5n2.png"/></noscript>
+<h3 id="511b" class="graf graf--h3 graf-after--figure">示例2 —使用Canvas API处理图像像素</h3>
+<p id="f67f" class="graf graf--p graf-after--h3">在这个例子中，我们将使用<strong class="markup--strong markup--p-strong"> Canvas API </strong>来操作图像的像素，使其呈现灰度。下面是我们将要做的事情的分类:</p>
+<ul class="postList">
+<li id="89fd" class="graf graf--li graf-after--p">根据图像设置画布尺寸</li>
+<li id="9293" class="graf graf--li graf-after--li">在画布上画出图像</li>
+<li id="d07e" class="graf graf--li graf-after--li">提取画布上的图像像素并将其转换为灰度</li>
+<li id="f1f1" class="graf graf--li graf-after--li">在画布上重绘灰度像素</li>
+</ul>
+<p>假设我们有一个看起来很像这样的标记:</p>
+<p><div id="”image-wrapper”"> <br/> &lt;画布&gt;&lt;/画布&gt;<br/>&lt;img src = "<a href="https://example.com/imgs/random.jpg&amp;#8221" rel="nofollow">https://example.com/imgs/random.jpg&amp;# 8221</a>；alt= "随机图像"&gt; <br/> &lt; /div &gt;</div></p>
+<p>下面是图像操作脚本的样子:</p>
+<pre>const wrapper = document.getElementById('image-wrapper');
+const img = wrapper.querySelector('img');
+const canvas = wrapper.querySelector('canvas');
+
+img.addEventListener('load', () =&gt; {
+  canvas.width = img.width;
+  canvas.height = img.height;
+  
+  const ctx = canvas.getContext('2d');
+  
+  ctx.drawImage(img, 0, 0, width, height);
+  
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  
+  for (let i = 0, len = data.length; i &lt; len; i += 4) {
+    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    
+    data[i]     = avg; // red
+    data[i + 1] = avg; // green
+    data[i + 2] = avg; // blue
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}, false);
+
+</pre>
+<p id="0f72" class="graf graf--p graf-after--figure">下面是实际图像和相应的灰度画布图像之间的比较。</p>
+<figure id="31f8" class="graf graf--figure graf-after--p">
+
+</figure>
+<h3 id="8d38" class="graf graf--h3 graf-after--figure">Blobs和对象URL</h3>
+<p id="a970" class="graf graf--p graf-after--h3">在我们继续学习如何在浏览器中下载以编程方式生成的内容之前，让我们花些时间来看看一种叫做<code><strong class="markup--strong markup--p-strong">Blob</strong></code>的特殊对象接口，它已经被大多数主流web浏览器实现了。你可以在这里了解blob<a class="markup--anchor markup--p-anchor" href="https://developer.mozilla.org/en-US/docs/Web/API/Blob" target="_blank" rel="noreferrer nofollow noopener" data-href="https://developer.mozilla.org/en-US/docs/Web/API/Blob">。</a></p>
+<p id="8f2f" class="graf graf--p graf-after--p"><strong class="markup--strong markup--p-strong">blob是用来表示原始不可变数据的对象。</strong> Blob对象存储关于它们所包含的数据的类型和大小的信息，这使得它们对于在浏览器上存储和处理文件内容非常有用。事实上，<code>File</code>对象是<code>Blob</code>接口的特殊扩展。</p>
+<h3 id="1edf" class="graf graf--h3 graf-after--p">获取斑点</h3>
+<p id="f030" class="graf graf--p graf-after--h3">Blob对象可以从几个来源获得:</p>
+<ul class="postList">
+<li id="9ab2" class="graf graf--li graf-after--p">使用<code>Blob</code>构造函数从非blob数据创建</li>
+<li id="dd3a" class="graf graf--li graf-after--li">使用<code>Blob.slice()</code>方法从已经存在的blob对象切片</li>
+<li id="676c" class="graf graf--li graf-after--li">从获取API响应或其他Web API接口生成</li>
+</ul>
+<p id="e05f" class="graf graf--p graf-after--li">以下是上述blob对象源的一些代码示例:</p>
+<pre>const data = {
+  name: 'Glad Chinda',
+  country: 'Nigeria',
+  role: 'Web Developer'
+};
+
+// SOURCE 1:
+// Creating a blob object from non-blob data using the Blob constructor
+const blob = new Blob([ JSON.stringify(data) ], { type: 'application/json' });
+
+
+
+</pre>
+<pre>const paragraphs = [
+  'First paragraph.\r\n',
+  'Second paragraph.\r\n',
+  'Third paragraph.'
+];
+const blob = new Blob(paragraphs, { type: 'text/plain' });
+
+// SOURCE 2:
+// Creating a new blob by slicing part of an already existing blob object
+const slicedBlob = blob.slice(0, 100);
+
+
+</pre>
+<pre>// SOURCE 3:
+// Generating a blob object from a Web API like the Fetch API
+// Notice that Response.blob() returns a promise that is fulfilled with a blob object
+fetch('https://picsum.photos/id/6/100')
+  .then(response =&gt; response.blob())
+  .then(blob =&gt; {
+    // use blob here...
+  });
+
+</pre>
+<h3 id="37fd" class="graf graf--h3 graf-after--figure">正在读取blob内容</h3>
+<p id="378f" class="graf graf--p graf-after--h3">获得blob对象是一回事，使用它又是另一回事。您希望能够做的一件事是读取blob的内容。这听起来是一个使用<code><strong class="markup--strong markup--p-strong">FileReader</strong></code>对象的好机会。你可以在这里了解<code>FileReader</code>对象<a class="markup--anchor markup--p-anchor" href="https://developer.mozilla.org/en-US/docs/Web/API/FileReader" target="_blank" rel="noreferrer nofollow noopener" data-href="https://developer.mozilla.org/en-US/docs/Web/API/FileReader">。</a></p>
+<p id="7873" class="graf graf--p graf-after--p">一个<code>FileReader</code>对象提供了一些非常有用的方法，以不同的方式异步读取blob对象或文件的内容。<code>FileReader</code>接口有很好的浏览器支持，并支持读取blob数据，如下所示<em class="markup--em markup--p-em">(在撰写本文时)</em>:</p>
+<ul class="postList">
+<li id="60e6" class="graf graf--li graf-after--p"><strong class="markup--strong markup--li-strong">为文本</strong> — <code>FileReader.readAsText()</code></li>
+<li id="ea4a" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong">为二进制字符串</strong> — <code>FileReader.readAsBinaryString()</code></li>
+<li id="3c48" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong"> as base64数据URL </strong> — <code> FileReader.readAsDataURL()</code></li>
+<li id="12bb" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong">作为数组缓冲</strong> — <code> FileReader.readAsArrayBuffer()</code></li>
+</ul>
+<p>基于之前的Fetch API示例，我们可以使用一个<code>FileReader</code>对象来读取blob，如下所示:</p>
+<pre>fetch('https://picsum.photos/id/6/240')
+  .then(response =&gt; response.blob())
+  .then(blob =&gt; {
+    // Create a new FileReader innstance
+    const reader = new FileReader;
+  
+    // Add a listener to handle successful reading of the blob
+    reader.addEventListener('load', () =&gt; {
+      const image = new Image;
+      
+      // Set the src attribute of the image to be the resulting data URL
+      // obtained after reading the content of the blob
+      image.src = reader.result;
+      
+      document.body.appendChild(image);
+    });
+  
+    // Start reading the content of the blob
+    // The result should be a base64 data URL
+    reader.readAsDataURL(blob);
+  });
+
+</pre>
+<h3 id="ed40" class="graf graf--h3 graf-after--figure">对象URL</h3>
+<p id="dfaa" class="graf graf--p graf-after--h3"><code>URL</code>接口允许创建特殊类型的URL，称为<em class="markup--em markup--p-em">对象URL</em>，用于以非常简洁的格式表示blob对象或文件。典型的对象URL如下所示:</p>
+<pre class="graf graf--pre graf-after--p"><code>blob:https://cdpn.io/de82a84f-35e8-499d-88c7-1a4ed64402eb</code></pre>
+<h4 id="de44" class="graf graf--h4 graf-after--pre"><strong class="markup--strong markup--h4-strong">创建和发布对象URL</strong></h4>
+<p id="1b83" class="graf graf--p graf-after--h4">静态方法使得创建一个代表blob对象或文件的对象URL成为可能。它将一个blob对象作为它的参数，并返回一个代表传递的blob对象的URL。它看起来是这样的:</p>
+<pre class="graf graf--pre graf-after--p"><code>const url = <strong class="markup--strong markup--pre-strong">URL.createObjectURL(blob)</strong>;</code></pre>
+<p id="c072" class="graf graf--p graf-after--pre">值得注意的是，每次调用这个方法时，它总是返回一个新的对象URL，即使它是用同一个blob对象调用的。</p>
+<p id="ee64" class="graf graf--p graf-after--p">每当创建一个对象URL时，它会在创建它的文档的生命周期内一直存在。通常，在卸载文档时，浏览器会释放所有对象URL。但是，为了提高性能和最小化内存使用，在不再需要对象URL时释放它们是很重要的。</p>
+<p id="074b" class="graf graf--p graf-after--p">静态方法可以用来释放一个对象URL。它把要释放的对象URL作为它的参数。它看起来是这样的:</p>
+<pre id="f998" class="graf graf--pre graf-after--p">const url = URL.createObjectURL(blob);
+<strong class="markup--strong markup--pre-strong">URL.revokeObjectURL(url)</strong>;</pre>
+<h4 id="c37f" class="graf graf--h4 graf-after--pre"><strong class="markup--strong markup--h4-strong">使用对象URL</strong></h4>
+<p id="5c6d" class="graf graf--p graf-after--h4">只要能够以编程方式提供URL，就可以使用对象URL。例如:</p>
+<ul class="postList">
+<li id="522c" class="graf graf--li graf-after--p">它们可用于加载可在浏览器中显示或嵌入的文件，如图像、视频、音频、pdf等——例如，通过设置<code>Image</code>元素的<code>src</code>属性</li>
+<li id="7417" class="graf graf--li graf-after--li">它们可以用作一个<code>&lt;a&gt;&lt;/a&gt;</code>元素的<code>href</code>属性，使得下载以编程方式提取或生成的内容成为可能</li>
+</ul>
+<h3 id="7b1c" class="graf graf--h3 graf-after--li">下载生成的内容</h3>
+<p id="09b3" class="graf graf--p graf-after--h3">到目前为止，我们已经了解了如何下载从服务器提供的文件，并通过HTTP发送到客户端——这几乎是传统的流程。我们还看到了如何使用Web APIs在浏览器中以编程方式提取或生成内容。</p>
+<p id="895e" class="graf graf--p graf-after--p">在这一节中，我们将研究如何在浏览器中下载以编程方式生成的内容，利用我们从本文开始学到的所有知识以及我们已经知道的关于blobs和对象URL的知识。</p>
+<h4 id="636d" class="graf graf--h4 graf-after--p">创建下载链接</h4>
+<p id="8048" class="graf graf--p graf-after--h4">首先，假设我们有一个<strong class="markup--strong markup--p-strong">斑点对象</strong>。我们希望创建一个帮助器函数，它允许我们创建一个下载链接(<code>&lt;a&gt;&lt;/a&gt;</code>元素)，可以单击该链接来下载blob的内容，就像普通的文件下载一样。</p>
+<p id="f13a" class="graf graf--p graf-after--p">我们的助手函数的逻辑可以分解如下:</p>
+<ul class="postList">
+<li id="a5fc" class="graf graf--li graf-after--p">为blob对象创建对象URL</li>
+<li id="9fbc" class="graf graf--li graf-after--li">创建一个<em class="markup--em markup--li-em">锚</em>元素(<code>&lt;a&gt;&lt;/a&gt;</code>)</li>
+<li id="3744" class="graf graf--li graf-after--li">将锚元素的<code>href</code>属性设置为创建的对象URL</li>
+<li id="61a2" class="graf graf--li graf-after--li">将<code>download</code>属性设置为要下载的文件的文件名。这将强制锚点元素在被单击时触发文件下载</li>
+<li id="ba3a" class="graf graf--li graf-after--li">如果该链接是一次性下载，请在单击锚元素后释放对象URL</li>
+</ul>
+<p id="f638" class="graf graf--p graf-after--li">下面是这个助手函数的实现:</p>
+<pre>function downloadBlob(blob, filename) {
+  // Create an object URL for the blob object
+  const url = URL.createObjectURL(blob);
+  
+  // Create a new anchor element
+  const a = document.createElement('a');
+  
+  // Set the href and download attributes for the anchor element
+  // You can optionally set other attributes like `title`, etc
+  // Especially, if the anchor element will be attached to the DOM
+  a.href = url;
+  a.download = filename || 'download';
+  
+  // Click handler that releases the object URL after the element has been clicked
+  // This is required for one-off downloads of the blob content
+  const clickHandler = () =&gt; {
+    setTimeout(() =&gt; {
+      URL.revokeObjectURL(url);
+      this.removeEventListener('click', clickHandler);
+    }, 150);
+  };
+  
+  // Add the click event listener on the anchor element
+  // Comment out this line if you don't want a one-off download of the blob content
+  a.addEventListener('click', clickHandler, false);
+  
+  // Programmatically trigger a click on the anchor element
+  // Useful if you want the download to happen automatically
+  // Without attaching the anchor element to the DOM
+  // Comment out this line if you don't want an automatic download of the blob content
+  a.click();
+  
+  // Return the anchor element
+  // Useful if you want a reference to the element
+  // in order to attach it to the DOM or use it in some other way
+  return a;
+}
+
+</pre>
+<p id="2a50" class="graf graf--p graf-after--figure">这是下载链接助手函数的一个非常简单的实现。请注意，每当助手被调用时，它都会触发blob内容的一次性自动下载。</p>
+<p id="8e20" class="graf graf--p graf-after--p">还要注意，helper函数将文件名作为第二个参数，这对于设置下载文件的默认文件名非常有用。</p>
+<p id="d55c" class="graf graf--p graf-after--p">helper函数返回对创建的锚元素(<code>&lt;a&gt;&lt;/a&gt;</code>)的引用，如果您想将它附加到DOM或以其他方式使用它，这将非常有用。</p>
+<p id="2d8c" class="graf graf--p graf-after--p">这里有一个简单的例子:</p>
+<pre>// Blob object for the content to be download
+const blob = new Blob(
+  [ /* CSV string content here */ ],
+  { type: 'text/csv' }
+);
+
+// Create a download link for the blob content
+const downloadLink = downloadBlob(blob, 'records.csv');
+
+// Set the title and classnames of the link
+downloadLink.title = 'Export Records as CSV';
+downloadLink.classList.add('btn-link', 'download-link');
+
+// Set the text content of the download link
+downloadLink.textContent = 'Export Records';
+
+// Attach the link to the DOM
+document.body.appendChild(downloadLink);
+
+</pre>
+<h3 id="9b25" class="graf graf--h3 graf-after--figure">重温示例</h3>
+<p id="0340" class="graf graf--p graf-after--h3">现在我们已经有了下载助手函数，我们可以重新访问前面的例子并修改它们来触发生成内容的下载。开始了。</p>
+<h3 id="4d76" class="graf graf--h3 graf-after--p">1.从JSON数组生成CSV</h3>
+<p id="e064" class="graf graf--p graf-after--h3">我们将更新最终的promise <code>.then</code>处理程序，为生成的CSV字符串创建一个下载链接，并使用我们在上一节中创建的<code>downloadBlob</code> helper函数自动单击它来触发文件下载。</p>
+<p id="1b99" class="graf graf--p graf-after--p">下面是修改后的样子:</p>
+<pre>fetch('https://picsum.photos/list')
+  .then(response =&gt; response.json())
+  .then(data =&gt; data.filter(squareImages))
+  .then(collectionToCSV(exportFields))
+  .then(csv =&gt; {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    downloadBlob(blob, 'photos.csv');
+  })
+  .catch(console.error);</pre>
+<p id="1636" class="graf graf--p graf-after--figure">这里我们更新了最后的承诺。然后按如下方式处理:</p>
+<ul class="postList">
+<li id="89f5" class="graf graf--li graf-after--p">为CSV字符串创建新的blob对象，并使用以下命令设置正确的类型:</li>
+</ul>
+<pre id="480c" class="graf graf--pre graf-after--li"><code>{ type: 'text/csv' }</code></pre>
+<ul class="postList">
+<li id="1410" class="graf graf--li graf-after--pre">调用<code>downloadBlob</code>辅助函数触发CSV文件的自动下载，指定默认文件名为<code>“photos.csv”</code></li>
+<li id="0d12" class="graf graf--li graf-after--li">将承诺拒绝处理器移动到单独的<code>.catch()</code>模块:</li>
+</ul>
+<pre id="71e5" class="graf graf--pre graf-after--li"><code>.catch(console.error)</code></pre>
+<p id="c1cf" class="graf graf--p graf-after--pre">下面是这个应用程序在<a class="markup--anchor markup--p-anchor" href="https://codepen.io/gladchinda/pen/GemGNG" target="_blank" rel="noreferrer nofollow noopener" data-href="https://codepen.io/gladchinda/pen/GemGNG"> <strong class="markup--strong markup--p-strong"> Codepen </strong> </a> <strong class="markup--strong markup--p-strong"> : </strong>上的一个更高级的工作示例</p>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="js,result" data-user="gladchinda" data-slug-hash="GemGNG" data-pen-title="JSON Collection to CSV">参见<a href="https://codepen.io"> CodePen </a>上的<a href="https://codepen.io/gladchinda/pen/GemGNG/">JSON收藏到CSV </a>的笔Glad Chinda(<a href="https://codepen.io/gladchinda">@ Glad Chinda</a>)<br/>。</p>
+<p>2.图像像素操作</p>
+<h3 id="2723" class="graf graf--h3 graf-after--figure">我们将在<code>img</code>对象的<code>load</code>事件监听器的末尾添加一些代码，以允许我们:</h3>
+<p id="f670" class="graf graf--p graf-after--h3">使用<code>Canvas.toBlob()</code>方法为<code>canvas</code>中的灰度图像创建一个斑点对象</p>
+<ul class="postList">
+<li id="08ae" class="graf graf--li graf-after--p">然后使用前面的<code>downloadBlob</code>助手函数为blob对象创建一个下载链接</li>
+<li id="3e16" class="graf graf--li graf-after--li">最后，将下载链接附加到DOM中</li>
+<li id="2559" class="graf graf--li graf-after--li">更新应该是这样的:</li>
+</ul>
+<p id="7e74" class="graf graf--p graf-after--li">下面是这个应用程序在<a class="markup--anchor markup--p-anchor" href="https://codepen.io/gladchinda/pen/pmzJXe" target="_blank" rel="noreferrer nofollow noopener" data-href="https://codepen.io/gladchinda/pen/pmzJXe"> <strong class="markup--strong markup--p-strong"> Codepen </strong> </a> <strong class="markup--strong markup--p-strong"> : </strong>上的一个工作示例</p>
+<pre>img.addEventListener('load', () =&gt; {
+  
+  /* ... some code have been truncated here ... */
+  
+  ctx.putImageData(imageData, 0, 0);
+  
+  // Canvas.toBlob() creates a blob object representing the image contained in the canvas
+  // It takes a callback function as its argument whose first parameter is the 
+  canvas.toBlob(blob =&gt; {
+    // Create a download link for the blob object
+    // containing the grayscale image
+    const downloadLink = downloadBlob(blob);
+    
+    // Set the title and classnames of the link
+    downloadLink.title = 'Download Grayscale Photo';
+    downloadLink.classList.add('btn-link', 'download-link');
+    
+    // Set the visible text content of the download link
+    downloadLink.textContent = 'Download Grayscale';
+
+    // Attach the link to the DOM
+    document.body.appendChild(downloadLink);
+  });
+  
+}, false);
+
+</pre>
+<p> </p>
+<p>参见<a href="https://codepen.io"> CodePen上的</a><a href="https://codepen.io/gladchinda"> @gladchinda </a> ) <br/>笔<a href="https://codepen.io/gladchinda/pen/pmzJXe/">图像像素操作——灰度</a>。</p>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="js,result" data-user="gladchinda" data-slug-hash="pmzJXe" data-pen-title="Image Pixel Manipulation — Grayscale">结论</p>
+<p>我们终于来到了本教程的结尾。虽然从本教程中可能有很多东西可以挑选，但很明显，Web APIs在为浏览器构建强大的应用程序方面有很多可以提供的。不要犹豫尝试和冒险。</p>
+<h3 id="c2d2" class="graf graf--h3 graf-after--figure">感谢您抽出时间阅读这篇文章。如果你觉得这篇文章很有见地，如果你不介意，请随意鼓掌——因为这将有助于其他人在媒体上轻松找到它。</h3>
+<p id="ce6e" class="graf graf--p graf-after--h3"> </p>
+<p id="ce40" class="graf graf--p graf-after--p">Thanks for making out time to read this article. If you found this article insightful, feel free to give some rounds of applause if you don’t mind — as that will help other people find it easily on Medium.</p>
+<p> </p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

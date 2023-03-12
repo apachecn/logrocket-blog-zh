@@ -1,0 +1,440 @@
+<html>
+<head>
+<title>Making a GraphQL server compatible with Relay - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>让GraphQL服务器兼容Relay - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/making-a-graphql-server-compatible-with-relay/#0001-01-01">https://blog.logrocket.com/making-a-graphql-server-compatible-with-relay/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>GraphQL是一项非常强大的技术，它使我们能够构建更好的API。GraphQL是一种查询语言，它帮助我们避免对服务器的不必要的请求，减少过量提取和不足提取请求，并且只获取我们需要的数据。该技术的使用一直在增长，GraphQL在不同语言中的采用越来越多，对于那些想要构建GraphQL APIs的人来说，未来真的很光明。</p>
+<p><a href="https://relay.dev/en/" target="_blank" rel="noopener noreferrer"> Relay </a>是一个强大的JavaScript框架，用于声明性地使用GraphQL并构建数据驱动的React应用程序。它不是社区中使用最多的GraphQL客户端，原因有几个。其中之一是Relay比其他框架更加结构化和固执己见，文档不是很直观，社区本身也不是很大。虽然Apollo比Relay有一些优势，主要是在社区和文档方面，但Relay也有一些优势使它非常特别。</p>
+<p><a href="https://relay.dev/en/" target="_blank" rel="noopener noreferrer"> Relay </a>建议在前端使用，以实现更结构化、模块化、经得起未来考验的应用，可以轻松扩展到数百万用户。为了使用Relay，首先需要实现的是制作一个Relay兼容的GraphQL服务器。这就是我们现在要做的。</p>
+<h2>GraphQL服务器规范</h2>
+<p>在处理<a href="https://relay.dev/docs/en/thinking-in-graphql#client-caching" target="_blank" rel="noopener noreferrer">缓存</a>和<a href="https://relay.dev/docs/en/thinking-in-graphql#fetching-data" target="_blank" rel="noopener noreferrer">数据获取</a>时，Relay以优雅的方式工作，这是它相对于其他GraphQL客户端的最大优势之一。</p>
+<p>Relay在其文档中有一个叫做<a href="https://relay.dev/docs/guides/graphql-server-specification/" target="_blank" rel="noopener noreferrer"> GraphQL服务器规范</a>的东西，这个指南展示了Relay为了正确工作而制定的关于GraphQL服务器的约定。</p>
+<p>当创建一个将与Relay一起工作的新的GraphQL服务器时，我们需要确保它遵循以下原则:</p>
+<h2>一个<code>Node</code>物体</h2>
+<p>节点接口用于重新提取一个对象，正如<a href="https://graphql.org/learn/global-object-identification/#node-interface" target="_blank" rel="noopener noreferrer">文档</a>所说:</p>
+<blockquote><p>服务器必须提供一个名为<code>Node</code>的接口。该接口必须包含一个名为<code>id</code>的字段，返回一个非空的<code>ID</code>。这个<code>id</code>应该是这个对象的一个全局唯一标识符，只要给定这个<code>id</code>，服务器应该能够重新获取这个对象。</p></blockquote>
+<p>对于GraphQL模式来说,<code>Node</code>接口非常重要，它提供了一种使用其<code>ID</code>请求对象的标准方式。</p>
+<p>另一个需要实现的是<code><a href="https://graphql.org/learn/global-object-identification/#node-root-field" target="_blank" rel="noopener noreferrer">Node</a></code> <a href="https://graphql.org/learn/global-object-identification/#node-root-field" target="_blank" rel="noopener noreferrer">根字段</a>。该字段只接受一个非空的全局唯一的<code>ID</code>作为参数:</p>
+<blockquote><p>如果查询返回实现了<code>Node</code>的对象，那么当服务器在<code>Node</code>的<code>id</code>字段中返回的值作为<code>id</code>参数传递给<code>node</code>根字段时，这个根字段应该重新提取相同的对象。</p></blockquote>
+<h2>如何通过连接分页</h2>
+<p>分页一直是API中的一个痛点，没有正确实现它的标准方法。Relay通过使用<a href="https://relay.dev/graphql/connections.htm" target="_blank" rel="noopener noreferrer"> GraphQL游标连接规范</a>很好地处理了这个问题:</p>
+<pre>{
+  podcasts {
+    name
+    episodes(first: 10) {
+      totalCount
+      edges {
+        node {
+          name
+        }
+        cursor
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}</pre>
+<p>该规范提出了一种称为连接的模式，在查询中，连接提供了一种对结果进行切片和分页的标准方式。这些连接还为提供游标的响应提供了一种标准方式，一种告知客户端何时有更多结果的方式。</p>
+<h2>可预测的突变</h2>
+<p>突变应该使用<code>input</code>类型，以使它们可预测并以标准方式构建:</p>
+<pre>input AddPodcastInput {
+  id: ID!
+  name: String!
+}
+
+mutation AddPodcastMutation($input: AddPodcastInput!) {
+  addPodcast(input: $input) {
+    podcast {
+      id
+      name
+    }
+  }
+}</pre>
+<p>使GraphQL服务器与Relay兼容将确保我们有一个结构良好、高性能和可伸缩的GraphQL API，它可以很容易地扩展到数百万个。</p>
+<h2>入门指南</h2>
+<p>现在我们知道了Relay期望我们的GraphQL服务器提供的三个原则，让我们创建一个遵循<a href="https://relay.dev/docs/en/graphql-server-specification" target="_blank" rel="noopener noreferrer"> GraphQL服务器规范</a>的示例，并看看它在实践中是如何工作的。</p>
+<p>我们要做的第一件事是创建一个新项目并安装一些依赖项:</p>
+<pre>yarn add @koa/cors @koa/router graphql graphql-relay koa koa-bodyparser koa-graphql koa-helmet koa-logger nodemon</pre>
+<p>现在，我们将添加一些开发依赖项:</p>
+<pre>yarn add --dev @types/graphql-relay @types/koa-bodyparser @types/koa-helmet @types/koa-logger @types/koa__cors @types/node ts-node typescript</pre>
+<p>安装完所有这些依赖项后，我们现在就可以创建GraphQL服务器了。我们将创建一个名为<code>src</code>的文件夹，下面是我们示例应用程序的文件:</p>
+<pre>-- src
+  -- graphql.ts
+  -- index.ts
+  -- NodeInterface.ts
+  -- schema.ts
+  -- types.ts
+  -- utils.ts
+-- nodemon.json
+-- tsconfig.json</pre>
+<p>让我们创建一个名为<code>tsconfig.json</code>的文件，以便在这个项目中使用TypeScript。我们将把下面的代码放在这个文件中:</p>
+<pre>{
+  "compilerOptions": {
+    "lib": ["es2016", "esnext.asynciterable"],
+    "target": "esnext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": "."
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}</pre>
+<p>在这个例子中，我们将使用<a href="https://www.npmjs.com/package/nodemon" target="_blank" rel="noopener noreferrer"> nodemon </a>来监视我们的<code>src</code>目录，并在每次检测到目录中有变化时重启我们的服务器。在<code>nodemon.json</code>文件中，放入以下代码:</p>
+<pre>{
+  "watch": ["src"],
+  "ext": "ts",
+  "ignore": ["src/**/*.spec.ts", "src/types/**/*.d.ts"],
+  "exec": "ts-node ./src/index.ts"
+}</pre>
+<p>在我们的<code>index.ts</code>文件中，我们将放入以下代码:</p>
+<pre>import Koa from "koa";
+import cors from "@koa/cors";
+import Router from "@koa/router";
+import bodyParser from "koa-bodyparser";
+import logger from "koa-logger";
+import helmet from "koa-helmet";
+import graphqlHTTP from "koa-graphql";
+
+import schema from "./schema";
+
+const app = new Koa();
+const router = new Router();
+
+const graphqlServer = graphqlHTTP({ schema, graphiql: true });
+router.all("/graphql", bodyParser(), graphqlServer);
+
+app.listen(5000);
+app.use(graphqlServer);
+app.use(logger());
+app.use(cors());
+app.use(helmet());
+app.use(router.routes()).use(router.allowedMethods());</pre>
+<p>目前，我们只是使用Koa创建了一个简单的GraphQL API。我们从<code>schema.ts</code>文件中导入了GraphQL模式，现在我们将创建我们的服务器正常工作所需的类型。</p>
+<p>在我们的<code>types.ts</code>中，我们将放置下面的代码:</p>
+<pre>export class IUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  constructor(data) {
+    this.id = data.id;
+    this.firstName = data.firstName;
+    this.lastName = data.lastName;
+  }
+}</pre>
+<p>我们还将创建一个名为<code>utils.ts</code>的文件，并创建一个名为<code>users</code>的空数组:</p>
+<pre>export const users = [];</pre>
+<p>我们只是为我们的用户创建了类型。现在，在我们的<code>schema.ts</code>文件中，我们将创建我们的GraphQL模式，让我们将以下代码放入该文件中:</p>
+<pre>import { GraphQLSchema } from "graphql";
+import { QueryType, MutationType } from "./graphql";
+
+const schema = new GraphQLSchema({
+  query: QueryType,
+  mutation: MutationType,
+});
+
+export default schema;</pre>
+<p>在我们的<code>graphql.ts</code>文件中，我们将创建我们的查询。让我们创建一个名为<code>QueryType</code>的变量，并从我们的<code>NodeInterface.ts</code>文件中导入<code>NodeField</code>:</p>
+<pre>import {
+  GraphQLObjectType,
+  GraphQLInt,
+  GraphQLString,
+  GraphQLNonNull,
+} from "graphql";
+
+import { NodeField, NodesField } from "./NodeInterface";
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "The root of all... queries",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField,
+  }),
+});</pre>
+<p>现在，我们有了GraphQL服务器的基础。让我们实现<code>Node</code>字段，看看它是如何工作的。现在让我们转到我们的<code>NodeInterface.ts</code>文件并键入一些代码。</p>
+<p>我们将从<code>graphql-relay</code>、<code>nodeDefinitions</code>和<code>fromGlobalId</code>导入函数:</p>
+<ul>
+<li><code>nodeDefinitions</code>函数帮助我们将全局定义的id映射到实际的数据对象中。该函数的第一个参数接收<code>fromGlobalId</code>函数，第二个参数用于使用<code>fromGlobalId</code>函数读取对象的类型</li>
+<li><code>fromGlobalId</code>函数将使用其全局ID检索对象</li>
+</ul>
+<p>我们的<code>NodeInterface.ts</code>文件将看起来像这样:</p>
+<pre>import { nodeDefinitions, fromGlobalId } from "graphql-relay";
+import { UserType } from "./graphql";
+import { users } from "./utils";
+import { IUser } from "./types";
+
+const { nodeField, nodesField, nodeInterface } = nodeDefinitions(
+  async (globalId: string) =&gt; {
+    const { id: userGlobalID, type } = fromGlobalId(globalId);
+    if (type === "User")
+      return await users.find(
+        ({ id }: IUser) =&gt; (id as string) === userGlobalID
+      );
+    return null;
+  },
+  (obj) =&gt; {
+    if (obj instanceof IUser) return UserType;
+    return null;
+  }
+);
+
+export const NodeInterface = nodeInterface;
+export const NodeField = nodeField;
+export const NodesField = nodesField;</pre>
+<p>现在让我们为GraphQL服务器创建用户类型。在我们的<code>graphql.ts</code>文件中，让我们导入一些东西并创建一个名为<code>UserType</code>的变量。我们整个<code>graphql.ts</code>现在应该是这个样子:</p>
+<pre>import { GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+
+import { NodeField, NodesField } from "./NodeInterface";
+
+export const UserType: GraphQLObjectType = new GraphQLObjectType({
+  name: "User",
+  description: "User",
+  fields: () =&gt; ({
+    firstName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ firstName }) =&gt; firstName,
+    },
+    lastName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ lastName }) =&gt; lastName,
+    },
+  }),
+});
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "The root of all... queries",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField
+  }),
+});</pre>
+<p>目前，我们没有使用Relay希望我们使用的全局ID原则。我们将从<code>graphql-relay</code>导入<code>globalIdField</code>，并在我们的<code>firstName</code>字段之前传递它，如下所示:</p>
+<pre>import { GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+import { globalIdField } from "graphql-relay";
+
+import { NodeField, NodesField } from "./NodeInterface";
+
+export const UserType: GraphQLObjectType = new GraphQLObjectType({
+  name: "User",
+  description: "User",
+  fields: () =&gt; ({
+    id: globalIdField("User"),
+    firstName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ firstName }) =&gt; firstName,
+    },
+    lastName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ lastName }) =&gt; lastName,
+    },
+  }),
+});
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "The root of all... queries",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField
+  }),
+});</pre>
+<p>现在，我们将在我们的<code>User</code>类型中创建一个名为<code>interfaces</code>的新属性，并传递我们的<code>NodeInterface</code>。首先，从我们的<code>NodeInterface.ts</code>文件中导入<code>NodeInterface</code>，现在我们将向我们的<code>UserType</code>添加一个新属性，它看起来像这样:</p>
+<pre>import { GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+import { globalIdField } from "graphql-relay";
+
+import { NodeField, NodesField, NodeInterface } from "./NodeInterface";
+
+export const UserType: GraphQLObjectType = new GraphQLObjectType({
+  name: "User",
+  description: "User",
+  fields: () =&gt; ({
+    id: globalIdField("User"),
+    firstName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ firstName }) =&gt; firstName,
+    },
+    lastName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ lastName }) =&gt; lastName,
+    },
+  }),
+  interfaces: () =&gt; [NodeInterface],
+});
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "The root of all... queries",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField
+  }),
+});</pre>
+<p>现在让我们从<code>graphql-relay</code>导入<code>connectionDefinitions</code>，并创建一个名为<code>UserConnection</code>的新变量。我们将使用这个<code>UserConnection</code>变量为我们的用户创建一个连接类型。我们将在我们的<code>graphql.ts</code>内部创建<code>UserConnection</code>。</p>
+<p>同样在我们的<code>graphql.ts</code>文件中，我们将创建一个新的查询来获取我们的用户<code>users</code>。我们将通过我们的<code>UserConnection</code>，作为一个论点，我们将重视来自<code>graphql-relay</code>的<code>connectionArgs</code>，并通过它。为了正确地对结果进行分页，我们将导入<code>connectionFromArray</code>并传递我们的用户数组和参数。</p>
+<p>在所有这些变化之后，我们的<code>graphql.ts</code>看起来像这样:</p>
+<pre>import { GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+import {
+  globalIdField,
+  connectionDefinitions,
+  connectionFromArray,
+  connectionArgs,
+  mutationWithClientMutationId,
+} from "graphql-relay";
+
+import { NodeField, NodesField, NodeInterface } from "./NodeInterface";
+import { IUser } from "./types";
+import { users } from "./utils";
+
+export const UserType: GraphQLObjectType = new GraphQLObjectType&lt;IUser&gt;({
+  name: "User",
+  description: "UserType",
+  fields: () =&gt; ({
+    id: globalIdField("User"),
+    firstName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ firstName }) =&gt; firstName,
+    },
+    lastName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ lastName }) =&gt; lastName,
+    },
+  }),
+  interfaces: () =&gt; [NodeInterface],
+});
+
+export const UserConnection = connectionDefinitions({
+  name: "User",
+  nodeType: UserType,
+});
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "QueryType",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField,
+    users: {
+      type: GraphQLNonNull(UserConnection.connectionType),
+      args: {
+        ...connectionArgs,
+      },
+      resolve: (_, args) =&gt; connectionFromArray(users, args),
+    },
+  }),
+});</pre>
+<p>现在，在我们的服务器上要做的最后一件事是创建一个变异，我们将创建一个名为<code>UserCreate</code>的变异，在这里我们将创建一个新用户并将其添加到我们的阵列中。我们的<code>graphql. ts</code>文件现在看起来像这样:</p>
+<pre>import { GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+import {
+  globalIdField,
+  connectionDefinitions,
+  connectionFromArray,
+  connectionArgs,
+  mutationWithClientMutationId,
+} from "graphql-relay";
+
+import { NodeField, NodesField, NodeInterface } from "./NodeInterface";
+import { IUser } from "./types";
+import { users } from "./utils";
+
+export const UserType: GraphQLObjectType = new GraphQLObjectType&lt;IUser&gt;({
+  name: "User",
+  description: "UserType",
+  fields: () =&gt; ({
+    id: globalIdField("User"),
+    firstName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ firstName }) =&gt; firstName,
+    },
+    lastName: {
+      type: GraphQLNonNull(GraphQLString),
+      resolve: ({ lastName }) =&gt; lastName,
+    },
+  }),
+  interfaces: () =&gt; [NodeInterface],
+});
+
+export const UserConnection = connectionDefinitions({
+  name: "User",
+  nodeType: UserType,
+});
+
+export const QueryType = new GraphQLObjectType({
+  name: "Query",
+  description: "QueryType",
+  fields: () =&gt; ({
+    node: NodeField,
+    nodes: NodesField,
+    users: {
+      type: GraphQLNonNull(UserConnection.connectionType),
+      args: {
+        ...connectionArgs,
+      },
+      resolve: (_, args) =&gt; connectionFromArray(users, args),
+    },
+  }),
+});
+
+const UserCreate = mutationWithClientMutationId({
+  name: "UserCreate",
+  inputFields: {
+    firstName: {
+      type: new GraphQLNonNull(GraphQLString),
+    },
+    lastName: {
+      type: new GraphQLNonNull(GraphQLString),
+    },
+  },
+  mutateAndGetPayload: async ({ firstName, lastName }) =&gt; {
+    const newUser = { firstName, lastName };
+    users.push(newUser);
+    return {
+      message: "Success",
+      error: null,
+    };
+  },
+  outputFields: {
+    message: {
+      type: GraphQLString,
+      resolve: ({ message }) =&gt; message,
+    },
+    error: {
+      type: GraphQLString,
+      resolve: ({ error }) =&gt; error,
+    },
+  },
+});
+
+export const MutationType = new GraphQLObjectType({
+  name: "Mutation",
+  description: "MutationType",
+  fields: () =&gt; ({
+    UserCreate,
+  }),
+});</pre>
+<p><a href="https://relay.dev/docs/en/graphql-server-specification" target="_blank" rel="noopener noreferrer"> GraphQL服务器规范</a>通过让您遵循严格的规则，确保您拥有一个非常模块化、可伸缩和健壮的GraphQL API。为了在前端使用中继，应该在后端实现这些约定。</p>
+<p>遵循这些规范可以使您的代码防弹并在将来易于扩展，您可以非常容易地实现诸如分页连接和身份验证之类的东西。你可以在这里找到这篇文章的代码。</p>
+<h2>结论</h2>
+<p>有时使用灵活的技术并不是最佳选择，它会导致一些不确定性，并且可能无法长期扩展。Relay是一种非常固执和结构化的技术，它肯定会确保您以正确的方式使用GraphQL服务器，如果您遵循约定，就不会有任何问题。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

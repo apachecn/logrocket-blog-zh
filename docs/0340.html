@@ -1,0 +1,239 @@
+<html>
+<head>
+<title>Switching between Node versions during development - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>开发期间在节点版本之间切换</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/switching-between-node-versions-during-development/#0001-01-01">https://blog.logrocket.com/switching-between-node-versions-during-development/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本文最后一次回顾和更新于2023年1月31日。关于使用nvm切换节点版本的更多信息，<a href="https://blog.logrocket.com/how-switch-node-js-versions-nvm/">查看这篇文章</a>。</em></p>
+<p>有时似乎几乎每周都有新版本发布——每隔几周发布一个小版本，每隔几个月发布一个大版本。如果您是需要定期在不同应用程序和项目之间切换的开发人员，您可能会发现需要运行不同版本的Node。</p>
+<p>幸运的是，有几种方法可以安装多个版本并根据需要进行切换。本文将讨论和比较两种流行的节点版本管理器:用于Windows的nvm和用于Linux/Mac的<code>n</code>节点版本管理器。</p>
+<blockquote><p><strong>注意</strong>，Windows和Linux/Mac存在不同的nvm实现；但是，<code>n</code> npm包只在Linux/Mac上受支持。</p></blockquote>
+<p>为了便于比较，让我们假设您正在开发两个应用程序。应用1是运行在节点14.19.0上的Angular 12应用。应用2是运行在节点12.11.1上的Angular 11应用。以下是您需要完成的任务:</p>
+<ul>
+<li>修复应用程序1的bug x</li>
+<li>将应用程序2升级到Angular 13</li>
+</ul>
+<p>您实际上需要三个版本的Node来完成您的任务，因为Angular 13升级要求您将应用程序2升级到Node 14.15.0或更高版本。我们将使用16.18.1。</p>
+<p><em>向前跳跃</em>:</p>
+
+<h2 id="nvm-for-windows">如何使用nvm更改节点版本</h2>
+<p>从技术上来说，有两个完全独立的nvm项目，它们在不同的操作系统上提供类似的功能，但彼此独立维护:</p>
+<ul>
+<li>nvm-sh/nvm 是一个Bash脚本，可用于管理Linux和Mac上的节点版本</li>
+<li><a href="https://github.com/coreybutler/nvm-windows/tree/1.1.7"> coreybutler/nvm-windows </a>是一个windows应用程序(有或没有安装程序),可用于管理Windows上的节点版本</li>
+</ul>
+<p>本文重点介绍nvm-windows。</p>
+<h3>装置</h3>
+<p>安装非常简单，只需从GitHub上下载最新版本的nvm for Windows installer即可。在撰写本文时，<a href="https://github.com/coreybutler/nvm-windows/releases"> 1.1.10是最新发布的</a>。下载并解压<code>nvm-setup.zip</code>，双击可执行文件进行安装。</p>
+<p>安装程序会将<code>nvm</code>放在你机器上的一个适当的文件夹中，并更新你的系统环境变量，这样<code>nvm</code>和<code>node</code>的未来安装都可以在命令行上使用。</p>
+<blockquote><p>提示:如果你喜欢安装到你自己的文件夹中，下载<code>nvm-noinstall.zip</code>并解压到你喜欢的任何地方。运行附带的<code>install.cmd</code>来设置必要的系统环境变量。</p>
+<p>提示:GitHub 上的<a href="https://github.com/coreybutler/nvm-windows">提供了详细的安装说明。</a></p></blockquote>
+<p>安装完成后，打开命令窗口并确认<code>nvm</code>可用:</p>
+<pre class="language-javascript hljs">D:\&gt;nvm version
+1.1.10
+</pre>
+<h3 id="how-switch-specific-version-node">如何切换到Node的特定版本？</h3>
+<p>nvm-windows允许来回切换节点版本。到目前为止，我们已经安装了所需的版本。让我们看看如何使用nvm-windows在节点版本18.21.1、16.18.1和14.19.0之间切换:</p>
+<pre class="language-javascript hljs">D:\&gt;nvm install 18.21.1
+...
+D:\&gt;nvm install 16.18.1
+...
+D:\&gt;nvm install 14.19.0
+...
+D:\&gt;nvm list
+    18.12.1
+  * 16.18.1 (Currently using 64-bit executable)
+    14.19.0
+D:\&gt;nvm use 18.12.1
+Now using node v18.12.1 (64-bit)
+D:\&gt;nvm list
+  * 18.12.1 (Currently using 64-bit executable)
+    16.18.1
+    14.19.0
+D:\&gt;nvm use 14.19.0
+Now using node v14.19.0 (64-bit)
+D:\&gt;nvm list
+    18.12.1
+    16.18.1
+  * 14.19.0 (Currently using 64-bit executable)
+</pre>
+<ul>
+<li><code>nvm install</code>安装了所需的节点版本(默认为64位版本，因为当前系统的架构是64位)</li>
+<li><code>nvm use</code>允许我们选择要使用的已安装节点版本</li>
+<li><code>nvm list</code>列出所有已安装的节点版本，在活动版本旁边标有星号(*)</li>
+</ul>
+<p>现在我们知道了如何切换到特定的节点版本，我们可以开始处理我们的示例应用程序了。</p>
+<h3 id="running-application-1-using-nvm-windows">使用nvm for Windows运行应用1</h3>
+<p>如果您还记得，您需要使用三个不同版本的Node运行两个不同的应用程序来完成所有任务。首先运行应用程序1。一些命令输出被截断(<code>...</code>)以节省空间:</p>
+<pre class="language-javascript hljs">D:\&gt;nvm list available
+|   CURRENT    |     LTS      |  OLD STABLE  | OLD UNSTABLE |
+|--------------|--------------|--------------|--------------|
+|    19.5.0    |   18.13.0    |   0.12.18    |   0.11.16    |
+|    19.4.0    |   18.12.1    |   0.12.17    |   0.11.15    |
+...
+D:\&gt;nvm install 14.19.0
+Downloading node.js version 14.19.0 (64-bit)...
+Complete
+Creating C:\Users\Brian\Downloads\nvm-noinstall\temp
+
+Downloading npm version 6.14.16... Complete
+Installing npm v6.14.16...
+
+Installation complete. If you want to use this version, type
+nvm use 14.19.0
+
+D:\&gt;nvm use 14.19.0
+D:\&gt;nvm current
+v14.19.0
+D:\&gt;nvm list
+  * 14.19.0 (Currently using 64-bit executable)    
+D:\&gt;node -v
+v14.19.0
+D:\&gt;cd application1
+D:\application1&gt;npm install
+...
+D:\application1&gt;npm start
+&gt; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d5b4a5a5b9bcb6b4a1bcbabbe495e5fbe5fbe5">[email protected]</a> start D:\application1
+&gt; ng serve
+
+** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **
+...
+</pre>
+<p>以下是nvm的一些关键功能，您刚刚利用它们来运行应用程序:</p>
+<ul>
+<li><code>nvm list available</code>提供了可供安装的节点版本的方便的部分列表</li>
+<li><code>nvm current</code>显示当前正在使用的节点版本</li>
+</ul>
+<p>安装并激活节点后，一切如常。您可以遵循应用程序要求的任何节点/npm工作流。</p>
+<blockquote><p>提示:您的节点版本彼此完全隔离。例如，如果您在一个版本的Node上全局安装了一个包，那么该包在其他版本的Node上就不可用。</p></blockquote>
+<h3 id="running-application-2-using-nvm-windows">使用nvm for Windows运行应用2</h3>
+<p>此时，您已经修复了应用程序1中的bug x，现在您可以着手将应用程序2升级到Angular 8:</p>
+<pre class="language-javascript hljs">D:\nvm install 12.11.1
+...
+D:&gt;nvm use 12.11.1
+Now using node v12.11.1 (64-bit)
+D:&gt;cd application2
+D:\application2&gt;npm install
+...
+D:\application2&gt;npm start
+...
+D:\application2&gt;nvm install 
+...
+D:\application2&gt;nvm use 16.18.1
+Now using node v16.18.1 (64-bit)
+D:\application2&gt;npm i -g @angular/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a6c5cacfe69795">[email protected]</a>
+...
+D:\application2&gt;ng update @angular/cli @angular/core
+...
+D:\application2&gt;npm install
+...
+D:\application2&gt;npm start
+...
+</pre>
+<p>在nvm(和Angular CLI)的帮助下，您可以通过几个命令快速完成升级:</p>
+<ul>
+<li><code>nvm install</code>和<code>nvm use</code>安装并激活了v12.11.1，因此您可以在升级之前验证应用程序是否按预期工作</li>
+<li><code>nvm install</code>和<code>nvm use</code>安装并激活了v14.19.0，为升级做准备</li>
+<li>全局安装了<code>@angular/cli</code>包，以访问自动升级Angular应用程序的<code>ng update</code>命令</li>
+<li><code>npm install</code>和<code>npm start</code>测试新升级的应用程序</li>
+</ul>
+<h2 id="n-node-version-manager">如何使用<code>n</code>切换节点版本</h2>
+<p><code>n</code>节点版本管理器为节点版本之间的安装和切换提供了一个更简单的CLI。它仅在Linux或Mac操作系统上受支持。</p>
+<blockquote><p>提示:详细的安装和使用说明可以在GitHub 上的<a href="https://github.com/tj/n"> tj/n存储库中找到。</a></p></blockquote>
+<h3 id="installation">装置</h3>
+<p>如果您已经安装了Node和npm的版本，那么您可以像安装任何其他npm包一样使用<code>npm install -g n</code>来安装<code>n</code>。</p>
+<p>如果您还没有安装Node或npm的版本，您可以使用GitHub的Bash脚本安装<code>n</code>。它看起来是这样的:</p>
+<blockquote><p>提示:您必须安装Git来安装带有Bash脚本的<code>n</code>。</p></blockquote>
+<pre class="language-bash hljs">~$ curl -L https://bit.ly/n-install | bash
+...
+=== n successfully installed.
+  ...
+
+  Run `n -h` for help.
+  To update n later, run `n-update`.
+  To uninstall, run `n-uninstall`.
+
+  IMPORTANT: OPEN A NEW TERMINAL TAB/WINDOW or run `. /home/brian/.bashrc`
+             before using n and Node.js.
+===
+~$ . /home/brian/.bashrc
+~$ n
+node/16.18.1
+</pre>
+<p>通过从GitHub下载并运行<code>n-install</code>脚本来安装<code>n</code>。安装完成后，运行<code>n</code>表明默认情况下安装了Node的一个版本。</p>
+<h3 id="running-application-1-n-node-version-manager">使用<code>n</code>节点版本管理器运行应用程序1</h3>
+<p>应用程序1需要节点14.19.0，因此您需要首先安装该节点，然后运行应用程序:</p>
+<pre class="language-javascript hljs">~$ n 14.19.0
+     install : node-v14.19.0
+       mkdir : /home/brian/n/n/versions/node/14.19.0
+       fetch : https://nodejs.org/dist/v14.19.0/node-v14.19.0-linux-x64.tar.gz
+####################################################################################################################################### 100.0%
+installed : v14.19.0
+~$ node -v
+v14.19.0
+~$ cd application1
+~/application1$ npm install
+...
+~/application1$ npm start
+&gt; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="137263637f7a7072677a7c7d2253233d233d23">[email protected]</a> start ~/application1
+&gt; ng serve
+
+** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **
+...
+</pre>
+<p>安装和激活Node版本的<code>n</code>命令很简单:<code>n 14.19.0</code>。您也可以使用<code>n latest</code>来获得最新版本的Node，或者使用<code>n lts</code>来获得最新LTS版本的Node。如果已经安装了Node的版本，那么<code>n</code>将简单地切换到那个版本。</p>
+<p>安装Node后，应用程序可以照常运行。</p>
+<blockquote><p><strong> N.B. </strong>与nvm类似，节点版本之间完全隔离。例如，全局安装的软件包不会在节点版本之间共享。</p></blockquote>
+<h3 id="running-app-2-n">使用<code>n</code>运行应用程序2</h3>
+<p>接下来，您需要运行应用2，并继续进行Angular 8升级:</p>
+<pre class="language-javascript hljs">$ n 12.11.1
+...
+$ cd application2
+~/application2$ npm install
+...
+~/application2$ npm start
+...
+~/application2$ n 16.18.1
+...
+~/application2$ npm i -g @angular/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d9bab5b099e8ea">[email protected]</a>
+...
+~/application2$ ng update @angular/cli @angular/core
+...
+~/application2$ npm install
+...
+~/application2$ npm start
+...
+</pre>
+<p>安装节点12.11.1是为了确保应用程序2在升级前正常工作。然后，按照Angular 13的要求安装节点16.18.1。Angular CLI全局安装，应用程序用<code>ng update</code>更新。最后，应用程序在升级后开始测试。</p>
+<p>您可能已经注意到，<code>n</code>使得用一个<code>n &lt;version&gt;</code>命令安装和切换到新版本的Node稍微快了一些。</p>
+<h3 id="using-node-binary-directly">直接使用节点二进制</h3>
+<p><code>n</code>提供了直接调用特定节点二进制文件的能力，而无需显式切换到该节点版本。nvm没有类似的功能:</p>
+<pre class="language-javascript hljs">~$ echo "console.log('Node version: ' + process.version)" &gt; index.js
+~$ node -v
+v16.18.1
+~$ n use 14.19.0 index.js
+Node version: v14.19.0
+~$ n use 12.4.0 index.js
+  Error: '12.4.0' is not installed
+~$ node -v
+v16.18.1
+</pre>
+<p>在上面的例子中，节点的活动版本是v16.18.1。当运行<code>n use 14.19.0 index.js</code>时，输出表明用于执行脚本的节点版本是14.19.0。执行后，节点的活动版本仍然是v16.18.1。请注意，<code>n use</code>命令要求请求的节点版本已经由<code>n</code>安装。</p>
+<p>这种能力在某些情况下很有用。例如，设想一个构建服务器，用于构建不同的应用程序，这些应用程序都有自己所需的节点版本。每个构建都可以用<code>n use</code>命令触发，指定该应用程序所需的节点版本。</p>
+<h2 id="comparing-nvm-windows-n-node-version-manager">比较nvm for Windows和<code>n</code>节点版本管理器</h2>
+<p>nvm for Windows和<code>n</code>有许多共同的特性和一些独特的特性，这些特性会影响您使用每种工具的方式和时间。以下是一些主要差异的总结:</p>
+<p>  </p>
+<p>您可以选择在您的Linux机器上使用<code>n</code>,因为它的API很简单。或者，您可能会在Windows box上选择nvm for Windows，在Linux构建服务器上选择<code>n</code>来管理不同构建作业之间的节点版本。</p>
+<p>无论情况如何，这两个工具都出色地满足了动态切换节点版本的需求。快乐节点版本切换！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

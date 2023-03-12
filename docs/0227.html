@@ -1,0 +1,243 @@
+<html>
+<head>
+<title>Creating Nodemon in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Node.js - LogRocket博客中创建Nodemon</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-nodemon-in-node-js-70b295c2610c/#0001-01-01">https://blog.logrocket.com/creating-nodemon-in-node-js-70b295c2610c/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>每次修改代码库后，手动重启应用程序的进程既令人疲惫又令人沮丧。幸运的是，一位杰出的开发者最终说“够了！”并决定用一个非常简单的包—<em><a class="markup--anchor markup--p-anchor" href="https://github.com/remy/nodemon" target="_blank" rel="noopener noreferrer" data-href="https://github.com/remy/nodemon">【Nodemon】</a></em>结束疯狂。</p>
+<p>Nodemon监视给定目录中发生的任何更改，并在每次更改后重新启动我们的应用程序，让我们专注于编写代码。使用Nodemon之类的东西是加深我们对文件系统如何工作的理解以及进一步理解Node.js环境的一个很好的方式。</p>
+<h2>建筑</h2>
+<p>当我第一次遇到Nodemon时，我不禁想知道如何能够获得关于文件系统变化的通知。</p>
+<ul>
+<li>我们是否设置一个时间间隔并递归检查给定目录中的所有文件？</li>
+<li>这难道不会占用大量资源，从而实际上减缓我们的工作吗？</li>
+<li>相反，如果我们<em>汇集</em>现有文件并定期检查它们，会怎么样？</li>
+<li>但是，话又说回来，我们怎么知道正在创建的新文件呢？</li>
+</ul>
+<p>虽然这些都是合理的猜测，但Nodemon的工作方式有些不同。</p>
+<p>如果我们检查Node.js文档，我们会看到有一个用于监视文件的API。它被称为<a class="markup--anchor markup--p-anchor" href="https://nodejs.org/docs/latest/api/fs.html#fs_class_fs_fswatcher" target="_blank" rel="noopener noreferrer" data-href="https://nodejs.org/docs/latest/api/fs.html#fs_class_fs_fswatcher"><em>fs watcher</em></a>(file system watcher)，它让我们设置一个回调，一旦目录或文件被更改，就执行这个回调。</p>
+<p>在我们开始庆祝这带来的所有可能性之前，让我们来看一个使使用这个API变得麻烦的问题。你看，改变一个文件有时可以通知我们两次。这是一件非常麻烦的事情，因为大多数操作系统都是这样设计的*。这反过来意味着我们不能像对待Node.js中的常规错误一样对待它，并通过简单地发送一个<a class="markup--anchor markup--p-anchor" href="https://github.com/nodejs/node/pulls" target="_blank" rel="noopener noreferrer" data-href="https://github.com/nodejs/node/pulls"> pull请求</a>来修复它。</p>
+<p>* <em>例如，Windows记事本在写入过程中执行多个文件系统动作。记事本批量写入磁盘，创建文件内容和文件属性。其他应用程序可能以类似的方式工作。因为FileSystemWatcher监视操作系统活动，所以这些应用程序触发的所有事件都将被拾取。</em></p>
+<p>为了防止重复通知，以及其他一些<a class="markup--anchor markup--p-anchor" href="https://github.com/paulmillr/chokidar#why" target="_blank" rel="noopener noreferrer" data-href="https://github.com/paulmillr/chokidar#why">已知的bug</a>，我们将使用一个名为<a class="markup--anchor markup--p-anchor" href="https://github.com/paulmillr/chokidar" target="_blank" rel="noopener noreferrer" data-href="https://github.com/paulmillr/chokidar"> chokidar </a>的包。有了这个包为监视文件系统提供的所有改进和修复，我们终于可以开始考虑我们将在应用程序中使用的其他库了。</p>
+<h2>核心</h2>
+<p>我选择了<a class="markup--anchor markup--p-anchor" href="https://rxjs-dev.firebaseapp.com/" target="_blank" rel="noopener noreferrer" data-href="https://rxjs-dev.firebaseapp.com/"> RxJS </a>作为核心库，因为它使得基于事件的架构易于管理。感谢observables和它们的流，我们将不再发现自己在回调地狱中，在我们的事件处理程序中调用一个又一个函数。</p>
+<p>与RxJS合作围绕着我们所谓的<em>反应式编程</em>，其整体思想是基于对可观察对象创建的流进行操作。你可以把一个可观察的事物看作是一种可以返回多个值的承诺。每次事件发生时，一个新的值被传递到我们的流中，导致在<em>管道</em>方法中的每个函数都以那个值作为参数被调用。</p>
+<p>起初，按照反应式编程范式编写代码可能会感觉奇怪，因为即使是最简单的任务也可能看起来过于复杂。但是过一段时间后，它将成为另一种编程方式——而且是一种有趣的方式。</p>
+<p>如果你曾经接触过<em class="markup--em markup--p-em"> Angular </em>的HTTP客户端(它使用<em> RxJS </em>，所有这些看起来都很熟悉。否则，如果你还没有尝试过<em> Angular </em>，现在就彻底掌握<em> RxJS </em>的基础可能是个好主意，因为这将使你在未来更快地学习<em> Angular </em>。</p>
+<p>为了更好地理解RxJS的基础知识，我建议阅读:</p>
+<p><a class="markup--anchor markup--p-anchor" href="http://reactivex.io/rxjs/manual/overview.html" target="_blank" rel="noopener noreferrer" data-href="http://reactivex.io/rxjs/manual/overview.html">http://reactivex.io/rxjs/manual/overview.html</a></p>
+<p><a class="markup--anchor markup--p-anchor" href="https://rxjs-dev.firebaseapp.com/guide/overview" target="_blank" rel="noopener noreferrer" data-href="https://rxjs-dev.firebaseapp.com/guide/overview">https://rxjs-dev.firebaseapp.com/guide/overview</a></p>
+<h3>命令行用法</h3>
+<p class="graf graf--p">我们希望我们的应用程序可以像控制台中的命令一样被访问，就像最初的<em> Nodemon </em>一样:</p>
+<pre>npm run start -- -e ts,js,html -w src -i build -d 5000 -x "ls -l"</pre>
+<p>当然，稍后——在发布我们的包之后— <code>npm run start</code>将会被我们的包的名字所取代，例如<code>our-nodemon</code>。</p>
+<h3>格式</h3>
+<p>我们将加入一些颜色，只是为了好玩。</p>
+<p>继续，复制<a class="markup--anchor markup--p-anchor" href="https://github.com/maciejcieslar/nodemon" target="_blank" rel="noopener noreferrer" data-href="https://github.com/maciejcieslar/nodemon">库</a>，让我们开始吧。</p>
+<h2>履行</h2>
+<h3>获取和解析参数</h3>
+<p>每次我们执行一个脚本时，我们都可以给它传递参数。传递给我们的进程的所有参数都可以在名为<em> process.argv </em>的变量中找到。</p>
+<p>所以现在，在我们继续看实际的实现之前，让我们考虑一下我们希望用户传递给我们的应用程序的到底是什么。以下是我想到的一些论点:</p>
+<ul>
+<li><em>–分机</em> —要观看的分机</li>
+<li><em>–观察</em> —要观察的目录</li>
+<li><em>–忽略</em> —要忽略的目录</li>
+<li><em>–延迟</em> —重启的延迟时间，单位为毫秒</li>
+<li><em>–exe</em>—每次重新启动的脚本</li>
+</ul>
+<p>请注意，只有<em class="markup--em markup--p-em">–exe</em>参数是必需的，因为其他选项都可以设置为默认值。</p>
+<p>我们可以用很多方法解析参数，但最简单的方法是使用<a class="markup--anchor markup--p-anchor" href="https://www.npmjs.com/package/commander" target="_blank" rel="noopener noreferrer" data-href="https://www.npmjs.com/package/commander"> <em>指挥官</em> </a>。一个<em>指挥官</em>解析这些参数，并让我们能够以一种非常简洁的方式来声明它们，就像我们在上面的列表中所做的那样:</p>
+<pre>const commandArguments = program
+  .version('1.0.0')
+  .option('-e, --ext &lt;items&gt;', 'Extensions to watch', parsers.list)
+  .option('-w, --watch &lt;items&gt;', 'Directories to watch', parsers.list)
+  .option('-i, --ignore &lt;items&gt;', 'Directories to ignore', parsers.list)
+  .option('-d, --delay &lt;n&gt;', 'Delay before the execution', parsers.int)
+  .option('-x, --exe &lt;script&gt;', 'Execute script on restart')
+  .parse(process.argv)</pre>
+<p>这里我们可以看到<em>解析器</em>对象的一些方法。一个<em>指挥官</em>需要它们来将一个作为字符串传递的参数改变成我们期望的格式:</p>
+<pre>const parsers = {
+  int: (number: string) =&gt; parseInt(number, 10),
+  float: (number: string) =&gt; parseFloat(number),
+  list: (val: string) =&gt; val.split(','),
+  collect: (val, memo) =&gt; {
+    memo.push(val)
+
+    return memo
+  },
+}</pre>
+<p>现在，我们已经将所有参数传递给了应用程序中的<em>执行</em>变量。一切看起来都很好，但我们也希望有默认参数，并在<em>–exe</em>参数丢失时抛出错误。我们可以用一个简单的函数<em> parseArguments </em>来确保满足上述所有需求:</p>
+<pre>const parseArguments = (execution: program.Command) =&gt; {
+  const { ext = [], watch = [], ignore = [], delay = 0, exe } = execution
+
+  if (!exe) {
+    throw new Error('No script provided')
+  }
+
+  return {
+    delay,
+    extensions: ext.map((e) =&gt; `.${e}`),
+    watchedDirectories: watch,
+    ignoredDirectories: [...ignore, 'node_modules', 'build'],
+    shouldWatchEveryDirectory: not(watch.length),
+    shouldWatchEveryExtension: not(ext.length),
+    script: exe,
+  }
+}</pre>
+<h3>倾听变化</h3>
+<p>有了<em> chokidar </em>，很容易就能听出变化。我们所要做的就是简单地为<em>变更</em>事件设置一个监听器，如下所示:</p>
+<pre>fromEvent(chokidar.watch(process.cwd()), 'all').pipe(
+  // ...
+)</pre>
+<p>注意，我们使用了dirname。这是因为我们希望观察应用程序执行目录中的文件，而不是<em> Nodemon </em>的代码所在的位置。</p>
+<p>此外，这里我们可以看到第一次使用了一个<em> RxJS </em> observable。<em> fromEvent </em>函数允许我们监听<em> change </em>事件。每次执行<em>监听器</em>时，都会有一个值被发送到我们的流中。</p>
+<p>我们<em>通过一组函数来传输</em>我们的流，例如，这些函数可以更改(<em class="markup--em markup--p-em">映射</em>)或拒绝(<em>过滤器</em>)值。既然有很多，下面就来个有用的<a class="markup--anchor markup--p-anchor" href="https://www.learnrxjs.io/" target="_blank" rel="noopener noreferrer" data-href="https://www.learnrxjs.io/">小抄</a>。</p>
+<h3>获取关于文件的信息</h3>
+<p><em> Chokidar </em>，在每次活动中，将为我们提供以下信息:</p>
+<ul>
+<li>事件的名称</li>
+<li>已更改文件的路径</li>
+</ul>
+<p>我们对事件的名称并不感兴趣，但是我们确实关心文件的路径。收到文件的路径后，我们可以检查该文件是否会导致脚本重启。</p>
+<p>但是，还有一个问题，即路径采用以下格式:</p>
+<pre>/Users/wow/repositories/awesome-app/service/blabla/index.ts</pre>
+<p>这是我们想要的样子:</p>
+<pre>service/blabla/index.ts</pre>
+<p>不要担心——之前使用的<em> process.cwd() </em>为我们提供了路径:</p>
+<pre>/Users/wow/repositories/awesome-app</pre>
+<p>因此，我们可以从chokidar的路径中删除重复的部分，并获得应用程序目录的相对路径。</p>
+<pre>fromEvent(chokidar.watch(process.cwd()), 'all').pipe(
+  // ...
+  map(([event, filePath]: string[]) =&gt; {
+    const filename = path.basename(filePath)
+    const extension = path.extname(filename)
+
+    return {
+      event,
+      filename,
+      extension,
+      filePath: filePath.slice(process.cwd().length + 1),
+    }
+  }),
+  // ...
+)</pre>
+<p>拥有一个相对于应用程序目录的路径可以很容易地过滤掉对被忽略文件的更改。</p>
+<h3>仅观看需要的文件</h3>
+<p>通过提供<em class="markup--em markup--p-em">–watch</em>参数，用户可以指定他们感兴趣的目录。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>例如:<code>--watch src,assets</code>意味着我们忽略目录<em> src </em>、<em> assets </em>之外的所有变更。请注意，仍然可以忽略特定的子目录。</p>
+<p>相比之下，<em>–ignore</em>让我们设置希望被忽略的目录。默认情况下，我们将把<em> node_modules </em>和<em> build </em>添加到用户提供的目录中，因为我们总是希望它们被忽略。</p>
+<pre>const isInDirectory = (directories: string[]) =&gt; (filePath: string) =&gt;
+  directories.some(filePath.startsWith.bind(filePath))
+
+const isExpectedExtension = (extensions: string[]) =&gt; (extension: string) =&gt;
+  extensions.some(is(extension))
+
+// ...
+
+const shouldPathBeIgnored = isInDirectory(ignoredDirectories)
+const shouldPathBeWatched = isInDirectory(watchedDirectories)
+const shouldExtensionBeWatched = isExpectedExtension(extensions)
+
+// ...
+
+fromEvent(chokidar.watch(process.cwd()), 'all').pipe(
+  // ...
+  filter(
+    ({ filePath, extension }) =&gt;
+      (shouldWatchEveryDirectory || shouldPathBeWatched(filePath)) &amp;&amp;
+      (shouldWatchEveryExtension || shouldExtensionBeWatched(extension)) &amp;&amp;
+      not(shouldPathBeIgnored(filePath)),
+  ),
+  // ...
+)</pre>
+<p>接受文件的规则可以如下所示:</p>
+<ol>
+<li>我们会看每个目录吗？如果没有，检查该目录是否被监视。</li>
+<li>我们看每一个扩展吗？如果没有，检查是否正在监视扩展。</li>
+<li>该忽略路径吗？如果是，对结果求反得到<em class="markup--em markup--li-em">假</em>。</li>
+</ol>
+<p>如果过滤器返回false，该值将不会在流中继续前进，并将被丢弃。我们可以确定从那时起我们只处理我们感兴趣的文件。</p>
+<h3>推迟执行</h3>
+<p>有时我们会逐个保存几个文件。这可能会导致脚本多次重启，从而消耗大量处理能力。我们可以在发出最后一个<em> change </em>事件后等待一秒钟，这样脚本只重新启动一次。</p>
+<p>持续延迟给定动作的技术被称为<em>去抖动</em>。</p>
+<pre>fromEvent(chokidar.watch(process.cwd()), 'all').pipe(
+  debounceTime(delay || 1000),
+  // ...
+)</pre>
+<p><em>去抖</em>函数实际上是我们的<em>管道</em>中的第一个函数，所以我们不会做任何事情，直到我们100%确定我们必须这样做。</p>
+<h3>显示消息</h3>
+<p>在我们执行脚本之前，最好给消息涂上颜色并加入一些表情符号。为此我们需要一个小帮手:</p>
+<pre>const message = (content: string, color: string) =&gt; {
+  const msg = emoji.emojify(content)
+
+  if (colors[color]) {
+    return colors[color](msg)
+  }
+
+  return msg
+}</pre>
+<h3>执行提供的脚本</h3>
+<p><em> Node.js </em>使我们能够通过使用<em> child_process </em>模块——即<em> spawn </em>函数来执行命令。</p>
+<p>在生成提供的脚本后，我们需要保存一个对它的实例的引用，这样我们就可以在每次我们关注的文件发生变化时杀死它并再次生成它。</p>
+<pre>const createScriptExec = (script: string) =&gt; {
+  let instance = null
+
+  return async function execute() {
+    if (instance) {
+      await kill(instance, 'SIGKILL')
+    }
+
+    instance = spawn(script, [], { shell: true })
+
+    return merge&lt;String, String&gt;(
+      fromEvent(instance.stderr, 'data').pipe(
+        map((data) =&gt; message(data.toString(), 'red')),
+      ),
+      fromEvent(instance.stdout, 'data').pipe(
+        map((data) =&gt; message(data.toString(), 'cyan')),
+      ),
+    ).pipe(takeUntil(fromEvent(instance, 'close')))
+  }
+}
+
+// ...
+
+const executeScript = createScriptExec(script)
+
+// ...
+
+fromEvent(chokidar.watch(process.cwd()), 'all').pipe(
+  // ...
+  switchMap(executeScript),
+  tap(() =&gt; console.log(message('Executing...', 'green'))),
+  switchMap((obsvr) =&gt; {
+    return obsvr.pipe(
+      tap(console.log),
+      reduce(() =&gt; null),
+    )
+  }),
+  tap(() =&gt; console.log(message('Finished! :fire:', 'green'))),
+)
+</pre>
+<p>作为调用<em> executeScript </em>的结果，我们获得了一个可观察的流，它记录了已执行脚本的日志。脚本中的日志(<em> stdout </em>)以青色记录。我们用红色来记录应用程序的错误(<em> stderr </em>)，用绿色来记录应用程序创建的日志。这样，日志的来源就更清楚了。</p>
+<p>在第30行，我们使用<em> switchMap </em>来获得上面提到的可观察值。我们通过管道将它返回的日志通过<code>tap(console.log)</code>记录到控制台，并通过<code>reduce(() =&gt; null)</code>等待可观察对象完成并继续前进。</p>
+<p>观察完成后，我们向用户记录脚本已经执行。</p>
+<h2>摘要</h2>
+<p>恭喜你，你刚刚使用了一种全新的编程方式来构建一个应用程序！</p>
+<p>关于<a class="markup--anchor markup--p-anchor" href="http://reactivex.io/" target="_blank" rel="noopener noreferrer" data-href="http://reactivex.io/"> Reactive Extensions的API </a>(在JavaScript中以RxJS的形式提供)的伟大之处在于它的普遍性，这使得您希望在这里学到的一些知识可以很容易地应用于其他编程语言。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

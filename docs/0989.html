@@ -1,0 +1,243 @@
+<html>
+<head>
+<title>A guide to working with OrbitDB in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Node.js - LogRocket博客中的OrbitDB使用指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/guide-to-orbitdb-node-js/#0001-01-01">https://blog.logrocket.com/guide-to-orbitdb-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>当谈到分布式网络的数据库时，<a href="https://orbitdb.org/about/"> OrbitDB </a>是一个众所周知的名字。OrbitDB不是一个常规数据库，所有条目都有一个中央存储库；相反，它依赖于构建P2P分散应用程序(DApps)的协议，其中每个连接的对等点都有一个特定的数据库实例或副本。</p>
+<p>典型的DApps依赖于分布式计算模型，其中系统组件在P2P基础上运行。P2P网络提供了一个实例，在该实例中，文件可以在位于同一网络上的其他对等体之间被复制或同步。</p>
+<p>在这种网络体系结构中有一种直接通信，与集中式web的客户机-服务器模型相反，在这种模型中，服务器充当其他系统连接和通信的中间层。</p>
+<p>在实际的P2P模型中，存在与全球网络中的其他对等体的连接和交互，尽管对等体通常在本地单独开始，并且不与网络连接。</p>
+<p>现在，让我们以OrbitDB为例，回顾一下分布式数据库的一些背景术语。</p>
+<h2>“分布式数据库”和其他背景术语</h2>
+<p>就像分布式系统一样，分布式数据库可以很容易地复制和复制。数据通常存储在不同位置或地区的多个独立系统中，甚至存储在一个数据中心中。让我们在分布式数据库的背景下看看OrbitDB。</p>
+<p>首先，它利用了<a href="https://github.com/libp2p/libp2p"> libp2p </a>，这是一种网络协议。这是一个发布-订阅(pub/sub)协议，用于从多个对等方轻松同步数据库更新。</p>
+<p>其次，为了数据的同质性和一致性，OrbitDB实例必须在对等点之间复制。这是以这样一种方式发生的，一个对等体只需要订阅一个数据库地址，它就会自动开始复制它。</p>
+<p>此外，OrbitDB使用无冲突复制数据类型(CRDTs)。这是一种数据结构，其网络副本可以在副本不协调的情况下同时且独立地更新。这意味着对等体可以离开网格，当它们返回时，它们的状态将与其他对等体/节点同步，并且整个系统中的所有不一致将被解决。</p>
+<p>最后，对于像orbitDB这样的分布式数据库，可以为一组可以写入数据库的对等点指定对数据的访问。请注意，默认情况下，如果数据库的创建者没有指定，则只有创建者拥有写访问权限。</p>
+<h3>IPFS吗</h3>
+<p>OrbitDB利用了<a href="https://docs.ipfs.io/concepts/what-is-ipfs/#decentralization">星际文件系统(IPFS) </a>。IPFS是一种用于在分布式文件系统中存储和共享数据的协议，根据其文档，它为分布式web提供了动力。</p>
+<p>它使用内容寻址给每个资源一个唯一的标识符。这意味着当我们向IPFS添加内容时，会给它一个地址，通常包含一个哈希。</p>
+<p>这将创建一组数据，这些数据将被存储并随后由连接的对等方访问。因此，对于数据检索，如果有数据，多个对等点可以同时响应，从而提高高延迟网络的性能。数据也可以是可验证的。</p>
+<h3>DApps</h3>
+<p>分散系统背后的驱动力是创建一个更快、更安全、更可靠的网络。对于分散式应用程序(DApps ),试图连接到主机系统的第三方应用程序必须请求在本地运行的权限。</p>
+<p>以OrbitDB为例，有一个访问控制层，当创建一个DB时，对等点可以在这个层定义一组公钥。这允许对等点拥有一个DB实例，多个其他对等点可以一次更新该实例。</p>
+<h3>对等网络</h3>
+<p>使用ObitDB，网络中的每个对等点或节点都托管一个数据库实例。libp2p发布/订阅协议允许OrbitDB轻松地同步来自多个对等方的数据库更新。</p>
+<p>这允许在多个对等实例上主动备份用户的数据库，而不需要用户显式地连接到其中的任何一个。然而，进行连接的对等体需要具有它们想要在网络中与之连接的对等体的公共地址。</p>
+<p>因此，OrbitDB允许创建一个数据库网络，任何人都可以加入，只要他们有正确的访问权限来帮助保持数据可用，从而使整个网络链更加健壮和可持续。</p>
+<h2>OrbitDB入门</h2>
+<p>为了容易地跟随本教程，建议在我们的开发机器上安装Node.js和npm。否则，我们就可以走了。请注意，我们将继续讨论其他必要的依赖项。</p>
+<p>OrbitDB包含了我们上面定义的所有技术。它是一种无服务器、分布式、P2P类型的数据库，依赖于<a href="https://ipfs.io/#how"> IPFS </a>发布/订阅来存储数据和在连接的对等点之间同步。这允许对等点订阅给定主题的新消息或发布特定主题的消息。</p>
+<p>网络中的对等点或节点只存储它们需要的数据和下一个节点的一些额外元数据。因此，用户或对等体可以持有网络中全部数据的一部分，并因此可以通过它们各自的地址来提供文件。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h2>安装和设置</h2>
+<p>因为OrbitDB依赖于IPFS，所以我们需要安装它。关于安装IPFS的各种方法的详细信息，请看文档中的<a href="https://docs.ipfs.io/install/">部分</a>。然而，因为我们专注于Node.js，并且我们打算以编程方式使用它，所以我们可以运行<code>npm install ipfs</code>来将其作为npm包安装。</p>
+<p>或者，我们可以运行以下命令:</p>
+<pre>npm install orbit-db ipfs</pre>
+<p>创建一个轨道实例就像调用<code>createInstance()</code>方法一样简单。在这个方法签名中，我们被允许传递已经设置好的IPFS实例作为参数。这个实例带有可选的设置，以防我们需要专门使它可配置。</p>
+<p>要创建OrbitDB实例，我们可以执行以下操作:</p>
+<pre>const IPFS = require('ipfs')
+const OrbitDB = require('orbit-db')
+
+// optional settings for the ipfs instance
+const ipfsOptions = {
+  EXPERIMENTAL: {
+    pubsub: true
+  }
+}
+
+ // Create IPFS instance with optional config
+const ipfs = await IPFS.create(ipfsOptions)
+
+ // Create OrbitDB instance
+const orbitDB = await OrbitDB.createInstance(ipfs)
+
+//create KV database
+const db = await orbitdb.keyvalue('test-db')</pre>
+<p>正如我们在上面看到的，安装后我们已经导入了<code>ipfs</code>和<code>orbit-db</code>。然后，我们创建了一个新的IPFS实例，为特殊配置传递了一个可选的<code>ipfsOptions</code>参数。之后，我们继续创建一个OrbitDB实例，它允许我们与各种支持的数据库结构交互，例如<code>KeyValue</code>。</p>
+<p><span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwoz79zz83zz122zpz69z4wz90zz82zhz74zz82z1n2z79zz85zomz82zkz72zz65zwz87zz90zz68zz75zz84z">要获得上面代码块的完整、可工作的实现，请看一下附带的</span><span class="attrlink url author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwoz79zz83zz122zpz69z4wz90zz82zhz74zz82z1n2z79zz85zomz82zkz72zz65zwz87zz90zz68zz75zz84z"><a class="attrlink" href="https://github.com/firebase007/orbitDB-demo/blob/master/peer1.js" target="_blank" rel="noreferrer nofollow noopener" data-target-href="https://github.com/firebase007/orbitDB-demo/blob/master/peer1.js">GitHub repo</a></span><span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwoz79zz83zz122zpz69z4wz90zz82zhz74zz82z1n2z79zz85zomz82zkz72zz65zwz87zz90zz68zz75zz84z">。</span></p>
+<p>传递给新实例化的IPFS实例的默认选项设置对象可以包含以下内容:</p>
+<ul>
+<li><code>EXPERIMENTAL: { pubsub: true }</code>–这启用了IPFS发布/订阅，这基本上是一种节点间通信的方法，如前所述</li>
+<li><code>config: { Bootstrap: [], Addresses: { Swarm: [] }}</code>–这将清空我们的引导节点列表(实例化时加载的节点)和集群节点列表(可以随时连接和断开的节点)</li>
+<li><code>repo: './ipfs'</code>–指定回购的路径，通常仅在Node.js中。在浏览器中，这不是真正必要的。注意，默认设置是我们机器主目录中一个名为<code>.jsipfs</code>的文件夹</li>
+</ul>
+<p>此外，<code>createInstance</code>方法的签名如下所示:</p>
+<pre>createInstance(ipfs, [options])</pre>
+<p>对进一步配置有用的可选<code>options</code>设置是一个可能包含以下任何属性的对象:</p>
+<ul>
+<li><code>directory</code>–用于数据库文件的路径。默认情况下，它使用<code>'./orbitdb'</code></li>
+<li><code>peerId</code>–默认情况下，它使用IPFS对等ID的Base58字符串</li>
+<li><code>identity</code>–默认情况下，它创建一个<code><a href="https://github.com/orbitdb/orbit-db-identity-provider/blob/master/src/identity.js">Identity</a></code>的实例</li>
+<li><code>offline</code>–在离线模式下启动OrbitDB实例。请注意，在脱机模式下启动实例时，不会复制数据库</li>
+</ul>
+<blockquote><p><strong>注意</strong>:如果OrbitDB实例是在离线模式下启动的，并且您想要开始复制数据库，则需要重新创建OrbitDB实例。</p></blockquote>
+<p>例如，为了与一个<code>Key-Value</code>数据库交互，我们可以像这样使用新创建的OrbitDB实例:</p>
+<pre>const db = orbitDB.keyvalue('test-db')</pre>
+<p>完成这一步后，我们可以访问数据库<a href="https://github.com/orbitdb/orbit-db-store#address">地址</a>，它作为一个标识符，也作为其他数据库对等体或客户端复制的指针。要访问该地址，我们可以执行以下操作:</p>
+<pre>console.log(db.address.toString()) // convert the database address object to a string with the toString() method.</pre>
+<p>当这被记录到控制台时，我们会得到类似下面的输出:</p>
+<pre>/orbitdb/zdpuB1ccfqAVXPhf4zBBCohvvbDWV1k6S6thTujzy2CHQBPAx/test-db</pre>
+<p>数据库地址包含三个部分，即:</p>
+<ul>
+<li>由<code>/orbitdb</code>表示的协议</li>
+<li>中间的IPFS散列，通常是一个包含数据库信息组合的对象，称为清单，由散列<code>zdpuB1ccfqAVXPhf4zBBCohvvbDWV1k6S6thTujzy2CHQBPAx</code>表示</li>
+<li>数据库名称，在上例中是<code>test-db</code></li>
+</ul>
+<p>还要注意，OrbitDB提供了一个API方法<code>isValidAddress</code>，来验证DB地址的有效性。请注意，它返回一个布尔值。下面让我们看看如何做到这一点:</p>
+<pre>OrbitDB.isValidAddress('/orbitdb/Qmd8TmZrWASypEp4Er9tgWP4kCNQnW4ncSnvjvyHQ3EVSU/test-db')
+// true</pre>
+<h2>创建数据库支持的数据模型</h2>
+<p>OrbitDB有不同类型的数据库。它通过将不同的API分成存储来组织其功能，每个存储满足不同的目的。</p>
+<p>每个商店都有自己特定的API方法来创建、删除、检索和更新数据。要获得受支持商店的列表，我们可以执行以下操作</p>
+<pre>OrbitDB.databaseTypes // Returns supported database types  as an Array of Strings
+// [ 'counter', 'eventlog', 'feed', 'docstore', 'keyvalue']</pre>
+<p>此外，我们可以通过调用如下所示的<code>isValidType</code>方法来检查所提供的<code>String</code>是否是受支持的数据库类型，该方法返回一个布尔值。</p>
+<pre>OrbitDB.isValidType('docstore')
+// true</pre>
+<p>下面讨论了预定义商店的列表:</p>
+<ul>
+<li><code>log</code>–不可变的只写数据库，主要用于消息队列系统或事务列表</li>
+<li><code>feed</code>–可变日志，可以添加和删除条目。主要用于购物车、博客帖子、评论或Twitter风格的时间线</li>
+<li><code>doc</code>–存储JSON文档的文档数据库，可以通过指定的键进行索引。对于构建搜索索引非常有用</li>
+<li><code>keyvalue</code>–支持JSON可序列化数据的简单键值数据库</li>
+<li><code>counter</code>–用于计数事件或通常有序数据的纯增量整数计数器。</li>
+</ul>
+<blockquote><p><strong>注意</strong>:添加自定义数据库类型，我们要做的就是调用OrbitDB公开的<code>addDatabaseType</code> API方法，如下图:</p>
+<pre>const CustomStore = require('./CustomStore')
+OrbitDB.addDatabaseType(CustomStore.type, CustomStore)</pre>
+</blockquote>
+<p>此外，值得注意的是，除了特定的方法之外，每个数据库存储都有以下可用的方法:</p>
+<ul>
+<li><code>store.load()</code>–将本地保存的数据库状态加载到内存中</li>
+<li><code>store.close()</code>–这将关闭数据库</li>
+<li><code>store.drop()</code>–这将在本地删除数据库。但是，这不会删除已经连接的对等方的任何数据</li>
+<li><code>store.type</code>–以<code>String</code>的形式返回数据库的类型</li>
+</ul>
+<p>更多细节和信息可在<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#store-api">文档</a>中找到。现在，让我们看看如何通过新创建的OrbitDB实例与不同的数据库进行交互:</p>
+<pre># for a log database type
+const db = await orbitdb.eventlog()
+
+# for a feed database type
+const db = await orbitdb.feed()
+
+# for a key keyvalue database type
+const db = await orbitdb.keyvalue()
+
+# for a docs database type
+const db = await orbitdb.docs()
+
+# for a counter database type
+const counter = await orbitdb.counter()</pre>
+<blockquote><p><strong>注意</strong>:我们可以根据自己的具体用例来决定编写自己的商店。</p></blockquote>
+<h2>在野外使用OrbitDB:演示应用程序</h2>
+<h3>数据库对等方之间的通信</h3>
+<p>在这一节中，我们将了解如何识别一个连接的对等体并获得对数据库的必要访问。首先，让我们构建我们的IPFS节点，如<code>index.js</code>文件所示:</p>
+<pre>// optional settings for the ipfs instance
+const ipfsOptions = {
+    EXPERIMENTAL: {
+      pubsub: true
+    },
+  }
+
+const ipfs = await IPFS.create(ipfsOptions)</pre>
+<p><code>create()</code>方法接受一个可选的<code>ipfsOptions</code>，它是一个具有不同属性的对象，我们可以将其作为参数传递。这里，我们传递了一个<code>EXPERIMENTAL</code>属性，这个对象允许我们启用或者添加<code>pubsub</code>到我们刚刚创建的<code>ipfs</code>实例中。</p>
+<p>接下来，我们可以继续为我们的数据库创建身份。数据库中的每个条目都由创建者签名。为此，我们可以使用<code>createIdentity</code>方法，就像这样:</p>
+<pre>const identity = await Identities.createIdentity(options)</pre>
+<p>在我们这样做之前，我们应该确保导入<code>orbit-db-identity-provider</code>。当我们将身份登录到控制台时，上面命令的输出如下所示:</p>
+<pre>console.log(identity.toJSON()
+
+//output 
+{
+  id: '034b8a8931164238b1a8c598fcf0d73245780174bf0cb100d93cb3098ba4b19ff2',
+  publicKey: '04ad4d2a7812cac1f0e6331edf22cec1a74b9694de6ad222b7cead06f79ec44a95e14b002ee7a0f6f03921fcf2ff646724175d1d31de4876c99dcc582cde835b4c',
+  signatures: {
+    id: '304402203a7fa472dc584f02aabb27111eab48bc50b0c2137876cd08db89842870aa5abe022069a05962ab9d3d28ff5d7587503852c210e3de65e7fe4bfa0a25ba96a5f078f3',
+    publicKey: '3044022049a5885d613a7dd70cd21bad46e159645202911e2d2c16e1be7681ec6b84a272022024575ef612119fbb8e374862d8178b4c0a44f3655400626de4b6ea89e12fb488'
+  },
+  type: 'orbitdb'
+}</pre>
+<blockquote><p><strong>注意</strong>:该对象包含证明拥有某个外部标识符和OrbitDB公钥的签名。这是为了证明OrbitDB中外部标识符的所有权。</p></blockquote>
+<p>在上面的示例中，<code>id</code>属性返回外部身份的ID。<code>publicKey</code>返回用于签署OrbitDB条目的签名密钥，而<code>signatures</code>返回包含两个签名的对象，如图所示。</p>
+<p>为了获取我们创建的OrbitDB实例的公钥，我们可以运行以下命令:</p>
+<pre>console.log(identity.publicKey)
+//output
+04ad4d2a7812cac1f0e6331edf22cec1a74b9694de6ad222b7cead06f79ec44a95e14b002ee7a0f6f03921fcf2ff646724175d1d31de4876c99dcc582cde835b4c</pre>
+<p>下一步是用我们之前创建的身份创建一个OrbitDB实例。为此，我们可以使用<code>createInstance</code>方法，该方法接受已经创建的<code>ipfs</code>实例和一个可选的设置对象:</p>
+<pre>const orbitdb = await OrbitDB.createInstance(ipfs,  { identity: identity })</pre>
+<p>下一步是用OrbitDB从受支持的数据库存储中实际创建一个数据库。然而，在我们这样做之前，我们可以为谁对我们的数据库具有写访问权限设置访问控制选项。</p>
+<p>为此，我们可以继续定义一组对等点，这些对等点可以写入我们的数据库，或者允许任何人通过通配符写入数据库。</p>
+<blockquote><p><strong>注意</strong>:默认情况下，只有数据库的创建者有写权限。</p></blockquote>
+<pre>const optionsToWrite = {
+    // Give write access to the creator of the database
+    accessController: {
+      type: 'orbitdb', //OrbitDBAccessController
+      write: [orbitdb.identity.id, '04ad4d2a7812cac1f0e6331edf22cec1a74b9694de6ad222b7cead06f79ec44a95e14b002ee7a0f6f03921fcf2ff646724175d1d31de4876c99dcc582cde835b4c'],
+    }</pre>
+<p>从上面我们可以看到，我们已经使用<code>accessController</code> options属性授予自己对数据库的写访问权。请注意，要允许任何人写入数据库，我们可以执行以下操作:</p>
+<pre>write: ['*'] //enable write access to the public</pre>
+<blockquote><p><strong>注意</strong>:要给另一个数据库或对等体写访问权，我们可以在调用<code>identity.publicKey</code>时使用它们的公钥。</p></blockquote>
+<p>现在，以创建一个<code>doc</code>数据库为例，我们可以做如下操作:</p>
+<pre>const db = await orbitdb.docs('test-db', optionsToWrite)</pre>
+<p><code>optionsToWrite</code>是我们对数据库的访问控制权。</p>
+<p>接下来，让我们向数据库添加一个项目:</p>
+<pre>await db.put({ _id: 'test', name: 'test-doc-db', category: 'distributed' })</pre>
+<p>要获取我们的数据库地址，我们可以运行以下命令:</p>
+<pre>const address = db.address.toString()
+
+//output
+orbitdb/zdpuB1ccfqAVXPhf4zBBCohvvbDWV1k6S6thTujzy2CHQBPAx/test-db</pre>
+<p>此外，我们可以在数据库创建后授予对它的访问权限。要明确做到这一点，请通过运行以下命令授予对数据库的写访问权限:</p>
+<pre>await db.access.grant('write', '04ad4d2a7812cac1f0e6331edf22cec1a74b9694de6ad222b7cead06f79ec44a95e14b002ee7a0f6f03921fcf2ff646724175d1d31de4876c99dcc582cde835b4c') // grant access to database2
+//where the hash is the `identity2.publicKey`</pre>
+<p>因为OrbitDB将数据库的状态自动保存到磁盘，所以您可以在使用数据库之前在本地加载它。因此，在打开数据库时，我们可以选择在使用数据库之前在本地加载持久化的数据。</p>
+<p>为此，我们可以使用<code>load()</code>方法:</p>
+<pre>await db2.load()</pre>
+<p>此外，我们可以从数据库中获取一个值或条目。为此，我们可以调用适当的函数，这些函数对于不同的数据库类型是不同的:</p>
+<pre>const value2 = db2.get('') // this gets all the entries in the database store
+
+console.log(value2)
+//output
+[
+  { _id: 'test', name: 'test-doc-db', category: 'distributed' },
+  { _id: 'test2', name: 'test-doc-db2', category: 'nil' }
+]</pre>
+<p>OrbitDB中的所有数据库模型都是在<code>ipfs-log</code>之上实现的，这是一个不可变的、基于操作的CRDTs。它是一个只附加的日志，可以用来在P2P应用程序中建模一个可变的共享状态。</p>
+<blockquote><p><strong>注意</strong>:日志中的每个条目都保存在IPFS中，每个条目都指向以前条目的散列，从而形成一个图。</p></blockquote>
+<p>使用<code>ipfs-log</code>的详细片段可以在文档的<a href="https://github.com/orbitdb/ipfs-log#quick-start">示例部分</a>中找到。</p>
+<h2>CRUD操作</h2>
+<p>OrbitDB自带一个干净易用的API接口。它有<code>get</code>、<code>put</code>、<code>add</code>、<code>set</code>等功能/方法。关于不同公开API的细节可以在文档的<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdbkeyvaluenameaddress">这一节</a>中找到。</p>
+<p>让我们看看下面支持的数据库公开的API方法的一些例子:</p>
+<h4><code>keyvalue</code></h4>
+<p>在<code>keyvalue</code>数据库类型中，公开的API方法包括:<code>put</code>、<code>set</code>、<code>get</code>。例如<code>put</code>的签名是<code>put(key, value)</code>，它接受一个密钥或数据库名称以及我们想要更新的值。更多详情可在单据的<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdbkeyvaluenameaddress">本节</a>中找到。</p>
+<h4><code>log</code></h4>
+<p>在<code>log</code> DB类型中，我们有<code>add</code>、<code>get</code>和<code>iterator</code>方法，在这里将更详细地解释<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdblognameaddress">。</a></p>
+<h4><code>feed</code></h4>
+<p>在<code>feed</code>数据库类型中，我们有<code>add</code>、<code>get</code>、<code>remove</code>和<code>iterator</code>。关于这些的更多细节可以在文档中找到<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdbfeednameaddress">这里</a>。</p>
+<h4><code>doc</code></h4>
+<p>在<code>doc</code>数据库类型中，公开的API方法有<code>put</code>、<code>get</code>、<code>query</code>和<code>del</code>。更详细的使用案例可以在文档中的<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdbdocsnameaddress-options">这里</a>找到。</p>
+<h4><code>counter</code></h4>
+<p>在<code>counter</code>数据库类型中，公开的API方法包括<code>value</code>和<code>inc</code>。更详细的信息可以在<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#orbitdbcounternameaddress">这里</a>的文档中找到。</p>
+<h2>结论</h2>
+<p>为什么OrbitDB是DApps和区块链应用的绝佳选择？因为它使用了一种特殊的数据结构，称为无冲突复制数据类型(CRDT ),以保持最终的一致性。这意味着操作可以在不同的时间发生而不需要协调，假设它们最终会同步。</p>
+<p>每次我们与OrbitDB数据库进行交互时，我们都在与一个快照进行交互。这就是分布式数据库的设计方式。他们在网上和网下都工作。但是，它确实要求至少有一个节点或对等点愿意持久存储数据库，以便在断开连接时数据不会丢失。</p>
+<p>数据通过内容地址相互链接，这与集中式web的基于位置的寻址相反，在集中式web中，应用程序代码在集中式服务器上运行。</p>
+<p>然而，应该注意的是，OrbitDB和底层的IPFS层目前是alpha阶段的软件。它们既可以在Node.js应用程序中运行，也可以在浏览器中运行，但是目前不支持Windows操作系统。</p>
+<p>关于OrbitDB功能的更多信息可以在Github 上的<a href="https://github.com/orbitdb/orbit-db/blob/master/API.md#creating-an-orbitdb-instance">项目库中找到。用于本教程的脚本也可以在GitHub的</a><a href="https://github.com/firebase007/orbitDB-demo">这里</a>找到。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

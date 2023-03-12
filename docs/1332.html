@@ -1,0 +1,228 @@
+<html>
+<head>
+<title>Using Puppeteer for automated UI testing - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用木偶师进行自动化UI测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/#0001-01-01">https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在这个先进技术的时代，为web抓取、测试和监控编写脚本可能会很棘手。这就是为什么谷歌Chrome的团队提供了一个工具，让你通过JavaScript，通过一个简单易用的API，名为<a href="https://developers.google.com/web/tools/puppeteer" target="_blank" rel="noopener noreferrer">木偶师</a>，以编程方式在<a href="https://www.chromium.org/quic" target="_blank" rel="noopener noreferrer">Chrome</a>或Chrome浏览器上执行常见操作。</p>
+<p>在这篇博文中，您将了解到Puppeteer，以及如何使用它来抓取网页并为您的项目记录自动化UI测试。</p>
+<h2>先决条件</h2>
+<p>对于本教程，您需要JavaScript和Node.js的基础知识。</p>
+<h2>什么是木偶师？</h2>
+<p><a href="https://developers.google.com/web/tools/puppeteer">据Google </a>介绍，“Puppeteer是一个节点库，它提供了一个高级API来控制headless Chrome或DevTools协议上的Chrome。也可以配置成使用全无头铬或铬。”</p>
+<p>使用Puppeteer，您可以抓取网站、生成页面的截图和pdf、充当SPA的爬虫并生成预呈现的内容、自动化表单提交、测试UI、使用DOM API访问网页和额外信息，以及最终自动化性能分析。</p>
+<p>让我们通过抓取一个工作门户来演示Puppeteer是如何工作的，这很容易完成，并且有助于我们从总体上理解web抓取。</p>
+<p>准备好了吗？让我们开始吧。</p>
+<h2>设置节点项目</h2>
+<p>首先设置您的节点项目:</p>
+<ol>
+<li>   <ol>
+<li>安装<a href="https://nodejs.org/en/download/" target="_blank" rel="noopener noreferrer"> Node.js 12.12.0 </a>或更高版本</li>
+<li>安装<a href="https://classic.yarnpkg.com/en/docs/install/#mac-stable" target="_blank" rel="noopener noreferrer">纱线</a>或<a href="https://www.npmjs.com/" target="_blank" rel="noopener noreferrer"> npm </a></li>
+</ol>
+</li>
+</ol>
+<pre>mkdir JobScrapper
+cd JobScrapper
+
+yarn add puppeteer</pre>
+<p>注意，如果你不想下载Chromium浏览器，你可以使用<code>puppeteer-core</code>，你可以在这里阅读关于<a href="https://developers.google.com/web/tools/puppeteer/get-started" target="_blank" rel="noopener noreferrer">的内容。</a></p>
+<h2>创建一个<code>jobScript.js</code>文件</h2>
+<p>在刚刚创建的脚本文件中添加以下代码:</p>
+<pre>const puppeteer = require("puppeteer");
+const jobUrl = process.env.JOB_URL;
+let page;
+let browser;
+let cardArr = [];
+class Jobs {
+    static async init() {
+        // console.log('Loading Page ...')
+        browser = await puppeteer.launch();
+        page = await browser.newPage();
+        await page.goto(jobUrl, { waitUntil: "networkidle2" });
+        await page.waitForSelector(".search-card");
+    }
+    static async resolve() {
+        await this.init();
+        // console.log('Grabbing List of Job URLS ...')
+        const jobURLs = await page.evaluate(() =&gt; {
+            const cards = document.querySelectorAll(".search-card");
+            cardArr = Array.from(cards);
+            const cardLinks = [];
+            cardArr.map(card =&gt; {
+                const cardTitle = card.querySelector(".card-title-link");
+                const cardDesc = card.querySelector(".card-description");
+                const cardCompany = card.querySelector(
+                    'a[data-cy="search-result-company-name"]'
+                );
+                const cardDate = card.querySelector(".posted-date");
+                const { text } = cardTitle;
+                const { host } = cardTitle;
+                const { protocol } = cardTitle;
+                const pathName = cardTitle.pathname;
+                const query = cardTitle.search;
+                const titleURL = protocol + "//" + host + pathName + query;
+                const company = cardCompany.textContent;
+                cardLinks.push({
+                    jobText: text,
+                    jobURLHost: host,
+                    jobURLPathname: pathName,
+                    jobURLSearchQuery: query,
+                    jobURL: titleURL,
+                    jobDesc: cardDesc.innerHTML,
+                    jobCompany: company,
+                    jobDate: cardDate.textContent
+                });
+            });
+            return cardLinks;
+        });
+        return jobURLs;
+    }
+    static async getJobs() {
+        const jobs = await this.resolve();
+        await browser.close();
+        // console.log(jobs)
+        return jobs;
+    }
+}
+export default Jobs;
+</pre>
+<p>这里，<code>Jobs</code>类有三个重要的方法:<code>Init</code>、<code>resolve</code>和<code>getJobs</code>。</p>
+<p><code>Init</code>方法初始化木偶师实例并创建一个<code>browser</code>对象，该对象反过来被用于使用<code>newPage()</code>方法在浏览器中创建一个新页面。我们将使用希望浏览器访问的URL调用<code>goto()</code>，并指定<code>networkidle2</code>，这对于执行长轮询或任何其他附带活动的页面来说很方便。之后，等待具有指定类<code>.search-card</code>的特定HTML元素加载到视口中。</p>
+<p>第二个方法是<code>resolve</code>方法，它调用<code>Init</code>方法，<code>evaluates</code>打开的页面，并用<code>.search-card</code>查询所有HTML元素。它遍历其中的每一个并检索特定的信息，如职位、发布日期、公司和描述，然后将它们推到一个数组中进行显示。</p>
+<p>最后，<code>getJobs</code>方法简单地调用<code>resolve</code>方法来获取找到的所有作业的列表并返回给调用者。</p>
+<p>现在，通过输入以下代码创建一个<code>server.js</code>文件来显示作业:</p>
+<pre>// Create a simple Express API
+const express = require("express");
+
+// Require the Job Scrapper
+const Jobs = require("./jobScript");
+
+// Instantiate Express server
+const app = express();
+const port = 9000;
+
+// Get Jobs from with the Scrapper and return a Job with jobs
+app.get("/", async (req, res) =&gt; {
+  const jobs = await Jobs.getJobs();
+  res.json(jobs);
+});
+
+// Listen to port 9000
+app.listen(port, () =&gt; {});
+
+// PS: If you encounter problem with `Module not found` run:
+// npm i puppeteer
+// again
+</pre>
+<h2>显示报废的作业</h2>
+<p>下面是一个JSON示例，根据提供的工作网站URL，列出了所有成功取消的工作。</p>
+<figure id="attachment_29280" aria-describedby="caption-attachment-29280" class="wp-caption aligncenter"><img data-attachment-id="29280" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/json-scraped-jobs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JSON-scraped-jobs" data-image-description="" data-image-caption="&lt;p&gt;List of scraped jobs&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs-300x172.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg" decoding="async" class="size-full wp-image-29280 jetpack-lazy-image" src="../Images/5f11f09ca4a59f137d6658fe72dc670a.png" alt="JSON scraped jobs" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs-300x172.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="29280" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/json-scraped-jobs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JSON-scraped-jobs" data-image-description="" data-image-caption="&lt;p&gt;List of scraped jobs&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs-300x172.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg" decoding="async" loading="lazy" class="size-full wp-image-29280" src="../Images/5f11f09ca4a59f137d6658fe72dc670a.png" alt="JSON scraped jobs" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs-300x172.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/JSON-scraped-jobs.jpeg"/></noscript><figcaption id="caption-attachment-29280" class="wp-caption-text">List of scraped jobs</figcaption></figure>
+<h2>什么是木偶记录器？</h2>
+<p>现在我们知道了什么是木偶师，它能做什么，让我们看看木偶师的一个重要用法:自动化测试。</p>
+<p>使用Chrome扩展的<a href="https://github.com/checkly/headless-recorder" target="_blank" rel="noopener noreferrer">木偶记录器</a>，我们可以记录我们的浏览器交互和活动，然后生成一个木偶脚本用于自动化测试。</p>
+<p>以下是木偶录制器Chrome扩展可以执行的有用操作列表:</p>
+<ol>
+<li>   <ol>
+<li>   <ol>
+<li>   <ol>
+<li>可以轻松记录网站点击和不同的事件类型</li>
+<li>可以方便地显示已执行的事件和当前正在执行的事件</li>
+<li>它有有用的子句，如<code>waitForNaigation</code>和<code>setViewPort</code></li>
+<li>内置的复制到剪贴板功能</li>
+<li>它有不同的配置选项</li>
+<li>可以查询带有<code>data-id</code>属性的元素</li>
+<li>木偶剧本自动生成</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<p>首先，通过点击<strong>添加到Chrome </strong>来安装木偶记录器的Chrome扩展。</p>
+<p><img data-attachment-id="29386" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/puppeteer-chrome-extension-recorder/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png" data-orig-size="730,255" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="puppeteer-chrome-extension-recorder" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder-300x105.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png" decoding="async" class="aligncenter size-full wp-image-29386 jetpack-lazy-image" src="../Images/087a3f6628017e95c2eb8b16742405b1.png" alt="Puppeteer chrome extension recorder " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder-300x105.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29386" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/puppeteer-chrome-extension-recorder/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png" data-orig-size="730,255" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="puppeteer-chrome-extension-recorder" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder-300x105.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29386" src="../Images/087a3f6628017e95c2eb8b16742405b1.png" alt="Puppeteer chrome extension recorder " srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder-300x105.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/puppeteer-chrome-extension-recorder.png"/></noscript>
+<h2>导航木偶记录器</h2>
+<p>以下是在木偶记录器中记录一个会话的基础。首先，选择图标并点击<strong>记录</strong>。在输入一个<code>input</code>元素后，点击<strong> <code>tab</code> </strong>。您可以点击不同的链接，并输入元素来记录您的会话。</p>
+<p>点击之后，等待每个页面完全加载是很重要的。要停止记录，点击<strong>暂停</strong>。通过<strong>恢复</strong>按钮可以恢复记录，通过<strong>停止</strong>可以完全停止记录。最后，您可以点击<strong>复制到剪贴板来复制生成的脚本。</strong></p>
+<h2>自动化UI测试</h2>
+<p>自动化UI测试用于测试应用程序是否正常运行，方法是通过模拟普通用户的方式导航网站和使用技术。它有助于在网站最终上线之前，在网站开发过程中识别网站上的错误、bug和断开的链接。</p>
+<p>已经开发了许多工具来实现这一点，包括<a href="https://www.selenium.dev/" target="_blank" rel="noopener noreferrer"> Selenium </a>和<a href="https://smartbear.com/product/testcomplete/overview/" target="_blank" rel="noopener noreferrer"> TestComplete </a>，但是我们将演示如何使用木偶师来实现这一点。</p>
+<p>现在，让我们记录一个自动化的UI测试。</p>
+<p>开始录制前，进入<strong>设置</strong>并取消<code>headless</code>和<code>waitForNavigation</code>选项，以实现平滑录制。</p>
+<p>点击木偶师扩展图标，然后点击<strong>记录</strong>:</p>
+<p><img data-attachment-id="29284" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/puppeteer-chrome-extension-recording/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="puppeteer chrome extension recording" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png" decoding="async" class="aligncenter size-full wp-image-29284 jetpack-lazy-image" src="../Images/3a0ed2b11ab851bca43bb43e74441339.png" alt="puppeteer chrome extension record session" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29284" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/puppeteer-chrome-extension-recording/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="puppeteer chrome extension recording" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-300x167.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29284" src="../Images/3a0ed2b11ab851bca43bb43e74441339.png" alt="puppeteer chrome extension record session" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/puppeteer-chrome-extension-recording-e1605803142344.png"/></noscript>
+<p>接下来，在地址栏中键入<code><a href="https://www.google.com" rel="nofollow">http://www.google.com</a></code>并点击浏览器，这样木偶记录器就可以记录一些事件。</p>
+<p>确保观察木偶图标栏上的<code>wait</code>和<code>rec</code>状态——它们会给你一个线索，告诉你什么时候继续下一个事件或点击。</p>
+<p><img data-attachment-id="29285" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/recorded-screen-puppeteer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png" data-orig-size="414,645" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="recorded-screen-puppeteer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer-193x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png" decoding="async" class="aligncenter size-full wp-image-29285 jetpack-lazy-image" src="../Images/1fceeb9a3f9c36d94fa6ce0fca4644a3.png" alt="recorded screen puppeteer" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png 414w, https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer-193x300.png 193w" data-lazy-sizes="(max-width: 414px) 100vw, 414px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29285" data-permalink="https://blog.logrocket.com/using-puppeteer-for-automated-ui-testing/recorded-screen-puppeteer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png" data-orig-size="414,645" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="recorded-screen-puppeteer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer-193x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29285" src="../Images/1fceeb9a3f9c36d94fa6ce0fca4644a3.png" alt="recorded screen puppeteer" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png 414w, https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer-193x300.png 193w" sizes="(max-width: 414px) 100vw, 414px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/recorded-screen-puppeteer.png"/></noscript>
+<p>当您为UI测试记录了足够的事件后，您可以点击<strong>停止</strong>。接下来，复制生成的木偶脚本，并使用Node/Express server运行您的测试。</p>
+<p>我在下面的脚本中记录了一些事件:</p>
+<pre>  const puppeteer = require("puppeteer");
+  (async () =&gt; {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+    await page.goto(
+      "https://www.google.com/search?q=what+is+puppeteer+js&amp;oq=wh&amp;aqs=chrome.0.69i59j69i64j0l3j5l3.7647j0j7&amp;sourceid=chrome&amp;ie=UTF-8"
+    );
+    await page.setViewport({ width: 1366, height: 669 });
+    await page.waitForSelector(
+      ".g:nth-child(3) &gt; .rc:nth-child(1) &gt; .r &gt; a &gt; .LC20lb"
+    );
+    await page.click(".g:nth-child(3) &gt; .rc:nth-child(1) &gt; .r &gt; a &gt; .LC20lb");
+    await page.waitForSelector(
+      ".blog_post-main_content &gt; .blog_post-body &gt; .blog_post_body &gt; p&gt; a:nth-child(3)"
+    );
+    await page.click(
+      ".blog_post-main_content &gt; .blog_post-body &gt; .blog_post_body &gt; p &gt; a:nth-child(3)"
+    );
+    await browser.close();
+  })();
+</pre>
+<h2>运行木偶脚本</h2>
+<p>一旦设置好测试环境，运行木偶脚本就很简单了。使用Node/Express，您可以简单地粘贴生成的代码并执行它:</p>
+<pre>const express = require("express");
+const app = express();
+const port = 9000;
+app.get("/test", (req, res) =&gt; {
+  const puppeteer = require("puppeteer");
+  (async () =&gt; {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+    await page.goto(
+      "https://www.google.com/search?q=what+is+puppeteer+js&amp;oq=wh&amp;aqs=chrome.0.69i59j69i64j0l3j5l3.7647j0j7&amp;sourceid=chrome&amp;ie=UTF-8"
+    );
+    await page.setViewport({ width: 1366, height: 669 });
+    await page.waitForSelector(
+      ".g:nth-child(3) &gt; .rc:nth-child(1) &gt; .r &gt; a &gt; .LC20lb"
+    );
+    await page.click(".g:nth-child(3) &gt; .rc:nth-child(1) &gt; .r &gt; a &gt; .LC20lb");
+    await page.waitForSelector(
+      ".blog_post-main_content &gt; .blog_post-body &gt; .blog_post_body &gt; p &gt; a:nth-child(3)"
+    );
+    await page.click(
+      ".blog_post-main_content &gt; .blog_post-body &gt; .blog_post_body &gt; p &gt; a:nth-child(3)"
+    );
+    await browser.close();
+  })();
+});
+app.listen(port, () =&gt; {});
+</pre>
+<p>现在，你完成了！恭喜你。</p>
+<h2>结论</h2>
+<p>在这篇文章中，我们了解了木偶师以及如何用它来抓取网页。我们还学习了木偶记录器，并使用它来自动化您的UI测试。和往常一样，你可以从我的<a href="https://github.com/Kaperskyguru/web-scrapping-puppeteer" target="_blank" rel="noopener noreferrer"> GitHub库</a>获得这篇博文中的所有代码。编码快乐！</p>
+<div class="blog-plug base-cta">
+<h2><a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络应用</h2>
+<p><a href="https://logrocket.com/signup/" class="signup" target="_blank" rel="noopener noreferrer"> <img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/> <noscript> <img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/> </noscript></a></p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面应用程序重新创建像素级完美视频。</p>
+<p><a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer">免费试用</a>。</p></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

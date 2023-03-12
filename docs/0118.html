@@ -1,0 +1,278 @@
+<html>
+<head>
+<title>Advanced Vue.js concepts: Mixins, custom directives, and more - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>高级Vue.js概念:Mixins、自定义指令和更多- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/advanced-vue-js-concepts-mixins-custom-directives-filters-transitions-and-state-management-ca6955905156/#0001-01-01">https://blog.logrocket.com/advanced-vue-js-concepts-mixins-custom-directives-filters-transitions-and-state-management-ca6955905156/#0001-01-01</a></blockquote><div><div class="section-inner sectionLayout--insetColumn">
+<h3 id="6d90" class="graf graf--h3 graf-after--figure">设置我们的环境</h3>
+<p id="1af2" class="graf graf--p graf-after--h3">首先，为了跳过为从ES6编译到ES5而配置webpack的过程，我们将使用Vue CLI。如果您没有安装Vue CLI，请安装它！</p>
+<p id="4b42" class="graf graf--p graf-after--p"><code>sudo npm install -g vue-cli</code></p>
+<h3 id="e9a9" class="graf graf--h3 graf-after--p">混合视图</h3>
+<p id="e60e" class="graf graf--p graf-after--h3">混合是我们可以重用的代码块。就当是坚持干原则的一种方式吧。DRY是首字母缩写，代表“不要重复自己”。</p>
+<p id="6a88" class="graf graf--p graf-after--p">Mixins是为Vue组件分发可重用功能的一种灵活方式。mixin对象可以包含任何组件选项。当一个组件使用mixin时，mixin中的所有选项都将“混合”到组件自己的选项中。</p>
+<p id="6da8" class="graf graf--p graf-after--p">理解Vue mixins如何工作的最简单方法是实际使用它们。考虑两个组件:“A”和“B”。两者都根据用户生命周期中的创建日期来筛选用户。基于用户的创建日期过滤用户的功能将出现在两个不同的组件中，导致您重复自己。</p>
+<p id="9cac" class="graf graf--p graf-after--p">正如我们所讨论的，这是不好的。但是有一种更简单的方法可以根据创建日期过滤用户，避免重复。有什么猜测吗？</p>
+<p id="fd0a" class="graf graf--p graf-after--p">Vue mixins。猜得好。</p>
+<p id="39af" class="graf graf--p graf-after--p">请记住，你越是重复，就越容易出错。让我们写一些代码。</p>
+<p id="4ead" class="graf graf--p graf-after--p">首先，让我们通过运行以下命令来创建一个新项目:</p>
+<pre id="8ad3" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">#create a new project
+</code><code class="markup--code markup--pre-code">vue init webpack mixins
+</code><code class="markup--code markup--pre-code">#change into the new project
+</code><code class="markup--code markup--pre-code">cd mixings
+</code><code class="markup--code markup--pre-code">#install npm packages
+</code><code>npm install</code></pre>
+<p id="ad0d" class="graf graf--p graf-after--pre">一旦我们完成了上面的代码，让我们继续编辑我们的<code>src/components/hello.vue</code>到:</p>
+<figure id="7cf5" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="12b0" class="graf graf--p graf-after--figure">让我们快速看一下上面的代码块。在我们的模板部分，我们有一个内容为非活动用户的H2标签。接下来，我们有一个带有循环li标签的ul标签，它打印出每个不活动用户的姓名和年龄。</p>
+<p id="101b" class="graf graf--p graf-after--p">现在看一下脚本部分。注意，我们有一个普通的Vue组件实例。在我们的数据部分，我们有两个属性，一个是status，另一个是名为<code>users.</code>的数组</p>
+<p id="23f4" class="graf graf--p graf-after--p">在我们的方法部分，我们有两个方法:<code>get_active_or_inactive</code>和<code>filter_by_date</code>，前者根据我们的状态获取所有活动用户。这将根据<code>created_at</code>属性以升序返回一个用户数组。</p>
+<p id="8b4f" class="graf graf--p graf-after--p">最后，我们有计算部分，它包含一个名为<code>inactiveUsers</code>的方法，该方法调用了<code>get_active_or_inactive</code>和<code>filter_by_date</code>函数。</p>
+<p id="93da" class="graf graf--p graf-after--p">我们知道hello组件现在做什么，但是我们可能仍然想知道目标是什么。目标是有两个组件，一个显示活动用户，另一个显示非活动用户。这两个代码既有<code>get_active_or_inactive</code>方法，也有<code>filter_by_date</code>方法(这是重复的)。</p>
+<p id="09a5" class="graf graf--p graf-after--p">所以，我们用Vue mixins来统一那些重复的功能。</p>
+<p id="0a6e" class="graf graf--p graf-after--p">接下来，我们将创建一个名为<code>Active.vue</code>的新组件，并将以下内容放入其中:</p>
+<figure id="be81" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="c697" class="graf graf--p graf-after--figure">如果我们看一下上面的活动组件，与“你好”组件相比的主要变化是:</p>
+<ul class="postList">
+<li id="3a1f" class="graf graf--li graf-after--p">数据中的状态属性从0更改为1</li>
+<li id="c370" class="graf graf--li graf-after--li">计算属性从inactiveUsers更改为activeUsers</li>
+</ul>
+<p id="7fb9" class="graf graf--p graf-after--li">让我们把重复的代码统一成一个mixin。为此，在我们的<code>src</code>文件夹中创建一个名为mixins的新目录。接下来，在我们的<code>src/mixins</code>文件夹中创建一个名为<code>firstMixin.js</code>的文件，并粘贴到:</p>
+<figure id="3276" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="5321" class="graf graf--p graf-after--figure">注意，在上面的代码片段中，它与一个新的Vue组件相同。事实上，我们只是将两个组件的方法部分移到了这个新的类似组件的结构中。</p>
+<p id="93b8" class="graf graf--p graf-after--p">然后我们需要改变我们的组件来使用这个mixin，如下所示:</p>
+<figure id="fe2e" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="ee3b" class="graf graf--p graf-after--figure">看上面的两个组件，与原始组件的区别是:</p>
+<ul class="postList">
+<li id="fe0c" class="graf graf--li graf-after--p">我们的组件中不再有我们的方法</li>
+<li id="7eaa" class="graf graf--li graf-after--li">我们在脚本中添加了mixin的导入</li>
+<li id="6e43" class="graf graf--li graf-after--li">我们在组件的mixins部分声明了我们的mixin</li>
+</ul>
+<p id="ce54" class="graf graf--p graf-after--li">让我们把所有这些结合在一起，看看是否行得通。为此，将我们的<code>app.vue</code>文件替换为:</p>
+<figure id="8efb" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="b5e3" class="graf graf--p graf-after--figure">上述<code>app.vue</code>文件与原始<code>app.vue</code>文件的唯一区别在于:</p>
+<ul class="postList">
+<li id="1ca7" class="graf graf--li graf-after--p">我们已经导入了活动组件，并在组件部分中声明了它</li>
+<li id="d91e" class="graf graf--li graf-after--li">我们还向浏览器呈现了我们的活动组件</li>
+</ul>
+<p id="2c5b" class="graf graf--p graf-after--li">如果我们在终端上运行npm run dev命令，并浏览到<a class="markup--anchor markup--p-anchor" href="http://localhost:8080/" target="_blank" rel="noopener noreferrer" data-href="http://localhost:8080/"> http://localhost:8080/ </a>，我们应该会看到以下内容:</p>
+<figure id="3d14" class="graf graf--figure graf-after--p">
+
+</figure>
+<h3 id="bfab" class="graf graf--h3 graf-after--figure">自定义指令</h3>
+<p id="cc77" class="graf graf--p graf-after--h3">每个人都听说过指令。如果不使用<code>v-if</code>、<code>v-for</code>、<code>v-show</code>等指令，你很可能无法用Vue构建一个功能丰富的应用。</p>
+<p id="d5d7" class="graf graf--p graf-after--p">在本节中，我们将学习如何构建一个名为<code>v-test</code>的自定义指令。这个函数用base64表示的文本替换给它的文本。</p>
+<p id="928a" class="graf graf--p graf-after--p">指令是可以附加到DOM元素上的微小命令。它们以v-为前缀，让库知道您正在使用一种特殊的标记，并保持语法一致。如果您需要对HTML元素进行低级访问来控制行为，它们通常很有用。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p id="071e" class="graf graf--p graf-after--p">首先，通过运行以下命令创建一个新项目:</p>
+<pre id="a363" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">#create a new project
+</code><code class="markup--code markup--pre-code">vue init webpack customdirectives
+</code><code class="markup--code markup--pre-code">#change into the new project
+</code><code class="markup--code markup--pre-code">cd customdirectives
+</code><code class="markup--code markup--pre-code">#install npm packages
+</code><code>npm install</code></pre>
+<p id="cab9" class="graf graf--p graf-after--pre">接下来，打开我们的<code>src/main.js</code>文件，并在声明我们的应用程序之前添加以下代码:</p>
+<figure id="ed71" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="e02a" class="graf graf--p graf-after--figure">在上面的指令中，我们已经监听了指令所附加的元素的<code>insert</code>钩子。我们修改元素的颜色和背景样式属性。接下来，我们定义了一个将字符串解码成<code>base64</code>编码的函数，然后我们将元素的HTML转换成函数的结果。</p>
+<p id="f077" class="graf graf--p graf-after--p">由于我们使用了<code>inserted</code>钩子，这看起来有些混乱，但是插入的钩子到底是从哪里来的呢？</p>
+<p id="91d7" class="graf graf--p graf-after--p">根据<a class="markup--anchor markup--p-anchor" href="https://vuejs.org/v2/guide/custom-directive.html#Hook-Functions" target="_blank" rel="noreferrer nofollow noopener" data-href="https://vuejs.org/v2/guide/custom-directive.html#Hook-Functions"> Vue文档</a>，有所谓的“挂钩功能”，解释如下:</p>
+<ul class="postList">
+<li id="ab68" class="graf graf--li graf-after--p">bind:仅在指令第一次绑定到元素时调用一次。这是您可以进行一次性设置工作的地方</li>
+<li id="2bac" class="graf graf--li graf-after--li">inserted:当绑定元素已经插入其父节点时调用(这仅保证父节点存在，不一定在文档中)</li>
+<li id="cb3d" class="graf graf--li graf-after--li">update:在包含组件的VNode更新后调用，<strong class="markup--strong markup--li-strong">，但可能在其子组件更新之前调用</strong>。该指令的值可能已经更改，也可能没有更改，但是您可以通过比较绑定的当前值和旧值来跳过不必要的更新(参见下面的钩子参数)</li>
+<li id="b92a" class="graf graf--li graf-after--li">componentUpdated:在包含组件的VNode <strong class="markup--strong markup--li-strong">及其子组件的VNode</strong>更新后调用</li>
+<li id="4b90" class="graf graf--li graf-after--li">unbind:仅在指令与元素解除绑定时调用一次</li>
+</ul>
+<p id="5707" class="graf graf--p graf-after--li">基本上，我们所说的挂钩很大程度上取决于我们希望我们的行动发生的时间和方式。在这个指令中，我们希望它发生在元素被插入到它的父节点之后。</p>
+<p id="aabc" class="graf graf--p graf-after--p">我们的<code>src/main.js</code>应该这样看:</p>
+<figure id="8923" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="69ec" class="graf graf--p graf-after--figure">新指令有效吗？让我们找出答案。</p>
+<p id="1454" class="graf graf--p graf-after--p">进入<code>src/components/Hello.vue</code>并在元素上使用<code>v-test</code>指令，这样我们的组件现在看起来像这样:</p>
+<figure id="722d" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="d302" class="graf graf--p graf-after--figure">在上面的代码中，我们对模板中的第一个H1和H2元素应用了v-test指令。</p>
+<p id="8821" class="graf graf--p graf-after--p">如果我们运行当前的代码库，我们应该会看到下面的屏幕:</p>
+<figure id="29eb" class="graf graf--figure graf-after--p">
+
+</figure>
+<h3 id="36ad" class="graf graf--h3 graf-after--figure">过滤</h3>
+<p id="90e5" class="graf graf--p graf-after--h3">Vue过滤器本质上是一个函数，它获取一个值，对其进行处理，然后返回处理后的值。</p>
+<p id="c692" class="graf graf--p graf-after--p">过滤器在两个地方有用:<strong class="markup--strong markup--p-strong">胡子插值和</strong> <code><strong class="markup--strong markup--p-strong">v-bind</strong></code> <strong class="markup--strong markup--p-strong">表情。</strong>过滤器应该附加到JavaScript表达式的末尾，用管道符号(|)表示。</p>
+<p id="2381" class="graf graf--p graf-after--p">我们想写一个过滤器，将我们输入的任何字符串的第一个单词都大写。例如，如果我们希望字符串<code>hi there</code>以大写字母H和t开头。</p>
+<p id="6a4d" class="graf graf--p graf-after--p">首先，通过运行以下命令创建一个新项目:</p>
+<pre id="95b4" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">#create a new project
+</code><code class="markup--code markup--pre-code">vue init webpack customfilters
+</code><code class="markup--code markup--pre-code">#change into the new project
+</code><code class="markup--code markup--pre-code">cd customfilters
+</code><code class="markup--code markup--pre-code">#install npm packages
+</code><code>npm install</code></pre>
+<p id="417c" class="graf graf--p graf-after--pre">接下来，让我们打开我们的<code>src/main.js </code>文件，并在声明我们的应用程序之前添加以下代码:</p>
+<pre id="e661" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">Vue.filter('camel',function(str){
+    return str.toLowerCase().replace(/^\w|\s\w/g, function (letter) {
+    return letter.toUpperCase();
+    })
+})</code></pre>
+<p id="3b96" class="graf graf--p graf-after--pre">在我们上面定义的Vue过滤器中，我们首先将整个字符串转换为小写，然后检查整个字符串的第一个字母，检查之前有空格字符的第一个字母，并应用<code>.</code> <code>toUpperCase()</code>方法替换它。</p>
+<p id="b4d7" class="graf graf--p graf-after--p">我们的<code>src/main.js</code> main应该是这样的:</p>
+<figure id="40d9" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="f624" class="graf graf--p graf-after--figure">接下来，我们需要测试我们的过滤器是否正常工作。为此，打开<code>src/components/hello.vue</code>文件并替换为:</p>
+<figure id="c5e4" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="ea11" class="graf graf--p graf-after--figure">什么变了？</p>
+<p id="d895" class="graf graf--p graf-after--p">我们数据段中<code>msg</code>的值。此外，当显示模板中第一个<code>h1</code>的<code>msg</code>值时，我们应用了<code>camel</code>过滤器。</p>
+<p id="bdde" class="graf graf--p graf-after--p">如果我们现在运行代码，我们应该会看到:</p>
+<figure id="74e8" class="graf graf--figure graf-after--p">
+
+</figure>
+<p id="010c" class="graf graf--p graf-after--figure">注意，我们的<code>msg</code>变量中每个单词的第一个字母都是大写的。</p>
+<h3 id="db9e" class="graf graf--h3 graf-after--p">转换(进入/离开)</h3>
+<p id="1037" class="graf graf--p graf-after--h3">过渡是在DOM中插入、更新和删除元素时可以应用的效果。</p>
+<p id="69b6" class="graf graf--p graf-after--p">在页面上实现过渡效果最简单的方法是通过Vue的<code>&lt;transition&gt;</code>组件。组件<code>&lt;transition&gt;</code>被Vue设为全局可接受，这意味着它可以在任何组件中使用和访问。</p>
+<p id="8f7f" class="graf graf--p graf-after--p">Vue通过在转换过程中添加和删除元素上的类来工作。</p>
+<p id="e905" class="graf graf--p graf-after--p">处理转换时有六种不同的类前缀，它们是:</p>
+<ul class="postList">
+<li id="400f" class="graf graf--li graf-after--p">-enter:包含元素何时开始出现在场景中的样式</li>
+<li id="cbb4" class="graf graf--li graf-after--li">-leave:包含元素开始离开场景时的样式</li>
+<li id="b5a8" class="graf graf--li graf-after--li">-enter-active:过渡到位时的样式，例如过渡秒</li>
+<li id="6a73" class="graf graf--li graf-after--li">-保持活动:当过渡不合适时的样式，例如过渡秒</li>
+<li id="f9d5" class="graf graf--li graf-after--li">-leave-to:它取代了-leave</li>
+<li id="cbff" class="graf graf--li graf-after--li">-enter-to:这是enter的结束类。当-enter被删除时，它被应用</li>
+</ul>
+<p id="e402" class="graf graf--p graf-after--li">为了很好地使用过渡，我们需要做的就是使用任何前缀给我们的过渡名称添加一个样式。例如，如果我们有一个名为<code>test</code>的转换，我们可以这样使用它们:</p>
+<pre id="65c7" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">.test-enter-active {
+    transition: transform 3s;
+    text-shadow:0px 5px 10px #fdff00;
+}
+.test-leave-active {
+    transition: transform 3s;
+    text-shadow:0px 5px 10px #a1a194;
+}
+.test-enter, .test-leave-to {
+    transform: translateX(90%);
+}
+.test-enter-to, .test-leave {
+    transform: translateX(-15%);
+}</code></pre>
+<p id="05de" class="graf graf--p graf-after--pre">首先，通过运行以下命令创建一个新项目:</p>
+<pre id="d121" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">#create a new project
+</code><code class="markup--code markup--pre-code">vue init webpack transitions
+</code><code class="markup--code markup--pre-code">#change into the new project
+</code><code class="markup--code markup--pre-code">cd transitions
+</code><code class="markup--code markup--pre-code">#install npm packages
+</code><code>npm install</code></pre>
+<p id="ea9d" class="graf graf--p graf-after--pre">接下来，将我们的<code>src/components/hello.vue</code>替换为:</p>
+<figure id="551a" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="7b32" class="graf graf--p graf-after--figure">在上面的代码块中，我们用一个名为“test”的转换包装了第一个<code>h1</code>元素。我们还创建了一个新的输入元素，这是一个切换状态变量的按钮，强制我们的元素进入“离开”和“进入”状态。</p>
+<p id="dc91" class="graf graf--p graf-after--p">在我们的脚本部分，我们添加了一个名为<code>status</code>的新变量，默认为false。接下来，在我们的mounted调用中，我们将其设置为“true”。</p>
+<p id="2cc2" class="graf graf--p graf-after--p">如果我们运行我们的代码库，我们应该观察到它的工作方式如下图所示:</p>
+<h3 id="c6a5" class="graf graf--h3 graf-after--p">状态管理</h3>
+<p id="cbdd" class="graf graf--p graf-after--h3">当您的Vue应用程序变得越来越大，包含多个组件时，您可能会遇到这样的问题:如何在这些组件之间共享数据，并确保使用相同数据的组件在数据发生变化时总是得到更新。</p>
+<p id="3f4e" class="graf graf--p graf-after--p">由于分散在许多组件中的多种状态以及它们之间的交互，大型应用程序的复杂性通常会增加。为了解决这个问题，Vue提供了<a class="markup--anchor markup--p-anchor" href="https://github.com/vuejs/vuex" target="_blank" rel="noreferrer nofollow noopener" data-href="https://github.com/vuejs/vuex"> <strong class="markup--strong markup--p-strong"> vuex </strong> </a></p>
+<p id="7fa9" class="graf graf--p graf-after--p"><strong class="markup--strong markup--p-strong">vuex是什么？</strong></p>
+<p id="a325" class="graf graf--p graf-after--p">根据Vuex的官方文档，它是VueJS应用程序的状态管理模式和库。它充当应用程序中所有组件的集中存储，规则确保状态只能以可预测的方式发生变化。</p>
+<p id="9053" class="graf graf--p graf-after--p">Vuex通过实施以下核心概念来使用集中式状态管理:</p>
+<ul class="postList">
+<li id="6788" class="graf graf--li graf-after--p"><strong class="markup--strong markup--li-strong"> <em class="markup--em markup--li-em">状态</em> </strong>:包含数据的对象</li>
+<li id="f10d" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong"> <em class="markup--em markup--li-em"> Getters </em> </strong>:用于从商店的状态树中访问数据</li>
+<li id="c5de" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong"> <em class="markup--em markup--li-em">突变</em> </strong>:对状态树中的数据进行修改的处理函数</li>
+<li id="9c18" class="graf graf--li graf-after--li"><strong class="markup--strong markup--li-strong"> <em class="markup--em markup--li-em">动作</em> </strong>:提交变异的函数。与<em class="markup--em markup--li-em">突变</em>的主要区别在于<em class="markup--em markup--li-em">动作</em>可以包含异步操作</li>
+</ul>
+<p id="01a9" class="graf graf--p graf-after--li">让我们把这些理论付诸实践。</p>
+<p id="85db" class="graf graf--p graf-after--p">首先，让我们通过运行以下命令来创建一个新项目:</p>
+<pre id="778b" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">#create a new project
+</code><code class="markup--code markup--pre-code">vue init webpack statemanagement
+</code><code class="markup--code markup--pre-code">#change into the new project
+</code><code class="markup--code markup--pre-code">cd statemanagement
+</code><code class="markup--code markup--pre-code">#install npm packages
+</code><code>npm install</code></pre>
+<p id="9db0" class="graf graf--p graf-after--pre">接下来，我们将安装Vuex库:</p>
+<pre id="26e9" class="graf graf--pre graf-after--p"><code>npm install Vuex</code></pre>
+<p id="f9b8" class="graf graf--p graf-after--pre">一旦安装了Vuex，让我们研究一下我们的示例应用程序的<code>state</code>、<code>actions</code>、<code>mutations</code>和<code>getters</code>。</p>
+<figure id="a2b9" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="fbd1" class="graf graf--p graf-after--figure">当我们解释状态是什么时，我们说它是一个包含数据的对象。如果我们看上面的代码，我们可以看到它是一个包含用户数组的对象。</p>
+<p id="4a6a" class="graf graf--p graf-after--p">看看我们的行动:</p>
+<pre id="66cf" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">actions: {
+  ADD_USER: function({ commit }, new_user) {
+    commit("ADD_USER_MUTATION", new_user);
+  },
+  DELETE_USER: function({ commit }, user_id) {
+    commit("DELETE_USER_MUTATION", user_id);
+  }
+}</code></pre>
+<p id="f6da" class="graf graf--p graf-after--pre">在我们的操作部分，我们定义了两个函数:</p>
+<ul class="postList">
+<li id="e083" class="graf graf--li graf-after--p">ADD_USER:这个函数进一步提交一个名为<code>ADD_USER_MUTATION</code>的变异，它将接收到的新用户对象作为一个参数，这将向列表中添加一个新用户。</li>
+<li id="9b86" class="graf graf--li graf-after--li">DELETE_USER:这个函数进一步提交一个名为<code>DELETE_USER_MUTATION</code>的变异，它将收到的用户id作为参数，从列表中删除一个用户。</li>
+</ul>
+<p id="379e" class="graf graf--p graf-after--li">我们现在进入我们的突变:</p>
+<pre id="2325" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">mutations: {
+  ADD_USER_MUTATION: function(state, new_user) {
+    state.users.push(new_user);
+  },
+  DELETE_USER_MUTATION: function(state, user_id) {
+    state.users.splice(user_id,1);
+  }
+}</code></pre>
+<p id="dfcb" class="graf graf--p graf-after--pre">在上面的代码中，我们有我们的突变，它直接改变了我们的存储状态。检查代码时，我们注意到两个函数:</p>
+<ul class="postList">
+<li id="4a7e" class="graf graf--li graf-after--p">ADD_USER_MUTATION:这种突变将新用户推送到我们的用户列表中</li>
+<li id="08b2" class="graf graf--li graf-after--li">DELETE_USER_MUTATION:这种突变基于传递的id从用户数组中删除一个对象，id是该对象的索引。</li>
+</ul>
+<p id="3de4" class="graf graf--p graf-after--li">现在让我们看看我们的getters:</p>
+<pre id="bbef" class="graf graf--pre graf-after--p"><code class="markup--code markup--pre-code">getters: {
+  users: state =&gt; {
+    return state.users;
+  }
+}</code></pre>
+<p id="fd82" class="graf graf--p graf-after--pre">在我们的<code>getters</code>块中，我们定义了一个函数:</p>
+<ul class="postList">
+<li id="05f2" class="graf graf--li graf-after--p">users:这个getter返回我们商店中的所有用户</li>
+</ul>
+<p id="3330" class="graf graf--p graf-after--li">接下来，让我们将这些概念合并在一起，创建我们的Vuex商店。</p>
+<p id="834e" class="graf graf--p graf-after--p">在我们的<code>src</code>文件夹中创建一个名为<code>store.js</code>的新文件，放在:</p>
+<figure id="4502" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="03b2" class="graf graf--p graf-after--figure">这就是建立Vuex商店的简单之处。现在开始在我们的应用程序中使用这个商店。</p>
+<p id="074f" class="graf graf--p graf-after--p">为了通知Vue我们的中央商店，我们需要在创建时将商店对象传递给Vue实例。为此，将我们的<code>src/main.js</code>的内容替换为:</p>
+<figure id="d397" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="cab4" class="graf graf--p graf-after--figure">如果您查看上面的代码，您会注意到我们的store组件的导入，并将其传递给我们的Vue组件。</p>
+<p id="f243" class="graf graf--p graf-after--p">让我们更改<code>Hello</code>组件，这样我们就可以与我们的商店进行交互。</p>
+<p id="a27b" class="graf graf--p graf-after--p">现在，将<code>src/components/hello</code>的内容替换为:</p>
+<figure id="76c8" class="graf graf--figure graf--iframe graf-after--p"/>
+<p id="0a2a" class="graf graf--p graf-after--figure">在上面的代码块中，您会注意到我们已经声明了一组HTML元素，在其中我们可以找到:</p>
+<ul class="postList">
+<li id="f7f2" class="graf graf--li graf-after--p">保存新用户名的文本输入。</li>
+<li id="99cb" class="graf graf--li graf-after--li">保存新用户年龄的文本输入。</li>
+<li id="0bd7" class="graf graf--li graf-after--li">保存新用户状态的文本输入。</li>
+<li id="6da5" class="graf graf--li graf-after--li">保存新用户创建日期的文本输入。</li>
+<li id="ff19" class="graf graf--li graf-after--li">一个按钮元素，我们为它附加了一个函数，用来添加一个新用户。</li>
+<li id="787d" class="graf graf--li graf-after--li">标签，再加上LI标签，在删除按钮旁边显示用户。</li>
+</ul>
+<p id="d5e8" class="graf graf--p graf-after--li">我们现在已经完成了组件的HTML部分。</p>
+<p id="b347" class="graf graf--p graf-after--p">回顾我们的<code>methods</code>和<code>computed</code>属性很重要，这样我们可以看到我们如何与Vuex交互。</p>
+<p id="7c7b" class="graf graf--p graf-after--p">在我们的方法中，我们会注意到两个函数:</p>
+<ul class="postList">
+<li id="09e7" class="graf graf--li graf-after--p"><code>add_user</code>:该方法将当前的<code>user</code>对象分派给名为<code>ADD_USER</code>的存储动作</li>
+<li id="c20d" class="graf graf--li graf-after--li"><code>delete_user</code>:该方法接收一个参数，然后将该参数分派给名为<code>DELETE_USER</code>的存储动作</li>
+</ul>
+<p id="a33c" class="graf graf--p graf-after--li">转到我们的计算属性，我们只有一个名为<code>users</code>的函数。该函数返回我们商店中的所有用户。</p>
+<p id="f3f1" class="graf graf--p graf-after--p">如果我们运行我们的代码库，它应该如下所示:</p>
+<figure id="51fe" class="graf graf--figure graf-after--p">
+
+</figure>
+<h3 id="5ea1" class="graf graf--h3 graf-after--figure">服务器端渲染</h3>
+<p id="c4da" class="graf graf--p graf-after--h3">Vue作为JavaScript框架的一个缺点是，在浏览器执行了应用程序的JavaScript包之前，页面是不可见的。</p>
+<p id="6521" class="graf graf--p graf-after--p">这导致应用程序呈现空白页面，在一些应用程序中，长时间显示预加载程序。Vue团队试图解决这个问题，并提出了名为SSR的服务器端渲染。幸运的是，这里有关于如何在Vue中实现服务器端渲染的详细信息。</p>
+<h3 id="dcb9" class="graf graf--h3 graf-after--p">结论</h3>
+<p id="ce40" class="graf graf--p graf-after--h3">在本教程中，我们介绍了许多使用Vue的高级技术。我们还学习了如何创建和使用mixins来停止代码重复。最后，我们学习了自定义指令、过滤器、转换、状态管理和服务器端呈现。</p>
+<p id="191f" class="graf graf--p graf-after--p">我希望无论你在这里学到了什么，都将有助于编写更高效的Vue应用程序。</p>
+<p id="1bb6" class="graf graf--p graf-after--p graf--trailing">本教程的代码库可在这个<a class="markup--anchor markup--p-anchor" href="https://github.com/samuelayo/advanced_vue_concepts" target="_blank" rel="noreferrer nofollow noopener" data-href="https://github.com/samuelayo/advanced_vue_concepts">公共GitHub repo </a>中获得。请下载用于教育目的。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+</div>
+</div>    
+</body>
+</html>

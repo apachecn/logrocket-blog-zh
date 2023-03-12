@@ -1,0 +1,86 @@
+<html>
+<head>
+<title>Optional chaining and nullish coalescing in JavaScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>JavaScript - LogRocket博客中的可选链接和nullish合并</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/optional-chaining-and-nullish-coalescing-in-javascript/#0001-01-01">https://blog.logrocket.com/optional-chaining-and-nullish-coalescing-in-javascript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>可选链接和无效合并是新的JavaScript操作符。它们都达到了<a href="https://tc39.es/"> TC39 </a>过程中的<a href="https://tc39.es/process-document/">阶段3 </a>，这意味着它们的规格是完整的。</p>
+<p>我期待这些运营商很久了。我相信它们是自<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function">async</a>/<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await">wait</a>以来对JavaScript工效学最重大的改进。就功能而言，它们没有带来任何新的东西，但它们会让相当多的代码变得更好读和写。</p>
+<h2>可选链接</h2>
+<p>在JavaScript中处理数据经常会遇到不确定某样东西是否存在的情况。例如，想象一下从天气API获得一个JSON响应。</p>
+<pre>{
+  "data": {
+    "temperature": {
+      "current": 68,
+      "high": 79,
+      "low": 45
+    },
+    "averageWindSpeed": 8
+  }
+}</pre>
+<p>你可以通过物体的每一层来获得高温。</p>
+<pre>const highTemperature = response.data.temperature.current;</pre>
+<p>但是，您可能会请求过去不同日期的天气数据，而该服务在某些日期没有高温，或者在其他日期根本没有任何温度数据。所以<code>temperature</code>或<code>temperature.high</code>可能是<code>undefined</code>。</p>
+<pre>{
+  "data": {
+    "averageWindSpeed": 12
+  }
+}</pre>
+<p>在这种情况下，试图获得高温将导致许多开发人员在使用JavaScript: <code>TypeError: Cannot read property 'current' of undefined</code>时非常熟悉的异常。</p>
+<p>为了避免异常，您必须为对象的每个级别添加检查。可能API文档上说出错的时候，顶级属性会是<code>error</code>而不是<code>data</code>，所以你甚至不能确定<code>data</code>的存在。</p>
+<pre>let highTemperature;
+if (response.data &amp;&amp; response.data.temperature) {
+  highTemperature = response.data.temperature.high;
+}</pre>
+<p>这段代码更安全，但也更冗长。我们的数据甚至没有嵌套那么深；更复杂的对象可能要检查更多的级别。</p>
+<p>可选的链接提供了一个简洁的选择。它是JavaScript版本的<a href="https://en.wikipedia.org/wiki/Safe_navigation_operator">安全导航操作符</a>，在很多语言中都存在，比如<a href="https://docs.swift.org/swift-book/LanguageGuide/OptionalChaining.html"> Swift </a>和<a href="https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/operators/member-access-operators#null-conditional-operators--and-"> C# </a>。使用可选的链接操作符(<code>?.</code>)，我们的代码应该是这样的:</p>
+<pre>const highTemperature = response.data?.temperature?.high;</pre>
+<p>这仍然是安全的，但几乎和原始代码一样简洁。如果<code>response.data</code>或<code>response.data.temperature</code>是<code>null</code>或<code>undefined</code>，整个表达式<a href="https://en.wikipedia.org/wiki/Short-circuit_evaluation">将短路</a>并返回<code>undefined</code>，而不是抛出异常。</p>
+<p>当通过括号符号访问属性时，可选链接的工作方式是相同的。</p>
+<pre>const property = "temperature";
+const highTemperature = response.data?.[property]?.high;</pre>
+<p>它不限于子级别。您也可以在顶级使用它。</p>
+<pre>const highTemperature = response?.data?.temperature?.high;</pre>
+<p>可选链接甚至适用于函数调用。</p>
+<pre>const celsiusTemperature = temperature.toCelsius?.();=</pre>
+<p>如果<code>temperature</code>没有<code>toCelsius</code>属性，这将导致<code>undefined</code>，而不是抛出一个错误。但是，请注意，如果<code>temperature</code>碰巧有一个<code>toCelsius</code>属性不是函数，这仍然会导致错误:<code>TypeError: temperature.toCelsius is not a function</code>。</p>
+<h2>无效合并</h2>
+<p>除了访问嵌套值，JavaScript中的另一种常见模式是使用逻辑OR运算符(<code>||</code>)来合并值，因为它返回第一个<a href="https://developer.mozilla.org/en-US/docs/Glossary/Truthy">真值</a>操作数，而不是布尔值。</p>
+<p>假设你正在建立一个网站，并添加了一些动画。您已决定允许用户自定义动画时长。如果用户没有提供默认值，您希望使用默认值，因此您执行以下操作。</p>
+<pre>const defaultTime = 2;
+const animationTime = settings.animationTime || defaultTime;</pre>
+<p>这段代码在一般情况下可能可以工作，但是有一个微妙的错误。布尔型<code>false</code>、空字符串(<code>""</code>)、<code>NaN</code>和数字<code>0</code>都是假的。在这个例子中，用户可能根本不想要任何动画。但是如果他或她将时间设置为<code>0</code>，该代码将忽略它并错误地使用默认值<code>2</code>。</p>
+<p>我们可以说得更清楚。</p>
+<pre>const defaultTime = 2;
+const animationTime =
+  typeof settings.animationTime === "number"
+    ? settings.animationTime
+    : defaultTime;</pre>
+<p>nullish合并操作符(<code>??</code>)给了我们一个更简洁的方法。</p>
+<pre>const defaultTime = 2;
+const animationTime = settings.animationTime ?? defaultTime;</pre>
+<p>Nullish合并的行为类似于常规合并，但它只拒绝严格为<code>null</code>或<code>undefined</code>的值，因此如果提供了值<code>0</code>，该代码将接受该值。</p>
+<p>与常规合并一样，一旦操作数令人满意，无效合并就会短路，因此不会对进一步的表达式求值。如果进一步的表达有副作用，记住这一点很重要。</p>
+<h2>结论和生态系统支持</h2>
+<p>可选的链接和nullish合并使得编写更安全的代码变得更加容易，JavaScript社区似乎急于采用它们。尽管它们还不是正式的ECMAScript规范的一部分，但是工具已经开始增加支持。</p>
+
+<p> </p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

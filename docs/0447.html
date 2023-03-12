@@ -1,0 +1,329 @@
+<html>
+<head>
+<title>Axios vs. fetch(): Which is best for making HTTP requests? - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Axios与fetch():哪个最适合做HTTP请求？- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/axios-vs-fetch-best-http-requests/#0001-01-01">https://blog.logrocket.com/axios-vs-fetch-best-http-requests/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本文于2022年1月31日更新，以反映Axios的最新版本(v0.25.x)。</em></p>
+<h2>Axios比<code>fetch()</code>好吗？</h2>
+<p>在我最近的文章“<a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/#new_tab" target="_blank" rel="noopener">如何像专业人士一样使用Axios </a>进行HTTP请求”中，我讨论了使用Axios库的好处。尽管如此，重要的是要承认Axios并不总是一个理想的解决方案，有时有更好的选项来发出HTTP请求。</p>
+<p>毫无疑问，一些开发人员更喜欢Axios而不是内置API，因为它易于使用。但是许多人高估了对这样一个图书馆的需求。API完全能够再现Axios的关键特性，而且它还有一个额外的优势，即可以在所有现代浏览器中随时使用。</p>
+<p>在本文中，我们将比较<code>fetch()</code>和Axios，看看它们如何用于执行不同的任务，以及它们的以下特点:</p>
+
+<p>希望在本文结束时，您会对这两种API有更好的理解。</p>
+<h2 id="basic-syntax">基本语法</h2>
+<p>在我们深入研究Axios的更多高级功能之前，让我们将它的基本语法与<code>fetch()</code>进行比较。</p>
+<p>下面是如何使用<a href="https://blog.logrocket.com/understanding-axios-post-requests/" target="_blank" rel="noopener"> Axios向一个URL发送一个带有自定义头的<code>[POST]</code>请求</a>。Axios会自动将数据转换为JSON，因此您不必:</p>
+<pre class="language-javascript hljs">// axios
+
+const url = 'https://jsonplaceholder.typicode.com/posts'
+const data = {
+  a: 10,
+  b: 20,
+};
+axios
+  .post(url, data, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json;charset=UTF-8",
+    },
+  })
+  .then(({data}) =&gt; {
+    console.log(data);
+});
+</pre>
+<p>现在将这段代码与产生相同结果的<code>fetch()</code>版本进行比较:</p>
+<pre class="language-javascript hljs">// fetch()
+
+const url = "https://jsonplaceholder.typicode.com/todos";
+const options = {
+  method: "POST",
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json;charset=UTF-8",
+  },
+  body: JSON.stringify({
+    a: 10,
+    b: 20,
+  }),
+};
+fetch(url, options)
+  .then((response) =&gt; response.json())
+  .then((data) =&gt; {
+    console.log(data);
+  });
+</pre>
+<p>请注意:</p>
+<ul>
+<li>为了发送数据，<code>fetch()</code>使用post请求的body属性将数据发送到端点，而Axios使用<code>data</code>属性</li>
+<li>使用<code>JSON.stringify</code>方法将<code>fetch()</code>中的数据转换成字符串</li>
+<li>Axios自动转换从服务器返回的数据，但是使用<code>fetch()</code>您必须调用<code>response.json</code>方法将数据解析为JavaScript对象。关于response.json方法的更多信息可以在<a href="https://developer.mozilla.org/en-US/docs/Web/API/Response/json" target="_blank" rel="noopener">这里</a>找到</li>
+<li>使用Axios，可以在<a href="https://github.com/axios/axios#response-schema" target="_blank" rel="noopener">数据对象</a>中访问服务器提供的数据响应，而对于<code>fetch()</code>方法，最终数据可以命名为任何变量</li>
+</ul>
+<h2 id="backward-compatibility">向后兼容性</h2>
+<p>Axios的主要卖点之一是其广泛的浏览器支持。即使像IE11这样的老浏览器也可以毫无问题地运行Axios。这是因为它在引擎盖下使用了<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest" target="_blank" rel="noopener">XMLHttpRequest</a></code>。</p>
+<p>而<code>Fetch()</code>则只支持Chrome 42+，Firefox 39+，Edge 14+，Safari 10.3+(你可以在<a href="https://caniuse.com/fetch" target="_blank" rel="noopener">CanIUse.com</a>上看到完整的兼容表)。</p>
+<p>如果您使用Axios的唯一原因是向后兼容，那么您并不真正需要HTTP库。相反，你可以使用<code>fetch()</code>和像<a href="https://github.com/github/fetch" target="_blank" rel="noopener"> this </a>这样的聚合填充，在不支持<code>fetch()</code>的web浏览器上实现类似的功能。</p>
+<p>要开始使用<code>fetch()</code> polyfill，通过npm命令安装，如下所示:</p>
+<pre class="language-shell hljs">npm install whatwg-fetch --save
+</pre>
+<p>然后，您可以像这样提出请求:</p>
+<pre class="language-javascript hljs">import 'whatwg-fetch'
+window.fetch(...)
+</pre>
+<p>请记住，您可能还需要一些旧浏览器中的promise polyfill。</p>
+<h2 id="response-timeout">响应超时</h2>
+<p>在Axios中设置超时的简单性是一些开发者更喜欢它而不是<code>fetch()</code>的原因之一。在Axios中，可以使用config对象中可选的<code>timeout</code>属性来设置请求中止前的毫秒数。</p>
+<p>例如:</p>
+<pre class="language-javascript hljs">axios({
+  method: 'post',
+  url: '/login',
+  timeout: 4000,    // 4 seconds timeout
+  data: {
+    firstName: 'David',
+    lastName: 'Pollock'
+  }
+})
+.then(response =&gt; {/* handle the response */})
+.catch(error =&gt; console.error('timeout exceeded'))
+</pre>
+<p><code>Fetch()</code>通过<code>AbortController</code>接口提供类似的功能。不过，它不像Axios版本那么简单:</p>
+<pre class="language-javascript hljs">const controller = new AbortController();
+const options = {
+  method: 'POST',
+  signal: controller.signal,
+  body: JSON.stringify({
+    firstName: 'David',
+    lastName: 'Pollock'
+  })
+};  
+const promise = fetch('/login', options);
+const timeoutId = setTimeout(() =&gt; controller.abort(), 4000);
+
+promise
+  .then(response =&gt; {/* handle the response */})
+  .catch(error =&gt; console.error('timeout exceeded'));
+</pre>
+<p>这里，我们使用<code>AbortController.abort()</code>构造函数创建了一个<code>AbortController</code>对象，这允许我们稍后中止请求。<code>Signal</code>是<code>AbortController</code>的只读属性，提供了一种与请求通信或中止请求的方法。如果服务器在四秒钟内没有响应，调用<code>controller.abort()</code>，操作终止。</p>
+<h2 id="auto-JSON-data-transformation">自动JSON数据转换</h2>
+<p>正如我们前面看到的，Axios在发送请求时会自动将数据字符串化(尽管您可以覆盖默认行为并定义不同的转换机制)。然而，当使用<code>fetch()</code>时，你必须手动操作。</p>
+<p>比较:</p>
+<pre class="language-javascript hljs">// axios
+axios.get('https://api.github.com/orgs/axios')
+  .then(response =&gt; {
+    console.log(response.data);
+  }, error =&gt; {
+    console.log(error);
+  });
+
+// fetch()
+fetch('https://api.github.com/orgs/axios')
+  .then(response =&gt; response.json())    // one extra step
+  .then(data =&gt; {
+    console.log(data) 
+  })
+  .catch(error =&gt; console.error(error));
+</pre>
+<p>数据的自动转换是一个很好的特性，但是同样，这不是你不能用<code>fetch()</code>做的事情。</p>
+<h2 id="HTTP-interceptors">HTTP拦截器</h2>
+<p>Axios的一个关键特性是它能够拦截HTTP请求。当您需要检查或更改从应用程序到服务器的HTTP请求时，HTTP拦截器就派上了用场，反之亦然(例如，日志记录、身份验证或重试失败的HTTP请求)。</p>
+<p>使用拦截器，您不必为每个HTTP请求编写单独的代码。当您想为如何处理请求和响应设置一个全局策略时，HTTP拦截器很有帮助。</p>
+<p>下面是如何在Axios中声明请求拦截器:</p>
+<pre class="language-javascript hljs">axios.interceptors.request.use(config =&gt; {
+  // log a message before any HTTP request is sent
+  console.log('Request was sent');
+
+  return config;
+});
+
+// sent a GET request
+axios.get('https://api.github.com/users/sideshowbarker')
+  .then(response =&gt; {
+    console.log(response.data);
+  });
+</pre>
+<p>在这段代码中，<code>axios.interceptors.request.use()</code>方法用于定义在发送HTTP请求之前要运行的代码。另外，<code>axios.interceptors.response.use()</code>可以用来拦截来自服务器的响应。假设有一个网络错误；使用响应拦截器，您可以使用拦截器重试相同的请求。</p>
+<p>默认情况下，<code>fetch()</code>没有提供拦截请求的方法，但是想出一个变通办法并不难。您可以覆盖全局<code>fetch()</code>方法并定义自己的拦截器，如下所示:</p>
+<pre class="language-javascript hljs">fetch = (originalFetch =&gt; {
+  return (...arguments) =&gt; {
+    const result = originalFetch.apply(this, arguments);
+      return result.then(console.log('Request was sent'));
+  };
+})(fetch);
+
+fetch('https://api.github.com/orgs/axios')
+  .then(response =&gt; response.json())
+  .then(data =&gt; {
+    console.log(data) 
+  });
+</pre>
+<h2 id="download-progress">下载进度</h2>
+<p>在加载大型资产时，进度指示器非常有用，尤其是对于网速较慢的用户。以前，JavaScript程序员使用<code>XMLHttpRequest.onprogress</code>回调处理程序来实现进度指示器。</p>
+<p><a href="https://blog.logrocket.com/patterns-for-data-fetching-in-react-981ced7e5c56/#:~:text=these%20alternative%20implementations.-,Using%20the%20Fetch%20API,-I%E2%80%99ve%20used%20Fetch" target="_blank" rel="noopener">获取API </a>没有<code>onprogress</code>处理程序。相反，它通过响应对象的body属性提供了一个<code>ReadableStream</code>的实例。</p>
+<p>以下示例说明了如何使用<code>ReadableStream</code>在图像下载期间向用户提供即时反馈:</p>
+<pre class="language-HTML hljs">index.html
+&lt;!-- Wherever you html is --&gt;
+  &lt;div id="progress" src=""&gt;progress&lt;/div&gt;
+  &lt;img id="img"&gt;
+
+script.js
+'use strict'
+const element = document.getElementById('progress');
+fetch('https://fetch-progress.anthum.com/30kbps/images/sunrise-baseline.jpg')
+  .then(response =&gt; {
+    if (!response.ok) {
+      throw Error(response.status+' '+response.statusText)
+    }
+    // ensure ReadableStream is supported
+    if (!response.body) {
+      throw Error('ReadableStream not yet supported in this browser.')
+    }
+    // store the size of the entity-body, in bytes
+    const contentLength = response.headers.get('content-length');
+    // ensure contentLength is available
+    if (!contentLength) {
+      throw Error('Content-Length response header unavailable');
+    }
+    // parse the integer into a base-10 number
+    const total = parseInt(contentLength, 10);
+    let loaded = 0;
+    return new Response(
+      // create and return a readable stream
+      new ReadableStream({
+        start(controller) {
+          const reader = response.body.getReader();
+          read();
+          function read() {
+            reader.read().then(({done, value}) =&gt; {
+              if (done) {
+                controller.close();
+                return; 
+              }
+              loaded += value.byteLength;
+              progress({loaded, total})
+              controller.enqueue(value);
+              read();
+            }).catch(error =&gt; {
+              console.error(error);
+              controller.error(error)                  
+            })
+          }
+        }
+      })
+    );
+  })
+  .then(response =&gt; 
+    // construct a blob from the data
+    response.blob()
+  )
+  .then(data =&gt; {
+    // insert the downloaded image into the page
+    document.getElementById('img').src = URL.createObjectURL(data);
+  })
+  .catch(error =&gt; {
+    console.error(error);
+  })
+function progress({loaded, total}) {
+  element.innerHTML = Math.round(loaded/total*100)+'%';
+}
+</pre>
+<p>在Axios中实现进度指示器更简单，尤其是如果您使用<a href="https://github.com/rikmms/progress-bar-4-axios/" target="_blank" rel="noopener"> Axios进度条</a>模块。首先，您需要包括以下样式和脚本:</p>
+<pre class="language-HTML hljs">// the head of your HTML
+    &lt;link rel="stylesheet" type="text/css"
+        href="https://cdn.rawgit.com/rikmms/progress-bar-4-axios/0a3acf92/dist/nprogress.css" /&gt;
+
+
+// the body of your HTML
+     &lt;img id="img" /&gt;
+    &lt;button onclick="downloadFile()"&gt;Get Resource&lt;/button&gt;
+    &lt;script src="https://unpkg.com/axios/dist/axios.min.js"&gt;&lt;/script&gt;
+    &lt;script src="https://cdn.rawgit.com/rikmms/progress-bar-4-axios/0a3acf92/dist/index.js"&gt;&lt;/script&gt;
+
+// add the following to customize the style
+
+&lt;style&gt;
+    #nprogress .bar {
+        background: red !important;
+    }
+    #nprogress .peg {
+        box-shadow: 0 0 10px red, 0 0 5px red !important;
+    }
+    #nprogress .spinner-icon {
+        border-top-color: red !important;
+        border-left-color: red !important;
+    }
+&lt;/style&gt;
+</pre>
+<p>然后你可以像这样实现进度条:</p>
+<pre class="language-javascript hljs">    &lt;script type="text/javascript"&gt;
+        loadProgressBar();
+
+        function downloadFile() {
+          getRequest(
+            "https://fetch-progress.anthum.com/30kbps/images/sunrise-baseline.jpg"
+          );
+        }
+
+        function getRequest(url) {
+          axios
+            .get(url, { responseType: "blob" })
+            .then(function (response) {
+              const reader = new window.FileReader();
+              reader.readAsDataURL(response.data);
+              reader.onload = () =&gt; {
+                document.getElementById("img").setAttribute("src", reader.result);
+              };
+            })
+            .catch(function (error) {
+              console.log(error);
+            });
+        }
+      &lt;/script&gt;
+</pre>
+<p>这段代码使用<code>FileReader</code> API异步读取下载的图像。<code>readAsDataURL</code>方法将图像数据作为Base64编码的字符串返回，然后将其插入到<code>img</code>标签的<code>src</code>属性中以显示图像。</p>
+<h2 id="simultaneous-requests">同时请求</h2>
+<p>为了同时发出多个请求，Axios提供了<code>axios.all()</code>方法。只需将一个请求数组传递给这个方法，然后使用<code>axios.spread()</code>将响应数组的属性分配给不同的变量:</p>
+<pre class="language-javascript hljs">axios.all([
+  axios.get('https://api.github.com/users/iliakan'), 
+  axios.get('https://api.github.com/users/taylorotwell')
+])
+.then(axios.spread((obj1, obj2) =&gt; {
+  // Both requests are now complete
+  console.log(obj1.data.login + ' has ' + obj1.data.public_repos + ' public repos on GitHub');
+  console.log(obj2.data.login + ' has ' + obj2.data.public_repos + ' public repos on GitHub');
+}));
+</pre>
+<p>您可以通过使用内置的<code>Promise.all()</code>方法获得相同的结果。将所有获取请求作为数组传递给<code>Promise.all()</code>。接下来，通过使用一个<code>async</code>函数来处理响应，如下所示:</p>
+<pre class="language-javascript hljs">Promise.all([
+  fetch('https://api.github.com/users/iliakan'),
+  fetch('https://api.github.com/users/taylorotwell')
+])
+.then(async([res1, res2]) =&gt; {
+  const a = await res1.json();
+  const b = await res2.json();
+  console.log(a.login + ' has ' + a.public_repos + ' public repos on GitHub');
+  console.log(b.login + ' has ' + b.public_repos + ' public repos on GitHub');
+})
+.catch(error =&gt; {
+  console.log(error);
+});
+</pre>
+<h2>结论</h2>
+<p>Axios在一个紧凑的包中提供了一个易于使用的API，可以满足您的大多数HTTP通信需求。但是，如果您更喜欢使用原生API，没有什么可以阻止您实现Axios特性。</p>
+<p>正如本文所讨论的，使用web浏览器提供的<code>fetch()</code>方法完全有可能重现Axios库的关键特性。最终，是否值得加载客户端HTTP API取决于您是否习惯使用内置API。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

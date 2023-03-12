@@ -1,0 +1,410 @@
+<html>
+<head>
+<title>Modern component reusability: Render props in React &amp; scoped slots in Vue - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>现代组件可重用性:在Vue - LogRocket博客中的React &amp; scoped插槽中呈现道具</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/modern-component-reusability-render-props-in-react-scoped-slots-in-vue-ff3c5b2dc899/#0001-01-01">https://blog.logrocket.com/modern-component-reusability-render-props-in-react-scoped-slots-in-vue-ff3c5b2dc899/#0001-01-01</a></blockquote><div><article class="article-post">
+<figure><img decoding="async" src="../Images/71f11232ac9e5b295f19477fc99795e5.png" data-height="1280" data-width="1920" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*wOPY1wHGN0wc6EESA9Nw7g.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*wOPY1wHGN0wc6EESA9Nw7g.jpeg"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/71f11232ac9e5b295f19477fc99795e5.png" data-height="1280" data-width="1920" data-original-src="https://storage.googleapis.com/blog-images-backup/1*wOPY1wHGN0wc6EESA9Nw7g.jpeg"/></noscript></figure>
+<p>所有前端开发人员面临的一个问题是如何使UI组件可重用。我们如何以这样一种方式来制作组件，以满足我们现在清楚的狭窄用例，同时还使它们足够可重用以在各种环境中工作？</p>
+<p>假设我们正在构建一个自动完成组件:</p>
+<pre>class Autocomplete extends React.Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            results: props.options
+        }
+    }
+
+    searchList(event) {
+        const results = this.props.options
+            .filter(option =&gt; option.toLowerCase().includes(event.target.value.toLowerCase()))
+        this.setState({ results })
+    }
+
+    render () {
+        return (
+            &lt;div className="autocomplete"&gt;
+                &lt;input
+                    type="text"
+                    placeholder="Type to search list"
+                    onChange={searchList}
+                /&gt;
+                &lt;div className="autocomplete-dropdown"&gt;
+                    &lt;ul className="autocomplete-search-results"&gt;
+                        {this.state.results.map(option =&gt; (
+                            &lt;li class="autocomplete-search-result"&gt;{option}&lt;/li&gt;
+                        ))}
+                    &lt;/ul&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        )
+    }
+}</pre>
+<p>在这个组件中，我们有一些控制核心搜索行为的逻辑，但是我们也指定如何呈现输入和搜索结果。在这个实例中，我们呈现了一个div，作为一个下拉容器和一个无序列表，其中包含每个结果的列表项。</p>
+<p>想想你将如何重用这个组件。当然，如果您想要重现完全相同的行为和视觉效果，您可以使用这个完全相同的组件。但是，如果您想要重用相同的行为，但是组件的可视化略有不同，该怎么办呢？如果您想要重用核心搜索行为，但是为稍微不同的用例添加一些修改，该怎么办？</p>
+<p>假设您想要一个类似标签的搜索结果列表，而不是包含搜索结果的下拉列表，该列表总是显示:</p>
+<figure><img decoding="async" src="../Images/7bdfce28d9cc70bf019adb08a635b118.png" data-height="351" data-width="1800" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*XaTfw2O0izYAKGancHTItg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*XaTfw2O0izYAKGancHTItg.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/7bdfce28d9cc70bf019adb08a635b118.png" data-height="351" data-width="1800" data-original-src="https://storage.googleapis.com/blog-images-backup/1*XaTfw2O0izYAKGancHTItg.png"/></noscript></figure>
+<p>这两个组件的核心功能非常相似:在输入中输入内容来过滤列表。</p>
+<p>对于现代JavaScript框架现在提供的一些相对较新的工具来说，这是一个完美的用例。这些是React中的<em>渲染道具</em>和Vue中的<em>作用域插槽</em>。它们的工作方式非常相似，并且提供了一种将组件的<strong>行为</strong>与其<strong>表现</strong>分离的方法。</p>
+<figure><a href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"><img decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-height="750" data-width="3212" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-height="750" data-width="3212" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/></noscript></a></figure>
+<h3>在React中渲染道具</h3>
+<p>首先，让我们看看如何在React中使用render props来重构我们的autocomplete组件。我们现在将有两个组件——一个用于我们的自动完成组件，另一个用于核心的SearchSelect组件。</p>
+<p>让我们先来看看SearchSelect组件:</p>
+<figure>
+<pre><code>class SearchSelect extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            results: props.options
+        }
+    }
+
+    searchList(event) {
+      const results = this.props.filterMethod(this.props.options, event.target.value)
+        this.setState({ results })
+    }
+
+    render() {
+        return this.props.render({
+            results: this.state.results, 
+            searchList: (event) =&gt; this.searchList(event) 
+        })
+    }
+}</code></pre>
+</figure>
+<p>这是一个<em>无呈现的</em>组件(它不呈现自己的任何标记)。相反，它返回一个叫做<em>渲染道具</em>的特殊道具的结果。这个渲染属性接受一个对象，您可以将希望父组件能够访问的任何数据传递到该对象中。</p>
+<p>我们的SearchSelect组件处理最底层的功能——根据查询字符串过滤选项列表。然后它使用特殊的渲染属性来渲染一个元素。</p>
+<p>在父组件中，我们将一个函数传递给SearchSelect组件的render prop。该函数返回一个React元素，我们可以将它与SearchSelect组件本身的状态和行为结合起来。基本上，这意味着我们能够从父组件的子组件中访问数据。</p>
+<pre>import SearchSelect from './search-select'
+
+class Autocomplete extends React.Component {
+    constructor(props) {
+        super(props)
+    }
+
+    filterMethod (options, query) {
+        return options.filter(option =&gt; option.toLowerCase().includes(query.toLowerCase()))
+    }
+
+    render() {
+        return (
+            &lt;SearchSelect
+                options={this.props.options}
+                filterMethod={this.filterMethod}
+                render={({results, searchList}) =&gt; (
+                    &lt;div&gt;
+                        &lt;input
+                            type="text"
+                            placeholder="Type to search list"
+                            onChange={searchList}
+                        /&gt;
+                        &lt;ul&gt;
+                            {results.map(option =&gt; (
+                                &lt;li&gt;{option}&lt;/li&gt;
+                            ))}
+                        &lt;/ul&gt;
+                    &lt;/div&gt;
+                )}
+            /&gt;
+        )
+    }
+}</pre>
+<p>实现这一点的关键是我们传递给render prop函数的参数。看到我们是如何析构单个对象并在我们的标记中使用这些析构的属性了吗？当您在子组件中调用<code>this.props.render()</code>时，该对象应该作为参数传递。</p>
+<p>所有这一切意味着，我们可以编写任何我们想要的标记，只要我们用SearchSelect组件公开的数据和行为适当地混合它。</p>
+<p>另外，请注意我们是如何将过滤列表的方法作为一个属性传递进来的。这将允许我们更改选项列表的过滤方式，同时仍然使用SearchSelect组件。</p>
+<p>让我们看看如何实现类似标签的列表组件。我们使用相同的SearchSelect核心组件，只是更改了由render prop呈现的标记:</p>
+<pre>import SearchSelect from './search-select'
+
+class TagListSearch extends React.Component {
+    constructor(props) {
+        super(props)
+    }
+
+    filterMethod (options, query) {
+        return options.filter(option =&gt; option.toLowerCase().includes(query.toLowerCase()))
+    }
+
+    render() {
+        return (
+            &lt;SearchSelect
+                options={this.props.options}
+                filterMethod={this.filterMethod}
+                render={({results, searchList}) =&gt; (
+                    &lt;div className="tag-list-search"&gt;
+                        &lt;input
+                            type="text"
+                            placeholder="Type to search list"
+                            onChange={searchList}
+                        /&gt;
+                        &lt;ul className="tag-list"&gt;
+                            {results.map(result =&gt; (
+                                &lt;li className="tag" key={result}&gt;{result}&lt;/li&gt;
+                            ))}
+                        &lt;/ul&gt;
+                    &lt;/div&gt;
+                )}
+            /&gt;
+        )
+    }
+}</pre>
+<p>查看工作示例:</p>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="js,result" data-user="jonathanharrell" data-slug-hash="KeOmVV" data-pen-title="Reusable React Search Select with Render Props"><span>见<a href="https://codepen.io"> CodePen </a>上乔纳森·哈勒尔(<a href="https://codepen.io/jonathanharrell">@乔纳森·哈勒尔</a> ) <br/>的笔<a href="https://codepen.io/jonathanharrell/pen/KeOmVV/"> <br/>可重复使用React搜索选择带渲染道具</a>。</span></p>
+<p>Vue中的作用域插槽</p>
+<h3>现在让我们看看如何使用作用域插槽在Vue中实现这一点。首先，这是我们的SearchSelect组件(在这个例子中，我使用了全局注册的组件，但是在实际项目中，您可能应该使用单个文件组件):</h3>
+<p>如您所见，这看起来非常类似于React组件中的渲染道具。这里，我们返回一个默认的<em>作用域槽</em>，它传递一个我们想要的对象。在这里，我们给它的结果和我们的搜索方法。</p>
+<figure>
+<pre><code>Vue.component('search-select', {
+    props: [
+        'options',
+        'filterMethod'
+    ],
+
+    data () {
+        return {
+            query: ''
+        }
+    },
+
+    computed: {
+        results () {
+            return this.filterMethod(this.options, this.query)
+        }
+    },
+
+    methods: {
+        setQuery (event) {
+            this.query = event.target.value
+        }
+    },
+
+    render () {
+        return this.$scopedSlots.default({
+            results: this.results,
+            searchList: (event) =&gt; {
+                this.setQuery(event)
+            }
+        })
+    }
+})</code></pre>
+</figure>
+<p>在我们的Autocomplete组件中，我们使用<code>slot-scope</code>属性来访问子组件中的数据。我们可以析构通过的属性以便于访问，就像React render prop参数一样:</p>
+<p>查看工作示例:</p>
+<pre>Vue.component('autocomplete', {
+    data () {
+        return {
+            dropdownVisible: false
+        }
+    },
+
+    methods: {
+        filterMethod (options, query) {
+            return options.filter(option =&gt; option.toLowerCase().includes(query.toLowerCase()))
+        },
+
+        showDropdown () {
+            this.dropdownVisible = true
+        },
+
+        hideDropdown () {
+            this.dropdownVisible = false
+        }
+    },
+
+    template: `
+        &lt;search-select
+          :options="options"
+          :filterMethod="filterMethod"
+        &gt;
+            &lt;div slot-scope="{ results, searchList }"&gt;
+                &lt;div class="autocomplete"&gt;
+                    &lt;input
+                        type="text"
+                        placeholder="Type to search list"
+                        @input="searchList"
+                        @focus="showDropdown"
+                        @blur="hideDropdown"
+                    /&gt;
+                    &lt;div class="autocomplete-dropdown" v-if="dropdownVisible"&gt;
+                        &lt;ul class="autocomplete-search-results-list"&gt;
+                            &lt;li 
+                                class="autocomplete-search-result"
+                                v-for="result in results"
+                                :key="result"
+                            &gt;
+                                {{ result }}
+                            &lt;/li&gt;
+                        &lt;/ul&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/search-select&gt;
+    `
+})</pre>
+<p>参见<a href="https://codepen.io"> CodePen </a>上Jonathan Harrell(<a href="https://codepen.io/jonathanharrell">@ Jonathan Harrell</a>)<br/>的Pen <a href="https://codepen.io/jonathanharrell/pen/VdobNO/"> <br/>可重用Vue Search Select with Scoped slot</a>。</p>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="js,result" data-user="jonathanharrell" data-slug-hash="VdobNO" data-pen-title="Reusable Vue Search Select with Scoped Slots">渲染道具和作用域插槽的其他用途</p>
+<h3>创建可重用的接口组件并不是渲染道具和作用域插槽的唯一用途。下面是一些其他的想法，告诉你如何使用它们将可重用的行为封装到一个组件中，然后将该组件暴露给它的父组件。</h3>
+<p><strong>数据提供者组件</strong></p>
+<p>您可以使用render props/scoped slot来创建一个组件，该组件处理异步获取数据并向其父级公开该数据。这允许您隐藏访问端点、获取结果和处理可能的错误的逻辑，以及在数据获取过程中向用户显示加载状态。</p>
+<p>基本组件可能是这样的:</p>
+<p>它接受一个URL作为道具，并处理实际的获取逻辑。然后，我们在父组件中使用它:</p>
+<figure>
+<pre><code>class FetchData extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            loading: false,
+            results: [],
+            error: false
+        }
+    }
+
+    componentDidMount() {
+        this.fetchData(this.props.url)
+    }
+
+    fetchData(url) {
+        this.setState({ loading: true })
+
+        fetch(url)
+            .then(data =&gt; data.json())
+            .then(json =&gt; {
+                this.setState({ loading: false, results: json })
+            })
+            .catch(error =&gt; {
+                this.setState({ loading: false, error: true })
+            })
+    }
+
+    render() {
+        return this.props.render({
+            loading: this.state.loading,
+            results: this.state.results,
+            error: this.state.error
+        })
+    }
+}</code></pre>
+</figure>
+<p><strong>观察者(调整大小、相交等。)</strong></p>
+<pre>class App extends React.Component {
+    constructor(props) {
+        super(props)
+    }
+
+    render() {
+        return (
+            &lt;div className="wrapper"&gt;
+                &lt;FetchData
+                    url="https://jsonplaceholder.typicode.com/todos"
+                    render={({loading, results, error}) =&gt; (
+                        &lt;div&gt;
+                            {loading &amp;&amp; (
+                                &lt;p&gt;Loading...&lt;/p&gt;
+                            )}
+                            {results.length &gt; 0 &amp;&amp; (
+                                &lt;div className="results"&gt;
+                                    {results.map(result =&gt; (
+                                        &lt;p key={result.id}&gt;{result.title}&lt;/p&gt;
+                                    ))}
+                                &lt;/div&gt;
+                            )}
+                            {error &amp;&amp; (
+                                &lt;p&gt;There was a problem loading.&lt;/p&gt;
+                            )}
+                        &lt;/div&gt;
+                    )}
+                /&gt;
+            &lt;/div&gt;
+        )
+    }
+}</pre>
+<p>您还可以使用渲染道具/作用域插槽来创建一个组件，作为调整大小或相交观察点的包装器。该组件可以简单地向父组件公开元素的当前大小或交叉点。然后，您可以根据父类中的数据执行任何您需要的逻辑，保持关注点的良好分离。</p>
+<p>下面是一个观察自身大小并向其父级公开其高度和宽度的基本组件:</p>
+<p>我们使用<a href="https://github.com/wnr/element-resize-detector" target="_blank" rel="noopener noreferrer">元素大小调整检测器</a>库来监听元素大小的变化，并使用React ref来获取对实际DOM节点的引用。</p>
+<figure>
+<pre><code>class ObserveDimensions extends React.Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            width: null,
+            height: null
+        }
+        this.elementToObserve = React.createRef()
+    }
+
+    componentDidMount(nextProps) {
+        const erd = elementResizeDetectorMaker({ strategy: 'scroll' })
+
+        erd.listenTo(this.elementToObserve.current, element =&gt; {
+            this.setState({
+            width: element.offsetWidth,
+            height: element.offsetHeight
+        })
+    });
+    }
+
+    render() {
+        return (
+            
+                {this.props.render({
+                    width: this.state.width,
+                    height: this.state.height
+                })}
+            
+        )
+    }
+}</code></pre>
+</figure>
+<p>然后，我们可以在我们的应用程序中轻松使用该组件:</p>
+<p>结论</p>
+<pre>class App extends React.Component {
+    constructor(props) {
+        super(props)
+    }
+
+    render() {
+        return (
+            &lt;div className="wrapper"&gt;
+                &lt;ObserveDimensions
+                    render={({width, height}) =&gt; (
+                        &lt;div&gt;
+                            Width: {width}px
+                            Height: {height}px
+                        &lt;/div&gt;
+                    )}
+                /&gt;
+            &lt;/div&gt;
+        )
+    }
+}</pre>
+<h3>使用渲染道具和作用域插槽成功创建可重用组件的关键是能够正确地将<strong>行为</strong>与<strong>表示</strong>分开。每当你创建一个新的UI组件时，思考“这个组件的核心行为是什么？我能在其他地方使用这个吗？”</h3>
+<p>拥有一组使用渲染道具或作用域插槽的核心无渲染组件可以帮助您减少应用程序中的代码重复，并更仔细地考虑您的核心接口行为。</p>
+<p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</h2><p>. </p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p>LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675660750">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+<p vwo-el-id="28675661060">像用户一样体验您的Vue应用</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</h2><p>. </p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p><p>Modernize how you debug your Vue apps - <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a>.</p></div>
+
+
+</div>
+</div></div>
+<hr/>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

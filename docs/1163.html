@@ -1,0 +1,323 @@
+<html>
+<head>
+<title>How to choose the right Rust HTTP client - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何选择合适的Rust HTTP客户端- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/best-rust-http-client/#0001-01-01">https://blog.logrocket.com/best-rust-http-client/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:这篇Rust文章最后一次更新是在2022年12月21日，目的是更新代码，并包括不太知名但很有用的HTTP客户端，如Actix Web Client、rustify和tokio-curl。查看这篇文章，获得用reqwest库发出<a href="https://blog.logrocket.com/making-http-requests-rust-reqwest/"> HTTP请求的教程。</a></em></p>
+<p>HTTP客户端的重要性怎么强调都不为过，这就是为什么在为手头的任务选择合适的HTTP客户端时，您应该做足功课。根据您的项目所基于的技术栈或者您必须进行的HTTP调用的数量，某些库将非常适合您，而其他库可能会比它们的价值更麻烦。</p>
+<p>在本指南中，我们将介绍六种Rust HTTP客户端的主要功能:</p>
+<ol>
+<li><a href="#curl-rust">卷锈</a></li>
+<li><a href="#hyper">超级</a></li>
+<li><a href="#reqwest">请求西部</a></li>
+<li><a href="#isahc">伊萨克</a></li>
+<li><a href="#surf">冲浪</a></li>
+<li><a href="#ureq"> ureq </a></li>
+</ol>
+<p>我们还将演示如何对每个库发出GET和POST请求。我们开始吧！</p>
+<h2 id="curl-rust">1.卷曲锈病</h2>
+<p>curl-rust 为rust提供了<a href="https://curl.haxx.se/libcurl/"> libcurl </a>绑定，这意味着它包括了一个基于C的HTTP库接口。换句话说，您可以将libcurl的功能与Rust提供的额外安全层结合使用。</p>
+<p>如果你想完全停留在Rust领域，避免基于C的curl可能产生的问题，你可能想选择一个完全依赖Rust的库。重要的是，curl-rust不提供对异步请求的任何支持，这意味着它比任何异步请求都要慢，而且占用更多资源。</p>
+<p>我的建议是，只有在你确实需要使用curl的情况下才使用curl-rust——例如，如果你正在做一个依赖于不同技术栈并且已经集成了curl的项目。curl-rust附带了一些您并不总是需要的功能，比如支持Telnet、SMTP、FTP、IMAP或LDAP等传输协议。有更多的轻量级解决方案，为今天的web需求提供更多定制的功能。</p>
+<p>这里有一个使用curl-rust的POST请求的例子。请注意更复杂的语法:</p>
+<pre class="language-rust hljs">use std::io::Read;
+use curl::easy::Easy;
+
+fn main() {
+    let mut data = "this is the body".as_bytes();
+
+    let mut easy = Easy::new();
+    easy.url("http://www.example.com/upload").unwrap();
+    easy.post(true).unwrap();
+    easy.post_field_size(data.len() as u64).unwrap();
+
+    let mut transfer = easy.transfer();
+    transfer.read_function(|buf| {
+        Ok(data.read(buf).unwrap_or(0))
+    }).unwrap();
+    transfer.perform().unwrap();
+}
+</pre>
+<p>curl-rust的人气统计如下:</p>
+<ul>
+<li>GitHub stars: 880</li>
+<li>在<a href="https://crates.io/crates/curl"> crates.io </a>上的空前下载量:9818464</li>
+<li>最近下载(过去90天):1，191，182</li>
+</ul>
+<h2 id="hyper">2.高度紧张的</h2>
+<p>当高级库没有提供您正在寻找的所有功能时，查看一下<a href="https://github.com/hyperium/hyper"> hyper </a>库可能是个好主意。它是相对低级的，所以当你需要更高级的功能时它是完美的。</p>
+<p>我们将在本文中讨论的几个库都基于hyper。它的设计是异步的，提供了客户端和服务器端的API。这是一个可靠、可靠的库，在生产中广泛使用。</p>
+<p>如果你不需要hyper提供的任何高级功能，也许值得看看基于hyper的更高级的库。hyper旨在成为其他库和应用程序的构建模块。如果你想要一个更方便的HTTP客户端，hyper推荐看看<a href="https://github.com/seanmonstar/reqwest"> reqwest </a>,因为它是建立在hyper之上的(稍后会详细介绍)。</p>
+<p>此外，hyper拥有一个相当活跃的贡献者社区，甚至还运营着一个<a href="https://discord.gg/kkwpueZ"> Discord服务器</a>。<a href="https://hyper.rs/">官方网站</a>提供了几个指南来帮助你快速开始运行HTTP客户端或服务器。更多细节可以在API参考中找到—例如，<a href="https://docs.rs/hyper/0.13.7/hyper/body/index.html"> <code>Body</code> </a> <a href="https://docs.rs/hyper/0.13.7/hyper/body/index.html">对象</a>是如何实现的。</p>
+<p>下面是如何使用reqwest发出GET请求。首先，创建一个新的客户机对象，然后向它传递一个从中检索数据的URL。接下来，使用Rust支持的新的<code>await</code>语法来等待响应:</p>
+<pre class="language-rust hljs">use hyper::Client;
+
+let client = Client::new();
+
+// Parse an `http::Uri`...
+let uri = "http://httpbin.org/ip".parse()?;
+
+// Await the response...
+let resp = client.get(uri).await?;
+
+println!("Response: {}", resp.status());
+</pre>
+<p>以下是hyper的优势概述:</p>
+<ul>
+<li>HTTP/1和<a href="https://developers.google.com/web/fundamentals/performance/http2"> HTTP/2 </a>支持</li>
+<li>异步设计</li>
+<li>通过并发支持实现领先的性能</li>
+<li>经过良好测试的HTTP客户端</li>
+<li>广泛的生产用途</li>
+<li>客户端和服务器端API支持</li>
+</ul>
+<p>如果你在家记分:</p>
+<ul>
+<li>GitHub星级:10905</li>
+<li>在<a href="https://crates.io/crates/hyper"> crates.io </a>上的空前下载量:67138349</li>
+<li>最近下载(过去90天):8，981，728次</li>
+</ul>
+<h2 id="reqwest">3.reqwest</h2>
+<p>如果您正在寻找一个更高级的HTTP客户端，<a href="https://github.com/seanmonstar/reqwest"> reqwest </a>可能会满足您的需求。该库提供了一个基于超级库的HTTP客户端。</p>
+<p>默认情况下，reqwest包含一个能够发出异步请求的客户端。但是，如果您只需要进行少量的HTTP调用，并且不想增加使用异步函数的复杂性，那么也可以对它进行配置，以便使用“阻塞”客户端。这是一个极好的特性。</p>
+<p>HTTP代理、可定制的重定向策略和对cookies的支持等特性使reqwest在便利性方面成为首选。这个cookie存储对于身份验证非常有用。</p>
+<p>这个来自<a href="https://docs.rs/reqwest/0.10.7/reqwest/">官方文档</a>的例子展示了如何进行GET和POST请求。如您所见，语法非常简单:</p>
+<pre class="language-rust hljs">// 1. GET
+let body = reqwest::get("https://www.rust-lang.org")
+    .await?
+    .text()
+    .await?;
+
+println!("body = {:?}", body);
+
+// 2. POST
+let client = reqwest::Client::new();
+let res = client.post("http://httpbin.org/post")
+    .body("the exact body that is sent")
+    .send()
+    .await?;
+</pre>
+<p>总而言之，reqwest提供了以下突出特点:</p>
+<ul>
+<li>异步和阻塞客户端</li>
+<li>支持普通体、JSON、<a href="https://www.urlencoder.io/learn/"> urlencoded </a>和多部分数据</li>
+<li>可定制的重定向策略</li>
+<li>HTTP代理</li>
+<li>使用系统本机TLS</li>
+<li>饼干</li>
+</ul>
+<p>至于它的受欢迎程度:</p>
+<ul>
+<li>GitHub星级:6693</li>
+<li>在<a href="https://crates.io/crates/reqwest"> crates.io </a>上的空前下载量:42958476</li>
+<li>最近下载(过去90天):6，447，770次</li>
+</ul>
+<h2 id="isahc">4.Isahc</h2>
+<p>与reqwest非常相似，<a href="https://github.com/sagebind/isahc/"> Isahc </a>提供了一个包含异步和同步方法的高级HTTP客户端。然而，与reqwest不同，Isahc在引擎盖下使用curl。如果您想要一个需要保持与curl兼容的客户机，这可能会很有用。它还提供了使用一个稳定的、积极开发的、流行的库的所有好处。</p>
+<p>下面是一个简单的同步GET请求的例子。特别是，<code>status</code>、<code>headers</code>和<code>text</code>函数使得从响应对象中检索常用信息变得非常容易:</p>
+<pre class="language-rust hljs">use isahc::prelude::*;
+
+fn main() -&gt; Result&lt;(), isahc::Error&gt; {
+    // Send a GET request and wait for the response headers.
+    // Must be `mut` so we can read the response body.
+    let mut response = isahc::get("http://example.org")?;
+
+    // Print some basic info about the response to standard output.
+    println!("Status: {}", response.status());
+    println!("Headers: {:#?}", response.headers());
+
+    // Read the response body as text into a string and print it.
+    print!("{}", response.text()?);
+
+    Ok(())
+}
+</pre>
+<p>让我们来看看Isahc最显著的特点:</p>
+<ul>
+<li>完全支持HTTP/1.1和HTTP/2</li>
+<li>可配置的请求超时</li>
+<li>完全异步的内核，对请求和响应体进行异步和增量读写</li>
+<li>支持异步/等待的同步和异步API</li>
+<li>会话和cookie持久性</li>
+</ul>
+<p>以下数据显示了Isahc的相对受欢迎程度:</p>
+<ul>
+<li>GitHub stars: 595</li>
+<li>在<a href="https://crates.io/crates/isahc"> crates.io </a>上的空前下载量:2，514，510</li>
+<li>最近下载(过去90天):438，357</li>
+</ul>
+<h2 id="surf">5.冲浪</h2>
+<p>Surf是一个完全模块化的客户端，采用异步设计。它可以通过强大的中间件系统进行扩展。默认的本地客户端使用curl，但是您也可以使用<a href="https://github.com/php-http/curl-client"> curl-client </a>。</p>
+<p>curl-client通过Isahc使用curl作为HTTP服务器。如果您不想使用基于curl的客户端，您可以选择使用hyper-client，它使用hyper作为HTTP服务器。</p>
+<p>下面是一个简单的中间件示例，它打印了每个请求的详细信息。如您所见，它使用了经典的<code>req</code>、<code>client</code>和<code>next</code>参数，您可以在许多其他HTTP客户端中找到这些参数。<code>next</code>参数允许您将请求传递给另一个中间件模块或请求一个处理程序:</p>
+<pre class="language-rust hljs">use futures::future::BoxFuture;
+use surf::middleware::{Next, Middleware, Request, Response, HttpClient};
+use std::time;
+
+/// Log each request's duration
+#[derive(Debug)]
+pub struct Logger;
+
+impl&lt;C: HttpClient&gt; Middleware&lt;C&gt; for Logger {
+    fn handle&lt;'a&gt;(
+        &amp;'a self,
+        req: Request,
+        client: C,
+        next: Next&lt;'a, C&gt;,
+    ) -&gt; BoxFuture&lt;'a, Result&lt;Response, surf::Exception&gt;&gt; {
+        Box::pin(async move {
+            println!("sending request to {}", req.uri());
+            let now = time::Instant::now();
+            let res = next.run(req, client).await?;
+            println!("request completed ({:?})", now.elapsed());
+            Ok(res)
+        })
+    }
+}
+</pre>
+<p>下面是一个使用Surf的简单GET请求示例:</p>
+<pre class="language-rust hljs">#[tokio::main]
+async fn main() -&gt; Result&lt;(), surf::Error&gt; {
+    let mut res = surf::get("https://httpbin.org/get").await?;
+    println!("{}", res.body_string().await?);
+    Ok(())
+}
+</pre>
+<p>要运行该程序，您需要以下依赖项:</p>
+<pre class="language-rust hljs">surf = "2.3"
+tokio = { version = "1", features = ["full"] }
+</pre>
+<p>分区域资源中心的显著特点包括:</p>
+<ul>
+<li>可通过强大的中间件系统进行扩展</li>
+<li>通过客户端界面重用连接</li>
+<li>完全流式请求和响应</li>
+<li>默认启用TLS/SSL</li>
+<li>默认情况下启用HTTP/2</li>
+</ul>
+<p>至于它的受欢迎程度:</p>
+<ul>
+<li>GitHub星级:1332</li>
+<li>在<a href="https://crates.io/crates/surf"> crates.io </a>上的空前下载量:1406370</li>
+<li>最近下载(过去90天):222，065</li>
+</ul>
+<h2 id="ureq">6.ureq</h2>
+<p>ureq是一个最小请求库，如果你对最小依赖树感兴趣的话，它会很有用。它是为了方便而设计的，并提供了一个阻塞API来简化事情。它没有使用任何不安全的Rust，这对于想要坚持使用<a href="https://doc.rust-lang.org/nomicon/meet-safe-and-unsafe.html#:~:text=Rust%20can%20be%20thought%20of,do%20some%20really%20unsafe%20things.">安全Rust </a>的开发者来说很好。</p>
+<p>如果您重视编译时间，ureq是一个特别好的选择。它不使用curl服务器，也不提供异步功能。这些都是有意省略的，以尽可能保持库的最小化和轻量级。因此，在撰写本文时，还没有迁移到异步功能的计划。</p>
+<p>下面是一个使用ureq的GET请求的小例子。请注意设置标题和发出请求的简单性:</p>
+<pre class="language-rust hljs">fn main() -&gt; Result&lt;(), ureq::Error&gt; {
+    let body: String = ureq::get("http://example.com")
+        .set("Example-Header", "header value")
+        .call()?
+        .into_string()?;
+    Ok(())
+}
+</pre>
+<p>重申一下，ureq的主要特点包括:</p>
+<ul>
+<li>最小依赖树</li>
+<li>简单的API设计</li>
+<li>仅阻止API</li>
+<li>不使用不安全的铁锈</li>
+</ul>
+<p>最后，我们来看一下ureq的人气:</p>
+<ul>
+<li>GitHub星级:1153</li>
+<li>在<a href="https://crates.io/crates/ureq"> crates.io </a>上的空前下载量:5579564</li>
+<li>最近下载次数(过去90天):1，071，415次</li>
+</ul>
+<h2 id="honorable-mentions">荣誉奖</h2>
+<p>如果您正在寻找在Rust中构建HTTP客户端的流行库之外的选项，那么您很幸运！以下是其他不太知名的图书馆，您在探索选择时可能会考虑:</p>
+<h3 id="actix-web-client">Actix Web客户端</h3>
+<p>Actix Web Client是一个在Rust中构建HTTP客户端的流行库。Actix Web Client以其<a href="https://crates.io/crates/awc">速度和效率</a>而闻名，是在Rust中构建Web应用程序的强大而实用的选择。下面是一个运行中的库示例:</p>
+<pre class="language-rust hljs">// create client
+let mut client = awc::Client::default();
+
+// construct request
+let req = client.get("http://www.rust-lang.org")
+    .insert_header(("User-Agent", "awc/3.0"));
+
+// send request and await response
+let res = req.send().await?;
+println!("Response: {:?}", res);
+</pre>
+<h3 id="rustify">证明合法</h3>
+<p>rustify是一个轻量级的灵活的库，用于在Rust中构建HTTP客户端。它有助于简化搭建HTTP APIs的过程，并为构建和使用HTTP端点提供了一系列特性。</p>
+<p>Rustify支持异步和同步客户端，并允许使用所提供的客户端特征进行定制客户端实现。Rustify还支持序列化请求、反序列化响应以及处理原始请求和响应数据。它包括各种处理请求的助手，比如中间件支持和响应包装。</p>
+<p>下面是一个用Rustify创建的简单客户端:</p>
+<pre class="language-rust hljs">use rustify::{Client, Endpoint};
+use rustify_derive::Endpoint;
+
+// Defines an API endpoint at /test/path that takes no inputs and returns an
+// empty response.
+#[derive(Endpoint)]
+#[endpoint(path = "test/path")]
+struct Test {}
+
+let endpoint = Test {};
+let client = Client::default("http://api.com"); // Configures base address of http://api.com
+let result = endpoint.exec(&amp;client).await; // Sends GET request to http://api.com/test/path
+
+assert!(result.is_ok());
+</pre>
+<h3 id="tokio-curl">托基奥卷曲</h3>
+<p>如果您对在Rust中构建异步HTTP客户端感兴趣，那么<a href="https://github.com/alexcrichton/tokio-curl"> tokio-curl </a>可能值得考虑。这个库为libcurl HTTP库提供了一个基于未来的接口，libcurl HTTP库是一个用于发送HTTP请求的广泛使用且备受推崇的C库。</p>
+<p>通过构建在Rust中的libcurl之上，tokio-curl允许您利用这个库的功能和稳定性，同时利用Rust的tokio库提供的异步编程模型。</p>
+<p>无论您是需要发送简单的HTTP请求，还是需要发送带有自定义头和认证的更复杂的请求，tokio-curl都提供了一系列的特性和选项来帮助您完成任务。如果您正在寻找一种可靠而高效的方式在Rust中构建异步HTTP客户端，tokio-curl绝对值得一试。请参见下面的库操作:</p>
+<pre class="language-rust hljs">extern crate curl;
+extern crate futures;
+extern crate tokio_core;
+extern crate tokio_curl;
+
+use std::io::{self, Write};
+
+use curl::easy::Easy;
+use futures::Future;
+use tokio_core::reactor::Core;
+use tokio_curl::Session;
+
+fn main() {
+    // Create an event loop that we'll run on, as well as an HTTP `Session`
+    // which we'll be routing all requests through.
+    let mut lp = Core::new().unwrap();
+    let session = Session::new(lp.handle());
+
+    // Prepare the HTTP request to be sent.
+    let mut req = Easy::new();
+    req.get(true).unwrap();
+    req.url("https://www.rust-lang.org").unwrap();
+    req.write_function(|data| {
+        io::stdout().write_all(data).unwrap();
+        Ok(data.len())
+    }).unwrap();
+
+    // Once we've got our session, issue an HTTP request to download the
+    // rust-lang home page
+    let request = session.perform(req);
+
+    // Execute the request, and print the response code as well as the error
+    // that happened (if any).
+    let mut req = lp.run(request).unwrap();
+    println!("{:?}", req.response_code());
+}
+</pre>
+<h2 id="choosing-best-rust-http-client">选择最好的Rust HTTP客户端</h2>
+<p>如果你想要Rust中的低级HTTP库，我推荐用hyper。它已经可以生产了，并且完全是用Rust编写的，所以你不必太担心安全问题。此外，它是唯一提到生产就绪的库。</p>
+<p>对于更高级的HTTP库，我会选择reqwest。该库建立在hyper之上，因此它提供了许多与hyper相同的优点，并且具有更方便的启动语法。</p>
+<p>在本指南中，我们谈到了在许多其他情况下有用的其他库。如果你必须使用curl，你应该探索curl-rust，Isahc，甚至Surf。如果你正在寻找一个轻量级的库，它不会增加很多编译时间，ureq是一个不错的选择。但是，请注意，ureq只支持同步请求。</p>
+<p>希望这种比较能够帮助您为下一个Rust项目选择最佳的HTTP客户端。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

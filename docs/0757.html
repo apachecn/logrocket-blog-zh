@@ -1,0 +1,882 @@
+<html>
+<head>
+<title>Integrate TypeScript with GraphQL using TypeGraphQL - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用TypeGraphQL - LogRocket博客将TypeScript与GraphQL集成</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/#0001-01-01">https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:这篇文章最后一次更新是在2022年11月18日，回答了关于在GraphQL中使用TypeScript的流行问题，并提供了更多GraphQL特性的信息，如别名和日期标量。更多使用GraphQL和TypeScript的例子，请查看这些教程:<a href="https://blog.logrocket.com/build-graphql-react-app-typescript/">用TypeScript构建graph QL+React app</a>和<a href="https://blog.logrocket.com/build-graphql-typegraphql-typeorm/">用TypeGraphQL和TypeORM构建GraphQL APIs】。</a></em></p>
+<p>TypeScript是JavaScript的一个类型化超集，旨在解决用JavaScript编写应用程序的许多棘手问题。</p>
+<p>GraphQL是一种用于API的查询语言，它使用其类型系统来描述数据字段，防止过度提取和不足提取。此外，GraphQL在<a href="https://blog.logrocket.com/versioning-fields-graphql/"> API版本控制</a>方面也有很大帮助。</p>
+<p>在本教程中，我们将使用<a href="https://typegraphql.com/"> TypeGraphQL </a>库构建一个API来集成TypeScript和GraphQL，这简化了在Node.js中创建GraphQL APIs。</p>
+<p>我们将涵盖:</p>
+
+<h2 id="typescript-graphql">为什么要在GraphQL中使用TypeScript？</h2>
+<p>GraphQL通过两个核心组件运行:</p>
+<ul>
+<li>模式对象形式的类型定义</li>
+<li>解析器，是填充为模式返回的数据的JavaScript函数</li>
+</ul>
+<p>模式对象定义了API中可以查询的属性，但是解析器不理解模式类型。这就是TypeScript的用武之地！通过使用编译成JavaScript的TypeScript，我们可以为我们的解析器定义匹配我们的模式的类型，防止不匹配。</p>
+<h2 id="typegraphql-typescript-graphql">使用TypeGraphQL将TypeScript与GraphQL一起使用</h2>
+<p>前面，我们讨论了TypeScript如何以一种模式定义的方式解决让解析器知道的问题。嗯，<a href="https://typegraphql.com/"> TypeGraphQl库</a>让这变得更加容易！</p>
+<p>TypeGraphQL使用decoratorss从TypeScript类自动创建GraphQL模式定义，decorator是与反射一起引入的，以避免对模式定义文件的需要。这样，我们只需要定义解析器类型，我们的GraphQL模式就会生成。</p>
+<p>尽管我们可以根据项目的需求编写定制的装饰器来满足我们的特定需求，但是对于本教程来说，为TypeGraphQL提供的装饰器就足够了。</p>
+<h2 id="prerequisites">先决条件</h2>
+<p>要跟随本教程，您需要:</p>
+<ul>
+<li>熟悉TypeScript和GraphQL</li>
+<li>安装在计算机上的Node.js</li>
+<li>在您的计算机上全局安装的TypeScript</li>
+</ul>
+<p>要安装TypeScript，可以在终端或命令提示符下使用npm或Yarn运行以下命令:</p>
+<pre class="language-bash hljs">npm install -g typescript
+</pre>
+<p>上面的命令在我们的系统路径上安装了最新的TypeScript编译器<code>tsc</code>，这在我们编译和运行代码时会很有用。<code>tsc</code>获取一个以<code>.ts</code>扩展名结尾的类型脚本文件，并返回一个扩展名为<code>.js</code>的等价JavaScript文件。稍后我们将了解关于这个命令的更多信息。</p>
+<p>你可以在<a href="https://github.com/finallyayo/typescript-graphql"> GitHub repo </a>上获得本教程的完整代码。</p>
+<p>我们开始吧！</p>
+<h2 id="bootstrapping-typescript-graphql-application">引导我们的TypeScript GraphQL应用程序</h2>
+<p>首先，让我们创建一个新目录，并将其命名为。然后我们可以用<code>npm init</code>命令初始化一个新的<code>package.json</code>文件。接下来，我们将安装我们的项目依赖项。</p>
+<h2 id="installing-dependencies">安装依赖项</h2>
+<p>现在，让我们安装项目所需的依赖项。在终端中运行以下命令:</p>
+<pre class="language-bash hljs">npm install type-graphql reflect-metadata graphql express class-validator apollo-server-express apollo-server-core mongoose @typegoose/typegoose --save
+</pre>
+<p>让我们解释一下这些必需的依赖项以及我们为什么需要它们。</p>
+<p>如前所述，我们将使用<code>type-graphql</code>框架用TypeScript和GraphQL构建我们的API:</p>
+<blockquote><p>💡TypeGraphQL包括自动验证、依赖注入、授权和继承等高级特性，它允许我们使用TypeScript类和decorators定义我们的GraphQL模式类型和接口。</p></blockquote>
+<p><code>reflect-metadata</code>包为支持类型脚本的<a href="https://github.com/rbuckton/ReflectDecorators">实验元数据API </a>添加了一个polyfill。目前，TypeScript包括<a href="https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata">实验支持</a>，用于为具有装饰器的声明发出某些类型的元数据，这意味着我们需要在我们的<code>tsconfig.json</code>文件中启用对这个库的支持。</p>
+<p><a href="https://www.npmjs.com/package/apollo-server-express"> <code>apollo-server-express</code> </a>是GraphQL服务器的<code>express</code>和<code>connect</code>集成，我们将用它来引导一个简单的GraphQL服务器。</p>
+<p><code><a href="https://typegraphql.com/docs/validation.html">class-validator</a></code>库允许在TypeGraphQL中使用decorator和非基于decorator的验证来验证我们的模式字段。</p>
+<p><a href="https://www.npmjs.com/package/mongoose"> <code>mongoose</code> </a>包是MongoDB对象数据映射器(ODM)，而<code><a href="https://github.com/typegoose/typegoose">@typegoose/typegoose</a></code>允许我们使用类型脚本类定义Mongoose模型。</p>
+<p>现在，让我们安装以下类型脚本类型作为开发依赖:<a href="https://www.npmjs.com/package/@types/express"> <code>types/express</code> </a>和<code><a href="https://www.npmjs.com/package/@types/node">@types/node</a></code>。此外，我们应该添加<code>typescript</code>、<code>nodemon</code>和<code>ts-node</code>，这是Node.js的一个类型脚本执行环境</p>
+<p>运行以下命令:</p>
+<pre class="language-bash hljs">npm install types/express @types/node typescript ts-node nodemon --save-dev
+</pre>
+<p>当我们安装完项目的依赖项后，我们的<code>package.json</code>文件将看起来像下面的代码块:</p>
+<pre class="language-json hljs">{
+  "name": "typscript-graphql-logrocket-tutorial",
+  "version": "1.0.0",
+  "description": "A typscript and graphql Tutorial",
+  "main": "server.js",
+  "scripts": {
+    "start": "npm run serve",
+    "serve": "node dist/server.js",
+    "watch-node": "nodemon dist/server.js",
+    "build-ts": "tsc",
+    "watch-ts": "tsc -w",
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [
+    "TypeScript",
+    "GraphQL",
+    "NodeJS",
+    "JavaScript"
+  ],
+  "author": "Alexander Nnakwue",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/express": "^4.17.3",
+    "@types/graphql": "^14.5.0",
+    "@types/node": "^13.9.0",
+    "nodemon": "^2.0.2",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "@typegoose/typegoose": "^6.4.0",
+    "apollo-server-express": "^2.11.0",
+    "class-validator": "^0.11.0",
+    "express": "^4.17.1",
+    "graphql": "^14.6.0",
+    "reflect-metadata": "^0.1.13",
+    "type-graphql": "^0.17.6"
+  }
+}</pre>
+<p>接下来，我们需要设置我们的<code>tsconfig.json</code>文件，该文件提供了应该如何配置我们的TypeScript项目的指令。您可以访问TypeGraphQL 所需的<a href="https://typegraphql.com/docs/installation.html#typescript-configuration">类型脚本配置。</a></p>
+<p>在<code>tsconfig.json</code>中，我们可以指定选项来编译我们的<code>.ts</code>文件以及我们项目的根文件。每当我们运行<code>tsc</code>命令时，在我们的例子中是<code>npm run build</code>运行它，编译器将首先检查这个文件中的特殊指令，然后继续编译。</p>
+<p>要创建我们的<code>tsconfig.json</code>文件，我们可以运行<code>tsc --init</code>命令，这将创建一个新的配置文件，其中包含许多默认值和注释，为了简洁起见，我们已经省略了这些内容。现在，我们的<code>tsconfig</code>文件看起来像下面的代码块:</p>
+<pre class="language-typescript hljs">  {
+    "compilerOptions": {
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "target": "es2016",  // or newer if your node.js version supports this
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "skipLibCheck": true,
+        "declaration": false,
+        "noFallthroughCasesInSwitch": true,
+        "composite": false,
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+        "lib": ["dom", "es2016", "esnext.asynciterable"],
+        "sourceMap": true,
+        "emitDecoratorMetadata": true,
+        "strict": false,
+        "experimentalDecorators": true,
+        "outDir": "dist",
+        "rootDir": "app",
+        "baseUrl": ".",
+        "paths": {
+            "*": [
+                "node_modules/*",
+                "app/types/*"
+            ]
+        }
+    },
+    "include": [
+        "app/**/*", "./app/**/*.ts", "./app/**/*.tsx"
+    ]
+}
+</pre>
+<blockquote><p>注意:这些配置选项的详细解释和含义可以在文档中找到。</p></blockquote>
+<h2 id="apollo-server">设置我们的阿波罗服务器</h2>
+<p>现在我们已经安装了我们的依赖项，我们将使用之前安装的<code>apollo-server-express</code>包来设置我们的Apollo服务器。在此之前，我们将在项目目录中创建新的应用程序目录。目录的内容应该如下图所示:</p>
+<p><img data-attachment-id="142658" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/apollo-directory-app-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png" data-orig-size="412,216" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Apollo directory app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png" decoding="async" class="aligncenter size-full wp-image-142658 jetpack-lazy-image" src="../Images/21dc1784c3a8b9783599960dcc5dbda5.png" alt="Apollo Directory App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png 412w, https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app-300x157.png 300w" data-lazy-sizes="(max-width: 412px) 100vw, 412px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142658" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/apollo-directory-app-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png" data-orig-size="412,216" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Apollo directory app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142658" src="../Images/21dc1784c3a8b9783599960dcc5dbda5.png" alt="Apollo Directory App" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png 412w, https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app-300x157.png 300w" sizes="(max-width: 412px) 100vw, 412px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/apollo-directory-app.png"/></noscript>
+<p>在我们的<code>server.ts</code>文件中，我们将使用Express设置我们的Apollo服务器。包含所有导入的文件内容应该如下所示:</p>
+<pre class="language-typescript hljs">// server.ts
+
+import { ApolloServer } from 'apollo-server-express';
+import { ApolloServerPluginLandingPageGraphQLPlayground } from 'apollo-server-core';
+import Express from 'express';
+import 'reflect-metadata';
+import { buildSchema } from 'type-graphql';
+import { connect } from 'mongoose';
+
+import { UserResolver } from './resolvers/User';
+import { ProductResolver } from './resolvers/Product';
+import { CategoriesResolver } from './resolvers/Categories';
+import { CartResolver } from './resolvers/Cart';
+import { OrderResolver } from './resolvers/Order';
+
+const main = async () =&gt; {
+  const schema = await buildSchema({
+    resolvers: [
+      CategoriesResolver,
+      ProductResolver,
+      UserResolver,
+      CartResolver,
+      OrderResolver,
+    ],
+    emitSchemaFile: true,
+    validate: false,
+  });
+
+  // create mongoose connection
+  const mongoose = await connect('mongodb://localhost:27017/test');
+  await mongoose.connection;
+
+  const server = new ApolloServer({
+    schema,
+    plugins: [ ApolloServerPluginLandingPageGraphQLPlayground ],
+  });
+
+  const app = Express();
+
+  await server.start();
+
+  server.applyMiddleware({ app });
+
+  app.listen({ port: 3333 }, () =&gt;
+    console.log(
+      `🚀 Server ready and listening at ==&gt; http://localhost:3333${server.graphqlPath}`
+    )
+  );
+};
+
+main().catch((error) =&gt; {
+  console.log(error, 'error');
+});
+</pre>
+<blockquote><p>💡在导入<code>type-graphql</code>之前导入<code>reflect-metadata</code>是很重要的。</p></blockquote>
+<p>TypeGraphQL的<code><a href="https://graphql.org/graphql-js/utilities/">buildSchema</a></code>包允许我们从TypeGraphQL的定义中构建我们的模式。<code>buildSchema</code>方法的通常签名如下:</p>
+<pre class="language-javascript hljs">const schema = await buildSchema({
+  resolvers: [Resolver],
+});
+</pre>
+<p>在上面的代码中，我们从<code>app/resolver</code>文件夹中导入解析器，并将它们传递到函数定义中的<code>resolvers</code>字段的数组中。</p>
+<p>当我们运行<code>npm run build-tsc</code>命令时，<code>emitSchemaFile</code>字段允许我们将GraphQL模式放到一个<code>schema.gql</code>文件中。</p>
+<p><code>schema.gql</code>生成后，看起来会像:</p>
+<pre class="language-graphql hljs"># -----------------------------------------------
+# !!! THIS FILE WAS GENERATED BY TYPE-GRAPHQL !!!
+# !!!   DO NOT MODIFY THIS FILE BY YOURSELF   !!!
+# -----------------------------------------------
+
+"""The  Cart model"""
+type Cart {
+  id: ID!
+  products: String!
+  product: Product!
+}
+
+input CartInput {
+  products: ID!
+}
+
+"""The Categories model"""
+type Categories {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+input CategoriesInput {
+  name: String!
+  description: String!
+}
+
+"""
+The javascript `Date` as string. Type represents date and time as the ISO Date string.
+"""
+scalar DateTime
+
+type Mutation {
+  createUser(data: UserInput!): User!
+  deleteUser(id: String!): Boolean!
+  createProduct(data: ProductInput!): Product!
+  deleteProduct(id: String!): Boolean!
+  createCategory(data: CategoriesInput!): Categories!
+  deleteCategory(id: String!): Boolean!
+  createCart(data: CartInput!): Cart!
+  deleteCart(id: String!): Boolean!
+  createOrder(data: OrderInput!): Order!
+  deleteOrder(id: String!): Boolean!
+}
+
+"""The Order model"""
+type Order {
+  id: ID!
+  user_id: String!
+  payde: Boolean!
+  date: DateTime!
+  products: Product!
+}
+
+input OrderInput {
+  user_id: String!
+  payde: Boolean!
+  date: DateTime!
+}
+
+"""The Product model"""
+type Product {
+  id: ID!
+  name: String!
+  description: String!
+  color: String!
+  stock: Int!
+  price: Int!
+  category_id: String!
+  category: Categories!
+}
+
+input ProductInput {
+  name: String!
+  description: String!
+  color: String!
+  stock: Float!
+  price: Float!
+  category_id: String!
+}
+
+type Query {
+  returnSingleUser(id: String!): User!
+  returnAllUsers: [User!]!
+  returnSingleProduct(id: String!): Order!
+  returnAllProduct: [Product!]!
+  returnSingleCategory(id: String!): Categories!
+  returnAllCategories: [Categories!]!
+  returnSingleCart(id: String!): Cart!
+  returnAllCart: [Cart!]!
+  returnAllOrder: [Order!]!
+}
+
+"""The User model"""
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  cart_id: String!
+  cart: Cart!
+}
+
+input UserInput {
+  username: String!
+  email: String!
+  cart_id: ID!
+}
+</pre>
+<h2 id="typegraphql-database-schema-fields">TypeGraphQL数据库模式字段</h2>
+<p>我们的<code>schema.gql</code>文件中的内容基于我们不同数据库实体的模式字段，存储在<code>entities</code>文件夹中。</p>
+<p>让我们看看这些文件的内容:</p>
+<pre class="language-typescript hljs">// app/entities/Categories.ts
+import { ObjectType, Field, ID } from 'type-graphql';
+import { prop as Property, getModelForClass } from '@typegoose/typegoose';
+
+@ObjectType({ description: 'The Categories model' })
+export class Categories {
+  @Field(() =&gt; ID)
+  id: string;
+
+  @Field()
+  @Property()
+  name: String;
+
+  @Field()
+  @Property()
+  description: String;
+}
+
+export const CategoriesModel = getModelForClass(Categories);
+
+
+// app/entities/Product.ts
+import { ObjectType, Field, ID, Int } from 'type-graphql';
+import { prop as Property, getModelForClass } from '@typegoose/typegoose';
+import { Ref } from '../types';
+import { Categories } from './Categories';
+import { __Type } from 'graphql';
+
+@ObjectType({ description: 'The Product model' })
+export class Product {
+  @Field(() =&gt; ID)
+  id: String;
+
+  @Field()
+  @Property()
+  name: String;
+
+  @Field()
+  @Property()
+  description: String;
+
+  @Field()
+  @Property()
+  color: String;
+
+  @Field((_type) =&gt; Int)
+  @Property()
+  stock: number;
+
+  @Field((_type) =&gt; Int)
+  @Property()
+  price: number;
+
+  @Field((_type) =&gt; String)
+  @Property({ ref: Categories })
+  category_id: Ref&lt;Categories&gt;;
+  _doc: any;
+}
+
+export const ProductModel = getModelForClass(Product);
+
+
+// app/entities/Cart.ts
+import { ObjectType, Field, ID } from 'type-graphql';
+import { prop as Property, getModelForClass } from '@typegoose/typegoose';
+
+import { Ref } from '../types';
+
+import { Product } from './Product';
+
+@ObjectType({ description: 'The  Cart model' })
+export class Cart {
+  @Field(() =&gt; ID)
+  id: string;
+
+  @Field((_type) =&gt; String)
+  @Property({ ref: Product, required: true })
+  products: Ref&lt;Product&gt;;
+  _doc: any;
+}
+
+export const CartModel = getModelForClass(Cart);
+
+
+// app/entities/User.ts
+import { ObjectType, Field, ID } from 'type-graphql';
+import { prop as Property, getModelForClass } from '@typegoose/typegoose';
+
+import { Ref } from '../types';
+
+import { Cart } from './Cart';
+
+@ObjectType({ description: 'The User model' })
+export class User {
+  [x: string]: any;
+  @Field(() =&gt; ID)
+  id: number;
+
+  @Field()
+  @Property({ required: true })
+  username: String;
+
+  @Field()
+  @Property({ required: true })
+  email: String;
+
+  @Field((_type) =&gt; String)
+  @Property({ ref: Cart, required: true })
+  cart_id: Ref&lt;Cart&gt;;
+}
+
+export const UserModel = getModelForClass(User);
+
+
+// app/entities/Order.ts
+import { ObjectType, Field, ID } from 'type-graphql';
+import { prop as Property, getModelForClass } from '@typegoose/typegoose';
+
+import { Ref } from '../types';
+
+import { Product } from './Product';
+
+@ObjectType({ description: 'The Order model' })
+export class Order {
+  @Field(() =&gt; ID)
+  id: String;
+
+  @Field()
+  @Property({ nullable: true })
+  user_id: String;
+
+  @Field()
+  @Property({ required: true })
+  payde: Boolean;
+
+  @Field()
+  @Property({ default: new Date(), required: true, nullable: true })
+  date: Date;
+
+  // @Field(_type =&gt; Product)
+  @Property({ ref: Product, required: true })
+  products: Ref&lt;Product&gt;;
+  _doc: any;
+}
+
+export const OrderModel = getModelForClass(Order);
+</pre>
+<p>在上面的文件中，我们从<code>type-graphql</code>导入了<code>ObjectType</code>、<code>Field</code>、<code>ID</code>和<code>Int</code>。</p>
+<p><code>Field</code> decorator用于声明应该映射到GraphQL字段的类属性。它还用于从TypeScript反射系统收集元数据。</p>
+<p><code>ObjectType</code>装饰器将该类标记为来自<code>graphql-js</code>的<code><a href="https://graphql.org/graphql-js/type/#graphqlobjecttype">GraphQLObjectType</a></code>。</p>
+<p>此外，我们从<code>@typegoose/typegoose</code>包中导入了<code>Property</code>装饰器和<code>getModelForClass</code>方法。</p>
+<p><a href="https://typegoose.github.io/typegoose/docs/api/decorators/prop/"> <code>PropertyDecorator</code> </a>用于设置类中的属性，没有它只是一个类型，不会出现在最终的模型中。</p>
+<p><code>Int</code>和<code>ID</code>是三个基本GraphQL标量的别名，<code>getModelForClass</code>方法用于获取给定类的模型。</p>
+<p>最后，我们从app文件夹的<code>types.ts</code>文件中导入<code>Refs</code>，从MongoDB中导入<a href="https://docs.mongodb.com/manual/reference/method/ObjectId/"> <code>ObjectId</code> </a>:</p>
+<pre class="language-typescript hljs">// app/types.ts
+import { ObjectId } from 'mongodb';
+
+export type Ref&lt;T&gt; = T | ObjectId;
+</pre>
+<p>类型<code>Ref&lt;T&gt;</code>是用于引用的类型。它还附带了用于验证这些引用的typeguards。</p>
+<h2 id="typegraphql-resolvers-input-types">TypeGraphQL解析器和输入类型</h2>
+<p>创建一个名为<code>resolver</code>的新文件夹，它将包含另一个名为<code>types</code>的文件夹。在<code>types</code>中，我们将添加不同旋变器输入的类型。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<blockquote><p>输入类型定义了为GraphQL突变创建条目所需的数据。</p></blockquote>
+<p>输入文件如下所示:</p>
+<pre class="language-typescript hljs">// app/resolvers/types/category-input.ts
+import { InputType, Field } from 'type-graphql';
+import { Length } from 'class-validator';
+import { Categories } from '../../entities/Categories';
+
+@InputType()
+export class CategoriesInput implements Partial&lt;Categories&gt; {
+  @Field()
+  name: string;
+
+  @Field()
+  @Length(1, 255)
+  description: String;
+}
+
+
+// app/resolvers/types/product-input.ts
+import { InputType, Field } from 'type-graphql';
+import { Length } from 'class-validator';
+import { Product } from '../../entities/Product';
+import { ObjectId } from 'mongodb';
+
+@InputType()
+export class ProductInput implements Partial&lt;Product&gt; {
+  @Field()
+  name: String;
+
+  @Field()
+  @Length(1, 255)
+  description: String;
+
+  @Field()
+  color: String;
+
+  @Field()
+  stock: number;
+
+  @Field()
+  price: number;
+
+  @Field(() =&gt; String)
+  category_id: ObjectId;
+}
+
+
+// app/resolvers/types/cart-input.ts
+import { InputType, Field, ID } from 'type-graphql';
+import { Cart } from '../../entities/Cart';
+
+import { ObjectId } from 'mongodb';
+
+@InputType()
+export class CartInput implements Partial&lt;Cart&gt; {
+  @Field(() =&gt; ID)
+  products: ObjectId;
+}
+
+
+// app/resolvers/types/user-input.ts
+import { InputType, Field, ID } from 'type-graphql';
+import { Length, IsEmail } from 'class-validator';
+import { User } from '../../entities/User';
+import { ObjectId } from 'mongodb';
+
+@InputType()
+export class UserInput implements Partial&lt;User&gt; {
+  @Field()
+  @Length(1, 255)
+  username: String;
+
+  @Field()
+  @IsEmail()
+  email: String;
+
+  @Field(() =&gt; ID)
+  cart_id: ObjectId;
+}
+
+
+// app/resolvers/types/order-input.ts
+import { InputType, Field } from 'type-graphql';
+import { Order } from '../../entities/Order';
+
+@InputType()
+export class OrderInput implements Partial&lt;Order&gt; {
+  @Field()
+  user_id: String;
+
+  @Field()
+  payde: Boolean;
+
+  @Field()
+  date: Date;
+}
+</pre>
+<p>在上面的文件中，我们从<code>type-graphql</code>导入了<code>InputType</code>和<code>Field</code>装饰器。</p>
+<p>TypeGraphQL使用<code>inputType</code>装饰器根据输入和参数的定义自动验证它们。</p>
+<p>我们使用<code>class-validator</code>库进行字段级验证。请注意，TypeGraphQL内置了对基于该库的参数和输入验证的支持。</p>
+<p>接下来，让我们检查这些输入和实体的解析器。<code>categories.ts</code>文件中类别解析器的内容如下所示:</p>
+<pre class="language-typescript hljs">// app/resolvers/Categories.ts
+import { Resolver, Mutation, Arg, Query } from 'type-graphql';
+import { Categories, CategoriesModel } from '../entities/Categories';
+import { CategoriesInput } from './types/category-input';
+
+@Resolver()
+export class CategoriesResolver {
+  @Query((_returns) =&gt; Categories, { nullable: false })
+  async returnSingleCategory(@Arg('id') id: string) {
+    return await CategoriesModel.findById({ _id: id });
+  }
+
+  @Query(() =&gt; [Categories])
+  async returnAllCategories() {
+    return await CategoriesModel.find();
+  }
+
+  @Mutation(() =&gt; Categories)
+  async createCategory(
+    @Arg('data') { name, description }: CategoriesInput
+  ): Promise&lt;Categories&gt; {
+    const category = (
+      await CategoriesModel.create({
+        name,
+        description,
+      })
+    ).save();
+    return category;
+  }
+
+  @Mutation(() =&gt; Boolean)
+  async deleteCategory(@Arg('id') id: string) {
+    await CategoriesModel.deleteOne({ id });
+    return true;
+  }
+}
+</pre>
+<p>这个解析器使用来自<code>type-graphql</code>的<code>Resolver</code>、<code>Mutation</code>、<code>Arg</code>和<code>Query</code>装饰器执行基本的CRUD操作。我们还导入了用于突变字段的输入类型。</p>
+<p>对于<code>ProductResolver</code>文件，我们有以下内容:</p>
+<pre class="language-typescript hljs">// app/resolvers/Product.ts
+import {
+  Resolver,
+  Mutation,
+  Arg,
+  Query,
+  FieldResolver,
+  Root,
+} from 'type-graphql';
+import { Product, ProductModel } from '../entities/Product';
+import { ProductInput } from './types/product-input';
+
+import { Categories, CategoriesModel } from '../entities/Categories';
+
+@Resolver((_of) =&gt; Product)
+export class ProductResolver {
+  @Query((_returns) =&gt; Product, { nullable: false })
+  async returnSingleProduct(@Arg('id') id: string) {
+    return await ProductModel.findById({ _id: id });
+  }
+
+  @Query(() =&gt; [Product])
+  async returnAllProduct() {
+    return await ProductModel.find();
+  }
+
+  @Mutation(() =&gt; Product)
+  async createProduct(
+    @Arg('data')
+    { name, description, color, stock, price, category_id }: ProductInput
+  ): Promise&lt;Product&gt; {
+    const product = (
+      await ProductModel.create({
+        name,
+        description,
+        color,
+        stock,
+        price,
+        category_id,
+      })
+    ).save();
+    return product;
+  }
+
+  @Mutation(() =&gt; Boolean)
+  async deleteProduct(@Arg('id') id: string) {
+    await ProductModel.deleteOne({ id });
+    return true;
+  }
+
+  @FieldResolver((_type) =&gt; Categories)
+  async category(@Root() product: Product): Promise&lt;Categories&gt; {
+    console.log(product, 'product!');
+    return (await CategoriesModel.findById(product._doc.category_id))!;
+  }
+}
+</pre>
+<p>上面的<code>ProductResolver</code>包含关系实体数据的字段解析器装饰器。在我们的例子中，产品模式有一个<code>category-id</code>字段，用于获取特定类别的详细信息，我们必须通过从数据图中的另一个节点获取数据来解决这个问题。</p>
+<h2 id="apollo-application">运行我们的阿波罗应用程序</h2>
+<p>为了启动我们的应用程序，我们将运行<code>npm run build-ts</code>，它编译我们的代码，然后运行<code>npm start</code>，它启动我们的服务器。</p>
+<blockquote><p>注意:当我们用<code>tsc</code>编译器构建代码时，TypeScript会捕捉任何编译时错误:</p></blockquote>
+<p><img data-attachment-id="142660" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/running-commands-apollo-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png" data-orig-size="730,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Output after running the commands to run Apollo app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png" decoding="async" class="aligncenter size-full wp-image-142660 jetpack-lazy-image" src="../Images/3e9f71e0ed93ff0a8d9823ca3082537e.png" alt="Output After Running The Commands To Run Apollo App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app-300x145.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142660" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/running-commands-apollo-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png" data-orig-size="730,353" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Output after running the commands to run Apollo app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142660" src="../Images/3e9f71e0ed93ff0a8d9823ca3082537e.png" alt="Output After Running The Commands To Run Apollo App" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app-300x145.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/running-commands-apollo-app.png"/></noscript>
+<p>现在，我们可以在<code><a href="http://localhost:3333/graphql" rel="nofollow">http://localhost:3333/graphql</a></code>导航到GraphQL操场来测试我们的API。</p>
+<p>接下来，让我们通过运行以下变异来创建一个新类别:</p>
+<pre class="language-graphql hljs">mutation {
+  createCategory(data: {
+    name: "T-Shirts",
+    description: "This is an awesome brand from LogRocket"
+  }){
+    name
+    description
+    id
+  }
+}
+</pre>
+<p><img data-attachment-id="142662" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/graphql-mutation-create-new-category/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png" data-orig-size="730,340" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GraphQL mutation to create a new category" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category-300x140.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png" decoding="async" class="aligncenter size-full wp-image-142662 jetpack-lazy-image" src="../Images/388caad5c2e2b0cfbbc85b213f6fe2e4.png" alt="GraphQL Mutation To Create A New Category" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category-300x140.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142662" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/graphql-mutation-create-new-category/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png" data-orig-size="730,340" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GraphQL mutation to create a new category" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category-300x140.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142662" src="../Images/388caad5c2e2b0cfbbc85b213f6fe2e4.png" alt="GraphQL Mutation To Create A New Category" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category-300x140.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-mutation-create-new-category.png"/></noscript>
+<p>若要按ID获取类别，请运行以下查询:</p>
+<p><img data-attachment-id="142665" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/graphql-query-return-single-category-id/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png" data-orig-size="730,334" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GraphQL query to return a single category by ID" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id-300x137.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png" decoding="async" class="aligncenter size-full wp-image-142665 jetpack-lazy-image" src="../Images/4990c3c8370346d08e0807e62fecbf20.png" alt="GraphQL Query To Return A Single Category By ID" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id-300x137.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142665" data-permalink="https://blog.logrocket.com/integrate-typescript-graphql-typegraphql/attachment/graphql-query-return-single-category-id/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png" data-orig-size="730,334" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GraphQL query to return a single category by ID" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id-300x137.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142665" src="../Images/4990c3c8370346d08e0807e62fecbf20.png" alt="GraphQL Query To Return A Single Category By ID" srcset="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id-300x137.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/11/graphql-query-return-single-category-id.png"/></noscript>
+<p>当您点击操场中的<strong> Schema </strong>选项卡时，您将看到关于API功能的更多细节:</p>
+<pre class="language-typescript hljs">type Cart {
+  id: ID!
+  products: String!
+  product: Product!
+}
+
+input CartInput {
+  products: ID!
+}
+
+type Categories {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+input CategoriesInput {
+  name: String!
+  description: String!
+}
+
+scalar DateTime
+
+type Mutation {
+  createUser(data: UserInput!): User!
+  deleteUser(id: String!): Boolean!
+  createProduct(data: ProductInput!): Product!
+  deleteProduct(id: String!): Boolean!
+  createCategory(data: CategoriesInput!): Categories!
+  deleteCategory(id: String!): Boolean!
+  createCart(data: CartInput!): Cart!
+  deleteCart(id: String!): Boolean!
+  createOrder(data: OrderInput!): Order!
+  deleteOrder(id: String!): Boolean!
+}
+
+type Order {
+  id: ID!
+  user_id: String!
+  payde: Boolean!
+  date: DateTime!
+  products: Product!
+}
+
+input OrderInput {
+  user_id: String!
+  payde: Boolean!
+  date: DateTime!
+}
+
+type Product {
+  id: ID!
+  name: String!
+  description: String!
+  color: String!
+  stock: Int!
+  price: Int!
+  category_id: String!
+  category: Categories!
+}
+
+input ProductInput {
+  name: String!
+  description: String!
+  color: String!
+  stock: Float!
+  price: Float!
+  category_id: String!
+}
+
+type Query {
+  returnSingleUser(id: String!): User!
+  returnAllUsers: [User!]!
+  returnSingleProduct(id: String!): Order!
+  returnAllProduct: [Product!]!
+  returnSingleCategory(id: String!): Categories!
+  returnAllCategories: [Categories!]!
+  returnSingleCart(id: String!): Cart!
+  returnAllCart: [Cart!]!
+  returnAllOrder: [Order!]!
+}
+
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  cart_id: String!
+  cart: Cart!
+}
+
+input UserInput {
+  username: String!
+  email: String!
+  cart_id: ID!
+}
+</pre>
+<p>要了解更多信息，我们可以测试上面显示的<strong> Schema </strong>选项卡中的查询和变化。</p>
+<h2 id="more-with-graphql">使用GraphQL做更多事情</h2>
+<p>在本文中，我们已经使用TypeScript创建了一个简单的GraphQL API，但是GraphQL还可以提供更多的功能。让我们来看看。</p>
+<h3 id="graphql-aliases">GraphQL别名</h3>
+<p><a href="https://blog.logrocket.com/using-aliases-graphql/">graph QL</a><a href="https://blog.logrocket.com/using-aliases-graphql/">a</a><a href="https://blog.logrocket.com/using-aliases-graphql/">lias</a>使我们能够重命名API查询结果中返回的数据的键。</p>
+<p>例如，当我们希望通过不同于其定义的解析器的名称来引用我们的数据结果时，别名就很有用。</p>
+<p>在我们的<code>ProductResolver</code>类<code>app/resolvers/Product.ts</code>中，我们定义了一个解析器<code>returnAllProduct</code>，当被查询时，它返回<code>{</code> <code>"data": {</code> <code>"returnAllProduct": […] } }</code>:</p>
+<pre class="language-typescript hljs">// query
+query {
+  returnAllProduct {
+    id
+    name
+    color
+  }
+}
+
+// result
+{
+    "data": {
+        "returnAllProduct": [
+            {
+                "id": "6375596bf51e426c86f1c3fa",
+                "name": "Gucci Shoes",
+                "color": "red"
+            }
+        ]
+    }
+}
+</pre>
+<p>要将我们的结果键从<code>returnAllProduct</code>重命名为<code>products</code>，我们只需使用以下内容作为我们查询的别名:</p>
+<pre class="language-typescript hljs">// query
+query {
+  products: returnAllProduct {
+    id
+    name
+    color
+  }
+}
+
+// result
+{
+    "data": {
+        "products": [
+            {
+                "id": "6375596bf51e426c86f1c3fa",
+                "name": "Gucci Shoes",
+                "color": "red"
+            }
+        ]
+    }
+}
+</pre>
+<h3 id="graphql-date-scalars">GraphQL日期标量</h3>
+<p>默认情况下，GraphQL只有少数标量类型用于定义模式中的属性。这些是<code>ID</code>、<code>Int</code>、<code>Float</code>、<code>String</code>和<code>Boolean</code>。</p>
+<p>TypeGraphQL自动将相应的JavaScript类型映射到这些标量。例如，类型<code>boolean</code>默认为标量<code>Boolean</code>，类型<code>number</code>默认为标量<code>Float</code>。</p>
+<blockquote><p>💡JavaScript类型<code>number</code>可以通过使用<code>@Field(type =&gt; Int)</code>装饰器映射到标量Int。</p></blockquote>
+<p>然而，TypeGraphQL为date提供了两个内置标量:<code>"timestamp"</code>或<code>"isoDate"</code>。默认情况下，它使用<code>"isoDate"</code>，但可以在<code>buildSchema</code>选项中使用<code>"dateScalarMode"</code>选项进行更改。</p>
+<pre class="language-javascript hljs">const schema = await buildSchema({
+  resolvers: [//Resolvers],
+  dateScalarMode: "timestamp",
+});
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>TypeGraphQL的主要用途是基于TypeScript类创建GraphQL类型。TypeScript使得编写基于类的OOP代码变得直观。它为我们提供了现成的类、接口和更多的东西，这让我们有机会以一种可重用的方式适当地构建我们的代码，使其易于维护和扩展。</p>
+<p>TypeGraphQL导致了工具和库的产生，使得编写满足这些期望的应用程序更加容易和快速。TypeScript极大地提高了我们作为工程师的生产力和体验。</p>
+<p>通过将TypeScript功能和GraphQL的优点与TypeGraphQL库结合起来，我们可以构建弹性的强类型API，满足我们在维护、技术债务等方面的需求。</p>
+<p>最后一点，探索文档中的其他<a href="https://typegraphql.com/docs/scalars.html">高级指南</a>和<a href="https://typegraphql.com/docs/dependency-injection.html">特性</a>，以了解本教程中未涉及的其他方面，这将是非常好的。感谢阅读，别忘了在<a href="https://github.com/finallyayo/typescript-graphql"> GitHub </a>上获取本教程中使用的全部源代码。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,159 @@
+<html>
+<head>
+<title>Why are we getting Streams in Redis? - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>为什么我们在Redis得到流？- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/why-are-we-getting-streams-in-redis-8c36498aaac5/#0001-01-01">https://blog.logrocket.com/why-are-we-getting-streams-in-redis-8c36498aaac5/#0001-01-01</a></blockquote><div><article class="article-post">
+<figure>
+<p><img decoding="async" data-height="481" data-width="540" src="../Images/6faf4a07a394b9f3abfb24e000aaae7a.png" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*unSfpyFz37P1j9JwjyPXVA.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*unSfpyFz37P1j9JwjyPXVA.jpeg"/></p><noscript><img data-lazy-fallback="1" decoding="async" data-height="481" data-width="540" src="../Images/6faf4a07a394b9f3abfb24e000aaae7a.png" data-original-src="https://storage.googleapis.com/blog-images-backup/1*unSfpyFz37P1j9JwjyPXVA.jpeg"/></noscript><br/>
+</figure>
+<p>不久前，Redis发布了它的最新版本，他们宣布了一种全新的数据类型<a href="https://redis.io/topics/streams-intro" target="_blank" rel="noopener noreferrer">，叫做Streams </a>。现在，如果您阅读了他们的文档，或者至少了解了一些皮毛(需要消化大量的文本)，您可能已经看到了与Pub/Sub甚至一些智能结构(如阻塞列表)的相似之处。</p>
+<p>在本文中，我将总结Redis流中的文档，并借此机会告诉您有关发布/订阅和阻止列表的信息，以防您不了解它们。</p>
+<figure>
+<p><a href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"><img decoding="async" data-height="750" data-width="3212" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/><noscript><img data-lazy-fallback="1" decoding="async" data-height="750" data-width="3212" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/></noscript></a>T6】</p></figure>
+<h3>对过去的快速回顾</h3>
+<p>我们先来回顾一下之前存在的结构和力学。快速复习(如果你已经使用过)或快速介绍(如果你以前没有使用过)。不要误解我的意思，它们是非常强大和有用的工具，可以作为您的开发人员的一部分，但是它们不是本文的主要焦点，所以我不会详细讨论它们。</p>
+<h3>发布/订阅</h3>
+<p>这是我最喜欢的Redis特性之一，我倾向于尽可能多地使用它，因为它基本上是一个嵌入在键值内存数据库中的免费消息队列。你买一送一。</p>
+<p>现在，它的要点是，通过使用它，Redis为开发人员提供了访问发布/订阅消息传递范例的权限，这允许您与两个或多个实体进行通信，而他们彼此并不了解。</p>
+<p>换句话说，您有您的“消息发送者”(也称为发布者)和“消息接收者”(也称为订阅者)，如果您希望您的发布者与您的订阅者通信，您有几个选项:</p>
+<p>你可以直接与他们交流:</p>
+<figure>
+<p><img decoding="async" data-height="214" data-width="373" src="../Images/100da678d4a6194dea9d3e07b85185f1.png" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*2n2o9zAFkwwcJBR7?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*2n2o9zAFkwwcJBR7"/></p><noscript><img data-lazy-fallback="1" decoding="async" data-height="214" data-width="373" src="../Images/100da678d4a6194dea9d3e07b85185f1.png" data-original-src="https://storage.googleapis.com/blog-images-backup/0*2n2o9zAFkwwcJBR7"/></noscript><br/>
+</figure>
+<p>这带来了几个缺点，例如:</p>
+<ul>
+<li>如果你的出版商崩溃了，突然不能出版任何东西，他们就会失去订户</li>
+<li>发布者需要知道他们的订阅者的确切地址，这在订阅者有动态地址时是行不通的</li>
+<li>如果出版商的生产速度超过订阅者的处理速度，他们可能会压倒订阅者</li>
+</ul>
+<p>你也可以走更疯狂的路线，直接与每个出版商和每个订户沟通:</p>
+<figure>
+<p><img decoding="async" data-height="214" data-width="373" src="../Images/e55bf12a18e1c791df4480fc159a9bd9.png" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*Ql8_kSBp9i74RVRW?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*Ql8_kSBp9i74RVRW"/></p><noscript><img data-lazy-fallback="1" decoding="async" data-height="214" data-width="373" src="../Images/e55bf12a18e1c791df4480fc159a9bd9.png" data-original-src="https://storage.googleapis.com/blog-images-backup/0*Ql8_kSBp9i74RVRW"/></noscript><br/>
+</figure>
+<p>虽然上面的设置解决了订阅者崩溃的问题，但是您增加了发布者端的复杂性，因为您必须知道每个订阅者的确切位置。而且绝大多数问题还没有解决，事实上，现在每个用户都获得了更多的流量，所以让他们崩溃会更容易。</p>
+<p>或者，你可以在中间添加一个类似缓冲区的结构，允许发布者尽可能快地创建内容，允许订阅者以自己的速度获取内容。此外，不再需要了解每个相关订阅者的地址，简化了发布者机制的逻辑和管理。</p>
+<figure>
+<p><img decoding="async" data-height="224" data-width="573" src="../Images/17f42918bf537f39171e43c2d11326b2.png" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*IKcBixNW6c66H6o4?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*IKcBixNW6c66H6o4"/></p><noscript><img data-lazy-fallback="1" decoding="async" data-height="224" data-width="573" src="../Images/17f42918bf537f39171e43c2d11326b2.png" data-original-src="https://storage.googleapis.com/blog-images-backup/0*IKcBixNW6c66H6o4"/></noscript><br/>
+</figure>
+<p>当然，上面的图表是这个范例的一个非常简化的版本，但是它足以解释这个问题。</p>
+<p>与此相关的发布/订阅的一些关键属性如下:</p>
+<ul>
+<li>Pub/Sub在“火了就忘了”的前提下工作。这实质上意味着每个发布的消息都将被传递给尽可能多的订阅者，然后它将从缓冲区中丢失</li>
+<li>所有消息都将发送给所有订户。请注意，您可以让订户收听不同的频道，这可以防止这种情况发生。但是，如果在同一个频道上有一个以上的用户，那么他们都会收到相同的消息。到那时，将由他们来决定对此做些什么。</li>
+<li>没有ACK消息。一些通信协议处理确认消息，以便订户让发布者知道消息已被接收。在这种情况下，没有类似的东西，所以如果您的订户收到消息，然后崩溃，数据将永远丢失</li>
+</ul>
+<h3>你什么时候使用Pub/Sub？</h3>
+<p>发布/订阅的一些经典示例如下:</p>
+<ul>
+<li>聊天服务器，通过让Redis负责在用户之间分发消息的所有繁重工作，允许您轻松地创建聊天室。默认情况下，这些聊天室不会保存消息，但是您可以通过向聊天服务器添加一些存储逻辑来找到解决方法</li>
+<li>通知服务:另一个有趣的用例，您可以订阅一组您想要接收的通知，然后发布者将它们发送到正确的渠道</li>
+<li>日志集中化。你可以很容易地构建一个日志中心，在这里你自己的应用程序是发布者，不同的服务确保它们将信息发送到正确的目的地。这将允许您拥有一个非常灵活的日志记录方案，能够从存储到磁盘切换到将所有内容发送到ELK实例或云服务，甚至一次全部发送！想想各种可能性！</li>
+</ul>
+<h3>阻止列表</h3>
+<p>现在，阻塞列表与上面的结构非常相似(为了不破坏神秘感，但是您会发现对于流也是如此)。不过，主要的区别在于，这并不是Redis附带的另一个独立特性，相反，它只是一种数据类型(列表),具有对我们有利的特定阻塞机制。让我解释一下。</p>
+<p>在Redis中使用列表时，可以向列表中添加元素(用LPUSH添加到列表的头部，或者用RPUSH添加到列表的尾部)，并且可以获得顶部的元素(用头部的LPOP和尾部的RPOP)。默认情况下，*POP操作没有阻塞，这意味着如果列表没有数据，您将得到一个空结果，这就是结束。</p>
+<p>但是您还有两个非常有用的阻塞命令BLPOP和BRPOP，它们是它们的对应命令LPOP和RPOP的阻塞版本。他们阻塞的事实在这里很重要，因为当使用空列表时，从客户端到Redis的连接将被阻塞，直到添加新元素。这种阻塞机制实质上为您提供了一个可以使用的消息传递系统。</p>
+<p>本质上，我们模仿了与发布/订阅相同的设置，任意数量的发布者可以将内容发送到类似缓冲区的结构中，任意数量的订阅者可以侦听新数据并对其做出反应。但是，正如他们所说的，细节决定成败，所以让我们深入一点:</p>
+<ul>
+<li>我提到的类似缓冲区的结构只是一个列表</li>
+<li>发布者只需使用LPUSH或RPUSH将消息添加到列表中</li>
+<li>订阅者并不真的订阅，相反，他们只是做一个阻塞POP(bl POP或BRPOP)</li>
+</ul>
+<p>这就是它的要点，关键是POP操作的阻塞机制，因为它会让用户一直等待，直到一条消息被添加到列表中。一旦发生这种情况，等待时间最长的用户会立即自动弹出提示。</p>
+<p>这种结构与发布/订阅的主要区别在于:</p>
+<ul>
+<li>消息不会分发给所有的订户，事实上，每条消息只发送给一个订户，因为第一个被通知的订户会弹出消息</li>
+<li>事实上，消息被存储在Redis的一个列表中，它们被存储在其中，直到一个用户被连接。如果您将Redis配置为将数据存储在磁盘中，您可以得到一个相当可靠的排队系统</li>
+</ul>
+<h3>展望未来:什么是流？</h3>
+<p>既然我已经介绍了已知的和现有的结构，让我们看看全新的闪亮的流。</p>
+<p>Streams背后的主要设计思想是<em>日志文件。</em>说起来很有趣，但是听我说:当你为了调试你的应用程序而检查日志文件时，你<em>通常</em>会做这样的事情:</p>
+<p>$ tail -f yourlogfile.log</p>
+<p>这将显示文件的最后几行，让您知道最近发生的一些事情。不仅如此，命令行也将被阻塞，因为它将一直等待新的行被添加到您的文件中，一旦它们出现就立即显示出来。</p>
+<p>到目前为止，它听起来很像阻止列表，不是吗？但是正如您将要学习的，Streams实现了一些更复杂的操作，这让您可以更好地控制如何使用它们(与阻塞列表相比)。</p>
+<p>到目前为止，我们看到的所有内容与Streams之间的另一个主要区别是，消息的内部结构是一组键值对，而不仅仅是能够处理字符串元素，因此您的消息实际上可以直接在Redis中具有复杂的结构(而不是JSON对象的字符串化版本)。</p>
+<h3>从流中消费并发布到流中</h3>
+<p>您可以在流上执行的基本操作是将数据推入流和从流中取出数据。</p>
+<p>要向其中发布数据，可以使用XADD命令，这非常简单:</p>
+<p><code>&gt;XADD yourstreamname *key1 value1 key2 value2</code></p>
+<p>该命令会将如下结构添加到名为“yourstreamname”的流中:</p>
+<pre>{<br/>"key1":"value1,<br/>"key2":"value2"<br/>}</pre>
+<p>添加到流中的每个消息都有一个内部ID，这是XADD操作的第二个参数。传递一个“*”将让Redis知道为我们自动生成它，反过来，它将返回它作为我们添加操作的结果。您可以自己指定一个ID，但是对于大多数用例，您不需要担心这个问题，您可以让Redis来处理它。</p>
+<h3>阅读日期</h3>
+<p>现在，从数据流中获取数据是事情变得有趣的地方。有两种方法可以从流结构中获取数据。</p>
+<p>您可以使用XREAD做一些类似于我们目前所做的事情。这个命令将允许您订阅一个等待新消息到达的流。</p>
+<p><code>&gt;XREAD COUNT 2 STREAMS yourstreamname 0</code></p>
+<p>或者</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p><code>&gt;XREAD BLOCK 0 STREAMS yourstreamname 0</code></p>
+<p>该命令的第一个版本将返回添加到“yourstreamname”的ID大于0的前两条未读消息。但是这个版本没有阻塞，所以正如您所料，如果没有新内容，这个命令将不会返回任何消息。</p>
+<p>第二个版本是阻塞，超时为0(意味着没有超时)，所以这一次，就像阻塞列表一样，命令不会返回，直到添加了新消息。</p>
+<p>一些评论:</p>
+<ul>
+<li>虽然阻塞操作看起来像一个阻塞列表，但是新消息被发送到每个订阅的客户端，就像发布/订阅一样</li>
+<li>现在，虽然您可能认为这类似于Pub/Sub，但是添加到流中的消息被保存在流中(不像Pub/Sub的fire and forget机制)</li>
+<li>由于上述事实，实际上有另一种方法可以用XRANGE从流中获取数据，我们接下来将会看到这一点</li>
+</ul>
+<p>使用XRANGE和XREVRANGE(与另一个相同，但返回数据的顺序相反)可以从流中获得一系列消息，这是以前的结构无法做到的！</p>
+<p><code>&gt;XRANGE yourstreamname 13213131-0 + COUNT 3</code></p>
+<p>该命令并不复杂，参数是:</p>
+<ol>
+<li>您正在读取的流的名称</li>
+<li>要读取的第一个ID</li>
+<li>要读取的最后一个ID (+是可能的最大ID)</li>
+<li>或者，您还可以限制返回的结果数量</li>
+</ol>
+<h3>关于消息id的一句话</h3>
+<p>很清楚，消息id有两部分，第一部分是以毫秒表示的本地时间(在本地Redis节点中)。第二部分只是一个自动增量，意在解决在完全相同的时间收到消息时可能发生的冲突。</p>
+<h3>消费群体呢？</h3>
+<p>另一个很大的区别，也是流为发布者/订阅者机制增加的最有趣的东西之一，是消费者群体。</p>
+<p>这不是一个新概念，事实上，卡夫卡也有同样的概念，尽管实现的方式不同。</p>
+<p>消费者群体的主要用例是当您希望不同的消费者以不同的速度从相同的流中获取数据时。在这些情况下，您可能希望只将消息传递给一个消费者，本质上就像阻止列表而不是发布/订阅那样工作。</p>
+<p>如果您这样做，就可以确保:</p>
+<ul>
+<li>消息只传递给组内的一个消费者</li>
+<li>消费者需要在他们所属的群体中被唯一地识别。id区分大小写，需要由消费者自己提供</li>
+<li>每个群组都会跟踪未读消息，因此当用户需要时，它总是会返回一条未读消息</li>
+<li>消费者需要向Redis发回一条ACK消息，通知消息已被正确处理</li>
+</ul>
+<h3>创建群组</h3>
+<p>当创建一个组时，您指定该组所属的流、其名称和顶部ID，这意味着任何高于该ID的ID都将被添加到该组中。</p>
+<p>为此，您可以使用XGROUP命令:</p>
+<p><code>&gt; XGROUP CREATE yourstreamname yourgroup $</code></p>
+<p>示例中使用的顶部ID(<code>$</code>)引用了最后一个ID，因此在上面的组中，只添加创建组后收到的新消息。</p>
+<p>您可能会创建这样一个组:</p>
+<p><code>&gt; XGROUP CREATE yourstream historicgroup 0</code></p>
+<p>创建这个新组将包含曾经收到的所有消息。</p>
+<h3>小组阅读</h3>
+<p>XREADGROUP命令可用于从组中获取数据。语法与XREAD相同，但是添加了一个名为“GROUP”的属性，该属性接收组名和使用者名。</p>
+<p>所以，它看起来会像这样:</p>
+<p><code>&gt; XREADGROUP GROUP historicgroup consumer1 BLOCK 0 STREAMS yourstream</code></p>
+<p>上述命令实际上(以阻塞方式)从<em> yourstream </em>流的<em> historicgroup </em>组中读取，将自己标识为<em>消费者1 </em>消费者。</p>
+<h3>确认已读消息</h3>
+<p>最后，为了确认您已经成功阅读了一条消息，您需要将XACK命令发送回Redis，否则，这条消息将保持挂起状态。</p>
+<p>该操作所需的属性是流的名称、组的名称，最后是消息Id:</p>
+<p><code>&gt;XACK yourstream historicgroup 1231241142-0</code></p>
+<h3>就是这样！</h3>
+<p>不完全是，实际上还有更多我没有讲到的内容。不过，本文的内容应该足以理解如何使用流，以及为什么将它们添加到已经存在的数据类型集中。</p>
+<p>如果你想了解更多关于流和你可以用它们做的任何事情，请随意阅读完整的文档。</p>
+<p>非常感谢您的阅读，如果您已经在使用Streams或者打算这样做，请随时留下您的评论！</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

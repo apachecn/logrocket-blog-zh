@@ -1,0 +1,171 @@
+<html>
+<head>
+<title>Kubernetes toolbox - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Kubernetes toolbox - LogRocket Blog</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/kubernetes-toolbox/#0001-01-01">https://blog.logrocket.com/kubernetes-toolbox/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>管理软件基础设施始终是一项挑战。Kubernetes(也称为K8s)是一个优秀的平台，它利用容器来管理项目管道的所有阶段。在开源之前，它最初是谷歌的一个内部项目，名为<a href="https://research.google/pubs/pub43438/" target="_blank" rel="noopener noreferrer"> Borg </a>。今天，全世界的开发者都在开源社区的支持下使用K8s。</p>
+<p>我们将介绍一些您可以使用K8s来构建和管理基础设施的工具。但是首先，让我们定义Kubernetes实际上是什么，并快速回顾以下主题。</p>
+
+<p>由于这些工具中有许多需要使用现有的集群，因此我们也将使用Google Cloud Kubernetes引擎(GKE)完成一个基本的设置。</p>
+<p>这篇文章中使用的所有代码都可以在我的<a href="https://github.com/andrewevans0102/kubernetes-toolbox" target="_blank" rel="noopener noreferrer"> GitHub repo </a>中找到。</p>
+<h2 id="whatiskubernetes">What is Kubernetes?</h2>
+<p>Kubernetes管理部署在容器中的应用程序。容器在产品生命周期的所有阶段都提供了对应用程序的移动性和细粒度控制。</p>
+<p>K8s本身使用控制平面和工作节点进行操作，如下图所示。</p>
+<p><img decoding="async" src="../Images/791223e6ca14cd480a7cf900150b8a78.png" alt="" data-lazy-src="https://d33wubrfki0l68.cloudfront.net/7016517375d10c702489167e704dcb99e570df85/7bb53/images/docs/components-of-kubernetes.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://d33wubrfki0l68.cloudfront.net/7016517375d10c702489167e704dcb99e570df85/7bb53/images/docs/components-of-kubernetes.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/791223e6ca14cd480a7cf900150b8a78.png" alt="" data-original-src="https://d33wubrfki0l68.cloudfront.net/7016517375d10c702489167e704dcb99e570df85/7bb53/images/docs/components-of-kubernetes.png"/></noscript>
+<p><em>(来源:<a href="https://kubernetes.io/docs/concepts/overview/components/" target="_blank" rel="noopener noreferrer"> Kubernetes官方文档</a> ) </em></p>
+<p>控制平面内的元素负责管理基础架构本身。这是实际管理发生的地方。使用我将要描述的各种工具，您可以将命令传递给控制平面内的不同组件，以将更改和功能应用到节点。</p>
+<p><a href="https://kubernetes.io/docs/concepts/architecture/nodes/" target="_blank" rel="noopener noreferrer">工作节点</a>中的元素处理应用程序的实际运行。每个节点包含<a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/" target="_blank" rel="noopener noreferrer"> pods </a>，应用程序将在容器中运行。</p>
+<p>所有这些一起形成了K8s星团。通常，您会有一个包含控制平面中的元素的主节点，然后您会有实际应用程序容器运行的工作节点。</p>
+<p>使用Kubernetes时，您经常听到的另外两个术语是部署和服务。部署是指构成集群的配置。这通常是以配置YAML文件的形式，但也有其他方法来使用docker映像和其他资源创建部署。服务是指在节点内的容器中运行的应用程序的抽象表示。</p>
+<p>要真正看到K8s工具的运行，拥有一个可以与之交互的工作集群是很有帮助的。在我的<a href="https://github.com/andrewevans0102/kubernetes-toolbox" target="_blank" rel="noopener noreferrer"> GitHub repo </a>中，我包含了使用<a href="https://github.com/andrewevans0102/kubernetes-toolbox/tree/master/google-cloud" target="_blank" rel="noopener noreferrer"> Google Cloud Kubernetes引擎</a>和<a href="https://github.com/andrewevans0102/kubernetes-toolbox/tree/master/minikube" target="_blank" rel="noopener noreferrer"> Minikube </a>构建集群的指令。</p>
+<p>一旦设置好这些，您就可以使用这些示例来测试我将在本文中介绍的工具。这也有助于让<a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/" target="_blank" rel="noopener noreferrer"> kubectl已经安装了</a>。</p>
+<h2 id="kubectl">库贝特尔</h2>
+<p>kubectl使您能够:</p>
+<ul>
+<li>部署更改</li>
+<li>检查K8s对象，如集群和单元</li>
+<li>管理资源</li>
+<li><a href="https://blog.logrocket.com/kubernetes-log-aggregation/" target="_blank" rel="noopener noreferrer">查看日志</a></li>
+</ul>
+<p>如果您想先创建一个集群，可以通过YAML文件应用部署，如下所示:</p>
+<pre>&gt; kubectl apply -f deployment.yaml
+
+deployment.extensions/helloworld-gke created
+</pre>
+<p>一旦创建了部署，就可以获得集群运行的状态。</p>
+<pre>&gt; kubectl get deployments
+
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+helloworld-gke   1/1     1            1           11s
+</pre>
+<p>以下是您可以用<code>kubectl</code>完成的一些其他任务。</p>
+<p>获取有关集群中的单元的信息:</p>
+<pre>➜  google-cloud git:(master) ✗ kubectl get pods
+NAME                               READY   STATUS    RESTARTS   AGE
+helloworld-gke2-554f48b47b-69lbc   1/1     Running   0          6m5s
+➜  google-cloud git:(master) ✗
+</pre>
+<p>通过配置文件创建服务:</p>
+<pre>&gt; kubectl apply -f service.yaml
+
+service/hello created
+</pre>
+<p>获取有关服务的信息:</p>
+<pre>&gt; kubectl get services
+
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+hello        LoadBalancer   10.31.247.92   &lt;pending&gt;     80:32294/TCP   31s
+kubernetes   ClusterIP      10.31.240.1    &lt;none&gt;        443/TCP        122m
+</pre>
+<p>查看其中一个窗格中的日志:</p>
+<pre>➜  google-cloud git:(master) ✗ kubectl logs helloworld-gke2-554f48b47b-69lbc
+
+&gt; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c1b17195114191010130b130e10183c4d524c524c">[email protected]</a> start /usr/src/app
+&gt; node index.js
+
+Hello world listening on port 8080
+Hello world received a request.
+</pre>
+<p>kubectl有更多的选择。更多信息，请查看K8s备忘单。</p>
+<h2 id="kubefed"><code>kubefed</code></h2>
+<p>虽然kubectl使您能够与集群作为一个整体进行交互，但是<code>kubefed</code>使您能够通过<a href="https://kubernetes.io/docs/concepts/#kubernetes-control-plane" target="_blank" rel="noopener noreferrer">控制面板</a>与集群进行交互。</p>
+<p>如前所述，控制平面是K8s的一部分，它管理集群的工作节点。在较大的应用程序中，您可能有多个需要管理的集群。</p>
+<p><code>kubefed</code>使您能够从更高级别的联邦控制与集群(或多个集群)进行交互。当考虑安全选项时，例如为您的集群设置TLS，这是特别好的。</p>
+<p>以下示例命令部署名为<code>fellowship</code>、主机集群上下文<code>rivendell</code>和域后缀<code>example.com</code>的联合控制平面。</p>
+<p>一些示例包括添加具有集群的控制平面。</p>
+<pre>kubefed init fellowship \
+    --host-cluster-context=rivendell \
+    --dns-provider="google-clouddns" \
+    --dns-zone-name="example.com."
+</pre>
+<p>这个例子(复制自<a href="https://kubernetes.io/docs/tasks/federation/set-up-cluster-federation-kubefed/#deploying-a-federation-control-plane" target="_blank" rel="noopener noreferrer"> K8s参考文档</a>)部署了一个名为<code>fellowship</code>和上下文为<code>rivendell</code>的联合控制平面。使用<code>kubefed</code>，一个<code>host-cluster</code>控制联邦系统中的其余集群。</p>
+<p>还可以向控制平面添加集群。一旦创建了控制平面，您就可以添加一个如下所示的集群:</p>
+<pre>kubectl create clusterrolebinding &lt;your_user&gt;-cluster-admin-binding --clusterrole=cluster-admin --user=&lt;your_user&gt;@example.org --context=&lt;joining_cluster_context&gt;
+</pre>
+<p><code>kubefed</code>与kubectl合作，非常强大。更多信息请参考<a href="https://kubernetes.io/docs/tasks/federation/set-up-cluster-federation-kubefed/#deploying-a-federation-control-plane" target="_blank" rel="noopener noreferrer"> K8s文档</a>。</p>
+<h2 id="minikube">迷你库贝</h2>
+<p>通常，在使用K8s时，您会希望在将它应用到整个集群之前，在单个pod上测试一些东西。Minikube是一个允许您在本地机器上构建单节点集群的工具。在这里，您可以测试在各种配置更改下，您的节点会是什么样子。这样做的好处是，您可以轻松地创建容器，而不必担心影响更大的集群。</p>
+<p>设置Minikube将取决于您使用的硬件。下面的步骤适用于Mac电脑，但是你可以查看文档以获得更详细的演示。</p>
+<p>设置Minikube的第一步是验证虚拟化在您的机器上是否可用。</p>
+<pre>sysctl -a | grep -E --color 'machdep.cpu.features|VMX' 
+</pre>
+<p>您应该会看到类似这样的内容:</p>
+<pre>machdep.cpu.features: FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX SMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C
+</pre>
+<p>接下来，您需要用brew安装它。</p>
+<pre>brew install minikube
+</pre>
+<p>通过以下内容确认安装。</p>
+<pre>minikube start
+</pre>
+<p>一旦控制台输出完成，您可以使用<code>minikube status</code>来验证您的集群是否正常工作。您应该会看到类似下面的内容。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>➜  ~ minikube status
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+</pre>
+<p>现在已经安装了Minikube，您可以创建一个单节点集群。您可以使用Docker注册表中的图像或本地构建的图像来实现这一点。</p>
+<p>请注意，Minikube完全在VM中运行。当你最小化的时候，你基本上是在关闭虚拟机。</p>
+<p>要针对本地运行的Minikube创建部署，您可以获取Docker注册表映像或使用Minikube虚拟机中的本地Docker守护进程。</p>
+<p>在我的<a href="https://github.com/andrewevans0102/kubernetes-toolbox" target="_blank" rel="noopener noreferrer">GitHub repo</a><a href="https://github.com/andrewevans0102/kubernetes-toolbox"/>中，我在<code>minikube</code>目录中包含了一个样例项目。这个过程看起来像这样:</p>
+<ol>
+<li>导航至Minikube目录，<code>cd minikube</code></li>
+<li>用<code>minikube start</code>启动Minikube</li>
+<li>用<code>eval $(minikube docker-env)</code>设置你的终端实例来使用Minikube的Docker守护进程(而不是你机器的)</li>
+<li>用<code>docker build -t helloworld-minikube</code>在我的项目中的docker文件在本地构建你的图像</li>
+<li>使用以下内容创建部署(注意<code>image-pull-policy</code> ) <pre>kubectl run helloworld-minikube --image=helloworld-minikube:latest --image-pull-policy=Never</pre></li>
+<li>使用<pre>kubectl expose deployment helloworld-minikube --type=NodePort --port=808</pre>将部署作为服务公开</li>
+<li>用下面的<pre>➜ minikube git:(master) ✗ minikube service helloworld-minikube --url http://192.168.64.6:32100 ➜ minikube git:(master) ✗ curl http://192.168.64.6:32100 Hello World from your local minikube!%</pre>获取服务的URL并发出curl请求</li>
+</ol>
+<p>这个设置最酷的部分是你可以只使用本地图像；你不必真的把它放入注册表。</p>
+<p>总的来说，使用Minikube的主要优势是您可以进行实验和学习，而不用担心更大系统的局限性。更多信息，请查看我的GitHub项目和Minikube上的T2 K8s文档。</p>
+<h2 id="dashboard">仪表盘</h2>
+<p>当使用K8s时，在集群上有一个单一的信息源是很有帮助的。Dashboard是一个web界面，允许您监视集群的状态，它可以在本地和部署的环境中运行。您可以在托管实例以及本地设置(如Minikube)中运行仪表板。Dashboard是快速查看集群及其节点状态的一种非常好的方式。</p>
+<p>要在正在运行的集群上本地部署仪表板，只需用kubectl运行以下命令。</p>
+<pre>kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta8/aio/deploy/recommended.yaml
+</pre>
+<p>然后，运行kubectl代理。</p>
+<pre>kubectl proxy
+</pre>
+<p>接下来，您可以通过本地计算机上的以下URL访问仪表板:</p>
+<pre>http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/</pre>
+<p>您应该会看到以下输出。</p>
+<p><img decoding="async" src="../Images/aa6bd0daf04f616ca36d92a63272d973.png" alt="" data-lazy-src="https://d33wubrfki0l68.cloudfront.net/349824f68836152722dab89465835e604719caea/6e0b7/images/docs/ui-dashboard.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://d33wubrfki0l68.cloudfront.net/349824f68836152722dab89465835e604719caea/6e0b7/images/docs/ui-dashboard.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/aa6bd0daf04f616ca36d92a63272d973.png" alt="" data-original-src="https://d33wubrfki0l68.cloudfront.net/349824f68836152722dab89465835e604719caea/6e0b7/images/docs/ui-dashboard.png"/></noscript>
+<p><img decoding="async" src="../Images/e91b6b6c19abfe79a1f704a05dc623c1.png" alt="" data-lazy-src="https://d33wubrfki0l68.cloudfront.net/5f56e7ac82f10f46e70403a246c2b93efcf8b5b3/1c09f/images/docs/ui-dashboard-zerostate.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://d33wubrfki0l68.cloudfront.net/5f56e7ac82f10f46e70403a246c2b93efcf8b5b3/1c09f/images/docs/ui-dashboard-zerostate.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/e91b6b6c19abfe79a1f704a05dc623c1.png" alt="" data-original-src="https://d33wubrfki0l68.cloudfront.net/5f56e7ac82f10f46e70403a246c2b93efcf8b5b3/1c09f/images/docs/ui-dashboard-zerostate.png"/></noscript>
+<p><em>(来源:<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/" target="_blank" rel="noopener noreferrer"> Kubernetes官方文档</a> ) </em></p>
+<p>从这里，您可以访问日志和许多其他功能。</p>
+
+<p>K8s社区中的开发人员正在开发几个额外的工具，超出了我们在这里讨论的范围。我简单描述几个。</p>
+<h3>舵</h3>
+<p>Helm 允许你管理K8s基础设施使用的包。这些被称为“图表”，它们使您能够抽象出包管理。Helm的好处在于，您可以使用预配置的包，也可以打包现有的应用程序。</p>
+<h3>Kompose</h3>
+<p>如果您熟悉Docker但不熟悉K8s，<a href="https://github.com/kubernetes/kompose" target="_blank" rel="noopener noreferrer"> Kompose </a>使您能够将Docker文件转换成K8s配置文件以便部署。你可以用这个做很多很酷的事情。</p>
+<h3><code>kubeadm</code></h3>
+<p>如果您想要一种通用的方法来在您的基础设施上构建集群，<code><a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/" target="_blank" rel="noopener noreferrer">kubeadm</a></code>就是您要走的路。使用K8s工具包括<code>kubeadm</code>、kubelet和kubectl，可以快速<a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/" target="_blank" rel="noopener noreferrer">创建一个集群</a>。</p>
+<h3>Istio</h3>
+<p>Istio是一个非常流行的开源框架，现在可以用来管理集群中的消息传递。Istio做了我在这篇文章中描述的许多工具已经做的事情:如果您设置Istio来使用您的集群，您将拥有一个方便的第三方工具，可以简化您的集群和节点之间的通信。</p>
+<p>还有许多其他的开源项目可以帮助K8s。通常，您会看到它们以可以在您的控制平面中运行的框架或允许您的容器相互通信的SDK的形式出现。K8s背后的流行和社区使得使用这个框架既有趣又令人兴奋。</p>
+
+<p>我希望您能够从我在这里展示的工具中学到一些东西。我强烈推荐查看K8s GitHub repo 来了解更多关于开源社区正在做的事情。有很多很酷的事情正在发生，看到Kubernetes在2020年如何演变将是令人兴奋的。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

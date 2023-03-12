@@ -1,0 +1,325 @@
+<html>
+<head>
+<title>How to build applications with Vue's composition API - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用Vue的composition API构建应用程序- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-build-applications-with-vues-composition-api/#0001-01-01">https://blog.logrocket.com/how-to-build-applications-with-vues-composition-api/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Vue的灵活和轻量级特性使得它非常适合那些想要快速搭建中小型应用程序的开发人员。</p>
+<p>然而，在维护不断增长的应用程序时，Vue当前的API有一定的局限性。这是因为API通过<a href="https://012.vuejs.org/api/options.html" target="_blank" rel="noopener noreferrer">组件选项</a> ( Vue有很多组件选项)而不是逻辑关系来组织代码。</p>
+<p>随着更多组件选项的添加和代码库的变大，开发人员可能会发现他们自己与其他团队成员创建的组件进行交互，这就是事情开始变得非常混乱的地方，然后就成为团队改进或更改组件的问题。</p>
+<p>幸运的是，Vue在其最新版本中推出了<a href="https://vue-composition-api-rfc.netlify.com/#summary" target="_blank" rel="noopener noreferrer">组合API </a>，解决了这个问题。据我所知，它是一个基于功能的API，目的是在组件变大时，方便组件的组合和维护。在这篇博文中，我们将看看composition API如何改进我们编写代码的方式，以及我们如何使用它来构建高性能的web应用程序。</p>
+<h2>提高代码可维护性和组件重用模式</h2>
+<p>Vue 2有两个主要缺点。第一个是<strong>维护大型部件的困难。</strong></p>
+<p>假设我们在一个应用程序中有一个名为<code>App.vue</code>的组件，它的工作是处理从一个API调用的各种产品的支付。我们最初的步骤是列出适当的数据和函数来处理我们的组件:</p>
+<pre>// App.vue
+
+&lt;script &gt;
+import PayButton from "./components/PayButton.vue";
+
+const productKey = "778899";
+const API = `https://awesomeproductresources.com/?productkey=${productKey}`;  // not real ;)
+
+export default {
+    name: "app",
+    components: {
+        PayButton
+    },
+    mounted() {
+          fetch(API)
+            .then(response =&gt; {
+                this.productResponse = response.data.listings;
+            })
+            .catch(error =&gt; {
+                console.log(error);
+            });
+    },
+    data: function() {
+        return {
+            discount: discount,
+            productResponse: [],
+            email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d6a3b1a1a3a4b7a6beb7b3ba96b1bbb7bfbaf8b5b9bb">[email protected]</a>",
+            custom: {
+                title: "Retail Shop",
+                logo: "We are an awesome store!"
+            }
+        };
+    },
+   computed: {
+    paymentReference() {
+              let text = "";
+              let possible =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+              for (let i = 0; i &lt; 10; i++)
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+              return text;
+          }
+        }
+      };
+&lt;/script&gt;</pre>
+<p>在处理导入的组件<code>payButton</code>时，<code>App.vue</code>所做的就是从API中检索数据并将其传递给<code>data</code>属性。这看起来并不多，我们至少使用了三个组件选项—<code>component</code>、<code>computed</code>和<code>data</code>以及<code><a href="https://vuejs.org/v2/api/#mounted" target="_blank" rel="noopener noreferrer">mounted()</a></code>生命周期挂钩。</p>
+<p>将来，我们可能会想给这个组件添加更多的特性。例如，一些功能可以告诉我们某个产品的支付是否成功。为此，我们必须使用<code>method</code>组件选项。</p>
+<p>添加<code>method</code>组件选项只会使组件变得更大、更冗长、更难维护。想象一下，我们有几个这样编写的应用程序组件。这绝对不是开发人员想要使用的理想框架。</p>
+<p>Vue 3对此的修复是一个<code>setup()</code>方法，它使我们能够使用复合语法。每一个逻辑都被定义为这个方法之外的一个复合函数。使用组合语法，我们将采用关注点分离方法，首先隔离从我们的API调用数据的逻辑:</p>
+<pre>// productApi.js
+&lt;script&gt;
+import { reactive, watch } from '@vue/composition-api';
+
+const productKey = "778899";
+
+export const useProductApi = () =&gt; {
+    const state = reactive({
+        productResponse: [],
+        email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8efbe9f9fbfceffee6efebe2cee9e3efe7e2a0ede1e3">[email protected]</a>",
+        custom: {
+            title: "Retail Shop",
+            logo: "We are an awesome store!"
+        }
+    });
+
+    watch(() =&gt; {
+        const API = `https://awesomeproductresources.com/?productkey=${productKey}`;
+
+        fetch(API)
+            .then(response =&gt; response.json())
+            .then(jsonResponse =&gt; {
+                state.productResponse = jsonResponse.data.listings;
+            })
+            .catch(error =&gt; {
+                console.log(error);
+            });
+    });
+
+    return state;
+};
+&lt;/script&gt;</pre>
+<p>然后，当我们需要调用<code>App.vue</code>中的API时，我们将导入<code>useProductApi</code>并像这样定义组件的其余部分:</p>
+<pre>// App.vue
+
+&lt;script&gt;
+    import { useProductApi } from './ProductApi';
+    import PayButton from "./components/PayButton.vue";
+
+export default {
+    name: 'app',
+    components: {
+        PayButton
+    },
+
+    setup() {
+        const state = useProductApi();
+
+        return {
+            state
+        }
+    }
+}
+
+function paymentReference() {
+    let text = "";
+    let possible =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i &lt; 10; i++)
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    return text;
+}
+&lt;/script&gt;</pre>
+<p>值得注意的是，这并不意味着我们的应用程序会有更少的组件，我们仍然会有相同数量的组件，只是它们会使用更少的组件选项，并且更有条理一些。</p>
+<p>Vue 2的第二个缺点是低效的组件重用模式。</p>
+<p>重用Vue组件中的功能或逻辑的方法是将它放在一个<a href="https://vuejs.org/v2/guide/mixins.html" target="_blank" rel="noopener noreferrer"> mixin </a>或<a href="https://vuejs.org/v2/guide/components-slots.html" target="_blank" rel="noopener noreferrer">作用域slot </a>中。假设我们仍然需要为我们的应用程序提供一些可以重用的数据，为了做到这一点，让我们创建一个mixin并插入这些数据:</p>
+<pre>&lt;script&gt;
+    const storeOwnerMixin = {
+        data() {
+            return {
+                name: 'RC Ugwu',
+                subscription: 'Premium'
+            }
+        }
+    }
+
+export default {
+    mixins: [storeOwnerMixin]
+}
+&lt;/script&gt;</pre>
+<p>这对于小规模应用来说非常好。但是和第一个缺点一样，整个项目开始变大，我们需要创建更多的mixins来处理其他类型的数据。我们可能会遇到一些问题，比如名称冲突和隐式属性添加。composition API旨在通过让我们在单独的JavaScript文件中定义我们需要的任何函数来解决所有这些问题:</p>
+<pre>// storeOwner.js
+
+export default function storeOwner(name, subscription) {
+    var object = {
+        name: name,
+        subscription: subscription
+    };
+    return object;
+}</pre>
+<p>然后导入到我们需要的任何地方，就像这样:</p>
+<pre>&lt;script&gt;
+   import storeOwner from './storeOwner.js'
+   export default {
+     name: 'app',
+     setup() {
+         const storeOwnerData = storeOwner('RC Ugwu', 'Premium');
+
+         return {
+             storeOwnerData
+         }
+     }
+ }
+ &lt;/script&gt;</pre>
+<p>很明显，我们可以看到它在混音方面的优势。除了使用更少的代码之外，它还让您可以用普通的JavaScript更好地表达自己，并且您的代码库更加灵活，因为函数可以更有效地重用。</p>
+<h2>Vue组合API与React挂钩的比较</h2>
+<p>尽管Vue的Composition API和React Hooks都是用来处理状态和重用组件中的逻辑的函数集——它们以不同的方式工作。Vue的<code>setup</code>函数在创建组件时只运行一次，而React钩子在渲染时可以运行多次。同样对于处理状态，React只提供了一个钩子-<code>useState</code>:</p>
+<pre>import React, { useState } from "react";
+const [name, setName] = useState("Mary");
+const [subscription, setSubscription] = useState("Premium");
+console.log(`Hi ${name}, you are currently on our ${subscription} plan.`);</pre>
+<p>组合API有很大的不同，它提供了两个处理状态的函数—<code>ref</code>和<code>reactive</code>。<code>ref</code>返回一个对象，其内部值可以通过其<code>value</code>属性访问:</p>
+<pre>const name = ref('RC Ugwu');
+const subscription = ref('Premium');
+watch(() =&gt; {
+    console.log(`Hi ${name}, you are currently on our ${subscription} plan.`);
+});</pre>
+<p><code>reactive</code>有点不同，它接受一个对象作为它的输入，并返回它的一个反应代理:</p>
+<pre>const state = reactive({
+    name: 'RC Ugwu',
+    subscription: 'Premium',
+});
+  watch(() =&gt; {
+console.log(`Hi ${state.name}, you are currently on our ${state.subscription} plan.`);
+});</pre>
+<p>Vue的Composition API在很多方面与React Hooks相似，尽管后者目前在社区中显然更受欢迎和支持，看看Composition函数是否能赶上Hooks将会很有趣。你可能想看看Guillermo Peralta Scura的这篇详细的文章,了解更多关于他们如何相互比较的信息。</p>
+<h2>使用组合API构建应用程序</h2>
+<p>为了了解如何进一步使用复合API，让我们用纯复合函数创建一个图片库。对于数据，我们将使用<a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer"> Unsplash的API </a>。你需要注册并获得一个API密匙。我们的第一步是使用Vue的CLI创建一个项目文件夹:</p>
+<pre># install Vue's CLI
+npm install -g @vue/cli
+
+# create a project folder
+vue create vue-image-app
+
+#navigate to the newly created project folder
+cd vue-image-app
+
+#install aios for the purpose of handling the API call
+npm install axios
+
+#run the app in a developement environment
+npm run serve</pre>
+<p>当我们的安装完成时，我们应该有一个类似于下面的项目文件夹:</p>
+<p><img data-attachment-id="9341" data-permalink="https://blog.logrocket.com/how-to-build-applications-with-vues-composition-api/vueimage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png" data-orig-size="332,448" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vueimage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage-222x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png" decoding="async" class="aligncenter wp-image-9341 size-full jetpack-lazy-image" src="../Images/073c112bfc58df7be8ff51187d06b920.png" alt="vue project files" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png 332w, https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage-222x300.png 222w" data-lazy-sizes="(max-width: 332px) 100vw, 332px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9341" data-permalink="https://blog.logrocket.com/how-to-build-applications-with-vues-composition-api/vueimage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png" data-orig-size="332,448" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="vueimage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage-222x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png" decoding="async" loading="lazy" class="aligncenter wp-image-9341 size-full" src="../Images/073c112bfc58df7be8ff51187d06b920.png" alt="vue project files" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png 332w, https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage-222x300.png 222w" sizes="(max-width: 332px) 100vw, 332px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/vueimage.png"/></noscript>
+<p>Vue的CLI还是用Vue 2，要用composition API，我们得换个安装。在您的终端中，导航到您的项目文件夹的目录并安装Vue的合成插件:</p>
+<pre>npm install @vue/composition-api</pre>
+<p>安装后，我们将它导入到我们的<code>main.js</code>文件中:</p>
+<pre>import Vue from 'vue'
+import App from './App.vue'
+import VueCompositionApi from '@vue/composition-api';
+
+Vue.use(VueCompositionApi);
+Vue.config.productionTip = false
+new Vue({
+  render: h =&gt; h(App),
+}).$mount('#app')</pre>
+<p>需要注意的是，目前来说，组合API只是编写组件的一个不同选项，而不是一次彻底的革新。我们仍然可以像以前一样，使用组件选项、混合和作用域插槽来编写组件。</p>
+<h2>构建我们的组件</h2>
+<p>对于这个应用程序，我们将有三个组件:</p>
+<ul>
+<li><code>App.vue</code>:父组件——它处理和收集来自两个子组件——<code>Photo.vue</code>和<code>PhotoApi.js</code>的数据</li>
+<li><code>PhotoApi.js</code>:专为处理API调用而创建的功能组件</li>
+<li><code>Photo.vue</code>:子组件，它处理从API调用中检索到的每张照片</li>
+</ul>
+<p>首先，让我们从Unsplash API获取数据。在你的项目的<code>src</code>文件夹中，创建一个文件夹<code>functions</code>，并在其中创建一个<code>PhotoApi.js</code>文件:</p>
+<pre>import { reactive } from "@vue/composition-api";
+import axios from "axios";
+export const usePhotoApi = () =&gt; {
+  const state = reactive({
+    info: null,
+    loading: true,
+    errored: false
+  });
+   const PHOTO_API_URL =
+      "https://api.unsplash.com/photos/?client_id=d0ebc52e406b1ac89f78ab30e1f6112338d663ef349501d65fb2f380e4987e9e";
+    axios
+      .get(PHOTO_API_URL)
+      .then(response =&gt; {
+        state.info = response.data;
+      })
+      .catch(error =&gt; {
+        console.log(error);
+        state.errored = true;
+      })
+      .finally(() =&gt; (state.loading = false));
+  return state;
+};</pre>
+<p>在上面的代码示例中，从Vue的composition API引入了一个新函数—<code>reactive</code>。</p>
+<p><code>reactive</code>是<code>Vue.observable()</code>的长期替代，它包装一个对象并返回该对象可直接访问的属性。</p>
+<p>让我们继续创建显示每张照片的组件。在您的<code>src/components</code>文件夹中，创建一个文件并将其命名为<code>Photo.vue</code>。在该文件中，输入下面的代码示例:</p>
+<pre>&lt;template&gt;
+  &lt;div class="photo"&gt;
+    &lt;h2&gt;{{ photo.user.name }}&lt;/h2&gt;
+    &lt;div&gt;
+      &lt;img width="200" :alt="altText" :src="photo.urls.regular" /&gt;
+    &lt;/div&gt;
+    &lt;p&gt;{{ photo.user.bio }}&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+  import { computed } from '@vue/composition-api';
+  export default {
+    name: "Photo",
+    props: ['photo'],
+    setup({ photo }) {
+      const altText = computed(() =&gt; `Hi, my name is ${photo.user.name}`);
+      return { altText };
+    }
+  };
+&lt;/script&gt;
+&lt;style scoped&gt;
+p {
+  color:#EDF2F4;
+}
+&lt;/style&gt;</pre>
+<p>在上面的代码示例中，<code>Photo</code>组件获取要显示的用户照片，并将其显示在用户简历的旁边。对于我们的<code>alt</code>字段，我们使用<code>setup()</code>和<code>computed</code>函数包装并返回变量<code>photo.user.name</code>。</p>
+<p>最后，让我们创建我们的<code>App.vue</code>组件来处理两个子组件。在您的项目文件夹中，导航到<code>App.vue</code>,将那里的代码替换为:</p>
+<pre>&lt;template&gt;
+  &lt;div class="app"&gt;
+    &lt;div class="photos"&gt;
+      &lt;Photo v-for="photo in state.info" :photo="photo" :key="photo[0]" /&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+  import Photo from './components/Photo.vue';
+  import { usePhotoApi } from './functions/photo-api';
+  export default {
+    name: 'app',
+    components: { Photo },
+    setup() {
+      const state = usePhotoApi();
+      return {
+        state
+      };
+    }
+  }
+&lt;/script&gt;</pre>
+<p>在那里，<code>App.vue</code>所做的就是使用<code>Photo</code>组件显示每张照片，并将应用程序的状态设置为在<code>PhotoApi.js</code>中定义的状态。</p>
+<h2>结论</h2>
+<p>看看组合API是如何被接收的将会很有趣。到目前为止，我观察到的它的主要优点之一是它能够为每个组件分离关注点——每个组件只有一个功能要执行。这使得事情非常有条理。以下是我们在文章演示中使用的一些函数:</p>
+<ul>
+<li><code>setup</code>–控制组件的逻辑。它接收<code>props</code>和上下文作为参数</li>
+<li><code>ref</code>–返回一个反应变量，并触发模板的重新渲染。它的值可以通过改变<code>value</code>属性来改变</li>
+<li><code>reactive</code>–返回一个反应对象。它根据反应变量的变化重新呈现模板。与<code>ref</code>不同，它的值可以在不改变<code>value</code>属性的情况下改变</li>
+</ul>
+<p>你有没有发现其他惊人的方法来实现复合API？请在下面的评论区分享它们。你可以在<a href="https://codesandbox.io/s/vue-template-x9bqm?fontsize=14" target="_blank" rel="noopener noreferrer"> CodeSandbox </a>上查看演示的完整实现。</p>
+<p> </p>
+<p> </p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

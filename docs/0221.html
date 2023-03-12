@@ -1,0 +1,102 @@
+<html>
+<head>
+<title>Security for full-stack web developers :  Part 2 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>全栈web开发人员的安全性:第2部分- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/security-for-fullstack-developers-part-2-d97fa6382ec9/#0001-01-01">https://blog.logrocket.com/security-for-fullstack-developers-part-2-d97fa6382ec9/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>欢迎(回到)我的关于全栈开发人员安全性的技术系列。如果这是你第一次加入我们，那么请点击这里查看这个系列的第一篇文章。第一篇文章是我们在开始一个新的网络应用时应该考虑的所有事项的清单。在本文中，我们将从前端和后端两个方面，探讨我推荐的在服务器级别保护您的web应用的最佳实践。</p>
+<p>当开始一个新的web项目时，web服务器可以说是最有影响力的选择。不仅仅是因为安全原因，还因为性能和可靠性。我们需要我们的服务器非常快，但我们不能因此而牺牲安全性。</p>
+<p>其中一个大问题，也是最常见的问题是，我们经常只是启动我们选择的框架或技术使用的默认服务器，而实际上并不了解服务器本身，或者不包括任何安全特性。</p>
+<p>也就是说，我们不能将安全性视为我们列表中的唯一优先事项(尽管它应该接近顶部)。作为全栈和前端开发人员，我们有相当多的考虑要做，包括如上所述的性能和可靠性。如果我在本文中提到的任何安全特性会影响到这些因素中的任何一个，我会确保我提到了这一点，并包括您可能遇到的任何陷阱。</p>
+<p>在我的上一篇文章中，我简要地提到了XSS和HTTPS这样的主题。在本文中，我将更深入地向您展示我们如何通过一些更关键的要点来缓解这些问题，如HSTS(严格的传输安全)、CSP(内容安全策略<em> ) </em>，并回顾我在上一篇文章中提到的制定技术蓝图；我将要谈到的要点是如何帮助你做到这一点的。因此，让我们开始着手确保我们的web应用程序尽可能安全，从服务器开始。</p>
+<h2>严格的运输安全(HSTS)</h2>
+<p>HSTS是一个安全标头，允许我们在整个web应用程序中实施HTTPS。如果你读过我以前的文章，你会记得我到处宣扬HTTPS的思想，并向你展示了如何从<a class="markup--anchor markup--p-anchor" href="https://letsencrypt.org" target="_blank" rel="noopener noreferrer" data-href="https://letsencrypt.org">让我们加密</a>免费获得可信、安全的SSL证书。我们到处都需要HTTPS的原因是，如果我们没有实现它，我们的用户很容易受到cookie窃取和中间人攻击。</p>
+<p>现在，正如你可能意识到的那样，仅仅拥有一个SSL证书就会立即让你所有的网络应用程序只支持HTTPS——我们需要告诉我们的应用程序自己这么做。最好的方法之一是使用HSTS的HTTP报头。通过使用这个头，我们可以强制我们的应用程序上的所有流量使用HTTPS和升级非HTTPS。这个头甚至可以提供性能提升，因为我们不再需要通过手动重定向来发送用户。</p>
+<p>所以，你可能在想，“哇！我需要这个！”嗯，虽然我同意——以及我稍后将谈到的内容安全政策——但这需要谨慎实施。请允许我解释。下面是一个HSTS标题示例:</p>
+<pre>Strict-Transport-Security: max-age=630720; includeSubDomains; preload</pre>
+<p>在Node.js中:</p>
+<pre>function requestHandler(req, res) {
+    res.setHeader('Strict-Transport-Security', 'max-age=630720; includeSubDomains; preload');
+}</pre>
+<p>在这个头中，我们有三个适用的指令:<code>max-age</code>、<code>includeSubDomains</code>和<code>preload</code>。</p>
+<h3><code>max-age</code></h3>
+<p>通过指定一个<code>max-age</code>，我们告诉用户的浏览器缓存我们只使用HTTPS的事实。这意味着，如果用户试图访问一个非HTTPS版本的网站，他们的浏览器将自动重定向到HTTPS网站之前，它甚至发送一个消息给服务器。这就是我前面提到的轻微的性能提升。现在，虽然这在理论上听起来很棒，但我们需要注意的是，如果用户需要访问非HTTPS页面，他们的浏览器不会允许他们访问，直到这个<code>max-age</code>过期。</p>
+<p>如果你要激活这个特性并设置一个长的<code>max-age</code>(这是我马上要谈到的预加载网站所要求的)，在你采取行动之前，你真的需要确保你已经正确设置了SSL证书，并且在你的所有web应用上启用了HTTPS！</p>
+<h3><code>includeSubDomains</code></h3>
+<p class="graf graf--p">指令做的和它在罐头上说的完全一样。它只是通过在您的子域中强制执行策略来提供额外的保护。如果您运行的web应用程序将cookies从一个部分(可能是游戏部分)设置到另一个需要保持安全的部分(可能是个人资料部分)，这将非常有用。同样，这个问题与上面类似，因为你必须确保你拥有和运行的每个子域，完全准备好应用这个。</p>
+<h3><code>preload</code></h3>
+<p>最危险的指令！基本上，<code>preload</code>指令是一个浏览器内置的指令，直接来自浏览器创建者。这意味着您的web应用程序可以被硬编码到实际的浏览器中，以便始终使用HTTPS。同样，虽然这意味着没有重定向，因此性能提升，一旦你在这个列表上；很难摆脱它！考虑到Chrome从构建到发布需要大约三个月的时间——而且这只针对自动更新的人——如果你犯了一个错误，你会有很长的等待时间。</p>
+<p>因此，我们在这里有一个难以置信的强大，但非常危险的安全功能。这里的关键是确保你知道你的HTTPS措施里里外外，并使用判断力。虽然我不建议你把你的网站提交给<code>preload</code>指令，如果你愿意，你可以<a class="markup--anchor markup--p-anchor" href="https://hstspreload.org/" target="_blank" rel="noopener noreferrer" data-href="https://hstspreload.org/">这里</a>。</p>
+<p><strong>注意:</strong>利用HSTS时，并不要求使用预载。您需要应用的唯一标题是<code>max-age</code>标题。</p>
+<p>如果你打算使用HSTS协议，从一个小的<code>max-age</code>开始——比如几个小时，然后持续一段时间。这是谷歌Chrome给出的官方建议。如果你使用<code>includeSubDomains</code>指令，确保你没有内部(company.mysite.com)子域名，如果受到影响将无法访问。如果你要向<code>preload</code>提交你的网络应用，遵循官方的指导方针，并确保你确切地知道你在做什么——我对自己并不完全有信心！</p>
+<h2>使用X-XSS保护标头</h2>
+<p>正如我在上一篇文章中提到的，XSS(跨站点脚本)是所有web应用攻击中最常见的。当恶意实体向您的web应用程序中注入要运行的脚本时，就会发生XSS。几年前，大多数网络浏览器都在浏览器中内置了针对XSS攻击的安全过滤器。虽然理论上这是一个好的步骤，但他们确实经常出现假阳性。因此，用户可以关闭过滤器(在我看来，这个选项应该是可用的)。</p>
+<p>为了确保我们的用户受到保护，我们可以通过使用<code>X-XSS-Protection</code>头在我们的web应用程序上强制使用这个过滤器(值得)。这个标题被普通浏览器广泛支持，也是我每次都推荐使用的。</p>
+<p>要将此头应用于Node.js应用程序，应该包括以下内容:</p>
+<pre>function requestHandler(req, res) {
+    res.setHeader( 'X-XSS-Protection', '1; mode=block' );
+}</pre>
+<p>注意这个头中的两个指令:<code>1</code>仅仅是作为一个布尔值1或0来反映on或off。<code>mode=block</code>将停止整个页面的加载，而不是简单地清理页面，如果您完全排除该指令，就会出现这种情况。</p>
+<p>如果你像我一样是个安全狂，也是Chromium浏览器的用户，你甚至可以更进一步，设置如下指令:</p>
+<pre>X-XSS-Protection: 1; report=&lt;reporting-uri&gt;</pre>
+<p>现在，如果浏览器检测到XSS攻击，页面将被清理，并发送违规报告。注意，这使用了CSP <code>report-uri</code>指令的功能来发送一个报告，我将在下面的内容安全策略一节中讨论这个报告。</p>
+<h2>防范点击劫持</h2>
+<p>当恶意代理将对象/iframe注入到您的web应用程序中时，点击劫持就会发生，这些对象/iframe看起来像是您的web应用程序，实际上会在用户被点击时将用户发送到恶意站点。另一个常见的——可能更可怕的——例子是，恶意代理将看起来像支付表单的东西插入到您的web应用程序中，该应用程序看起来很真实，但窃取了支付细节。</p>
+<p>现在，虽然这可能是一个非常危险的问题，但它非常容易缓解，对您的web应用程序几乎没有影响。服务器为浏览器提供了一个名为<code>X-Frame-Options</code>的头协议。这个协议允许我们指定接受iFrames的域。它还允许我们声明我们的web应用程序可以嵌入到哪些网站上。有了这个协议，我们得到了三个不言自明的选项/指令:<code>DENY</code>、<code>ALLOW-FROM</code>和<code>SAMEORIGIN</code>。</p>
+<p>如果我们选择<code>DENY</code>，我们可以阻止所有的框架。如果我们使用<code>ALLOW-FROM</code>，我们可以提供一个允许框架的域列表。我倾向于使用<code>SAMEORIGIN</code>指令，因为这意味着框架只能在当前域内完成。这可用于以下情况:</p>
+<pre>function requestHandler(req, res) {
+    res.setHeader( 'X-Frame-Options', 'SAMEORIGIN' );
+}</pre>
+<h2>内容安全政策(CSP)</h2>
+<p>CSP是web应用程序的服务器浏览器安全性的另一个主要话题。在一个高层次上，内容安全策略告诉浏览器哪些内容被授权在web应用上执行，哪些内容将被阻止。首先，这可以用来防止XSS，攻击者可以在您的web应用程序上放置一个<code>&lt;script&gt;</code>标签。内容安全策略是一个服务器浏览器头，我们可以设置它来确保我们的服务器准确地告诉浏览器我们将允许在我们的web应用上执行哪些媒体、脚本及其来源。</p>
+<p>资源和执行URIs的白名单提供了良好的安全级别，在大多数情况下，可以抵御大多数攻击。</p>
+<p>要在Express.js服务器中包含仅允许内部和Google Analytics的内容安全策略，您可以执行以下操作:</p>
+<pre>var express = require('express');
+var app = express();
+
+
+app.use(function(req, res, next) {
+    res.setHeader( "Content-Security-Policy", "script-src 'self' https://analytics.google.com" );
+    return next();
+});
+
+app.use(express.static(__dirname + '/'));
+
+app.listen(process.env.PORT || 3000);,</pre>
+<p>但是，如果我们不希望允许任何外部站点在我们的web应用程序上执行脚本，我们可以简单地包括以下内容:</p>
+<pre>function requestHandler(req, res) {
+    res.setHeader( 'Content-Security-Policy', "script-src 'self'" );
+}</pre>
+<p>注意这里的<code>script-src</code>指令，我们已经将它设置为<code>self</code>，因此只允许来自我们自己域内的脚本。当然，CSP也不是没有自己的问题。首先，我们很容易忘记我们的网络应用程序中的一些媒体，只是不小心把它们排除在外。既然网络上有如此丰富的媒体，这应该很容易做到。其次，我们中的许多人在我们的web应用程序上使用第三方插件。同样，除非我们有一个完整的蓝图，我们可以很容易地阻止他们。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>因此，一旦激活，这个服务器头可能会对我们非常不利。然而，有两种很好的测试方法。您可以设置严格的策略，并使用内置指令；<code>report-only</code>和<code>report-uri</code>来测试它们。<code>report-uri</code>指令告诉浏览器将所有被拦截脚本的JSON报告发送到我们指定的URi。<code>report-only</code>指令做同样的事情，但是不会阻止站点上的脚本。在我们将该接头投入生产之前，这对于测试非常有用。</p>
+<p>这篇报道写得很好。</p>
+<p>内容安全政策很好，但必须谨慎使用。就像上面提到的HSTS一样，我们需要确保在激活之前了解情况的来龙去脉。如果您正在加载外部图像、脚本等。您需要明白，除非您将这些包括在策略中，否则它们将被阻止。</p>
+<h2>禁用敏感数据的缓存</h2>
+<p>我几乎在我开发的每一个网络应用中都使用了缓存。正如我们所知，它节省了服务器负载，并在很大程度上改善了用户的加载时间。但是，像大多数事情一样，它也有不利的一面。例如，许多人在包含敏感数据的web应用程序页面上强制进行主动缓存。通过缓存敏感数据，我们可以让恶意代理访问我们用户的私人信息。</p>
+<p>对于我们来说，确保我们的服务器告诉浏览器不要缓存任何包含敏感数据的页面是有意义的，例如用户支付详情页面或类似的页面。令人高兴的是，我们可以通过利用<code>Cache-Control</code>头非常简单地做到这一点。例如，在Node.js中，您可以在敏感页面上包含以下内容:</p>
+<pre>function requestHandler(req, res) {
+    res.setHeader( 'Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate' );
+    res.setHeader( 'Pragma' , 'no-cache' );
+    res.setHeader( 'Expires' , 'Sat, 01 Jan 2000 00:00:00 GMT' );
+}</pre>
+<p>通过这样做，我们告诉浏览器页面不能被缓存，它必须在重新加载时重新验证页面。指令允许我们指定一个时间戳，在这个时间戳之后页面被认为是完全无效的。我只是在这里输入一个简单的很久以前的日期。</p>
+<h2>结论</h2>
+<p>因此，从通过严格的传输安全来执行HTTPS，到通过内容安全策略来保护我们的webapp在我看来，我们已经讨论了确保web应用程序的服务器浏览器安全性的主要主题。这些主题都是我自己使用的技术，我会在你的应用中不断提倡使用。</p>
+<p>本文中我没有涉及的一个主题是跨站点请求伪造(CSRF)。这是一个如此大的话题，我认为它需要自己的文章。希望在不久的将来，我能为你提供这些！除了实施服务器安全最佳实践，针对您选择的服务器和语言及时更新漏洞也非常重要。最好的地方是服务器的GitHub repo和CVEDetails.com。</p>
+<p>本系列的最后一篇文章将涵盖web安全的一个重要元素:从前端和后端的角度来看用户、认证和授权。我希望在接下来的几周里，你能和我一起回到这个博客。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+ 
+</div>    
+</body>
+</html>

@@ -1,0 +1,295 @@
+<html>
+<head>
+<title>Building a progressive web app (PWA): No React, no Angular, no Vue - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>构建一个进步的网络应用(PWA):没有反应，没有棱角，没有Vue - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-a-progressive-web-app-pwa-no-react-no-angular-no-vue-aefdded3b5e/#0001-01-01">https://blog.logrocket.com/building-a-progressive-web-app-pwa-no-react-no-angular-no-vue-aefdded3b5e/#0001-01-01</a></blockquote><div><div class="wp-block-jetpack-markdown">
+<p>最近，渐进式网络应用(PWAs)获得了更多的关注。部分来说，浏览器(尤其是移动设备)中现有的API集就是其中的一部分。另一方面，人们仍然渴望将一个网络应用程序扩展成一个移动应用程序，既有所有的好处，又没有缺点。构建移动应用程序的缺点之一是平台锁定，即要求在平台供应商的商店中列出。</p>
+<p>在本文中，我们将探讨如今构建PWA需要什么，以及在这个过程中我们面临哪些不利因素或障碍。我们将探索最有用的API，并获得一个从零到PWA的最小示例。</p>
+<h2>历史</h2>
+<p>让我们从一点历史背景开始。PWA的主要思想是能够尽可能多地使用本机功能。这包括各种传感器，如GPS、加速度计、陀螺仪等。然而，最重要的是，PWA也应该脱机工作，即脱机时不再出现“找不到页面”或类似的错误。</p>
+<p>几年前，离线功能就已经包含在浏览器中了——它是应用缓存或应用清单。在这个规范中，我们需要一个特殊的文件(通常称为类似于<code>app.cache</code>或<code>app.manifest</code>的东西)来描述什么资源应该可供离线使用，只供在线使用，或者在从一种模式转换到另一种模式时被替换。然而，这种方法面临许多问题(特别是在更新清单本身方面)，并且没有被很好地采用。</p>
+<p>当清单方法失败时，Mozilla想出了许多新的APIs大部分是为他们的Firefox OS移动系统。在这篇专题文章中，Mozilla探索了使用包括网络商店在内的移动应用等网络应用的可能性，从理论上讲，这也可以被其他平台包括，如Android或iOS。不幸的是，Firefox OS从未获得过关注，这些标准的采用也没有变得至关重要。结果，“开放式商店”或“商店规范”的梦想失败了。尽管如此，一些API仍然被很好地指定和采用。</p>
+<p>从Firefox OS实验中获益良多的API之一是服务工作者。像web worker一样，它代表一个隔离的JS执行环境，从底层平台执行和停止。与它交流的唯一方式是通过消息传递。服务人员提供了web应用程序(与移动应用程序相比)部分缺失的大量可能性，并允许在离线场景中更灵活地处理缓存。</p>
+<p>所有的API都在正确的位置上，一些有影响力的人创造了一个新术语“Progress web App ”,用于表示可以像本地应用程序一样使用的Web应用程序，但实际上像任何其他Web应用程序一样交付——不需要单独的捆绑、分发或任何东西。</p>
+<p>Wikipedia[^1认为]存在以下特征:</p>
+<ul>
+<li><strong>渐进式</strong>:适用于所有用户，无论他们选择何种浏览器，因为他们以渐进式改进为核心原则。</li>
+<li><strong>响应迅速</strong>:适合任何外形规格:台式机、手机、平板电脑或尚未出现的外形。</li>
+<li><strong>独立连接</strong>:服务人员允许离线工作，或在低质量网络上工作。</li>
+<li><strong>类应用</strong>:给用户一种应用的感觉，具有应用风格的交互和导航。</li>
+<li><strong>新鲜</strong>:得益于服务人员的更新流程，始终保持最新。</li>
+<li><strong>安全</strong>:通过HTTPS提供，防止窥探，确保内容不被篡改。</li>
+<li><strong>可发现的</strong>:由于W3C清单和服务工作者注册范围允许搜索引擎找到它们，它们可以被识别为“应用程序”。</li>
+<li><strong>重新参与</strong>:通过推送通知等功能使重新参与变得容易。</li>
+<li>可安装的(Installable):允许用户在主屏幕上“保留”他们认为最有用的应用程序，而没有应用程序商店的麻烦。</li>
+<li><strong>可链接</strong>:通过URL轻松共享，不需要复杂的安装。</li>
+</ul>
+<p>接下来，我们将检查每个特性，看看实现是什么样子的。为了让事情新鲜一点，我们将在一个示例应用程序的上下文中解释每个部分。</p>
+<p><a href="https://logrocket.com/signup/"> <img decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" alt="Start a Free Trial" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/> <noscript> <img data-lazy-fallback="1" decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" alt="Start a Free Trial" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/> </noscript></a></p>
+<p>前面要点的顺序已经调整，以遵循更自然的实施流程。</p>
+<h2>例子</h2>
+<p>由于我们来自网络背景，我们假设所有这些点都被隐式处理了。因此，我们将省略明显的点，例如，渐进部分、安全部分和可链接部分。安全部分仅表明我们的web应用程序来自安全的来源。它通过TLS提供，并显示绿色挂锁(没有活动的混合内容)。</p>
+<p>我们的示例从三个处于简单基本状态的文件开始:</p>
+<ul>
+<li><em>index.html</em>包含HTML定义</li>
+<li>布局的<em> style.css </em></li>
+<li><em> app.js </em>描述逻辑</li>
+</ul>
+<p>我们的示例应用程序的当前逻辑如下所示:</p>
+<pre><code class="language-js">(function () {&#13;
+  const app = document.querySelector('#app');&#13;
+  const container = app.querySelector('.entry-container');&#13;
+  const loadMore = app.querySelector('.load-more');&#13;
+  &#13;
+  async function getPosts(page = 1) {&#13;
+    const result = await fetch('https://jsonplaceholder.typicode.com/posts?_page=' + page);&#13;
+    return await result.json();&#13;
+  }&#13;
+  &#13;
+  async function getUsers() {&#13;
+    const result = await fetch('https://jsonplaceholder.typicode.com/users');&#13;
+    return await result.json();&#13;
+  }&#13;
+  &#13;
+  async function loadEntries(page = 1) {&#13;
+    const [users, posts] = await Promise.all([getUsers(), getPosts(page)]);&#13;
+    return posts.map(post =&gt; {&#13;
+      const user = users.filter(u =&gt; u.id === post.userId)[0];&#13;
+      return `&lt;section class="entry"&gt;&lt;h2 class="entry-title"&gt;${post.title}&lt;/h2&gt;&lt;article class="entry-body"&gt;${post.body}&lt;/article&gt;&lt;div class="entry-author"&gt;&lt;a href="mailto:${user.email}"&gt;${user.name}&lt;/a&gt;&lt;/div&gt;&lt;/section&gt;`;&#13;
+    }).join('');&#13;
+  }&#13;
+&#13;
+  function appendEntries(entries) {&#13;
+    const output = container.querySelector('output') || container.appendChild(document.createElement('output'));&#13;
+    output.outerHTML = entries + '&lt;output&gt;&lt;/output&gt;';&#13;
+  }&#13;
+&#13;
+  (async function() {&#13;
+    let page = 1;&#13;
+&#13;
+    async function loadMoreEntries() {&#13;
+      loadMore.disabled = true;&#13;
+      const entries = await loadEntries(page++);&#13;
+      appendEntries(entries);&#13;
+      loadMore.disabled = false;&#13;
+    }&#13;
+  &#13;
+    loadMore.addEventListener('click', loadMoreEntries, false);&#13;
+    loadMoreEntries();&#13;
+  })();&#13;
+})();&#13;
+</code></pre>
+<p>没有反应，没有棱角，没有Vue。只是用一些更新的API(例如，<code>fetch</code>)和JS规范(例如，使用<code>async</code> / <code>await</code>)直接进行DOM操作。为了简单起见，我们不会捆绑(例如，优化、聚合填充和最小化)该应用程序。</p>
+<p>逻辑是简单地加载一些初始条目，并通过单击一个按钮加载更多的功能。对于这个例子，我们使用了<em> jsonplaceholder </em>服务，它为我们提供了一些样本数据。</p>
+<p>事不宜迟，让我们直接进入细节。</p>
+<h3>发现的</h3>
+<p>由于W3C清单和服务工作者注册范围，我们的web应用程序可以被识别为“应用程序”。因此，这使得搜索引擎很容易找到(阅读“发现”)它。</p>
+<p>引用至少具有四个关键属性的web应用程序清单:</p>
+<ul>
+<li><code>name</code>，</li>
+<li><code>short_name</code>，</li>
+<li><code>start_url</code>，以及</li>
+<li><code>display</code>(值为“独立”或“全屏”)。</li>
+</ul>
+<p>要引用web应用程序清单，我们只需要两样东西。一方面，有效的web应用清单(例如，在我们的web应用的根文件夹中名为<em> manifest.json </em>的文件)和我们的HTML页面中的链接，</p>
+<pre><code class="language-html">&lt;link href="manifest.json" rel="manifest"&gt;&#13;
+</code></pre>
+<p>内容可以简单到</p>
+<pre><code class="language-json">{&#13;
+  "name": "Example App",&#13;
+  "short_name": "ExApp",&#13;
+  "theme_color": "#2196f3",&#13;
+  "background_color": "#2196f3",&#13;
+  "display": "browser",&#13;
+  "scope": "/",&#13;
+  "start_url": "/"&#13;
+}&#13;
+</code></pre>
+<p>有几个不错的清单生成器；无论是以专用web应用程序的形式，还是作为我们构建管道的一部分。后者非常方便，例如，当使用Webpack构建来自动生成具有一致内容的清单时。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>一个好的web应用程序生成有效清单的例子是<a href="https://app-manifest.firebaseapp.com"> Web应用程序清单生成器</a>。</p>
+<p>要检测我们的清单是否有效并被正确提取，我们可以使用我们选择的浏览器的调试工具。在Chrome中，目前看起来是这样的:</p>
+<p><img decoding="async" src="../Images/7de2b76806a35f0e6db553299da6a80c.png" alt="Chrome Manifest Debugger" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*zRVvPPO3O2s0dJAvl_wdew.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*zRVvPPO3O2s0dJAvl_wdew.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/7de2b76806a35f0e6db553299da6a80c.png" alt="Chrome Manifest Debugger" data-original-src="https://storage.googleapis.com/blog-images-backup/1*zRVvPPO3O2s0dJAvl_wdew.png"/></noscript>
+<h3>可安装</h3>
+<blockquote>
+<p>允许用户在主屏幕上“保留”他们认为最有用的应用程序，而没有应用程序商店的麻烦。</p>
+</blockquote>
+<p>至少在清单中包含一个png格式的144×144大图标，例如，通过写入:</p>
+<pre><code class="language-json">"icons": [&#13;
+  {&#13;
+    "src": "/images/icon-144.png",&#13;
+    "sizes": "144x144",&#13;
+    "type": "image/png"&#13;
+  }&#13;
+]&#13;
+</code></pre>
+<p>关于前面提到的生成器的伟大之处在于，它们中的大多数已经为我们创建了图标数组。更好的是，我们只需要提供一个(更大的)基本图像，这将导致所有其他图标。</p>
+<p>大多数情况下，installable指的是安装一个服务人员(稍后会详细介绍)并可以从主屏幕启动，这使得应用程序也像app一样。</p>
+<h3>类App</h3>
+<p>对用户来说就像一个应用程序，具有应用程序风格的交互和导航。虽然我们永远不会成为真正的本地应用，但我们应该接受触摸手势和手机友好的使用模式。</p>
+<p>最重要的是，正如已经讨论过的，我们希望可以从主屏幕上启动。一些浏览器允许我们显示添加到主屏幕提示。这只需要监听<code>beforeinstallprompt</code>事件。最重要的是，已经提到的清单需要包括一些特定的图标(例如，一个192×192的大图标)。</p>
+<p>简而言之，我们可以监听事件，并通过显示浏览器的默认提示做出反应。或者，我们也可以捕获事件参数，并在自定义UI中使用它们。一切都取决于我们。因此，一个简单的实现可能如下所示:</p>
+<pre><code class="language-js">window.addEventListener('beforeinstallprompt', e =&gt; {&#13;
+  e.preventDefault();&#13;
+  e.prompt();&#13;
+});&#13;
+</code></pre>
+<p>关于这个功能的更多信息可以在谷歌的文档中找到。</p>
+<h3>应答的</h3>
+<p>适合任何外形:台式机、手机、平板电脑或尚未出现的外形。请记住，响应式设计并不局限于对不同的屏幕尺寸做出反应，它还意味着对不同形式的输入和/或输出做出反应。</p>
+<p>当然，瞄准所有存在的东西(智能音箱、智能手表、手机、平板电脑等等)可能是不可能的，甚至是不想要的。因此，在做出任何类型的响应性设计努力之前，首先查看期望的目标平台是有意义的。</p>
+<p>创建响应式设计可以通过许多不同的方式实现:</p>
+<ul>
+<li>使用具有相对(例如百分比)测量值的流体布局</li>
+<li>使用现代布局技术，例如带调整的Flexbox或Grid布局</li>
+<li>使用屏幕大小相对媒体查询</li>
+<li>为更复杂的断点逻辑或容器大小相对条件使用脚本</li>
+</ul>
+<p>每一点都有优点和缺点，但它主要取决于我们的问题描述(例如，想要的设计看起来像什么，我们是否需要支持遗留浏览器)。</p>
+<p>我们的例子已经遵循了流体设计。我们仍然可以在这一领域进行一些改进，但是由于本文的重点更多地放在连接特性上，所以我们将跳过这一领域的具体步骤。</p>
+<h3>连通性独立</h3>
+<p>服务人员允许离线工作，或者在低质量的网络上工作。介绍一个服务人员很简单，通常维护/正确使用要困难得多。</p>
+<p>脱机时加载(即使只是自定义脱机页)。言下之意，这意味着进步的网络应用需要服务人员。</p>
+<p>服务人员需要两样东西:</p>
+<ol>
+<li>代表服务人员的独立脚本</li>
+<li>我们的主(应用程序)脚本中的一部分，用于注册服务人员(独立脚本)</li>
+</ol>
+<p>后者看起来应该类似于</p>
+<pre><code class="language-js">// check for support&#13;
+if ('serviceWorker' in navigator) {&#13;
+  try {&#13;
+    // calls navigator.serviceWorker.register('sw.js');&#13;
+    registerServiceWorker();&#13;
+  } catch (e) {&#13;
+    console.error(e);&#13;
+  }&#13;
+}&#13;
+</code></pre>
+<p>其中<em> sw.js </em>指服务人员。最好的情况是<em> sw.js </em>放在我们应用程序的根目录下，否则它不能处理所有内容。</p>
+<p>服务人员只能对事件做出反应，而不能访问DOM。我们关心的主要事件是</p>
+<ul>
+<li>查看服务人员是否已注册</li>
+<li><code>fetch</code>检测网络请求/对其做出适当反应</li>
+</ul>
+<p>下图说明了这两个事件在我们的web应用程序中的作用。</p>
+<p><img decoding="async" src="../Images/d46e965b7e73efaab9d243266db5e8f3.png" alt="Service Worker Use Cases" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*S2jR21bc4Ob36sqV5dYo-A.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*S2jR21bc4Ob36sqV5dYo-A.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/d46e965b7e73efaab9d243266db5e8f3.png" alt="Service Worker Use Cases" data-original-src="https://storage.googleapis.com/blog-images-backup/1*S2jR21bc4Ob36sqV5dYo-A.png"/></noscript>
+<p>此外，我们可能希望跟进成功的服务人员安装。</p>
+<pre><code class="language-js">async function registerServiceWorker() {&#13;
+  try {&#13;
+    const registration = await navigator.serviceWorker.register('sw.js');&#13;
+    // do something with registration, e.g., registration.scope&#13;
+  } catch (e) {&#13;
+    console.error('ServiceWorker failed', e);&#13;
+  }&#13;
+}&#13;
+</code></pre>
+<p>关于服务人员的内容，可以像监听安装和获取事件一样简单。</p>
+<pre><code class="language-js">self.addEventListener('install', e =&gt; {&#13;
+  // Perform install steps&#13;
+});&#13;
+&#13;
+self.addEventListener('fetch', e =&gt; {&#13;
+  // Empty for now&#13;
+});&#13;
+</code></pre>
+<p>在这个阶段，我们的应用程序已经可以独立运行，并像应用程序一样添加到主屏幕(例如，Windows上的桌面)中。</p>
+<p><img decoding="async" src="../Images/e405a7a150b3054e0b472699bc76eee1.png" alt="Running Standalone" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*J8cUgqW-btAjbkLbmOCyaQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*J8cUgqW-btAjbkLbmOCyaQ.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/e405a7a150b3054e0b472699bc76eee1.png" alt="Running Standalone" data-original-src="https://storage.googleapis.com/blog-images-backup/1*J8cUgqW-btAjbkLbmOCyaQ.png"/></noscript>
+<p>现在是时候让应用程序更有趣一点了。</p>
+<h3>重新参与</h3>
+<p>通过推送通知等功能，轻松实现再次合作。推送通知与其本机计数器部分相似。当用户不使用我们的web应用程序，并且他们需要明确的许可才能这样做时，可能会发生这种情况。它们的尺寸也有限(最大。4 kB)并且必须被加密。</p>
+<p>虽然权限请求会在需要时自动显示，但我们也可以手动触发请求(推荐):</p>
+<pre><code class="language-js">Notification.requestPermission(result =&gt; {&#13;
+  if (result !== 'granted') {&#13;
+    //handle permissions deny&#13;
+  }&#13;
+});&#13;
+</code></pre>
+<p>在我们的服务人员中，我们可以订阅新的推送通知。为此，我们使用跟踪成功的服务人员注册的功能:</p>
+<pre><code class="language-js">async function subscribeToPushNotifications(registration) {&#13;
+  const options = {&#13;
+    userVisibleOnly: true,&#13;
+    applicationServerKey: btoa('...'),&#13;
+  };&#13;
+  const subscription = await registration.pushManager.subscribe(options);&#13;
+  //Received subscription&#13;
+}&#13;
+</code></pre>
+<p>应用服务器密钥是解密来自我们的消息的公共密钥。启用Node.js的web推送通知的实现是例如<a href="https://github.com/web-push-libs/web-push"> Web推送</a>。</p>
+<p>关于<code>applicationServerKey</code>的正确值，我们在规范中找到以下信息:</p>
+<blockquote>
+<p>Base64编码的DOMString或ArrayBuffer，包含ECDSA P-256公钥，推送服务器将使用该公钥对应用服务器进行身份验证。如果指定，来自应用程序服务器的所有消息都必须使用VAPID身份验证方案，并包括用相应私钥签名的JWT。</p>
+</blockquote>
+<p>因此，为了做到这一点，我们需要提供一个base64值来匹配我们的push服务器的公钥。然而，实际上，一些较老的浏览器实现需要一个<code>ArrayBuffer</code>。因此，唯一安全的选择是自己从base64字符串进行转换(要寻找的要点称为<code>urlBase64ToUint8Array</code>)。</p>
+<h3>新鲜的</h3>
+<p>由于服务人员的更新过程，始终保持最新状态。要查看服务人员的状态，我们应该使用浏览器的调试工具(例如，在Chrome中通过应用程序选项卡)。确保在开发模式中选中“重新加载时更新”，否则我们需要手动更新注册的服务人员(避免“跳过等待”确认消息)。潜在的原因是浏览器只允许我们的页面中有一个活动的服务工作者。</p>
+<p>好了，废话不多说，让我们直接进入实现这一目标所需的步骤。首先，我们需要为<code>install</code>和<code>fetch</code>事件提供一些实现。在最简单的形式中，我们只将静态文件添加到<code>install</code>事件的缓存中。</p>
+<pre><code class="language-js">const files = [&#13;
+  './',&#13;
+  './app.js',&#13;
+  './style.css',&#13;
+];&#13;
+&#13;
+self.addEventListener('install', async e =&gt; {&#13;
+  const cache = await caches.open('files');&#13;
+  cache.addAll(files);&#13;
+});&#13;
+</code></pre>
+<p><code>caches</code>对象为我们提供了一个API来创建命名缓存(对于调试和驱逐策略非常有用)、解析请求和显式缓存文件。在这个实现中，我们实际上是告诉浏览器从数组中获取URL，并将它们放入缓存中。服务工作器本身是隐式缓存的。</p>
+<p>事件可能会变得非常复杂。我们的示例项目的一个非常简单的实现可能如下所示:</p>
+<pre><code class="language-js">self.addEventListener('fetch', async e =&gt; {&#13;
+  const req = e.request;&#13;
+  const res = isApiCall(req) ? getFromNetwork(req) : getFromCache(req);&#13;
+  await e.respondWith(res);&#13;
+});&#13;
+</code></pre>
+<p>很好，所以本质上我们只是确定我们当前是获取(静态)文件还是进行API调用。在前一种情况下，我们直接进入缓存，在后一种情况下，我们首先尝试网络。最后，我们用给定的响应(来自缓存或网络)进行响应。唯一的区别在于缓存策略。</p>
+<p>实施网络优先策略是为了使用另一个命名缓存(“数据”)。解决方案非常简单，唯一重要的一点是,<code>fetch</code>在离线模式下会抛出一个异常，并且响应在被放入缓存之前需要被克隆。原因是一个响应只能读取一次。</p>
+<pre><code class="language-js">async function getFromNetwork(req) {&#13;
+  const cache = await caches.open('data');&#13;
+&#13;
+  try {&#13;
+    const res = await fetch(req);&#13;
+    cache.put(req, res.clone());&#13;
+    return res;&#13;
+  } catch (e) {&#13;
+    const res = await cache.match(req);&#13;
+    return res || getFallback(req);&#13;
+  }&#13;
+}&#13;
+</code></pre>
+<p><code>getFallback</code>函数使用仅缓存策略，使用最初添加到静态<code>files</code>缓存中的回退数据。</p>
+<p>给定的解决方案并非没有问题。如果问题域非常简单，它可能会起作用，但是，如果，例如，我们有一个不断增长的文件集要处理，我们需要一个好的缓存过期策略。此外，随着多个API请求和外部静态文件进入我们的问题域，我们可能会面临新的挑战。</p>
+<p>一个解决这些潜在挑战的好办法来自Google[^1].它负责整个更新过程，并在标准的<code>fetch</code>事件上提供了一个很好的抽象层。</p>
+<h2>结论</h2>
+<p>pwa只不过是我们的标准web应用程序，通过使用一些最近引入的API来改进一般UX。“渐进”这个名称表明该技术不需要硬切割。实际上，我们可以决定什么是有意义的，什么应该被包括在内。</p>
+<p>如果您想按照完整的示例步骤进行操作，可以随意克隆和使用位于<a>GitHub–PWA Example</a>的存储库。自述文件将引导您浏览各个分支。</p>
+<p>你已经增强了你的网络应用了吗？你喜欢哪些部分，目前缺少什么？在处理PWAs时，你最喜欢的库是什么？请在评论中告诉我们！</p>
+<h2>参考</h2>
+<p>[1]: <a href="https://en.wikipedia.org/wiki/Progressive_web_applications">维基百科</a> [2]: <a href="https://developers.google.com/web/tools/workbox/modules/workbox-sw">工具箱文档</a></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+</div></div>
+</div>
+</div>    
+</body>
+</html>

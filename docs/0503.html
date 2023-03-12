@@ -1,0 +1,642 @@
+<html>
+<head>
+<title>Creating a full-stack MERN app using JWT authentication: Part 4 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用JWT认证创建全栈MERN应用程序:第4部分</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/mern-app-jwt-authentication-part-4/#0001-01-01">https://blog.logrocket.com/mern-app-jwt-authentication-part-4/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>这是我们使用JWT认证构建全栈MERN应用系列的最后一篇文章。在开始之前，通读<a href="https://blog.logrocket.com/mern-app-jwt-authentication-part-1/" target="_blank" rel="noopener noreferrer">第一部分</a>、<a href="https://blog.logrocket.com/mern-app-jwt-authentication-part-2/" target="_blank" rel="noopener noreferrer">第二部分</a>，尤其是<a href="https://blog.logrocket.com/mern-app-jwt-authentication-part-3/" target="_blank" rel="noopener noreferrer">第三部分</a>——额外的上下文将帮助你更好地理解这一延续。</p>
+<p>到目前为止，我们已经成功地创建了一个基本系统，它与REST端点对话并提供响应，根据需要更改状态，并显示正确的内容。它也有一个持久的登录。</p>
+<h2>添加新端点</h2>
+<p>在这里，我们将处理创建用户、在服务器端验证用户，以及生成不同类型的响应，比如找不到用户、不正确的凭证等。</p>
+<p>我们将从服务器的示例存储开始，并验证用户。在此之前，我们需要一个供用户登录的端点。让我们首先编辑我们的<code>server.js</code>并添加一条新路线，如下所示:</p>
+<pre>app.post("/api/Users/SignIn", (req, res) =&gt; {
+  res.json(req.body);
+});</pre>
+<h2>为用户创建商店</h2>
+<p>存储类似于数据存储，是一个静态数据库。我们要做的就是为用户创建键值对，并使它们共存。我们还需要导出模块，以便在main <code>server.js</code>中导入它们。</p>
+<p>所以，在<code>users.js</code>中，我们会添加几个用户。密钥是用户名，对象的值是密码。</p>
+<pre>const Users = {
+  Praveen: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="217153615712124f">[email protected]</a>",
+  Cloudroit: "C!0uDr0!7"
+};
+
+module.exports = Users;</pre>
+<p>最后，我们使用<code>module.exports</code>来导出<code>Users</code>对象作为默认导出。</p>
+<h3>导入用户</h3>
+<p>现在我们应该使用<code>require</code>方法将用户存储导入到我们的<code>server.js</code>中，以使用<code>User</code>对象的内容。</p>
+<pre>const Users = require("./users");</pre>
+<h3>用户验证逻辑</h3>
+<p>这是我们验证用户输入的地方(真实的人使用前端)。第一个验证是检查用户是否在系统中。这可以通过两种方式来检查:通过在<code>Object.keys(User)</code>中找到键，或者通过使用<code>typeof</code>来检查以确保类型不是<code>undefined</code>。</p>
+<p>如果找不到用户，我们会发送一条错误消息，说明找不到用户。如果密钥存在，我们将根据值验证密码，如果不相等，我们将发送一条错误消息，指出凭证不正确。</p>
+<p>在这两种情况下，我们都发送一个状态代码<code>HTTP 403 Forbidden</code>。如果找到并验证了用户，我们发送一条简单的消息说<code>"Successfully Signed In!"</code>。这包含一个状态代码<code>HTTP 200 OK</code>。</p>
+<pre>app.post("/api/Users/SignIn", (req, res) =&gt; {
+  // Check if the Username is present in the database.
+  if (typeof Users[req.body.Username] !== "undefined") {
+    // Check if the password is right.
+    if (Users[req.body.Username] === req.body.Password) {
+      // Send a success message.
+      // By default, the status code will be 200.
+      res.json({
+        Message: "Successfully Signed In!"
+      });
+    } else {
+      // Send a forbidden error if incorrect credentials.
+      res.status(403).json({
+        Message: "Invalid Username or Password!"
+      });
+    }
+  } else {
+    // Send a forbidden error if invalid username.
+    res.status(403).json({
+      Message: "User Not Found!"
+    });
+  }
+});</pre>
+<h2>创建服务来消费用户逻辑</h2>
+<p>随着上述变化，我们需要更新前端的消费逻辑。我们目前还没有与<code>Users/SignIn</code> API端点对话的服务，所以我们将创建一个auth服务来消费API。</p>
+<h3>创建身份验证服务</h3>
+<p>让我们在<code>services</code>目录中创建一个名为<code>services/AuthService.js</code>的文件。函数<code>AuthUser</code>将把<code>Username</code>、<code>Password</code>和一个回调函数<code>cb</code>作为参数。将<code>Username</code>和<code>Password</code>作为<code>POST</code>数据参数发送给<code>/api/Users/SignIn</code>端点，在promise的<code>then()</code>中，以response <code>res</code>作为参数调用回调函数。</p>
+<p>错误条件下也会发生同样的事情，其中状态代码不是<code>2xx</code>。在这种情况下，我们将第二个参数作为<code>true</code>发送给回调函数，将错误对象作为第一个传递。我们将使用第二个参数在客户端适当地处理错误函数。</p>
+<pre>import axios from "axios";
+
+export const AuthUser = (Username, Password, cb) =&gt; {
+  axios
+    .post("/api/Users/SignIn", {
+      Username,
+      Password
+    })
+    .then(function(res) {
+      cb(res);
+    })
+    .catch(function(err) {
+      cb(err, true);
+    });
+};</pre>
+<h3>在客户端摆脱JWT</h3>
+<p>因为我们没有在客户端生成任何JWT，所以我们可以安全地移除<code>GenerateJWT()</code>函数的导入。否则，React和ESLint可能会在编译阶段抛出错误<code><a href="https://eslint.org/docs/rules/no-unused-vars" target="_blank" rel="noopener noreferrer">no-unused-vars</a></code>。</p>
+<pre>- import { GenerateJWT, DecodeJWT } from "../services/JWTService";
++ import { DecodeJWT } from "../services/JWTService";
++ import { AuthUser } from "../services/AuthService";</pre>
+<h3>提交表单时调用授权服务</h3>
+<p>现在我们只需要用<code>AuthUser</code>和一个支持<code>err</code>参数的回调函数替换我们的<code>GenerateJWT</code>函数——以及该函数的其他依赖项，如<code>claims</code>和<code>header</code>。</p>
+<p>这里处理错误非常简单。如果<code>err</code>参数为<code>true</code>，立即将接收到的消息设置为<code>Error</code>状态，由<code>res.response.data.Message</code>访问，通过返回<code>false</code>并突然停止该功能来停止运行。</p>
+<p>如果不是，我们需要检查状态为<code>200</code>。这里是我们需要处理成功函数的地方。我们需要从服务器返回一个JWT，但是就目前的情况来看，它并没有返回JWT，因为它是一个伪对象。接下来让我们处理服务器端部分，让它返回JWT。</p>
+<pre>handleSubmit = e =&gt; {
+  // Here, e is the event.
+  // Let's prevent the default submission event here.
+  e.preventDefault();
+  // We can do something when the button is clicked.
+  // Here, we can also call the function that sends a request to the server.
+  // Get the username and password from the state.
+  const { Username, Password } = this.state;
+  // Right now it even allows empty submissions.
+  // At least we shouldn't allow empty submission.
+  if (Username.trim().length &lt; 3 || Password.trim().length &lt; 3) {
+    // If either of Username or Password is empty, set an error state.
+    this.setState({ Error: "You have to enter both username and password." });
+    // Stop proceeding.
+    return false;
+  }
+  // Call the authentication service from the front end.
+  AuthUser(Username, Password, (res, err) =&gt; {
+    // If the request was an error, add an error state.
+    if (err) {
+      this.setState({ Error: res.response.data.Message });
+    } else {
+      // If there's no error, further check if it's 200.
+      if (res.status === 200) {
+        // We need a JWT to be returned from the server.
+        // As it stands, it doesn't currently return the JWT, as it's dummy.
+        // Let's work on the server side part now to make it return the JWT.
+      }
+    }
+  });
+};</pre>
+<h3>在屏幕上显示错误</h3>
+<p>让我们也更新我们的小数据查看器，以反映错误信息，如果它是可用的。可以追加<code>&lt;pre&gt;</code>标签内容，下面显示的是<code>this.state.Error</code>的内容。</p>
+<pre>{this.state.Error &amp;&amp; (
+  &lt;&gt;
+    &lt;br /&gt;
+    &lt;br /&gt;
+    Error
+    &lt;br /&gt;
+    &lt;br /&gt;
+    {JSON.stringify(this.state.Error, null, 2)}
+  &lt;/&gt;
+)}</pre>
+<h2>从服务器生成并发送JWT</h2>
+<p>目前，我们的登录API <code>"/api/Users/SignIn"</code>响应只是发出<code>HTTP 200</code>。我们需要改变这一点，以便它发送一个成功消息以及在服务器上生成的JWT。</p>
+<h3>正在更新登录响应</h3>
+<p>在检查数据库中是否存在<code>Username</code>之后，我们需要检查密码是否正确。如果两个条件都满足，我们必须在服务器端创建一个JWT并发送给客户端。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们根据默认的标题创建一个JWT。我们需要根据用户提供的<code>Username</code>进行索赔。我在这里没有使用<code>Password</code>,因为在响应中以明文形式添加密码是非常不安全的。</p>
+<pre>app.post("/api/Users/SignIn", (req, res) =&gt; {
+  const { Username, Password } = req.body;
+  // Check if the Username is present in the database.
+  if (typeof Users[Username] !== "undefined") {
+    // Check if the password is right.
+    if (Users[Username] === Password) {
+      // Let's create a JWT based on our default headers.
+      const header = {
+        alg: "HS512",
+        typ: "JWT"
+      };
+      // Now we need to make the claims based on Username provided by the user.
+      const claims = {
+        Username
+      };
+      // Finally, we need to have the key saved on the server side.
+      const key = "$PraveenIsAwesome!";
+      // Send a success message.
+      // By default, the status code will be 200.
+      res.json({
+        Message: "Successfully Signed In!",
+        JWT: GenerateJWT(header, claims, key)
+      });
+    } else {
+      // Send a forbidden error if incorrect credentials.
+      res.status(403).json({
+        Message: "Invalid Username or Password!"
+      });
+    }
+  } else {
+    // Send a forbidden error if invalid username.
+    res.status(403).json({
+      Message: "User Not Found!"
+    });
+  }
+});</pre>
+<h3>更新客户端登录逻辑</h3>
+<p>更新上面的代码后，<code>res.data</code>保存了<code>Message</code>和<code>JWT</code>。我们需要<code>JWT</code>，然后我们需要通过调用<code>DecodeJWT</code>服务对其进行解码，并将其存储在状态中。一旦完成，我们还需要在刷新后保持登录，因此我们将把<code>JWT</code>存储在<code>localStorage</code>中，正如在上一篇文章中所讨论的。</p>
+<p>像往常一样，我们检查浏览器是否支持<code>localStorage</code>，如果支持，使用<code>localStorage.setItem()</code>函数将<code>JWT</code>保存在<code>localStore</code>中。</p>
+<pre>handleSubmit = e =&gt; {
+  // Here, e is the event.
+  // Let's prevent the default submission event here.
+  e.preventDefault();
+  // We can do something when the button is clicked.
+  // Here, we can also call the function that sends a request to the server.
+  // Get the username and password from the state.
+  const { Username, Password } = this.state;
+  // Right now it even allows empty submissions.
+  // At least we shouldn't allow empty submission.
+  if (Username.trim().length &lt; 3 || Password.trim().length &lt; 3) {
+    // If either of the Username or Password is empty, set an error state.
+    this.setState({ Error: "You have to enter both username and password." });
+    // Stop proceeding.
+    return false;
+  }
+  // Call the authentication service from the front end.
+  AuthUser(Username, Password, (res, err) =&gt; {
+    // If the request was an error, add an error state.
+    if (err) {
+      this.setState({ Error: res.response.data.Message });
+    } else {
+      // If there's no errors, further check if it's 200.
+      if (res.status === 200) {
+        // We need a JWT to be returned from the server.
+        // The res.data holds both Message and JWT. We need the JWT.
+        // Decode the JWT and store it in the state.
+        DecodeJWT(res.data.JWT, data =&gt;
+          // Here, data.data will have the decoded data.
+          this.setState({ Data: data.data })
+          );
+        // Now to persist the login after refresh, store in localStorage.
+        // Check if localStorage support is there.
+        if (typeof Storage !== "undefined") {
+          // Set the JWT to the localStorage.
+          localStorage.setItem("JWT", res.data.JWT);
+        }
+      }
+    }
+  });
+};</pre>
+<h2>错误修复和评论</h2>
+<p>在开发整个应用程序时，我们忽略了一些错误，如果我们像最终用户一样使用它，我们会注意到这些错误。让我们看看他们是怎么进来的，然后把它们都修好。</p>
+<h3>成功事件期间清除所有错误消息</h3>
+<p>成功登录并注销后，错误消息不会被清除。我们需要在成功登录后清除错误消息。</p>
+<pre> AuthUser(Username, Password, (res, err) =&gt; {
+   // If the request was an error, add an error state.
+   if (err) {
+     this.setState({ Error: res.response.data.Message });
+   } else {
+     // If there's no errors, further check if it's 200.
+     if (res.status === 200) {
++      // Since there aren't any errors, we should remove the error text.
++      this.setState({ Error: null });
+       // We need a JWT to be returned from the server.
+       // The res.data holds both Message and JWT. We need the JWT.
+       // Decode the JWT and store it in the state.
+       DecodeJWT(res.data.JWT, data =&gt;
+         // Here, data.data will have the decoded data.
+         this.setState({ Data: data.data })
+          );
+       // Now to persist the login after refresh, store in localStorage.
+       // Check if localStorage support is there.
+       if (typeof Storage !== "undefined") {
+         // Set the JWT to the localStorage.
+         localStorage.setItem("JWT", res.data.JWT);
+       }
+     }
+   }
+ });</pre>
+<h3>注销后清除错误消息</h3>
+<p>这里也一样。注销后，最好对所有内容进行清理，即<code>Error</code>、<code>Response</code>和<code>Data</code>。我们已经将<code>Response</code>和<code>Data</code>设置为<code>null</code>，但没有设置<code>Error</code>。</p>
+<pre> SignOutUser = e =&gt; {
+   // Prevent the default event of reloading the page.
+   e.preventDefault();
+   // Clear the errors and other data.
+   this.setState({
++    Error: null,
+     Response: null,
+     Data: null
+   });
+   // Check if localStorage support is there.
+   if (typeof Storage !== "undefined") {
+     // Check if JWT is already saved in the local storage.
+     if (localStorage.getItem("JWT") !== null) {
+       // If there's something, remove it.
+       localStorage.removeItem("JWT");
+     }
+   }
+ };</pre>
+<h2>最终注释文件</h2>
+<h4><code>server/server.js</code></h4>
+<pre>const express = require("express");
+const morgan = require("morgan");
+const { GenerateJWT, DecodeJWT, ValidateJWT } = require("./dec-enc.js");
+const Users = require("./users");
+
+const app = express();
+app.use(express.json());
+app.use(morgan("dev"));
+const port = process.env.PORT || 3100;
+
+const welcomeMessage =
+  "Welcome to the API Home Page. Please look at the documentation to learn how to use this web service.";
+
+app.get("/", (req, res) =&gt; res.send(welcomeMessage));
+
+app.post("/api/GenerateJWT", (req, res) =&gt; {
+  let { header, claims, key } = req.body;
+  // In case, due to security reasons, the client doesn't send a key,
+  // use our default key.
+  key = key || "$PraveenIsAwesome!";
+  res.json(GenerateJWT(header, claims, key));
+});
+app.post("/api/DecodeJWT", (req, res) =&gt; {
+  res.json(DecodeJWT(req.body.sJWS));
+});
+app.post("/api/ValidateJWT", (req, res) =&gt; {
+  let { header, token, key } = req.body;
+  // In case, due to security reasons, the client doesn't send a key,
+  // use our default key.
+  key = key || "$PraveenIsAwesome!";
+  res.json(ValidateJWT(header, token, key));
+});
+
+app.post("/api/Users/SignIn", (req, res) =&gt; {
+  const { Username, Password } = req.body;
+  // Check if the Username is present in the database.
+  if (typeof Users[Username] !== "undefined") {
+    // Check if the password is right.
+    if (Users[Username] === Password) {
+      // Let's create a JWT based on our default headers.
+      const header = {
+        alg: "HS512",
+        typ: "JWT"
+      };
+      // Now we need to make the claims based on Username provided by the user.
+      const claims = {
+        Username
+      };
+      // Finally, we need to have the key saved on the server side.
+      const key = "$PraveenIsAwesome!";
+      // Send a success message.
+      // By default, the status code will be 200.
+      res.json({
+        Message: "Successfully Signed In!",
+        JWT: GenerateJWT(header, claims, key)
+      });
+    } else {
+      // Send a forbidden error if incorrect credentials.
+      res.status(403).json({
+        Message: "Invalid Username or Password!"
+      });
+    }
+  } else {
+    // Send a forbidden error if invalid username.
+    res.status(403).json({
+      Message: "User Not Found!"
+    });
+  }
+});
+
+app.listen(port, () =&gt; console.log(`Server listening on port ${port}!`));</pre>
+<h3>客户端</h3>
+<h4><code>client/src/components/Login.js</code></h4>
+<pre>import React, { Component } from "react";
+import { DecodeJWT } from "../services/JWTService";
+import { AuthUser } from "../services/AuthService";
+
+class Login extends Component {
+  state = {
+    Username: "",
+    Password: ""
+  };
+  handleChange = e =&gt; {
+    // Here, e is the event.
+    // e.target is our element.
+    // All we need to do is update the current state with the values here.
+    this.setState({
+      [e.target.name]: e.target.value
+    });
+  };
+  handleSubmit = e =&gt; {
+    // Here, e is the event.
+    // Let's prevent the default submission event here.
+    e.preventDefault();
+    // We can do something when the button is clicked.
+    // Here, we can also call the function that sends a request to the server.
+    // Get the username and password from the state.
+    const { Username, Password } = this.state;
+    // Right now it even allows empty submissions.
+    // At least we shouldn't allow empty submission.
+    if (Username.trim().length &lt; 3 || Password.trim().length &lt; 3) {
+      // If either of the Username or Password is empty, set an error state.
+      this.setState({ Error: "You have to enter both username and password." });
+      // Stop proceeding.
+      return false;
+    }
+    // Call the authentication service from the front end.
+    AuthUser(Username, Password, (res, err) =&gt; {
+      // If the request was an error, add an error state.
+      if (err) {
+        this.setState({ Error: res.response.data.Message });
+      } else {
+        // If there's no errors, further check if it's 200.
+        if (res.status === 200) {
+          // Since there aren't any errors, we should remove the error text.
+          this.setState({ Error: null });
+          // We need a JWT to be returned from the server.
+          // The res.data holds both Message and JWT. We need the JWT.
+          // Decode the JWT and store it in the state.
+          DecodeJWT(res.data.JWT, data =&gt;
+            // Here, data.data will have the decoded data.
+            this.setState({ Data: data.data })
+          );
+          // Now to persist the login after refresh, store in localStorage.
+          // Check if localStorage support is there.
+          if (typeof Storage !== "undefined") {
+            // Set the JWT to the localStorage.
+            localStorage.setItem("JWT", res.data.JWT);
+          }
+        }
+      }
+    });
+  };
+  SignOutUser = e =&gt; {
+    // Prevent the default event of reloading the page.
+    e.preventDefault();
+    // Clear the errors and other data.
+    this.setState({
+      Error: null,
+      Response: null,
+      Data: null
+    });
+    // Check if localStorage support is there.
+    if (typeof Storage !== "undefined") {
+      // Check if JWT is already saved in the local storage.
+      if (localStorage.getItem("JWT") !== null) {
+        // If there's something, remove it.
+        localStorage.removeItem("JWT");
+      }
+    }
+  };
+  componentDidMount() {
+    // When this component loads, check if JWT is already saved in the local storage.
+    // So, first check if localStorage support is there.
+    if (typeof Storage !== "undefined") {
+      // Check if JWT is already saved in the local storage.
+      if (localStorage.getItem("JWT") !== null) {
+        // If there's something, try to parse and sign the current user in.
+        this.setState({
+          Response: localStorage.getItem("JWT")
+        });
+        DecodeJWT(localStorage.getItem("JWT"), data =&gt;
+          // Here, data.data will have the decoded data.
+          this.setState({ Data: data.data })
+        );
+      }
+    }
+  }
+  render() {
+    return (
+      &lt;div className="login"&gt;
+        &lt;div className="container"&gt;
+          &lt;div className="row"&gt;
+            &lt;div className="col-6"&gt;
+              &lt;div className="card"&gt;
+                {this.state.Data ? (
+                  &lt;div className="card-body"&gt;
+                    &lt;h5 className="card-title"&gt;Successfully Signed In&lt;/h5&gt;
+                    &lt;p className="text-muted"&gt;
+                      Hello {this.state.Data.Username}! How are you?
+                    &lt;/p&gt;
+                    &lt;p className="mb-0"&gt;
+                      You might want to{" "}
+                      &lt;button
+                        className="btn btn-link"
+                        onClick={this.SignOutUser}
+                      &gt;
+                        sign out
+                      &lt;/button&gt;
+                      .
+                    &lt;/p&gt;
+                  &lt;/div&gt;
+                ) : (
+                  &lt;div className="card-body"&gt;
+                    &lt;h5 className="card-title"&gt;Sign In&lt;/h5&gt;
+                    &lt;h6 className="card-subtitle mb-2 text-muted"&gt;
+                      Please sign in to continue.
+                    &lt;/h6&gt;
+                    &lt;form onSubmit={this.handleSubmit}&gt;
+                      {this.state.Error &amp;&amp; (
+                        &lt;div className="alert alert-danger text-center"&gt;
+                          &lt;p className="m-0"&gt;{this.state.Error}&lt;/p&gt;
+                        &lt;/div&gt;
+                      )}
+                      {["Username", "Password"].map((i, k) =&gt; (
+                        &lt;div className="form-group" key={k}&gt;
+                          &lt;label htmlFor={i}&gt;{i}&lt;/label&gt;
+                          &lt;input
+                            type={i === "Password" ? "password" : "text"}
+                            name={i}
+                            className="form-control"
+                            id={i}
+                            placeholder={i}
+                            value={this.state[i]}
+                            onChange={this.handleChange}
+                          /&gt;
+                        &lt;/div&gt;
+                      ))}
+                      &lt;button type="submit" className="btn btn-success"&gt;
+                        Submit
+                      &lt;/button&gt;
+                    &lt;/form&gt;
+                  &lt;/div&gt;
+                )}
+              &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div className="col-6"&gt;
+              &lt;pre&gt;
+                State Data
+                &lt;br /&gt;
+                &lt;br /&gt;
+                {JSON.stringify(
+                  {
+                    Username: this.state.Username,
+                    Password: this.state.Password
+                  },
+                  null,
+                  2
+                )}
+                {this.state.Response &amp;&amp; (
+                  &lt;&gt;
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    Response Data (JWT)
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    {this.state.Response}
+                  &lt;/&gt;
+                )}
+                {this.state.Data &amp;&amp; (
+                  &lt;&gt;
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    Decoded Data
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    {JSON.stringify(this.state.Data, null, 2)}
+                  &lt;/&gt;
+                )}
+                {this.state.Error &amp;&amp; (
+                  &lt;&gt;
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    Error
+                    &lt;br /&gt;
+                    &lt;br /&gt;
+                    {JSON.stringify(this.state.Error, null, 2)}
+                  &lt;/&gt;
+                )}
+              &lt;/pre&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+export default Login;</pre>
+<h4><code>client/src/services/JWTService.js</code></h4>
+<pre>import axios from "axios";
+
+export const GenerateJWT = (header, claims, key, cb) =&gt; {
+  // Send POST request to /api/GenerateJWT
+  axios
+    .post("/api/GenerateJWT", {
+      header,
+      claims,
+      key
+    })
+    .then(function(res) {
+      cb(res);
+    })
+    .catch(function(err) {
+      console.log(err);
+    });
+};
+export const DecodeJWT = (sJWS, cb) =&gt; {
+  // Send POST request to /api/DecodeJWT
+  axios
+    .post("/api/DecodeJWT", {
+      sJWS
+    })
+    .then(function(res) {
+      cb(res);
+    })
+    .catch(function(err) {
+      console.log(err);
+    });
+};
+export const ValidateJWT = (header, token, key, cb) =&gt; {
+  // Send POST request to /api/ValidateJWT
+  axios
+    .post("/api/ValidateJWT", {
+      header,
+      token,
+      key
+    })
+    .then(function(res) {
+      cb(res);
+    })
+    .catch(function(err) {
+      console.log(err);
+    });
+};</pre>
+<h4><code>client/src/services/AuthService.js</code></h4>
+<pre>import axios from "axios";
+
+export const AuthUser = (Username, Password, cb) =&gt; {
+  axios
+    .post("/api/Users/SignIn", {
+      Username,
+      Password
+    })
+    .then(function(res) {
+      cb(res);
+    })
+    .catch(function(err) {
+      cb(err, true);
+    });
+};</pre>
+<h2>部署完整的代码</h2>
+<h3>使用React的生产版本</h3>
+<p>一旦你的应用被创建，我们需要通过<a href="https://create-react-app.dev/docs/production-build" target="_blank" rel="noopener noreferrer">创建一个生产版本</a>来构建应用。命令<code>npm run build</code>创建一个<code>build</code>目录，其中包含应用程序的生产版本。你的JavaScript和CSS文件将在<code>build/static</code>目录下。</p>
+<p><code>build/static</code>中的每个文件名将包含文件内容的唯一散列。文件名中的这个散列启用了<a href="https://create-react-app.dev/docs/production-build#static-file-caching" target="_blank" rel="noopener noreferrer">长期缓存技术</a>。您需要做的就是使用一个静态HTTP web服务器，并将<code>build/</code>目录的内容放入其中。</p>
+<p>除此之外，您还必须在服务器根目录下的<code>api/</code>目录中部署您的API。</p>
+<h3>使用Heroku</h3>
+<p>因为我们已经为此使用了一个<a href="https://github.com/praveenscience/JWT-MERN-FullStack"> G </a> <a href="https://github.com/praveenscience/JWT-MERN-FullStack"> it库</a>，所以Heroku应用程序的一个基本要求就是位于Git库中。从项目的根目录开始，我们需要在Heroku中创建一个app实例。为此，让我们从项目的根目录在终端中使用下面的命令。</p>
+<pre>➜  JWT-MERN-App git:(master) $ heroku create [app-name]</pre>
+<p>在上面的行中，<code>[app-name]</code>将被替换为<code>jwt-mern</code>。一旦选择了唯一的应用程序名称，Heroku将检查该名称的可用性，并继续或要求不同的名称。完成该步骤并选择唯一的应用程序名称后，我们可以使用以下命令部署到Heroku:</p>
+<pre>➜  JWT-MERN-App git:(master) $ git push heroku master</pre>
+<p>你可以在Heroku的<a href="https://devcenter.heroku.com/articles/git">文档</a>中读到更多关于部署到Heroku的信息。</p>
+<h2>GitHub库和最终想法</h2>
+<p>完整的代码和提交都在GitHub资源库中:<a href="https://github.com/praveenscience/JWT-MERN-FullStack">praveensscience/JWT-MERN-full stack:使用JWT认证创建全栈MERN应用</a>。</p>
+<p>希望这一整套文章是有益和有趣的。让我知道你的想法。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

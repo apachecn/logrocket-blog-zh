@@ -1,0 +1,219 @@
+<html>
+<head>
+<title>What’s new in react-query v2 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>react-query v2 - LogRocket博客中的新内容</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/whats-new-in-react-query-v2/#0001-01-01">https://blog.logrocket.com/whats-new-in-react-query-v2/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>react-query v2是最近发布的，它再次带来了react-query API的变化以及整体性能的提高。在我写这篇文章的时候，它的版本是2.5.4，在<a href="https://github.com/tannerlinsley/react-query/releases/tag/v2.0.0">变更日志</a>上可以找到更新的完整列表。</p>
+<p>在这篇文章中，我们将简要讨论新的变化，并重写一个在<a href="https://blog.logrocket.com/whats-new-in-react-query-v1-0/">以前的文章</a>中用react-query v1构建的应用程序，以使用新版本。</p>
+<p>接下来，我将在接下来的章节中讨论这些变化，但是您必须先阅读本文中我谈到的react-query并构建一个示例。</p>
+<h2><code>idle</code>查询状态</h2>
+<p>在旧版本的react-query中，依赖查询应该在<code>success</code>状态下开始。引入了一个新的查询状态，可以用作相关查询的默认状态。因此，可以根据查询的状态显示适当的消息。变更日志中的一个例子是:</p>
+<pre>const { status } = useQuery(queryKey, queryFunction)
+
+return status == 'idle' ? 'Not ready' : status == 'loading' ? 'Loading data'
+: status === 'error'
+? error.message
+: 'The data'</pre>
+<h2><code>queryCache.invalidateQueries(queryKey)</code></h2>
+<p>以前称为<code>queryCache.refetchQueries(queryKey)</code>，新的API方法只重新获取活动的查询，不像在以前的版本中，所有匹配的查询都被重新获取，不管它们的状态如何。</p>
+<h2>新的全局配置对象</h2>
+<p>新的全局配置对象现在被分段。这里的划分意味着来自一个系列的反应查询对象被分组到一个子对象下。新的全局配置有三个部分:</p>
+<ol>
+<li><code>shared</code>部分，存放暂记期权。</li>
+<li><code>queries</code>对象，包含所有与查询相关的选项。</li>
+<li><code>mutations</code>对象，包含所有与突变相关的选项。</li>
+</ol>
+<p>新的全局对象如下所示:</p>
+<pre>const globalConfig = {
+  shared: {
+    suspense,
+  },
+  queries: {
+    ...queries  
+  },
+  mutations: {
+    ...mutations
+  },
+}</pre>
+<p>在重写以前版本的应用程序的过程中，我们将重构应用程序的全局对象以遵循新的模式。</p>
+<h2>新的查询状态布尔值</h2>
+<p>从版本2开始，可以将一个查询分配给一个变量，而不必将它们分成单独的变量。新增的查询状态包括:</p>
+<pre>isLoading, isSuccess, and isError</pre>
+<p>这里有一个例子:</p>
+<p><em> <strong>之前:</strong> </em></p>
+<pre>const { data, isFetching } = useQuery("Recipes", fetchRecipes);
+
+{
+  isFetching
+  ? "Fetching"
+  : data
+}</pre>
+<p><em> <strong>后:</strong> </em></p>
+<pre>const recipeQuery = useQuery("Recipes", fetchRecipes);
+
+return recipeQuery.isLoading ? ("Loading recipes") 
+  : recipeQuery.isError 
+  ? ( recipeQuery.error.message ) 
+  : ( &lt;div&gt; recipeQuery.data )</pre>
+<p>这些是v2版本的一些亮点。其他更新，主要是错误修复和小更新，可以在变更日志中查看。</p>
+<h2>从v1迁移到v2</h2>
+<p>在本节中，我们将把之前构建的应用从react-query v1迁移到v2。我假设您有编写JavaScript和React以及使用Yarn和Git经验。</p>
+<p>我们将从克隆GitHub存储库并更新react-query开始:</p>
+<pre>git clone https://github.com/Youngestdev/react-query-app</pre>
+<p>克隆后:</p>
+<pre>cd react-query-app &amp; yarn install &amp; yarn upgrade react-query</pre>
+<p>在我们的应用程序中，只有三个组件受到新变化的影响。食谱，食谱和主要成分，我们将反映他们的新变化。我们将从主要组件开始:</p>
+<h3><code>src/index.js</code></h3>
+<p>在此组件中，我们将重新配置全局配置对象。用下面的代码块替换现有代码:</p>
+<pre>import React, {lazy} from "react";
+import ReactDOM from "react-dom";
+import {ReactQueryConfigProvider} from "react-query";
+import {ReactQueryDevtools} from "react-query-devtools";
+
+const Recipes = lazy(() =&gt; import("./components/Recipes"));
+const Recipe = lazy(() =&gt; import("./components/Recipe"));
+
+<strong>const queryConfig = {
+    shared: {
+        suspense: true
+    },
+    queries: {
+        refetchOnWindowFocus: true
+    }
+
+};</strong>
+
+function App() {
+    const [activeRecipe, setActiveRecipe] = React.useState(null);
+
+    return (
+        &lt;React.Fragment&gt;
+            &lt;h1&gt;Fast Recipes&lt;/h1&gt;
+            &lt;hr/&gt;
+
+            &lt;ReactQueryConfigProvider config={queryConfig}&gt;
+                &lt;React.Suspense fallback={&lt;h1&gt; Loading ...&lt;/h1&gt;}&gt;
+                    {activeRecipe ? (
+                        &lt;Recipe
+                            activeRecipe={activeRecipe}
+                            setActiveRecipe={setActiveRecipe}
+                        /&gt;
+                    ) : (
+                        &lt;Recipes setActiveRecipe={setActiveRecipe}/&gt;
+                    )}
+                &lt;/React.Suspense&gt;
+            &lt;/ReactQueryConfigProvider&gt;
+            &lt;ReactQueryDevtools initailIsOpen={false}/&gt;
+        &lt;/React.Fragment&gt;
+    );
+}
+
+const rootElement = document.getElementById("root");
+ReactDOM.render(&lt;App/&gt;, rootElement)</pre>
+<p>如上所述，全局配置已被修改。我们还添加了一个新选项<code>refetchOnWindowFocus</code>，当浏览器窗口被访问时，它会重新获取呈现的查询。</p>
+<p>接下来，我们将更新<code>Recipe</code>组件。</p>
+<h3><code>src/components/Recipe.jsx</code></h3>
+<p>在这个组件中，我们将更新查询变量以使用新的查询状态布尔值。用以下代码替换现有代码:</p>
+<pre>import React from "react";
+import {useQuery} from 'react-query';
+
+import Button from "./Button";
+
+import {fetchRecipe} from "../queries";
+
+export default function Recipe({activeRecipe, setActiveRecipe}) {
+<strong>    const recipeQuery = useQuery(
+        ["Recipe", {id: activeRecipe}],
+        fetchRecipe
+    );</strong>
+
+    return (
+        &lt;React.Fragment&gt;
+            &lt;Button onClick={() =&gt; setActiveRecipe(null)}&gt;Back&lt;/Button&gt;
+            &lt;h2&gt;
+                ID: {activeRecipe} {<strong>recipeQuery.isFetching</strong> ? "Loading Recipe" : null}
+            &lt;/h2&gt;
+            {<strong>recipeQuery.data</strong> ? (
+                &lt;div&gt;
+                    &lt;p&gt;Title: {<strong>recipeQuery.data.title</strong>}&lt;/p&gt;
+                    &lt;p&gt;Content: {<strong>recipeQuery.data.content</strong>}&lt;/p&gt;
+                &lt;/div&gt;
+            ) : null}
+            &lt;br/&gt;
+            &lt;br/&gt;
+        &lt;/React.Fragment&gt;
+    );
+}</pre>
+<p>粗体代码表示代码的更新部分。</p>
+<p>接下来，我们更新<code>Recipes</code>组件。</p>
+<h3><code>src/components/Recipes.jsx</code></h3>
+<p>在这个组件中，我们将更新查询处理程序和呈现样式。我们还将替换使用<code>refetchQueries</code>到<code>invalidateQueries</code>。</p>
+<p>用以下代码替换现有代码:</p>
+<pre>import React from "react";
+import {queryCache, useQuery} from "react-query";
+
+import Button from "./Button";
+
+import {fetchRecipe, fetchRecipes} from "../queries";
+
+export default function Recipes({setActiveRecipe}) {
+    <strong>const recipesQuery = useQuery("Recipes", fetchRecipes);</strong>
+
+    return (
+        &lt;div&gt;
+            &lt;h2&gt;Recipes List &lt;br/&gt;
+                {recipesQuery.isFetching
+                    ? "Loading"
+                    : &lt;Button onClick={() =&gt; {
+                        <strong>queryCache.invalidateQueries</strong>("Recipes")
+                    }}&gt;
+                        Refresh Recipes
+                    &lt;/Button&gt;
+                }
+            &lt;/h2&gt;
+            {<strong>recipesQuery.data</strong>.map(Recipe =&gt; (
+                &lt;p key={Recipe.title}&gt;
+                    {Recipe.title}
+                    &lt;Button
+                        onClick={() =&gt; {
+                            // Prefetch the Recipe query
+                            queryCache.prefetchQuery(["Recipe", {id: Recipe.id}], fetchRecipe);
+                            setActiveRecipe(Recipe.id);
+                        }}
+                    &gt;
+                        Load Recipe
+                    &lt;/Button&gt;{" "}
+                &lt;/p&gt;
+            ))}
+        &lt;/div&gt;
+    );
+}</pre>
+<p>我们已经成功地将我们的应用从v1迁移到v2。我们的应用程序功能和以前一样。</p>
+<p><img data-attachment-id="22165" data-permalink="https://blog.logrocket.com/whats-new-in-react-query-v2/demo-app-successful-migration/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif" data-orig-size="600,337" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Finished app post-migration" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif" decoding="async" class="aligncenter size-full wp-image-22165 jetpack-lazy-image" src="../Images/aa983a018c458811da471e0f7b1ae051.png" alt="Our Finished App Post-migration" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="22165" data-permalink="https://blog.logrocket.com/whats-new-in-react-query-v2/demo-app-successful-migration/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif" data-orig-size="600,337" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Finished app post-migration" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-22165" src="../Images/aa983a018c458811da471e0f7b1ae051.png" alt="Our Finished App Post-migration" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/07/demo-app-successful-migration.gif"/></noscript>
+<h2>结论</h2>
+<p>react-query的新更新非常出色。新的查询状态布尔值的添加使得在每个查询状态下显示适当的消息变得容易。</p>
+<p><a href="https://github.com/Youngestdev/react-query-app/tree/v2">点击此处</a>参考上述新功能解释中使用的代码片段。继续创造惊人的东西，一定要经常查看博客上的新帖子，❤。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

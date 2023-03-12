@@ -1,0 +1,182 @@
+<html>
+<head>
+<title>How GraphQL boosts performance in Gatsby - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>GraphQL如何提升Gatsby - LogRocket博客的性能</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-graphql-boosts-performance-in-gatsby/#0001-01-01">https://blog.logrocket.com/how-graphql-boosts-performance-in-gatsby/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>随着网络创作过程的不断发展，我们看到方法也在不断改进。工程师们想方设法将最佳技术的最佳部分融合在一起，创造出一个更高效的系统。</p>
+<p>当在传统的网络平台中获取数据时，这个过程主要由<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API" target="_blank" rel="noopener noreferrer">获取API </a>、<a href="https://www.npmjs.com/package/axios" target="_blank" rel="noopener noreferrer"> Axios库</a>或者使用像<a href="https://graphql.org/learn/" target="_blank" rel="noopener noreferrer"> GraphQL </a>这样的查询语言来处理。这些数据主要在运行时处理。然而，我们已经看到，在运行时处理数据时，我们可能会注意到，如果处理不当，应用程序中的这个例程可能会导致比所需时间更长的加载时间。作为一个解决方案，我们可以利用一些抽象，在运行时获取一些数据，同时在构建时使用静态内容进行优化，并提供性能优势。</p>
+<p>与静态站点一样，大多数数据都是在构建时获取的。在本文中，我们将了解PWA生成器<a href="https://gatsbyjs.org" target="_blank" rel="noopener noreferrer"> Gatsby </a>如何使用<a href="https://graphql.org/learn/" target="_blank" rel="noopener noreferrer"> GraphQL </a>在构建时获取数据，以及它对性能的影响。</p>
+<h2>在没有GraphQL的情况下在Gatsby中提取数据</h2>
+<p>Gatsby提供了三种在站点中创建路由的主要方法——将组件添加到页面文件夹，使用CreatPages API从<code>gatsby-node.js</code>文件以编程方式创建页面，以及使用可以创建页面的插件。</p>
+<p>这些方法可以同时使用，也可以单独使用，如果使用正确，会给你最好的盖茨比体验。为了理解GraphQL在Gatsby中的优势，您将看到一个不用GraphQL以编程方式创建页面的示例。</p>
+<p>Gatsby允许您使用<code>gatsby-node.js</code>中的createPages API以编程方式创建页面，如下面的代码块所示:</p>
+<pre>exports.createPages = ({ actions: { createPage } }) =&gt; {
+  createPage({
+    path: "/page-with-no-graphql/",
+    component: require.resolve("./src/templates/page-with-no-graphql"),
+    context: {
+      title: "Getting data without GraphQL!",
+      content: "&lt;p&gt;This is page content.&lt;/p&gt;&lt;p&gt;No GraphQL required!&lt;/p&gt;",
+    },
+  })
+}</pre>
+<p>在上面的代码块中，我们从<code>actions</code>对象中析构了<code>createPage</code>函数，并向其传递了一个路径。这个路径就是页面显示时显示的路线。我们还解析了一个组件，它是页面将要填充的模板布局。最后，页面的上下文是在带有<code>pageContext</code>对象的模板中可用的内容。</p>
+<p>从下面的代码块中，我们可以看到，在<code>/src/templates/page-with-no-graphql</code>文件中，我们可以通过pageContext访问<code>gatsby.node.js</code>中的上下文:</p>
+<pre>import React from "react"
+
+const WithContext = ({ pageContext }) =&gt; (
+  &lt;section&gt;
+    &lt;h1&gt;{pageContext.title}&lt;/h1&gt;
+    &lt;div dangerouslySetInnerHTML={{ __html: pageContext.content }} /&gt;
+  &lt;/section&gt;
+)
+
+export default WithContext</pre>
+<p>运行<code>gatsby develop</code>后，你会在<code><a href="http://localhost:8000/page-with-no-graphql/" rel="nofollow">http://localhost:8000/page-with-no-graphql/</a></code>看到网站。</p>
+<p>这种方法的缺点是，我们必须不断地改变和更新我们想要创建的每个页面的上下文。这感觉像是一个永远无法完成的任务。</p>
+<h2>向<code>gatsby-node.js</code>介绍查询</h2>
+<p>为了解决必须手动更新在<code>gatsby-node.js</code>中创建的每个页面的路径的缺点，Gatsby附带了GraphQL，它使您能够使用查询来获得您正在获取的数据的更具描述性的视图。</p>
+<p>为了使这个过程更容易，可以从一个叫做<a href="https://github.com/graphql/graphiql" target="_blank" rel="noopener noreferrer"> GraphiQL </a>的工具中生成查询，在运行<code>gatsby develop</code>之后的<code><a href="http://localhost:8000/___graphql" rel="nofollow">http://localhost:8000/___graphql</a></code>可以获得这个工具。</p>
+<p>通过单击左侧的框，将为您生成查询。您还可以通过点击左上角的play按钮来测试查询，看看它们返回了什么。这将显示查询的预期值，并给出如何获得所需值的想法。它进一步允许您使用代码导出器在组件设置中可视化查询:</p>
+<p><img data-attachment-id="19777" data-permalink="https://blog.logrocket.com/how-graphql-boosts-performance-in-gatsby/codereporter/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png" data-orig-size="730,381" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="codereporter" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png" decoding="async" class="aligncenter size-full wp-image-19777 jetpack-lazy-image" src="../Images/8477c95fbbea0218801f2c82b57b060c.png" alt="visualize the query in a code reporter" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter-300x157.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19777" data-permalink="https://blog.logrocket.com/how-graphql-boosts-performance-in-gatsby/codereporter/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png" data-orig-size="730,381" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="codereporter" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19777" src="../Images/8477c95fbbea0218801f2c82b57b060c.png" alt="visualize the query in a code reporter" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter-300x157.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/codereporter.png"/></noscript>
+<p>在<code>gatsby-node.js</code>中，您可以使用刚刚编写的GraphQL查询来生成页面，就像这样:</p>
+<pre>exports.createPages = async ({ actions: { createPage }, graphql }) =&gt; {
+  const results = await graphql(`
+    {
+      allProductsJson {
+        edges {
+          node {
+            slug
+          }
+        }
+      }
+    }
+  `)
+  results.data.allProductsJson.edges.forEach(edge =&gt; {
+    const product = edge.node
+    createPage({
+      path: `/gql/${product.slug}/`,
+      component: require.resolve("./src/templates/product-graphql.js"),
+      context: {
+        slug: product.slug,
+      },
+    })
+  })
+}</pre>
+<p>您需要使用<code><a href="https://www.gatsbyjs.org/docs/node-apis/#createPages" target="_blank" rel="noopener noreferrer">createPages</a></code> <a href="https://www.gatsbyjs.org/docs/node-apis/#createPages" target="_blank" rel="noopener noreferrer">节点API </a>可用的<code>graphql</code>助手来执行查询。要确保在继续之前返回查询结果，请使用<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function" target="_blank" rel="noopener noreferrer"> <code>async/await</code> </a>。</p>
+<p>返回的结果与<code>data/products.json</code>的内容非常相似，因此您可以遍历结果并为每个结果创建一个页面。</p>
+<p>但是，请注意，您只是在<code>context</code>中传递了<code>slug</code>——您将在模板组件中使用它来加载更多的产品数据。</p>
+<p>正如您已经看到的，<code>context</code>参数可用于<code>pageContext</code>属性中的模板组件。为了使查询更强大，Gatsby还将<code>context</code>中的所有东西都公开为一个GraphQL变量，这意味着您可以编写一个查询，用简单的英语说，“用<code>context</code>中传递的slug加载产品数据”。</p>
+<p>下面是来自<code>src/templates/product-graphql.js</code>文件的实际情况:</p>
+<pre>import React from "react"
+import { graphql } from "gatsby"
+import Image from "gatsby-image"
+export const query = graphql`
+  query($slug: String!) {
+    productsJson(slug: { eq: $slug }) {
+      title
+      description
+      price
+      image {
+        childImageSharp {
+          fluid {
+            ...GatsbyImageSharpFluid
+          }
+        }
+      }
+    }
+  }
+`
+const Product = ({ data }) =&gt; {
+  const product = data.productsJson
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;{product.title}&lt;/h1&gt;
+      &lt;Image
+        fluid={product.image.childImageSharp.fluid}
+        alt={product.title}
+        style={{ float: "left", marginRight: "1rem", width: 150 }}
+      /&gt;
+      &lt;p&gt;{product.price}&lt;/p&gt;
+      &lt;div dangerouslySetInnerHTML={{ __html: product.description }} /&gt;
+    &lt;/div&gt;
+  )
+}
+export default Product</pre>
+<h2>查询<code>gatsby-node.js</code>的上下文对象中的所有字段</h2>
+<p>想象一个场景，您可以在<code>gatsby-node.js</code>中查询模板需要的所有参数。这意味着什么？在本节中，我们将对此进行研究。</p>
+<p>在最初的方法中，您已经看到了<code>gatsby-node.js</code>文件将具有如下查询块:</p>
+<pre>const queryResults = await graphql(`
+    query AllProducts {
+      allProducts {
+        nodes {
+          id
+        }
+      }
+    }
+  `);</pre>
+<p>使用<code>id</code>作为访问点来查询模板中的其他属性是默认的方法。但是，假设您有一个产品列表，其中包含您想要查询的属性。完全从<code>gatsby-node.js</code>处理查询将导致查询如下所示:</p>
+<pre>exports.createPages = async ({ graphql, actions }) =&gt; {
+  const { createPage } = actions;
+  const queryResults = await graphql(`
+    query AllProducts {
+      allProducts {
+        nodes {
+          id
+          name
+          price
+          description
+        }
+      }
+    }
+  `);
+  const productTemplate = path.resolve(`src/templates/product.js`);
+  queryResults.data.allProducts.nodes.forEach(node =&gt; {
+    createPage({
+      path: `/products/${node.id}`,
+      component: productTemplate,
+      context: {
+        // This time the entire product is passed down as context
+        product: node
+      }
+    });
+  });
+};
+};</pre>
+<blockquote><p>您现在在一个查询中请求您需要的所有数据(这要求服务器端支持在一个数据库查询中获取许多产品)。<br/>只要您可以通过<code>pageContext</code>将这些数据传递给模板组件，模板根本不需要进行GraphQL查询。</p></blockquote>
+<p>您的模板<code>src/templates/product.js</code>文件看起来会像这样:</p>
+<pre>function Product({ pageContext }) {
+  return (
+    &lt;div&gt;
+      Name: {pageContext.name}
+      Price: {pageContext.price}
+      Description: {pageContext.description}
+    &lt;/div&gt;
+  )
+}</pre>
+<h2>从<code>gatsby-node.js</code>查询所有字段的性能影响</h2>
+<p>在模板组件中使用<code>pageContext</code> props可以带来性能优势，即在构建时从createPages API中获取所有需要的数据。这消除了在模板组件中使用GraphQL查询的需要。它的好处是在声明了<code>context</code>参数之后，可以从一个地方查询数据。</p>
+<p>然而，它并没有给你机会去了解你在模板中到底在查询什么，以及在<code>gatsby-node.js</code>中组件查询结构是否发生了任何变化。<a href="https://www.gatsbyjs.org/docs/glossary#hot-module-replacement" target="_blank" rel="noopener noreferrer">热重装</a>被取消，站点需要重建以反映变化。</p>
+<p>Gatsby将页面元数据(包括上下文)存储在redux store中(这也意味着它存储页面的内存)。对于较大的网站(通过页面上下文传递的页面数量和/或数据量)，这将导致问题。如果数据太多或性能下降，可能会出现“内存不足”故障:</p>
+<blockquote><p>如果存在内存压力，Node.js将更频繁地尝试垃圾收集，这是一个已知的性能问题。</p></blockquote>
+<p>页面查询结果不会永久存储在内存中，而是在运行查询后立即保存到磁盘中。</p>
+<p>我建议传递“id”或“slugs ”,并在页面模板查询中进行完整查询，以避免这种情况。</p>
+<h2>这种方法的增量构建权衡</h2>
+<p>在<code>gatsby-node.js</code>中查询所有数据的另一个缺点是，每次做出更改时，您的站点都必须重新构建，因此您将无法利用增量构建。</p>
+<h2>结论</h2>
+<p>在这篇博文中，我们已经了解了Gatsby如何在其数据层使用GraphQL在构建时获取静态数据。我们还看到了查询<code>gatsby-node.js</code>中所有字段的性能含义。我希望这篇博文有助于解开围绕这两种技术之间关系的“为什么”,以及它们如何帮助为Gatsby用户提供惊人的体验。快乐编码，一定要看看<a href="https://www.gatsbyjs.org/tutorial/" target="_blank" rel="noopener noreferrer">盖茨比教程</a>。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

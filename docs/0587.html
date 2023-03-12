@@ -1,0 +1,434 @@
+<html>
+<head>
+<title>Comlink and web workers: A match made in heaven - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Comlink和web workers:天作之合</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/#0001-01-01">https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>你知道吗，在过去的两年里，桌面平台上的网络用户加载了19%多的JavaScript代码，而他们的移动用户在同一时间段内加载了14%多的JavaScript代码。</p>
+<p>根据2018年对大约130万个网站的分析，在设法加载这些脚本(希望是渐进的)之后，它们仍然需要被解析和执行——执行JavaScript代码占据了<a href="https://www.youtube.com/watch?v=RwSlubTBnew&amp;feature=youtu.be&amp;t=1333">高达40%的CPU时间</a>。</p>
+<figure id="attachment_11583" aria-describedby="caption-attachment-11583" class="wp-caption aligncenter"><img data-attachment-id="11583" data-permalink="https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/median-cpu-time/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg" data-orig-size="730,397" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Median CPU time by process" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time-300x163.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg" decoding="async" class="wp-image-11583 size-full jetpack-lazy-image" src="../Images/5e20c4e6b8af60309ef4cf435a2d9c61.png" alt="Median CPU Time By Process" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time-300x163.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg"/><noscript><img data-lazy-fallback="1" data-attachment-id="11583" data-permalink="https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/median-cpu-time/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg" data-orig-size="730,397" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Median CPU time by process" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time-300x163.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg" decoding="async" loading="lazy" class="wp-image-11583 size-full" src="../Images/5e20c4e6b8af60309ef4cf435a2d9c61.png" alt="Median CPU Time By Process" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time-300x163.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/median-cpu-time.jpeg"/></noscript><figcaption id="caption-attachment-11583" class="wp-caption-text">Courtesy Steve Souders’ presentation, linked above.</figcaption></figure>
+<p>现在把移动网络扔进这个混合体中。由于较低的硬件价格，越来越多的人第一次上网，而且他们是在低功率的移动设备上上网的，这些设备在印度和T2等地的价格通常不到200美元。虽然今天越来越多的人开始联网，并可以轻松登陆您的web应用程序，但他们中的许多人都是在低端硬件上。</p>
+<p>我知道我们在这里才刚刚开始，但是总的来说，我们正在发布更多的JavaScript，并且要求web用户提供大量的CPU资源。更糟糕的是，大部分(如果不是全部的话)工作都是在UI线程上完成的，UI线程是帮助用户与你的应用程序交互并完成任务的资源，因此降低了用户体验的优先级。</p>
+<p>在这篇文章中，我们将讨论web工作者，他们解决的问题，以及在构建现代web应用程序时如何使用他们。我们将探索一种没有工人的用例的方法，并看看采用工人如何显著提高UX和性能。</p>
+<p>然后，我们将重构我们的解决方案，使用<a href="https://github.com/GoogleChromeLabs/comlink"> Comlink </a>，这是一个相对较新的JS库，它使得与web workers一起工作就像简单地调用函数一样直观。是的，我们正在抛弃手动管理调用路由和有效载荷编组的精神负担，而没有Comlink，你将需要这些。</p>
+<p>最终，你会明白为什么web workers和Comlink是天作之合！</p>
+<h2>网络应用的现状</h2>
+<p>我们现代的网络应用变得越来越大，越来越复杂。我们经常将其归咎于这样一个事实，即这类应用程序几乎完全由JavaScript驱动——这意味着大量代码。</p>
+<p>虽然使用代码分割和每页或每条路径加载包来构建web应用是一回事，但在UI线程上只运行UI代码很可能会对用户体验和许多web应用驱动的业务的底线产生最大的影响。</p>
+<p>UI线程(也称为主线程)应该用于UI工作，如布局、绘画、分派事件、从输入源(表单、相机等)捕获数据。)，并将数据呈现回DOM。</p>
+<p>像数据和对象操作、客户端逻辑(例如，验证、状态管理等。)，以及任何形式的与UI无关的工作——尤其是计算或内存密集型工作——都应该理想地生活在web workers中。</p>
+<h2>什么是网络工作者？</h2>
+<p>很有可能，你已经听说过网络工作者，你甚至可能知道他们是如何工作的，但是让我们回顾一下。<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers"> web worker </a>是浏览器中的一种本地机制，它允许在单独的上下文或进程中后台并行执行JavaScript代码——实际上是一个单独的线程，不同于主线程(UI线程)，主线程是浏览器中的默认代码执行线程。</p>
+<p>网络工作者不同于服务工作者。它们更简单，已经存在很长时间了，并且在所有主流浏览器中都得到支持(大约97%，根据我能使用吗… )。然而，我们今天仍然提倡web workers，因为他们很少被使用，这意味着web开发人员通过尝试只在UI线程上执行代码而放弃了向他们的用户提供更好体验的机会。</p>
+<p><img data-attachment-id="11585" data-permalink="https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/web-workers-browser-support/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png" data-orig-size="730,334" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Web workers browser support" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support-300x137.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png" decoding="async" class="aligncenter size-full wp-image-11585 jetpack-lazy-image" src="../Images/a2682ba47893a26e11857b72286e69b7.png" alt="Web Workers Browser Support" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support-300x137.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11585" data-permalink="https://blog.logrocket.com/comlink-web-workers-match-made-in-heaven/web-workers-browser-support/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png" data-orig-size="730,334" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Web workers browser support" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support-300x137.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-11585" src="../Images/a2682ba47893a26e11857b72286e69b7.png" alt="Web Workers Browser Support" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support-300x137.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/web-workers-browser-support.png"/></noscript>
+<p>对于这个探索，<a href="https://chalu.github.io/comlink-workers/src/">我们的示例案例研究应用程序</a>允许用户在多行字段中输入自由形式的文本，并在用户仍在键入时尝试进行基本的文本分析。分析包括字符数、字数、最常用的单词和行数。为了模拟CPU密集型任务，分析管道还将结合一个受此示例启发的<a href="https://gist.github.com/sqren/5083d73f184acae0c5b7">复杂数学运算</a>，这有助于随着输入单词数量的增加，整体文本分析变慢。</p>
+<p>想象一下，一个web应用程序在用户仍在输入时进行这种文本分析，以便突出显示关于条目的元数据，并可能根据字数和正确的语法强制执行验证约束。</p>
+<p>你必须在Chrome Canary上试用演示应用程序，因为它目前使用的是worker模块，而这种模块尚未在现代浏览器中发布。这不应该成为采用工人的障碍，因为bundlers (webpack、Rollup等。)为您提供了模块，如果您必须使用它们的话。我们的示例演示应用程序的完整代码在Git  <a href="https://github.com/chalu/comlink-workers"> H </a> <a href="https://github.com/chalu/comlink-workers"> ub </a>上的<a href="https://github.com/chalu/comlink-workers">处。</a></p>
+<h2>UI线程上有太多代码工作(你现在可能正在做的事情)</h2>
+<p>让我们看看当所有代码都在UI线程上执行时，应用程序的行为如何，就像今天构建的大多数web一样。</p>
+<pre>analyzer.js
+...
+
+export const Analyzer = {
+  analyzeText(text) {
+    return analyze({ text });
+  },
+
+  async analyzeGrammar(text, callback) {
+    const status = await checkGrammar(text);
+    callback({ status });
+  }
+};</pre>
+<p>然后是使用上述代码的HTML文件:</p>
+<pre>import Analyzer from "../analyzer.js";
+
+const takeOff = () =&gt; {
+  const statsDisplays = [
+    ...document.querySelectorAll("#statsplainer span")
+  ];
+
+  const inputElement = document.querySelector("textarea");
+  inputElement.addEventListener("input", ({ target: field }) =&gt; {
+    const text = field.value || "";
+    if (text.trim() === "") return;
+
+    const { stats } = Analyzer.analyzeText(text);
+    requestAnimationFrame(() =&gt; {
+      // update the UI
+      statsDisplays[0].textContent = stats.chars;
+      statsDisplays[1].textContent = stats.words;
+      statsDisplays[2].textContent = stats.lines;
+      statsDisplays[3].textContent = stats.mostUsed
+        ? stats.mostUsed[0]
+        : "N/A";
+    });
+  });
+};
+document.addEventListener("DOMContentLoaded", takeOff);</pre>
+<p>基本上，在页面加载并准备好之后，我们监听用户在<code>textarea</code>上的输入，对于每个输入变化(即有效的击键)，我们试图分析整个输入条目并取回分析的<code>stats</code>。然后我们在UI上显示分析的细节。</p>
+<p>由于所有这些代码都是在UI线程上运行的，当用户继续在输入字段中输入时，他们开始注意到应用程序的迟缓和滞后。该应用程序很容易间歇性或完全冻结。在我的测试中，我确实目睹了整个页面陷入停顿，Chrome发出可怕的“该页面没有响应”警告信息。</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/lgZ6g4YNMKA?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p>虽然您可能没有找到质数、挖掘加密货币、计算密码哈希或执行其他类似的、可能导致页面冻结的过于昂贵的任务，但您可能仍然做了太多事情，并且在应该做的时候没有退回到UI线程。</p>
+<p>您可能在短时间内做了太多事情(回想一下低端硬件上的用户)，以至于用户(仍在尝试点击或滚动)会注意到响应速度明显滞后，因为UI线程没有喘息的空间。</p>
+<p>根据<a href="https://developers.google.com/web/fundamentals/performance/rail"> RAIL预算</a>，用户会注意到任何占用UI线程超过100ms的工作！在这段时间内屈服于浏览器，或者根本不中断UI线程，是我们最终想要实现的。</p>
+<h2>切换到网络工作者</h2>
+<p>将我们的示例代码切换到一个web worker是非常琐碎的，这可能不是您的里程数——特别是对于大型的、预先存在的代码库——但即使这样也可以逐步完成。让我们仍然从我们的示例应用程序过于简化的层面来处理事情。</p>
+<p>一旦将非UI JavaScript代码放在单独的文件中，就可以通过将非UI JavaScript文件路径传递给web worker构造函数来启动web worker。worker文件所需的任何附加脚本都可以用内置的<code>importScripts</code>函数加载，它既适用于本地JavaScript文件，也适用于像从unpkg.com加载的那些外部文件。</p>
+<p>用<code>importScripts</code>加载额外代码的一个缺点是，您会失去从文件中加载所需内容的好处，就像ES模块一样。您可以使用模块语法来更好地将代码加载到web worker中，但是您必须首先用选项对象中的设置为<code>module</code>的<code>type</code>实例化您的web worker ，这是构造worker时需要的第二个参数。</p>
+<p>不过，浏览器对此的支持仍然有限:</p>
+<pre>const worker = new Worker("./webworker.js", { type: "module" });</pre>
+<p>专用web worker(只能由创建它的页面或脚本控制)然后能够与父页面通信，反之亦然，通过使用<code>postMessage</code>函数发送数据，并通过侦听<code>message</code>事件接收数据。这两个调用都将接收一个事件对象，您的数据可以从它的data属性中访问。</p>
+<pre>// In the worker:
+self.postMessage(someObject);
+
+// In the main thread:
+worker.addEventListener('message', msg =&gt; console.log(msg.data));</pre>
+<p>我们的应用程序确实做到了我们上面所描述的，下面的代码片段展示了如何做到:</p>
+<pre>// webworker.js
+
+import { Analyzer } from "../analyzer.js";
+
+self.addEventListener("message", ({ data }) =&gt; {
+  const { stats } = Analyzer.analyzeText(data);
+  self.postMessage({ stats });
+});</pre>
+<pre>// index.html
+
+const takeOff = () =&gt; {
+  const worker = new Worker("./webworker.js", { type: "module" });
+  worker.addEventListener("message", ({ data }) =&gt; {
+    const { stats } = data;
+    requestAnimationFrame(() =&gt; {
+      // update UI
+    });
+  });
+
+  const inputElement = document.querySelector("textarea");
+  inputElement.addEventListener("input", ({ target: field }) =&gt; {
+    const text = field.value || "";
+    if (text.trim() === "") return;
+
+    worker.postMessage(text);
+  });
+};
+document.addEventListener("DOMContentLoaded", takeOff);</pre>
+<p>平心而论，使用web workers并不一定意味着你的代码运行得更快；事实上，您可能正在卸载如此多的工作(例如，解析大型CSV或JSON数据),以至于不知道这些任务还要多久才能完成。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>它所保证的是你的UI线程是自由的，并保持响应。您也不希望在UI线程上从worker转储巨大的渲染请求。有了正确的设计，您可以快速地将来自工作人员的更新呈现到UI，然后成批地引入更多的更新。</p>
+<p>这还不是全部，因为在现实生活中使用web workers的情况往往更多。尽管web workers很简单，并且有强大的浏览器支持，但是管理起来可能很麻烦，尤其是必须弄清楚如何在一个worker中执行正确的代码，而这些代码仅仅来自于你用<code>postMessage</code>发送给它的数据。</p>
+<p>这些往往要用笨拙的<code>if</code>或<code>switch</code>语句来处理，并且需要使用web worker与代码中几乎相同的结构保持同步。</p>
+<pre>// worker.js
+
+self.addEventListener("message", ({ data }) =&gt; {
+  let result = {};
+  if(data.command === "ACTION_1") {
+    result = actionOne(data);
+  } else if(data.command === "ACTION_2") {
+    result = actionTwo(data);
+  } else if(data.command === "...") {
+    ...
+  } else if(data.command === "ACTION_50") {
+    result = actionFifty(data);
+  }
+
+  self.postMessage(result);
+});</pre>
+<p>由于捆绑器、代码分割和按需资源加载，您有机会不必将应用程序需要做的所有事情预先加载到一个JavaScript文件中，然后作为一个工作器运行。</p>
+<p>见鬼，在构建worker时，您甚至可能没有完整的代码，因此必须有一种方法将新代码和处理逻辑吸收到现有的worker中，或者构建新的worker，然后将它们作为共享的worker进行管理。</p>
+<p>许多人认为这些问题阻碍了网络工作者的使用和采用，而Comlink在这里用一些魔法让事情变得更好！</p>
+<h2>务实一点:离开Comlink的主线</h2>
+<p>为了与另一个线程通信，web workers提供了<code>postMessage</code> API。您可以使用<code>myWorker.postMessage(someObject)</code>将JavaScript对象作为消息发送，在worker内部触发一个<code>message</code>事件。</p>
+<p>Comlink通过提供RPC实现将这种基于消息的API变成了对开发人员更友好的东西:来自一个线程的值可以在另一个线程中使用(反之亦然)，就像本地值一样。</p>
+<p>您所需要做的就是用Comlink从主线程中公开您想要直接调用的worker的方面。为了完成双向通信设置，您还将使用Comlink在主线程中包装worker。</p>
+<p>这使您能够从主线程调用worker中声明的函数或方法，就像它们是本地的一样，Comlink将自动处理调用路由和数据传输。不再干预<code>postMessage</code>或进入<code>event</code>对象来路由代码或提取数据！</p>
+<p>让我们看看这种方法在我们的示例应用程序中的位置:</p>
+<pre>// analyzer.js
+// Analyzer "API"
+
+export const Analyzer = {
+  analyzeText(text) {
+    return analyze({ text });
+  },
+
+  async analyzeGrammar(text, callback) {
+    const status = await checkGrammar(text);
+    callback({ status });
+  }
+};
+export default Analyzer;</pre>
+<pre>// webworker.js
+
+import { expose } from "https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3f5c5052535651547f0b110d110f">[email protected]</a>/dist/esm/comlink.mjs";
+import { Analyzer } from "../analyzer.js";
+
+// expose the Analyzer "API" with Comlink
+expose(Analyzer);</pre>
+<pre>// main thread javascript
+
+import * as Comlink from "https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a5c6cac8c9cccbcee5918b978b95">[email protected]</a>/dist/esm/comlink.mjs";
+
+const takeOff = () =&gt; {
+  ...
+  const Analyzer = Comlink.wrap(
+    new Worker("./webworker.js", {type: 'module'})
+  );
+  ...
+  const inputElement = document.querySelector("textarea");
+  inputElement.addEventListener("input", async ({ target: field }) =&gt; {
+    const text = field.value || "";
+    if (text.trim() === "") return;
+
+    const { stats } = await Analyzer.analyzeText(text);
+    requestAnimationFrame(() =&gt; {
+      // update UI with stats
+    });
+  });
+};
+document.addEventListener("DOMContentLoaded", takeOff);</pre>
+<p>由于我们在另一个文件中有我们的<code>Analyzer</code>，我们将它导入到我们的web worker中，并使用Comlink来<code>expose</code>分析器API。在主线程脚本中，我们同样使用Comlink来<code>wrap</code>web worker，并将对返回的包装对象的引用存储为<code>Analyzer</code>。</p>
+<p>我们故意让返回的包装对象和公开的API共享相同的名称，以便客户端代码(使用web worker的主线程代码)可以很容易地看起来像Comlink不存在于组合中。你没必要这么做。</p>
+<p>完成所有这些设置后，我们可以直接调用在Analyzer API中声明并由Comlink公开的<code>analyzeText()</code>函数。</p>
+<pre>...
+const { stats } = await Analyzer.analyzeText(text);
+...</pre>
+<p>在上面的代码片段中，<code>Analyzer</code>是我们实际的分析器API的代理，这个代理由Comlink创建和处理。</p>
+<h2>用Comlink将函数作为数据处理</h2>
+<p>从上面的代码中，当我们调用<code>Analyzer.analyzeText(text)</code>时，Comlink能够将<code>text</code>数据传输给worker，因为它是一个JavaScript值或对象，并且可以用<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm">结构化克隆算法</a>复制。</p>
+<p>这适用于值和对象，但不适用于函数。回想一下，JavaScript中的函数是一等公民，可以用作参数或从调用中返回，这就是为什么它们被用作其他函数的回调。这意味着如果上面代码中的<code>text</code>参数是一个用作回调的函数，它将不会被复制到worker，因为结构化克隆算法将无法处理它。</p>
+<p>在这里，Comlink再次为我们实现了！我们需要做的就是用<code>Comlink.proxy()</code>包装这样的回调函数，并提供它的返回值(代理)作为回调。这个代理值可以像其他JavaScript值和对象一样进行传输。</p>
+<p>我们的示例应用程序中的分析器API有一个<code>analyzeGrammar</code>函数，它不会立即返回，因为它执行异步工作，检查文本的语法和拼写错误。它期待一个回调，当准备好的时候，它可以用异步分析的结果调用这个回调。我们用<code>Comlink.proxy()</code>包装了这个回调。</p>
+<pre>// Analyzer API exposed by Comlink
+...
+async analyzeGrammar(text, callback) {
+    const status = await checkGrammar(text);
+    callback({ status });
+}</pre>
+<pre>// main thread code
+...
+const grammarChecked = ({ status }) =&gt; {};
+inputElement.addEventListener("input", async ({ target: field }) =&gt; {
+    const text = field.value || "";
+    if (text.trim() === "") return;
+
+    ...
+    await Analyzer.analyzeGrammar(text, Comlink.proxy(grammarChecked));
+});</pre>
+<p>实际上，当worker中的<code>analyzeGrammar</code>函数调用<code>callback({ status })</code>时，我们在主线程中的<code>grammarChecked</code>函数将被调用，并且Comlink为我们处理所有的管道工作。神奇！</p>
+<p>Comlink有更多的方法来使我们的工作更加直观和高效，包括让您通过传输而不是复制来发送大数据，这是正常的行为，因为默认情况下使用结构化克隆算法。然而，转移数据而不是复制数据超出了本文的范围。</p>
+<h2>您的业务和状态管理逻辑不属于主线程</h2>
+<p>为了让用户界面在使用过程中保持响应，用户界面线程不应该做非用户界面的工作，状态管理——包括隐藏在其中的应用程序的所有业务逻辑——应该脱离主线程。这与我们的分析器目前用Comlink设置的方式没有什么不同。</p>
+<p>以下是实现离岸状态管理的一些步骤:</p>
+<ul>
+<li>在JavaScript文件中声明您的动作、归约器和状态管理逻辑</li>
+<li>将必要的文件和Comlink导入web worker</li>
+<li>使用Comlink，公开一个API对象，该对象定义了一个与状态管理逻辑交互的接口</li>
+<li>在主线程侧:<ul>
+<li>导入您的状态操作并使用Comlink来包装web worker</li>
+<li>声明订阅存储区并在状态改变时被调用的回调函数</li>
+<li>通过分派正确的状态动作来响应用户动作</li>
+</ul>
+</li>
+</ul>
+<pre>// actions.js
+const Actions = {
+  ANALYZETEXT: "ANALYZETEXT",
+  ANALYZEGRAMMAR: "ANALYZEGRAMMAR"
+};
+export default Actions;
+
+// store.webworker.js
+import { expose, proxy } from "https://unpkg.com/.../comlink.mjs";
+import { createStore } from "https://unpkg.com/.../redux.mjs";
+import { Analyzer } from "../../analyzer.js";
+import Actions from "./actions.js";
+
+const initialState = {
+  stats: {
+    text: "",
+    chars: 0,
+    words: 0,
+    lines: 0,
+    mostUsed: []
+  }
+};
+
+const handleAnalyzeAction = (state, text) =&gt; {
+  const { stats } = Analyzer.analyzeText(text);
+  return { ...state, ...{ stats } };
+};
+
+const reducer = (state = initialState, { type, text }) =&gt; {
+  switch (type) {
+    case Actions.ANALYZETEXT:
+      return handleAnalyzeAction(state, text);
+    default:
+      return state;
+  }
+};
+
+const subscribers = new Map();
+const store = createStore(reducer);
+
+const broadcastChanges = async () =&gt; {
+  await store.getState();
+  subscribers.forEach(fn =&gt; fn());
+};
+store.subscribe(proxy(broadcastChanges));
+
+// state management interface to expose
+// the main thread will call functions in 
+// this object and state management will happen
+// in this worker
+const StateMngr = {
+  getState() {
+    return store.getState();
+  },
+  dispatch(action) {
+    store.dispatch(action);
+  },
+  subscribe(fn) {
+    subscribers.set(subscribers.size, fn);
+  }
+};
+expose(StateMngr);</pre>
+<p>现在是主线程客户端代码:</p>
+<pre>import * as Comlink from "https://unpkg.com/..../comlink.mjs";
+import Actions from "./actions.js";
+
+const initApp = async () =&gt; {
+    ...
+    const StateMngr = Comlink.wrap(
+        new Worker("./store.webworker.js", { type: "module" })
+    );
+
+    // callback function called
+    // when there are state changes
+    const stateChanged = async () =&gt; {
+        const { stats } = await StateMngr.getState();
+
+        // In a typical reactive app, this will be 
+        // handled by the render() mechanism automatically
+        requestAnimationFrame(() =&gt; {
+            // update the UI
+        });
+    };
+
+    // wire up the callback setup a subscription for it
+    StateMngr.subscribe(Comlink.proxy(stateChanged));
+    const inputElement = document.querySelector("textarea");
+    inputElement.addEventListener("input", async ({ target: field }) =&gt; {
+        const text = field.value || "";
+        if (text.trim() === "") return;
+
+        // dispatch an action
+        await StateMngr.dispatch({ type: Actions.ANALYZETEXT, text });
+    });
+};
+document.addEventListener("DOMContentLoaded", initApp);</pre>
+<p>在本帖中，有一个类似的<code>remoteStore</code>例子，方法与上面的略有不同。然而，您可能还想知道如何使用所有这些设置来处理动态动作和reducers。这超出了本文的范围，但是我将更新我们的<a href="https://github.com/chalu/comlink-workers">示例应用程序代码库</a>，以包括一个这样的例子。</p>
+<h2>Comlink也支持服务人员</h2>
+<p>你可能会问，服务人员呢？随着企业在PWAs上取得成功，服务人员准备好推动类似后台同步和离线功能的出色体验，您很有可能希望您的服务人员与主线程的关系受益于Comlink带来的直觉。你会得到很好的照顾。</p>
+<p>我们可能采取的与您的常规服务人员不同的主要措施有:</p>
+<ul>
+<li>在主线程上:<ul>
+<li>创建一个双向消息通道，并记下它的两个通信端口</li>
+<li>向服务人员发送“握手”消息(包含其中一个端口),我们准备好与它进行通信</li>
+<li>使用Comlink封装第二个通信端口</li>
+</ul>
+</li>
+<li>在维修工人中:<ul>
+<li>监听“握手”消息，并使用Comlink在其获得的端口上公开您的“API”接口</li>
+</ul>
+</li>
+</ul>
+<pre>// sw.js
+importScripts("https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bad9d5d7d6d3d4d1fa8e9488948a">[email protected]</a>/dist/umd/comlink.js");
+importScripts("./sw.analyzer.js");
+
+addEventListener("install", () =&gt; self.skipWaiting());
+addEventListener("activate", () =&gt; self.clients.claim());
+
+addEventListener("message", ({ data }) =&gt; {
+  // expose the Analyzer "API" when
+  // we hear from the ui-thread that
+  // it is ready to interact with this
+  // ServiceWorker
+  if (data.isHandshake === true) {
+    Comlink.expose(Analyzer, data.port);
+  }
+});</pre>
+<pre>// main-thread script
+import * as Comlink from "https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="60030f0d0c090e0b20544e524e50">[email protected]</a>/dist/esm/comlink.mjs";
+...
+let Analyzer;
+const grammarChecked = ({ status }) =&gt; {};
+
+const inputElement = document.querySelector("textarea");
+inputElement.addEventListener("input", async ({ target: field }) =&gt; {
+    const text = field.value || "";
+    if (text.trim() === "" || !Analyzer) return;
+
+    const { stats } = await Analyzer.analyzeText(text);
+    requestAnimationFrame(() =&gt; {
+        // update UI
+    });
+    await Analyzer.analyzeGrammar(text, Comlink.proxy(grammarChecked));
+});
+
+const initComlink = async () =&gt; {
+    const { port1, port2 } = new MessageChannel();
+    const initMsg = { isHandshake: true, port: port1 };
+    
+    // tell the ServiceWorker that we are ready to roll
+    navigator.serviceWorker.controller.postMessage(initMsg, [port1]);
+    Analyzer = Comlink.wrap(port2);
+};
+
+const initApp = async () =&gt; {
+    ...
+    if ("serviceWorker" in navigator) {
+        if (navigator.serviceWorker.controller) {
+            initComlink();
+        } else {
+            navigator.serviceWorker.oncontrollerchange = function() {
+                this.controller.onstatechange = function() {
+                    if (this.state === "activated") {
+                        initComlink();
+                    }
+                };
+            };
+            navigator.serviceWorker.register("./sw.js", {
+                scope: location.pathname
+            });
+        }
+    }
+};
+document.addEventListener("DOMContentLoaded", initApp);</pre>
+<p>在服务人员设置和握手完成后，我们能够在用户输入<code>textarea</code>时调用<code>await Analyzer.analyzeText(text)</code>，尽管<code>Analyzer.analyzeText()</code>功能可能完全存在于服务人员中。</p>
+<p>注意在对<code>Analyzer.analyzeGrammar(...)</code>的调用中，如何使用<code>Comlink.proxy(grammarChecked)</code>将<code>grammarChecked()</code>函数设置为回调函数。如前一节所述，当您希望使用Comlink使您的服务工作器能够调用主线程函数作为回调来响应服务工作器中发生的异步工作时，这是非常方便的。</p>
+<h2>结论</h2>
+<p>Web workers非常强大，如果我们利用他们来处理设计用于Web的JavaScript代码，可以显著改善应用程序用户的体验，这些代码可以归结为大多数非UI代码。</p>
+<p>Web workers在浏览器中得到了很好的支持，但是它们的采用和使用却很差，这可能是因为在与workers通信的主要方式<code>postMessage</code>上覆盖任何非平凡的架构是多么的麻烦。</p>
+<p>Comlink允许你从工作线程中公开对象和函数，这样你就可以直接从主线程中调用它们，保护你不受<code>postMessage</code>的影响。当工作线程中的异步任务完成时，您甚至可以调用主线程函数作为回调函数。</p>
+<p>尽管我们在本文中主要关注web workers和service workers，但Comlink也支持WebRTC和WebSockets。</p>
+<p>许多网络用户使用慢速网络和低端设备。Comlink将帮助您利用web技术，为更多的web应用程序用户提供出色的体验。</p>
+<h2>考虑和进一步阅读</h2>
+<ol>
+<li>在撰写本文时，<a href="https://stackoverflow.com/questions/44118600/web-workers-how-to-import-modules">跨浏览器的workers中还没有ES模块支持</a>。Chrome取得了最大的进展，目前正处于实验阶段，我相信它会和Chrome 80一起发布。现在，你可以使用<code>importScripts</code>或者在Chrome Canary上测试你的应用程序！</li>
+<li><a href="https://dassur.ma/things/react-redux-comlink/"> React + Redux + Comlink =脱离主线程</a></li>
+<li>邮件发送很慢吗？</li>
+<li><a href="https://developers.google.com/web/updates/2011/12/Transferable-Objects-Lightning-Fast">可转移物体:快如闪电！</a></li>
+</ol>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

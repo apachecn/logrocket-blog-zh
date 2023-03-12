@@ -1,0 +1,168 @@
+<html>
+<head>
+<title>Returning null from setState in React 16 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>从React 16 - LogRocket博客中的setState返回null</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/#0001-01-01">https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/#0001-01-01</a></blockquote><div><article class="article-post">
+<h3>概观</h3>
+<p>React 16让您决定是否通过<code>.setState</code>更新状态，以防止不必要的DOM更新。用<code>null</code>调用<code>.setState</code>不再触发React 16的更新。</p>
+<p>我们将通过重构一个mocktail选择应用程序来探索这是如何工作的，即使我们选择了同一个mocktail两次，它也会更新。</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/3b5b2ec82f1565a33cd45b41e57b36ca.png" data-image-id="1*KaKBRxSFttMbWS-hGkicZQ.gif" data-width="960" data-height="540" data-lazy-src="https://cdn-images-1.medium.com/max/1600/1*KaKBRxSFttMbWS-hGkicZQ.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/1*KaKBRxSFttMbWS-hGkicZQ.gif"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/3b5b2ec82f1565a33cd45b41e57b36ca.png" data-image-id="1*KaKBRxSFttMbWS-hGkicZQ.gif" data-width="960" data-height="540" data-original-src="https://cdn-images-1.medium.com/max/1600/1*KaKBRxSFttMbWS-hGkicZQ.gif"/></noscript><figcaption class="imageCaption">Our mocktail selection app.</figcaption></figure>
+<p class="graf graf--p">文件夹结构可能如下所示:</p>
+<pre><strong>src</strong>
+ |-&gt; App.js
+ |-&gt; Mocktail.js
+ |-&gt; index.js
+ |-&gt; index.css
+ |-&gt; Spinner.js</pre>
+<figure class="graf graf--figure graf--layoutOutsetCenter"><a class="graf-imageAnchor" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer" data-href="https://logrocket.com/signup/" data-action="image-link" data-action-observe-only="true"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/122a35444f513c3d312cd032bef7fc53.png" data-image-id="1*wV7zU6J05BL3bphzMlB2rA.png" data-width="2400" data-height="560" data-lazy-src="https://cdn-images-1.medium.com/max/2400/1*wV7zU6J05BL3bphzMlB2rA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/2400/1*wV7zU6J05BL3bphzMlB2rA.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/122a35444f513c3d312cd032bef7fc53.png" data-image-id="1*wV7zU6J05BL3bphzMlB2rA.png" data-width="2400" data-height="560" data-original-src="https://cdn-images-1.medium.com/max/2400/1*wV7zU6J05BL3bphzMlB2rA.png"/></noscript></a></figure>
+<h3>我们的应用程序如何工作</h3>
+<p>我们的应用程序将呈现一个选定的mocktail。我们可以通过点击其中一个按钮来选择/切换模拟尾巴。当我们这样做时，一个新的mocktail被加载，一个新的mocktail图像在加载完成后被呈现。</p>
+<p><code>App</code>组件——父组件——有一个<code>mocktail</code>状态和一个处理mocktail更新的<code>updateMocktail</code>方法。</p>
+<pre>import React, { Component } from 'react';
+
+import Mocktail from './Mocktail';
+
+class App extends Component {
+
+  state = {
+    mocktail: ''
+  }
+
+  updateMocktail = mocktail =&gt; this.setState({ mocktail })
+
+  render() {
+
+    const mocktails = ['Cosmopolitan', 'Mojito', 'Blue Lagoon'];
+
+    return (
+      &lt;React.Fragment&gt;
+        &lt;header&gt;
+          &lt;h1&gt;Select Your Mocktail&lt;/h1&gt;
+          &lt;nav&gt;
+            {
+              mocktails.map((mocktail) =&gt; {
+                return &lt;button 
+                  key={mocktail}
+                  value={mocktail}
+                  type="button"
+                  onClick={e =&gt; this.updateMocktail(e.target.value)}&gt;{mocktail}&lt;/button&gt;
+              })
+            }
+          &lt;/nav&gt;
+        &lt;/header&gt;
+        &lt;main&gt;
+            &lt;Mocktail mocktail={this.state.mocktail} /&gt;
+        &lt;/main&gt;
+      &lt;/React.Fragment&gt;
+    );
+  }
+}
+
+export default App;</pre>
+<p>在<code>button</code>元素的<code>onClick</code>事件上调用<code>updateMocktail</code>方法，并且<code>mocktail</code>状态被传递给子组件<code>Mocktail</code>。</p>
+<p><code>Mocktail</code>组件有一个名为<code>isLoading</code>的加载状态，当这个状态为真时，就会呈现出<code>Spinner</code>组件。</p>
+<pre>import React, { Component } from 'react';
+
+import Spinner from './Spinner';
+
+class Mocktail extends Component {
+
+    state = {
+        isLoading: false
+    }
+
+    componentWillReceiveProps() {
+        this.setState({ isLoading: true });
+        setTimeout(() =&gt; 
+            this.setState({
+                isLoading: false
+            }), 500);
+    }
+
+    render() {
+
+        if (this.state.isLoading) {
+            return &lt;Spinner/&gt;
+        }
+
+        return (
+            &lt;React.Fragment&gt;
+                &lt;div className="mocktail-image"&gt;
+                    &lt;img src={`img/${this.props.mocktail.replace(/ +/g, "").toLowerCase()}.png`} alt={this.props.mocktail} /&gt;
+                &lt;/div&gt;
+            &lt;/React.Fragment&gt;
+        );
+    }
+}
+
+export default Mocktail;</pre>
+<p>在<code>Mocktail</code>组件的<code>componentWillReceiveProps</code>生命周期方法中调用<code>setTimeout</code>，将加载状态设置为<code>true</code>，持续500毫秒。</p>
+<p>每当<code>Mocktail</code>组件的props用新的<code>mocktail</code>状态更新时，它显示加载微调器半秒钟，然后呈现mocktail图像。</p>
+<h3>问题是</h3>
+<p>现在，这样做的问题是无论如何,<code>mocktail</code>状态会被更新并触发<code>Mocktail</code>组件的重新呈现——即使状态实际上没有改变。</p>
+<p>例如，每次我点击<strong> Mojito </strong>按钮，我们都会看到应用程序不必要地重新渲染Mojito图像。React 16提供了状态性能改进，如果状态的新值与其现有值相同，我们可以通过在<code>setState</code>中返回<code>null</code>来防止触发更新。</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/514c0f7e581684c860d0a766d934da0b.png" data-image-id="1*8ZCxjWZ9s_UsXAwK6sZuqw.gif" data-width="960" data-height="540" data-lazy-src="https://cdn-images-1.medium.com/max/1600/1*8ZCxjWZ9s_UsXAwK6sZuqw.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/1*8ZCxjWZ9s_UsXAwK6sZuqw.gif"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/514c0f7e581684c860d0a766d934da0b.png" data-image-id="1*8ZCxjWZ9s_UsXAwK6sZuqw.gif" data-width="960" data-height="540" data-original-src="https://cdn-images-1.medium.com/max/1600/1*8ZCxjWZ9s_UsXAwK6sZuqw.gif"/></noscript></figure>
+<h3>解决方案</h3>
+<p>以下是我们将遵循的步骤，以防止不必要的重新渲染:</p>
+<ol>
+<li>检查状态的新值是否与现有值相同</li>
+<li>如果值相同，我们将返回<code>null</code></li>
+<li>返回<code>null</code>不会更新状态，也不会触发组件重新渲染</li>
+</ol>
+<p>因此，首先，在<code>App</code>组件的<code>updateMocktail</code>方法中，我们将创建一个名为<code>newMocktail</code>的常量，并为它分配为<code>mocktail</code>传递的值。</p>
+<pre>updateMocktail = mocktail =&gt; {  
+  const <strong class="markup--strong markup--pre-strong">newMocktail</strong> = mocktail;    
+  this.setState({     
+    mocktail  
+  })  
+}</pre>
+<p>因为我们将基于以前的状态检查和设置状态，而不是传递<code>setState</code>和<code>object</code>，所以我们将传递一个函数，该函数将以前的状态作为参数。然后我们将检查<code>mocktail</code>状态的新值是否与现有值相同。</p>
+<p>如果值相同，<code>setState</code>将返回<code>null</code>。否则，如果值不同，<code>setState</code>将返回更新后的<code>mocktail</code>状态，这将触发用新状态重新呈现<code>Mocktail</code>组件。</p>
+<pre>updateMocktail = mocktail =&gt; {
+  const newMocktail = mocktail;  
+  this.setState(state =&gt; {
+    if (<strong>state.mocktail</strong> === <strong>newMocktail</strong>) {
+      <strong>return</strong> <strong>null;</strong>
+    } else {
+      <strong>return { mocktail };</strong>
+    }  
+  })  
+}</pre>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/c4aa10921e6787c57aa3ed499092a359.png" data-image-id="1*qKXB1YIKoOvp7kjnCRsLGg.gif" data-width="960" data-height="540" data-lazy-src="https://cdn-images-1.medium.com/max/1600/1*qKXB1YIKoOvp7kjnCRsLGg.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/1*qKXB1YIKoOvp7kjnCRsLGg.gif"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/c4aa10921e6787c57aa3ed499092a359.png" data-image-id="1*qKXB1YIKoOvp7kjnCRsLGg.gif" data-width="960" data-height="540" data-original-src="https://cdn-images-1.medium.com/max/1600/1*qKXB1YIKoOvp7kjnCRsLGg.gif"/></noscript></figure>
+<p>现在，单击一个按钮仍然会加载它各自的mocktail图像。但是，如果我们为同一个mocktail再次单击按钮，React不会重新呈现<code>Mocktail</code>组件；因为<code>setState</code>正在返回<code>null</code>，所以没有状态变化来触发更新。</p>
+<p>我在下面的两张gif中突出显示了React DevTools中的更新:</p>
+<figure class="graf graf--figure graf--layoutOutsetRow is-partialWidth"><img data-attachment-id="2161" data-permalink="https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/before-returning-null/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif" data-orig-size="960,540" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before returning null" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif" decoding="async" class="alignnone size-full wp-image-2161 jetpack-lazy-image" src="../Images/6e84a2f02d15bb0ddd64696258774064.png" alt="Before Returning Null From setState" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="2161" data-permalink="https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/before-returning-null/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif" data-orig-size="960,540" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before returning null" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif" decoding="async" loading="lazy" class="alignnone size-full wp-image-2161" src="../Images/6e84a2f02d15bb0ddd64696258774064.png" alt="Before Returning Null From setState" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/05/before-returning-null.gif"/></noscript></figure>
+<figure class="graf graf--figure graf--layoutOutsetRowContinue is-partialWidth"><img data-attachment-id="2162" data-permalink="https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/after-returning-null/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif" data-orig-size="960,540" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="After returning null" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif" decoding="async" class="alignnone size-full wp-image-2162 jetpack-lazy-image" src="../Images/c4dd52f989a277afbc658ffe95162bca.png" alt="After Returning Null From setState" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="2162" data-permalink="https://blog.logrocket.com/returning-null-from-setstate-in-react-16-5fdb1c35d457/after-returning-null/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif" data-orig-size="960,540" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="After returning null" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null-300x169.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif" decoding="async" loading="lazy" class="alignnone size-full wp-image-2162" src="../Images/c4dd52f989a277afbc658ffe95162bca.png" alt="After Returning Null From setState" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/05/after-returning-null.gif"/></noscript><figcaption class="imageCaption">Before returning null (above) vs. after returning null (below).</figcaption></figure>
+<blockquote><p><strong>注意:</strong>我在这里使用了深色主题，这样使用React DevTools突出显示更新特性可以更容易地观察React DOM中的更新。</p></blockquote>
+<h3>结论</h3>
+<p>现在我们已经介绍了在React 16中从<code>setState</code>返回null。我在下面的CodeSandbox中添加了mocktail选择应用程序的完整代码，供您使用。</p>
+<p/>
+<p>用<code>null</code>防止不必要的状态更新和重新渲染可以让我们的应用程序执行得更快，让应用程序执行得更快的全部意义在于改善我们应用程序的用户体验。</p>
+<p>用户不会无缘无故地偶然发现一个产品。用户对产品的感受直接反映了他们对公司及其产品的看法，因此我们需要确保以一种自然、直观的方式围绕用户的期望构建体验。</p>
+<p>我希望这篇文章对你有所帮助。我希望听到您的反馈！</p>
+<p><strong>感谢您的阅读！</strong></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+<hr/>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

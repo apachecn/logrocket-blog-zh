@@ -1,0 +1,317 @@
+<html>
+<head>
+<title>Going serverless with Node.js apps - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Node.js应用程序实现无服务器化</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/going-serverless-node-js-apps/#0001-01-01">https://blog.logrocket.com/going-serverless-node-js-apps/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>这篇文章于2021年8月更新，包括了Node的最新版本和无服务器化的额外好处。</em></p>
+<p>大多数web应用程序运行在高维护的服务器上。如今，软件工程团队有专门的开发运维/基础设施工程师来帮助管理、供应和维护这些服务器。由于这种设置的相关挑战，推动替代解决方案成为必要。<a href="https://www.serverless.com/" target="_blank" rel="noopener">无服务器堆栈</a>在这方面大放异彩。</p>
+<h2>什么是无服务器堆栈？</h2>
+<p>作为一个框架，我们可以构建微服务和全栈应用，将任何规模的组织从大型服务器设置、维护和配置的配置过程中解放出来。</p>
+<p>为你消耗的确切资源付费听起来如何？作为一个框架，无服务器的美妙之处在于，你只需为运行整个基础设施所需的资源支付等量的费用，而且开销和成本都大大降低了。</p>
+<p>无服务器代码是由事件发生触发或运行的无状态功能，例如网络事件(HTTP请求/响应循环)。对于无服务器应用程序，绑定到特定事件的函数上下文必须在这些事件完成之前运行。</p>
+<p>这里的想法是，状态不会在多个或不同的函数调用或上下文中保持不变。此外，由函数调用触发的每一个新事件都在一个新的容器实例中处理，自动触发。</p>
+<p>不要担心，当我们充实我们的应用程序时，我们将理解这一点。</p>
+<h2>无服务器的优势</h2>
+<p>对于无服务器应用程序，一段代码——通常是一个<a href="https://docs.aws.amazon.com/lambda/latest/dg/env_variables.html">λ函数</a>——根据触发的事件类型来执行。当这种情况发生时，资源被动态分配以服务于这些事件。</p>
+<p>在这种情况下，资源分配主要与传入或并发事件或请求的数量相关。这完全由云提供商(AWS、GCP、Azure等)决定并随后处理/提供。)提供这些服务。</p>
+<blockquote><p>注意:无服务器框架是独立于供应商的，因为它支持大多数流行的云服务提供商。<span> </span></p></blockquote>
+<p>无服务器应用程序的一些优势包括:</p>
+<ul>
+<li>基于无服务器的应用程序根据处理服务请求所需的资源数量按需扩展，因此当流量突然激增时，不必担心崩溃</li>
+<li>并发请求在新的容器实例中触发</li>
+<li>我们会处理安全更新或补丁</li>
+<li>其他所有技术细节都由相关的云提供商处理，因此，作为工程师，我们可以将更多精力放在核心应用维护和功能实现上</li>
+<li>通过单一命令加快部署周期，<code>sls deploy</code></li>
+<li>无服务器为云基础设施提供了一种抽象</li>
+<li>最重要的是，为消耗的确切资源付费，因为服务器管理是代表我们进行的</li>
+</ul>
+<p>对于专业帐户的其他好处，我们可以在此处查看此参考资料<a href="https://www.serverless.com/pro/" target="_blank" rel="noopener">的链接。</a></p>
+<p>对于开发人员来说，无服务器框架允许他们更少地关注管理任务，而更多地关注为用户创造商业价值。对于组织来说，无服务器堆栈将使新的创新更快地进入市场。</p>
+<p>由于无服务器应用程序的无状态特性，它们可能会遇到导致超时问题的冷启动。这是因为函数运行在具有不同或变化的上下文或环境的隔离容器中(被拒绝或被事件触发)。因此，应用程序最初可能会经历较低的响应时间、吞吐量和延迟。</p>
+<p>冷启动类似于在原地长时间闲置后启动车辆。冷启动的问题与用于服务请求的网络的延迟、云服务提供商、执行或运行一段代码(即使是优化较差的代码)所需的功能包的大小等有关。</p>
+<p>要解决这些问题，有办法让我们的机能保持温暖。例如，我们可以缓存事件调用，通常是通过让容器实例运行一段时间。此外，我们可以利用像<a href="https://www.npmjs.com/package/serverless-webpack"> serverless-webpack </a>这样的开源库来应对这些挑战。webpack有助于捆绑和优化我们的功能，使它们变得轻量级。</p>
+<p>在本教程中，我们将构建一个无服务器、基于微服务的应用程序。不过，在我们开始之前，让我们看一下我们需要在机器上安装的需求或工具。</p>
+<h2>使用Node.js实现无服务器的先决条件</h2>
+<p>为了轻松地学习本教程，我们应该:</p>
+<ul>
+<li>在我们的机器上安装节点和npm</li>
+<li>具备使用命令行的基本知识</li>
+</ul>
+<p>要开始使用无服务器开发，我们必须安装CLI，以便运行特定于无服务器的命令。要安装它，我们可以运行:</p>
+<pre> $ npm install serverless -g</pre>
+<p>在本教程的前面，我们解释了无服务器代码是如何作为无状态函数执行的。看看下面的例子:</p>
+<pre>const handlerFunction = (event, context, callback) =&gt; {
+// handle business logic code here based on the kind of request
+// handle callback here 
+callback(error, result)
+}
+module.exports = handlerFunction;</pre>
+<p>让我们回顾一下上面的无服务器功能是如何执行的。<code>handlerFunction const</code>是我们的无服务器函数的名称。</p>
+<p><code>event</code>对象是我们函数的一个参数，它代表了关于触发我们函数并导致它开始执行一段代码的事件类型的信息。</p>
+<p><code>context</code>对象包含关于我们的函数将在其上执行的环境的信息(注意，这通常由云提供商代表我们来处理)。</p>
+<p>最后，<code>callback</code>函数负责返回响应或错误对象，通常基于用户事件发出的请求。</p>
+<p>请注意，在本教程中，还有其他重要的步骤和设置过程我们不打算介绍，因为它们不是我们的主要关注点。然而，当我们处理基于无服务器应用程序的部署时，了解它们是非常重要的。它们包括:</p>
+<ul>
+<li>创建AWS账户——要创建一个免费账户，你可以点击这个<a href="https://aws.amazon.com">链接</a></li>
+<li>为用户角色/策略设置身份和访问管理(IAM)</li>
+<li>配置AWS CLI</li>
+<li>配置我们可能需要的其他AWS服务，比如数据库等等</li>
+</ul>
+<p>正如我们在上面看到的，我们特别提到AWS作为我们的云服务提供商，这意味着我们将利用<a href="https://aws.amazon.com/lambda/"> AWS lambda函数</a>和<a href="https://aws.amazon.com/api-gateway/"> API网关</a>来创建我们的后端API。</p>
+<p>还要注意，对于上面的用例，我们同样可以使用<a href="https://azure.microsoft.com/en-us/services/functions/"> Azure </a>或<a href="https://cloud.google.com/functions/"> GCP </a>。</p>
+<h2>构建基于微服务的无服务器应用</h2>
+<p>正如我们前面提到的，让我们从建立本地发展开始。如果我们以前没有在全局范围内安装无服务器CLI，我们现在可以这样做:</p>
+<pre> $ npm i serverless -g</pre>
+<p>我们可以将无服务器作为独立的二进制文件安装在windows和macOS/Linux上。</p>
+<p>无服务器帮助我们作为工程师处理困难的部分。我们所要做的就是用任何支持无服务器实现的语言编写架构良好的代码作为无状态函数。</p>
+<p>现在开始，我们可以创建一个新目录，并将其命名为<code>serveless-example</code>:</p>
+<pre> $ mkdir serverless-example
+ $ cd serverless-example</pre>
+<p>我们还可以设置由相关云提供商提供的其他服务，如数据库、存储机制和其他必要的配置。在本教程中，我们将使用MongoDB，因为我们可能已经很熟悉它了。</p>
+<p>此外，我们将使用<a href="https://www.npmjs.com/package/serverless-http"> serverless-http </a>包来设置我们的API。这个包充当中间件，处理Node.js应用程序和API网关细节之间的接口，因此我们的API看起来类似于Express应用程序。</p>
+<p>继续，让我们引导一个无服务器的样板应用程序。我们可以通过在终端上运行以下简单命令来实现这一点:</p>
+<pre>serverless create --template aws-nodejs</pre>
+<p>我们将获得如下输出，模板文件如下所示:</p>
+<figure id="attachment_63365" aria-describedby="caption-attachment-63365" class="wp-caption aligncenter"><img data-attachment-id="63365" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/output-template-files-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png" data-orig-size="730,163" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="output-template-files" data-image-description="" data-image-caption="&lt;p&gt;Figure 1: Output after running the serverless create –template command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png" decoding="async" class="wp-image-63365 size-full jetpack-lazy-image" src="../Images/5a27bd0c39f10e3a99532b8e7d8bc6f2.png" alt="serverless node output template files" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1-300x67.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="63365" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/output-template-files-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png" data-orig-size="730,163" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="output-template-files" data-image-description="" data-image-caption="&lt;p&gt;Figure 1: Output after running the serverless create –template command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png" decoding="async" loading="lazy" class="wp-image-63365 size-full" src="../Images/5a27bd0c39f10e3a99532b8e7d8bc6f2.png" alt="serverless node output template files" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1-300x67.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/output-template-files-1.png"/></noscript><figcaption id="caption-attachment-63365" class="wp-caption-text">Figure 1: Output after running the serverless create –template command.</figcaption></figure>
+<p> </p>
+<figure id="attachment_63367" aria-describedby="caption-attachment-63367" class="wp-caption aligncenter"><img data-attachment-id="63367" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/folder-hierarchy-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png" data-orig-size="342,202" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="folder-hierarchy" data-image-description="" data-image-caption="&lt;p&gt;Figure 2: Folder hierarchy after running the above command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1-300x177.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png" decoding="async" class="wp-image-63367 size-full jetpack-lazy-image" src="../Images/0d7cdb16fac68336031b70ce1a48bb50.png" alt="serverless node folder hierarchy" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png 342w, https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1-300x177.png 300w" data-lazy-sizes="(max-width: 342px) 100vw, 342px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="63367" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/folder-hierarchy-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png" data-orig-size="342,202" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="folder-hierarchy" data-image-description="" data-image-caption="&lt;p&gt;Figure 2: Folder hierarchy after running the above command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1-300x177.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png" decoding="async" loading="lazy" class="wp-image-63367 size-full" src="../Images/0d7cdb16fac68336031b70ce1a48bb50.png" alt="serverless node folder hierarchy" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png 342w, https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1-300x177.png 300w" sizes="(max-width: 342px) 100vw, 342px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/folder-hierarchy-1.png"/></noscript><figcaption id="caption-attachment-63367" class="wp-caption-text">Figure 2: Folder hierarchy after running the above command.</figcaption></figure>
+<p>看看启动器生成的文件，<code>serverless.yml</code>文件用于配置我们的整个应用程序——我们打算添加的服务类型，以及如何为我们的应用程序配置到我们的路由和控制器的路径。<code>handler.js</code>文件包含将被部署到我们的云提供商以运行我们的代码逻辑的实际功能。</p>
+<blockquote><p><strong>提示:</strong>我们可以从命令行运行<code>serverless help</code>命令来查看可用命令的列表及其各自的描述。</p></blockquote>
+<p>继续，让我们开始充实我们的应用程序。运行<code>npm init</code>命令生成一个<code>package.json</code>文件，然后我们将开始添加其他依赖项。</p>
+<p>我们将从安装<a href="https://www.npmjs.com/package/serverless-offline">无服务器离线</a>插件开始。这个包在本地反映了API网关的环境，将帮助我们在工作时快速测试我们的应用程序。重要的是要确保它已安装并列在我们的无服务器配置文件的“插件”部分。</p>
+<p>我们还应该继续安装<code>serverless-dotenv</code>插件，我们将使用它来设置我们的环境变量。</p>
+<p>要将它们作为开发依赖项安装，我们可以运行:</p>
+<pre>npm i serverless-offline serverless-dotenv --save-dev</pre>
+<p>安装完成后，我们可以继续将它们添加到我们的<code>serverless.yml</code>文件中。</p>
+<pre>Plugins:
+         - serverless-offline
+         - serverless-dotenv-plugin
+</pre>
+<p>现在让我们安装应用程序所需的其他包。我们将安装body-parser，Mongoose，Express，serverless-http和UUID。我们可以通过运行以下命令来实现:</p>
+<pre>npm i body-parser mongoose express uuid serverless-http --save</pre>
+<p>安装过程结束后，我们的<code>package.json</code>文件应该如下所示:</p>
+<pre>{
+  "name": "serverless-example",
+  "version": "1.0.0",
+  "description": "Serverless Example for LogRocket Blog",
+  "main": "handler.js",
+  "scripts": {
+    "start": "serverless offline start --skipCacheInvalidation",
+    "deploy": "sls deploy -v"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "mongoose": "^5.7.9",
+    "serverless-http": "^2.3.0",
+    "uuid": "^3.3.3"
+  },
+  "author": "Alexander Nnakwue",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless-offline": "^5.12.0",
+    "serverless-dotenv-plugin": "^2.1.1"
+  }
+}</pre>
+<p>现在让我们创建所有我们需要的文件夹和文件。对于基于微服务的应用程序，我们可以创建<code>Model</code>、<code>Controller</code>和<code>Services</code>目录。之后，我们可以在这些目录中创建各自的文件。请注意，我们将构建一个产品API来演示如何在Node.js中构建一个基于无服务器微服务的应用程序。</p>
+<p>要创建这些文件夹，我们可以运行以下命令:</p>
+<pre>mkdir Controller Services Model</pre>
+<p>之后，我们可以浏览目录并创建各自的文件名为<code>products.js</code>的文件。之后，我们可以创建我们的<code>.env</code>文件来存储我们的环境变量。最后，我们可以继续创建数据库配置文件，该文件将包含到运行在我们机器上的本地mongo实例的数据库连接。在本教程中，我们使用Mongoose作为ORM来连接MongoDB。</p>
+<p>以下是我们完成后的文件夹结构:</p>
+<figure id="attachment_63369" aria-describedby="caption-attachment-63369" class="wp-caption aligncenter"><img data-attachment-id="63369" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/current-folder-structure-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png" data-orig-size="478,814" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="current-folder-structure" data-image-description="" data-image-caption="&lt;p&gt;Figure 3: Our current folder structure.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1-176x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png" decoding="async" class="wp-image-63369 size-full jetpack-lazy-image" src="../Images/dcd8efda196fd9c661c5c063a8a20428.png" alt="serverless node current folder structure" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png 478w, https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1-176x300.png 176w" data-lazy-sizes="(max-width: 478px) 100vw, 478px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="63369" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/current-folder-structure-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png" data-orig-size="478,814" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="current-folder-structure" data-image-description="" data-image-caption="&lt;p&gt;Figure 3: Our current folder structure.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1-176x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png" decoding="async" loading="lazy" class="wp-image-63369 size-full" src="../Images/dcd8efda196fd9c661c5c063a8a20428.png" alt="serverless node current folder structure" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png 478w, https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1-176x300.png 176w" sizes="(max-width: 478px) 100vw, 478px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/current-folder-structure-1.png"/></noscript><figcaption id="caption-attachment-63369" class="wp-caption-text">Figure 3: Our current folder structure.</figcaption></figure>
+<p>现在我们可以开始写一些代码了。在<code><a href="https://github.com/firebase007/Serverless-example/blob/master/dbconfigs.js">dbConfigs.js</a></code>文件中，我们将展示如何在本地连接到数据库实例。</p>
+<pre>const mongoose = require('mongoose');
+require("dotenv").config();
+mongoose.Promise = global.Promise;
+
+const connectToDatabase = async () =&gt; {
+  let isConnected;
+  if (isConnected) {
+    console.log('using existing database connection');
+    return Promise.resolve();
+  }
+
+  console.log('using new database connection');
+  const database = await mongoose.connect(process.env.MONGODB_URL, {useNewUrlParser: true});
+  isConnected = database.connections[0].readyState;
+  // return isConnected;
+};
+
+module.exports = connectToDatabase;</pre>
+<p>正如我们前面提到的，我们使用mongoose在本地<a href="https://github.com/Automattic/mongoose#connecting-to-mongodb">连接到我们的MongoDB </a>。此外，我们通过使用<code>dotenv</code>包来访问MongoDB连接字符串。为了看看我们的<code>MONGODB_URL</code>的格式，我们可以检查一下<code><a href="https://github.com/firebase007/Serverless-example/blob/master/sample.env">sample.env</a></code>文件。</p>
+<p>之后，我们可以继续在<code>Model</code>目录中设置我们的产品模式。让我们来看看<code><a href="https://github.com/firebase007/Serverless-example/blob/master/Model/product.js">product.js</a></code>文件:</p>
+<pre>const mongoose = require("mongoose");
+const ProductSchema = new mongoose.Schema (
+  {
+    name: {type: String},
+    type: {type: String},
+    cost: {type: Number},
+    description: {type: String},
+    productId: { type: String },
+  },
+  {timestamps: true}
+); 
+
+const ProductModel = mongoose.model("product", ProductSchema);
+module.exports = ProductModel;</pre>
+<p>之后，我们可以继续在<code>Services</code>目录中创建<code><a href="https://github.com/firebase007/Serverless-example/blob/master/Services/product.js">product.js</a></code>文件。这里的逻辑将包含我们的<code>Model</code>如何与数据库对话——基本上，它如何处理CRUD操作。让我们仔细看看该文件的内容:</p>
+<pre>const Product = require('../Model/product');
+
+module.exports = {
+async createProduct (product) {
+  let result = await Product.create(product);
+  if(result) {
+    return {
+      data: product,
+      message: "Product successfully created!"
+};
+  }
+return "Error creating new product"
+},
+
+async getAllProduct()  {
+  let product = await Product.find();
+  if(product)  return product;
+  return "Error fetching products from db"
+},
+
+async getProductById(productId)  {
+  let product = await Product.findOne(productId);
+  if(product) return product;
+  return "Error fetching product from db";
+},
+};</pre>
+<p>在上面的文件中，我们已经处理了与数据库的所有交互。我们调用了<code><a href="https://docs.mongodb.com/manual/reference/command/create/">create</a></code>、<code><a href="https://docs.mongodb.com/manual/reference/method/db.collection.find/">find</a></code>和<code><a href="https://docs.mongodb.com/manual/reference/method/db.collection.findOne">findOne</a></code> MongoDB方法来与之交互。</p>
+<p>最后，我们可以进入最重要的部分:<code>Controller</code>文件，它处理我们应用程序的核心逻辑。它基本上处理我们的函数是如何被调用的。以下是<code><a href="https://github.com/firebase007/Serverless-example/blob/master/Controller/products.js">Controller/product.js</a></code>文件的内容:</p>
+<pre>const serverless = require('serverless-http');
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const uuid = require('uuid/v4');
+
+const dbConnection = require('../dbConfigs');
+const ProductService = require('../Services/product');
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+//  base url to test our API
+app.get('/index', async (req, res) =&gt; {
+   await res.send("&lt;h3&gt;Welcome to the Product API for LogRocket Blog serverless Example!!&lt;/h3&gt;")
+})
+
+//  function for creating a new product
+app.post('/', async (req, res) =&gt; {
+  try {
+   await dbConnection();
+   const data  = req.body;
+   const {name, type, description, cost} = data;
+ if(!data) {
+     return "Please pass all required fields!"
+  }
+   const dataToSave = {name,type,description,cost,productId:uuid()};
+   let createProduct =  await ProductService.createProduct(dataToSave);
+   if (createProduct) {
+     return res.status(200).send(
+       createProduct
+    )
+   }
+  } catch (error) {
+    //  handle errors here
+    console.log(error, "error!!");
+  }
+})
+
+//  function for getting all products
+app.get('/', async (req, res) =&gt; {
+try {
+    await dbConnection();
+    const allProducts = await ProductService.getAllProduct();
+    if (allProducts) {
+      return res.status(200).send({
+        data: allProducts
+      })
+    }
+  } catch (error) {
+     //  handle errors here
+     console.log(error, "error!!");
+  }
+})
+
+
+//  function for getting a  product by Id
+app.get('/:productId/', async (req, res) =&gt; {
+  try {
+    await dbConnection();
+    const {productId} = req.params;
+    const getProduct = await ProductService.getProductById({productId});
+    if(getProduct) {
+      return res.status(200).send({
+        data: getProduct
+      })
+    }
+  } catch (error) {
+     //  handle errors here
+     console.log(error, "error!!");
+  }
+});
+
+module.exports.handler = serverless(app);</pre>
+<p>我们导入所有必要的依赖项，比如<code>serverless-http</code>包，它允许我们像普通的Express应用程序一样设置我们的无服务器应用程序。当然我们也导入了我们的快递包，开了一个快递app。</p>
+<p>之后，我们导入我们的数据库连接和我们的<code>Services</code>文件。这个文件处理创建一个新产品，从数据库中获取所有产品，并通过产品的<code>Id</code>获取产品。在最后一行中，我们可以看到如何用无服务器http包包装我们的Express应用程序。</p>
+<p>最后，我们的<code><a href="https://github.com/firebase007/Serverless-example/blob/master/serverless.yml">serverless.yml</a></code>文件在完成后应该是这样的:</p>
+<pre># Welcome to Serverless!
+service: serverless-example
+app: product-api
+
+provider:
+  name: aws
+  runtime: nodejs14.17.4
+  stage: dev
+  region: us-east-1
+
+functions:
+  productAPI:
+    handler: Controller/products.handler
+    events:
+        - http:
+            path: /index
+            method: get
+        - http:
+            path: /
+            method: post
+        - http:
+            path: /
+            method: get
+        - http:
+            path: /{productId}
+            method: get
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin</pre>
+<p>我们已经配置了我们的应用程序和所需的服务或插件，但请注意，在较大的应用程序中，我们可能需要考虑添加其他额外的服务。查看<code>functions</code>配置，我们可以看到我们如何能够获得对我们的控制器文件的引用，并且还设置了所有正确的路由路径。</p>
+<blockquote><p>注意:为了利用无服务器架构，我们可以设置每个路由由不同的lambda函数处理。在这种情况下，我们可以直观地看到每条路由被调用了多少次，每条路由特有的错误，它们运行所花费的时间，以及通过使这些路由更快我们可以节省多少。</p></blockquote>
+<p>现在我们已经完成了整个设置，让我们启动我们的应用程序并测试我们的API。为此，我们可以在终端中运行<code>npm start</code>。当我们这样做时，我们得到以下输出:</p>
+<p><img data-attachment-id="63361" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/npm-start-output-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png" data-orig-size="730,199" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="npm-start-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1-300x82.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png" decoding="async" class="aligncenter wp-image-63361 size-full jetpack-lazy-image" src="../Images/4f3644f06d01d5c0fa61ff8004ec67d1.png" alt="npm start output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1-300x82.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="63361" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/npm-start-output-3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png" data-orig-size="730,199" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="npm-start-output" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1-300x82.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-63361 size-full" src="../Images/4f3644f06d01d5c0fa61ff8004ec67d1.png" alt="npm start output" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1-300x82.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-1.png"/></noscript>
+<figure id="attachment_63363" aria-describedby="caption-attachment-63363" class="wp-caption aligncenter"><img data-attachment-id="63363" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/npm-start-output-2-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png" data-orig-size="730,102" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="npm-start-output-2" data-image-description="" data-image-caption="&lt;p&gt;Figure 4: Showing the output when we run the npm start command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1-300x42.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png" decoding="async" class="wp-image-63363 size-full jetpack-lazy-image" src="../Images/b71b20e7ee362f0bd1d088f404cb0e74.png" alt="serverless node start output" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1-300x42.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="63363" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/npm-start-output-2-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png" data-orig-size="730,102" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="npm-start-output-2" data-image-description="" data-image-caption="&lt;p&gt;Figure 4: Showing the output when we run the npm start command.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1-300x42.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png" decoding="async" loading="lazy" class="wp-image-63363 size-full" src="../Images/b71b20e7ee362f0bd1d088f404cb0e74.png" alt="serverless node start output" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1-300x42.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/npm-start-output-2-1.png"/></noscript><figcaption id="caption-attachment-63363" class="wp-caption-text">Figure 4: Showing the output when we run the npm start command.</figcaption></figure>
+<p>在这里，我们可以看到所有的路由和env变量都显示在我们的终端上。现在我们可以继续测试我们的API了。在本教程中，我们将使用POSTMAN来测试。让我们创造一个新产品。</p>
+<p><img data-attachment-id="63359" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/create-new-product-postman-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png" data-orig-size="730,501" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="create-new-product-postman" data-image-description="&lt;p&gt;Figure 5: Showing how to create a new product using POSTMAN.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1-300x206.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png" decoding="async" class="aligncenter wp-image-63359 size-full jetpack-lazy-image" src="../Images/cc1449a67acca81facb6dbfb0bd98625.png" alt="serverless nodejs create new product postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1-300x206.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="63359" data-permalink="https://blog.logrocket.com/going-serverless-node-js-apps/create-new-product-postman-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png" data-orig-size="730,501" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="create-new-product-postman" data-image-description="&lt;p&gt;Figure 5: Showing how to create a new product using POSTMAN.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1-300x206.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-63359 size-full" src="../Images/cc1449a67acca81facb6dbfb0bd98625.png" alt="serverless nodejs create new product postman" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1-300x206.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/create-new-product-postman-1.png"/></noscript>
+<p>顺便说一句，我们可以继续创造更多的产品，并尝试其他端点。上述教程的代码库可以在GitHub 上找到<a href="https://github.com/firebase007/Serverless-example">。</a></p>
+<h2>结论</h2>
+<p>无服务器应用程序将会继续存在。我们所要做的就是用一个简单的命令来编写和部署我们的功能，并且它们是活动的。尽管本教程中没有涉及其他一些预配置选项，但我们已经能够利用无服务器技术成功构建一个最小的、可扩展的基于微服务的应用程序。</p>
+<p>虽然还有其他构建无服务器应用程序的方法，但是我们这里的方法的优点是，我们可以快速地将旧的express应用程序转换为无服务器应用程序，因为我们非常熟悉我们项目的当前结构。</p>
+<p>一定要试试这个设置，如果你有任何问题或反馈，请在下面的评论区告诉我。谢谢大家！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

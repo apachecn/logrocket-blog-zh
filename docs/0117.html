@@ -1,0 +1,94 @@
+<html>
+<head>
+<title>Recreating the Chrome Console in React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在React - LogRocket博客中重建Chrome控制台</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/recreating-the-chrome-console-in-react-123d6c4aa930/#0001-01-01">https://blog.logrocket.com/recreating-the-chrome-console-in-react-123d6c4aa930/#0001-01-01</a></blockquote><div><article class="article-post">
+<figure><img decoding="async" src="../Images/a6405cd7346cde2cbaf772814b9ec586.png" data-height="1072" data-width="2134" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/a6405cd7346cde2cbaf772814b9ec586.png" data-height="1072" data-width="2134" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png"/></noscript></figure>
+<p><a href="https://logrocket.com" target="_blank" rel="noopener noreferrer">日志火箭</a>的核心特征之一是在生产网络应用中重放控制台和Redux日志。要做到这一点，您需要将log火箭SDK添加到向log火箭发送日志的应用程序中。然后，当检测到一个bug或用户问题时，您可以在LogRocket中重放日志，看看出了什么问题。</p>
+<p>当我们第一次设计日志查看器时，我们经历了许多设计迭代，但最终决定复制Chrome控制台的外观和感觉。毕竟，开发人员已经习惯了使用这个界面，所以为什么要重新发明轮子呢？</p>
+<p>事实证明，为LogRocket重新构建Chrome控制台并不是一项简单的任务，因为我们的用例包含了许多Chrome实现中没有的复杂性。在这篇文章中，我将讨论我们如何使用<code>apollo-client</code>、<code>react-virtualized</code>和<code>react-measure</code>来构建一个高性能和可维护的日志查看器。</p>
+<figure/>
+<h3>初始设计关注点</h3>
+<p>我们的日志查看器的高级设计关注点如下:</p>
+<p><strong>平滑滚动性能</strong></p>
+<figure><img decoding="async" src="../Images/700195e9164fca8b9e33e22858c341c5.png" data-height="370" data-width="1000" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*2Qyf4jwRpAplEjR0cuROuQ.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*2Qyf4jwRpAplEjR0cuROuQ.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/700195e9164fca8b9e33e22858c341c5.png" data-height="370" data-width="1000" data-original-src="https://storage.googleapis.com/blog-images-backup/1*2Qyf4jwRpAplEjR0cuROuQ.gif"/></noscript></figure>
+<p>构建一个平滑滚动的长列表并不简单，但对于愉快的用户体验来说却至关重要。由于一个会话可能有数千个日志，我们知道我们需要构建一个虚拟列表，当DOM节点离开视区时，它们将被卸载到这个列表中。</p>
+<p><strong>用户交互式JSON树</strong></p>
+<figure class="wp-caption"><img decoding="async" src="../Images/38798db9ec4a56ac1223d5c2e11d15f5.png" data-height="370" data-width="900" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*y-EnK0Nldbm9p1jV0ku_Nw.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*y-EnK0Nldbm9p1jV0ku_Nw.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/38798db9ec4a56ac1223d5c2e11d15f5.png" data-height="370" data-width="900" data-original-src="https://storage.googleapis.com/blog-images-backup/1*y-EnK0Nldbm9p1jV0ku_Nw.gif"/></noscript><figcaption class="wp-caption-text">Expanding objects in the Chrome Console</figcaption></figure>
+<p>像Chrome javascript控制台一样，用户应该能够扩展记录的对象。这是一次重要的互动，因为开发者已经习惯了Chrome控制台的机制。</p>
+<p><strong>惰性加载对象扩展</strong></p>
+<p>像<code>console</code> API一样，LogRocket使得用JavaScript记录任何事情成为可能。这意味着我们需要支持任意大的对象或数组。很明显，我们不能一次加载所有的会话日志，因为这个查询可能非常庞大。相反，当用户扩展日志条目时，我们必须按需加载日志数据。</p>
+<p>这背离了Chrome控制台的工作方式(所有数据都已经在内存中)，这意味着我们需要一个加载状态和失败查询的错误处理。</p>
+<p><strong>持续状态</strong></p>
+<p>当组件卸载和重新装载时，日志查看器的状态应该保持不变。基本上，状态不能保存在组件级别，应该保存在Redux中。</p>
+<h3>使用React-Virtualized构建虚拟列表</h3>
+<p>当呈现一个很长的列表时，在DOM中保存所有的条目通常是非常昂贵的，因为每个节点都需要固定数量的内存。为了解决这个问题，您可以构建一个<em>虚拟</em>列表，其中每个条目只有在实际可见时才会被呈现。</p>
+<p>有许多React库可以帮助实现这一点，但是功能最丰富、最健壮的是<code>react-virtualized</code>。它提供了许多用于构建虚拟列表、网格和表格的实用组件。它有一个活跃的贡献者社区和一个非常有助于讨论问题的松散团队。</p>
+<h4>它是如何工作的</h4>
+<figure class="wp-caption"><img decoding="async" src="../Images/025507d9a2138d3c3d49b7559b802611.png" data-height="1032" data-width="1576" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*DZWjdzIi5xEd_FnY_u3diQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*DZWjdzIi5xEd_FnY_u3diQ.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/025507d9a2138d3c3d49b7559b802611.png" data-height="1032" data-width="1576" data-original-src="https://storage.googleapis.com/blog-images-backup/1*DZWjdzIi5xEd_FnY_u3diQ.png"/></noscript><figcaption class="wp-caption-text">react-virtualized only renders visible rows or rows in an “overscan” radius to make for smooth scrolling. Image by <a href="https://twitter.com/brian_d_vaughn" target="_blank" rel="noopener noreferrer">@brian_d_vaughn</a></figcaption></figure>
+<p><code>react-virtualized</code>绕过浏览器的布局引擎来确定项目的排列位置。当您滚动列表时，它会查看当前的滚动位置，并确定哪些项目在视窗中。然后，它呈现这些项目，并使用绝对定位将每一行放在正确的位置。因此，它可以自由地装载和卸载行，而不会影响后续行的定位。</p>
+<p>这种方法的一个警告是，具有动态高度的行实现起来有点棘手。在标准的基于流的布局中，或者使用Flexbox，如果列表中的项目高度增加，浏览器将向下推后续项目以腾出空间。然而，无论何时元素的高度发生变化，都需要通知<code>react-virtualized</code>，以便调整后续项目的<code>absolute</code>位置。</p>
+<p>让我们来看看<code>&lt;List /&gt;</code>组件的基本道具:</p>
+<figure><img decoding="async" src="../Images/ad140f730fabde032536f0eb38c7b2a6.png" data-height="256" data-width="952" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*VqyhvQKNqBjTVrn6-tWHDw.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*VqyhvQKNqBjTVrn6-tWHDw.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/ad140f730fabde032536f0eb38c7b2a6.png" data-height="256" data-width="952" data-original-src="https://storage.googleapis.com/blog-images-backup/1*VqyhvQKNqBjTVrn6-tWHDw.png"/></noscript></figure>
+<p><strong>宽度，高度</strong></p>
+<p>为了进行计算，需要知道列表视窗的宽度和高度。如果您的列表的宽度或高度不固定，有一些辅助组件可以帮助您调整这些值。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p><strong>行数</strong></p>
+<p>列表中的行数。</p>
+<p><strong>行高</strong></p>
+<p>如果列表中的所有行都有固定的高度，则该值可以是一个数字。如果每行的高度不同，rowHeight可以是一个函数，它通过索引返回给定行的高度。稍后将详细介绍。</p>
+<p><strong> rowRenderer </strong></p>
+<p>这是一个接受<code>index</code>(和一些其他非必要的道具)并返回要呈现的行的函数。一个简单的实现可能如下所示:</p>
+<figure><img decoding="async" src="../Images/62eb9982d472b102af97ef12f60d7975.png" data-height="338" data-width="848" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*8E3GZjQFcBezAdC37MddtA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*8E3GZjQFcBezAdC37MddtA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/62eb9982d472b102af97ef12f60d7975.png" data-height="338" data-width="848" data-original-src="https://storage.googleapis.com/blog-images-backup/1*8E3GZjQFcBezAdC37MddtA.png"/></noscript></figure>
+<p>注意<code>react-virtualized</code>实际上并没有把列表本身作为道具。只需知道列表的长度，并有一个能够呈现给定行的<code>rowRenderer</code>函数就可以了！</p>
+<h3>我们的实施</h3>
+<p>我不打算描述我们的控制台实现的每个细节，因为它的大部分是<code>react-virtualized</code>的标准应用，但是有一些有趣的地方我们有所分歧。</p>
+<h4>行高</h4>
+<p>如前所述，<code>react-virtualized</code>使用一个属性<code>rowHeight</code>,它是一个函数，返回给定索引的行的高度。</p>
+<figure><img decoding="async" src="../Images/a6405cd7346cde2cbaf772814b9ec586.png" data-height="1072" data-width="2134" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/a6405cd7346cde2cbaf772814b9ec586.png" data-height="1072" data-width="2134" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ptKhIO15iyOF962w-0vAiA.png"/></noscript></figure>
+<p>在这个LogRocket日志查看器的屏幕截图中，注意每行有两种状态:默认和扩展。当一行处于默认的预扩展状态时，它的高度固定在<code>22px</code>高度。但是，当一行被展开时，它的高度会随着用户展开对象的不同子树而变化。</p>
+<p>我们需要一种方法来编写一个处理动态高度行的<code>rowHeight</code>函数——就像这样:</p>
+<figure><img decoding="async" src="../Images/7dff8cef3df7a30d873e12176642465e.png" data-height="326" data-width="1016" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*pTtJGWnc8-ZWIIb3jRbIsQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*pTtJGWnc8-ZWIIb3jRbIsQ.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/7dff8cef3df7a30d873e12176642465e.png" data-height="326" data-width="1016" data-original-src="https://storage.googleapis.com/blog-images-backup/1*pTtJGWnc8-ZWIIb3jRbIsQ.png"/></noscript></figure>
+<p>为了在上面的伪代码中实现<code>getExpandedRowHeight</code>,有两种可能的选择。</p>
+<p><strong>保证被展开物体确定的高度</strong></p>
+<p>为了实现这一点，我们需要从头开始设计对象树视图组件，使其高度成为展开的子树的纯函数。换句话说，我们可以编写一个函数，它接受一个对象中展开的子树的列表，并让它返回高度。</p>
+<p>理论上这是可行的，但是有一些复杂的问题。很难考虑溢出到下一行的文本，因为这会增加对象的高度。此外，做出这种保证会使日志查看器的外观变得困难，因为像边距和填充这样的变化需要进行调整。</p>
+<p><strong>使用</strong> <code><strong>react-measure</strong></code></p>
+<p>相反，我们选择使用一个名为<code>react-measure</code>的库，它为编写知道自己高度的组件提供了一个有用的抽象。</p>
+<figure><img decoding="async" src="../Images/9de7c2bf7ce7eed9f8d0044c9d466388.png" data-height="164" data-width="1310" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*NIQB1xWED7xbWUgLQFdElQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*NIQB1xWED7xbWUgLQFdElQ.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/9de7c2bf7ce7eed9f8d0044c9d466388.png" data-height="164" data-width="1310" data-original-src="https://storage.googleapis.com/blog-images-backup/1*NIQB1xWED7xbWUgLQFdElQ.png"/></noscript></figure>
+<p><code>react-measure</code>包装一个给定的组件并接受一个prop，<code>onResize</code>这个函数在组件的大小改变时被调用。</p>
+<p>在我们的例子中，只要给定行的大小发生变化，我们就会调度一个Redux操作，将该行的高度存储在Redux中。然后在我们的<code>rowHeight</code>函数中，我们简单的从Redux中获取行的高度，<code>react-virtualized</code>就可以适当的渲染了。</p>
+<p>这种方法有一个小的性能损失，因为<code>react-measure</code>使用了DOM resize-observer API，它并不是在所有浏览器中都实现的，但实际上这是非常小的。</p>
+<h4>阿波罗客户端</h4>
+<p>为了处理数据获取，我们使用了<code>apollo-client</code>,这是一个GraphQL客户端，在React应用程序中运行良好。当用户点击日志条目以查看完整对象时，日志条目进入具有固定高度的加载状态。</p>
+<figure><img decoding="async" src="../Images/b68a6ba0e234ec6554bd6363d3bdebf5.png" data-height="156" data-width="1310" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*nGc3OcIXcNGOBqG7mhStRA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*nGc3OcIXcNGOBqG7mhStRA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/b68a6ba0e234ec6554bd6363d3bdebf5.png" data-height="156" data-width="1310" data-original-src="https://storage.googleapis.com/blog-images-backup/1*nGc3OcIXcNGOBqG7mhStRA.png"/></noscript></figure>
+<p>Apollo向后端发出请求，然后填充Redux存储中的数据。这将触发<code>react-virtualized</code>更新，当数据被填充时，行高会改变。</p>
+<h4>物体检验</h4>
+<p>为了让用户探索日志对象，我们查看了一些不同的现成组件，但最终选择了<code>react-inspector</code>。这个库包括许多用于记录对象和DOM节点的组件。然而，为了构建一个受控的版本(这样我们可以在Redux中保持状态)，我们最终还是分叉了这个库。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

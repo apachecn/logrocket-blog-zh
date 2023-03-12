@@ -1,0 +1,193 @@
+<html>
+<head>
+<title>Understanding Redux Saga: From action creators to sagas - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>理解Redux传奇:从动作创作者到传奇</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-redux-saga-action-creators-sagas/#0001-01-01">https://blog.logrocket.com/understanding-redux-saga-action-creators-sagas/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong> </em> <em>:这篇文章更新于2022年3月18日，目的是将代码的图像转换为CodePens和书面片段，以便于交互，解决Redux Toolkit处理异步操作的流行和偏好，并重新验证这篇文章中阐述的概念仍然是最新的。</em></p>
+<p>任何Redux开发人员都会告诉你，构建应用程序最困难的部分是弄清楚如何处理异步调用——如何管理网络请求、超时和其他回调，而不使Redux动作和reducers复杂化？</p>
+<p>为了管理这种复杂性，我将介绍并描述几种不同的方法来处理应用程序中的异步任务，包括:</p>
+<ol>
+<li>【Redux动作创作者有哪些？</li>
+<li><a href="#using-redux-thunk-asynchronous-operations">使用Redux Thunk进行异步操作</a></li>
+<li><a href="#using-redux-saga-work-with-side-effects">使用Redux Saga处理副作用</a></li>
+<li><a href="#using-redux-saga-handle-multiple-async-requests">使用Redux Saga处理多个异步请求</a></li>
+<li><a href="#test-with-redux-saga">如何用Redux Saga测试</a></li>
+</ol>
+<p>我们将使用<a href="https://blog.logrocket.com/tag/react" target="_blank" rel="noopener"> React </a>和Redux，所以这篇文章假设你至少对它们的工作原理有一点了解。</p>
+<h2 id="what-redux-action-creators">Redux动作创作者是什么？</h2>
+<p>通常，对于用户与应用程序的每次交互，应用程序的状态都会发生变化。这些交互的范围可以从点击按钮到悬停在界面上的组件上；这些交互的结果决定了UI上呈现的内容。这些交互也会触发一个动作，一个描述发生了什么并负责改变应用程序状态的普通对象。</p>
+<p>使用普通JavaScript时，跟踪这些动作及其各自的类型以确定应该执行哪个效果或响应有时会很麻烦。Redux使用被称为<a href="https://redux.js.org/tutorials/fundamentals/part-3-state-actions-reducers" target="_blank" rel="noopener">动作创建者</a>的专门函数来解决这个问题。通过动作创建器，您可以基于分派给reducer的动作类型来执行特定的操作。</p>
+<p>调用API是许多应用程序的常见要求。让我们看一个例子——想象一下，当我们点击一个按钮时，我们需要显示一张随机的狗的图片:</p>
+<p><img data-attachment-id="100400" data-permalink="https://blog.logrocket.com/understanding-redux-saga-action-creators-sagas/dog-ceo-api-app-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif" data-orig-size="730,601" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dog-ceo-api-app-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo-300x247.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif" decoding="async" class="aligncenter size-full wp-image-100400 jetpack-lazy-image" src="../Images/4e08982ff0f6cccf38bef7697b337932.png" alt="Using the Dog CEO API in our app demo" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="100400" data-permalink="https://blog.logrocket.com/understanding-redux-saga-action-creators-sagas/dog-ceo-api-app-demo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif" data-orig-size="730,601" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dog-ceo-api-app-demo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo-300x247.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-100400" src="../Images/4e08982ff0f6cccf38bef7697b337932.png" alt="Using the Dog CEO API in our app demo" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/10/dog-ceo-api-app-demo.gif"/></noscript>
+<p>我们可以在动作创建器中使用<a href="https://dog.ceo/dog-api/" target="_blank" rel="noopener">狗CEO API </a>和简单的<a href="https://developers.google.com/web/updates/2015/03/introduction-to-fetch" target="_blank" rel="noopener"> <code>fetch()</code>调用</a>:</p>
+<p class="codepen" data-height="300" data-theme-id="dark" data-default-tab="css,result" data-slug-hash="abEmdoV" data-user="olu-damilare">参见<a href="https://codepen.io"> CodePen </a>上Olu ( <a href="https://codepen.io/olu-damilare"> @olu-damilare </a> ) <br/>的笔<a href="https://codepen.io/olu-damilare/pen/abEmdoV">redux-saga-1</a>。</p>
+<p/>
+<p>这种方法没有错。如果一切都一样，我们应该选择最简单的方法。</p>
+<p>但是，使用bare Redux不会给我们带来太大的灵活性。其核心是，Redux只是一个支持同步数据流的状态容器:每次一个动作被发送到存储时，一个reducer被调用，状态被立即更新。</p>
+<p>但是在异步流中，你必须先等待响应；然后，如果没有错误，您可以更新状态。如果您的应用程序有一个复杂的逻辑/工作流呢？</p>
+<p>Redux使用中间件来解决这个问题。<a href="https://redux.js.org/understanding/history-and-design/middleware" target="_blank" rel="noopener">中间件</a>是一段代码，在一个动作被分派之后，但在它到达缩减器之前被执行。它的核心功能是拦截发送给reducer的动作，执行动作中可能存在的任何异步操作，并向reducer呈现一个对象。</p>
+<p>许多中间件可以被安排到一个执行链中，以不同的方式处理动作，但是中间件必须解释你传递给它的任何东西。它还必须确保在链的末端分派一个普通对象(一个动作)。</p>
+<p>对于异步操作，Redux提供了<a href="https://github.com/reduxjs/redux-thunk" target="_blank" rel="noopener"> thunk中间件</a>，它是流行的<a href="https://blog.logrocket.com/using-redux-toolkits-createasyncthunk/" target="_blank" rel="noopener"> Redux工具包</a>的一部分。</p>
+<h2 id="using-redux-thunk-asynchronous-operations">使用Redux Thunk进行异步操作</h2>
+<p>Redux Thunk是Redux中执行异步操作的标准方式。出于我们的目的，thunk代表一个仅在需要时调用的函数。以<a href="https://github.com/reduxjs/redux-thunk#whats-a-thunk" target="_blank" rel="noopener"> Redux Thunk的文档</a>为例:</p>
+<pre class="language-javascript hljs">let x = 1 + 2;
+</pre>
+<p>值<code>3</code>被立即分配给<code>x</code>。然而，当我们有类似下面的语句时:</p>
+<pre class="language-javascript hljs">let foo = () =&gt; 1 + 2;
+</pre>
+<p><code>sum</code>操作不会立即执行，只有在调用<code>foo()</code>时才会执行。这使得<code>foo</code>成为一个thunk。</p>
+<p>Redux Thunk允许动作创建者调度一个普通对象之外的函数，将动作创建者转换成一个Thunk。</p>
+<p>这是我们使用Redux Thunk方法的演示应用程序的外观:</p>
+<p class="codepen" data-height="300" data-theme-id="dark" data-default-tab="css,result" data-slug-hash="QWaKKzv" data-user="olu-damilare">参见<a href="https://codepen.io"> CodePen </a>上Olu ( <a href="https://codepen.io/olu-damilare"> @olu-damilare </a> ) <br/>的笔<a href="https://codepen.io/olu-damilare/pen/QWaKKzv">redux-saga-2</a>。</p>
+<p>起初，这似乎与以前的方法没有太大的不同。</p>
+<p>不带Redux Thunk:</p>
+<pre class="language-javascript hljs">// Action creator
+const fetchDog = async (dispatch) =&gt; {
+    try{
+        dispatch(requestDog());
+        var response = await fetch('https://dog.ceo/api/breeds/image/random');
+        var data = response.json;
+        return dispatch(showDog(data));
+    }catch(error){
+        return dispatch(requestDogError());
+    }
+};
+
+
+// Invoking the action creator
+&lt;button onClick={() =&gt; fetchDog(this.props.dispatch)}&gt;Show Dog&lt;/button&gt;
+</pre>
+<p>使用Redux Thunk:</p>
+<pre class="language-javascript hljs">// Action creator
+const fetchDog = async (dispatch) =&gt; {
+    try{
+        dispatch(requestDog());
+        var response = await fetch('https://dog.ceo/api/breeds/image/random');
+        var data = response.json;
+        return dispatch(showDog(data));
+    }catch(error){
+        return dispatch(requestDogError());
+    }
+};
+
+// Invoking the action creator
+&lt;button onClick={() =&gt; this.props.dispatch(fetchDog())}&gt;Show Dog&lt;/button&gt;
+</pre>
+<p>然而，使用Redux Thunk的优点是组件不知道它正在执行一个异步动作。由于中间件会自动将<code>dispatch</code>函数传递给动作创建者返回的函数，所以要求组件执行一个同步动作，然后执行一个异步动作是没有区别的(反正他们也不用在意)。</p>
+<p>通过使用中间件，我们增加了一个间接的<a href="https://en.wikipedia.org/wiki/Fundamental_theorem_of_software_engineering" target="_blank" rel="noopener">层</a>，这给了我们更多的灵活性。由于Redux Thunk将<code>dispatch</code>和<code>getState</code>方法作为参数提供给从存储中调度的函数，因此您还可以调度其他动作并读取状态以实现更复杂的业务逻辑和工作流。</p>
+<p>另一个好处是，如果thunks在不改变组件的情况下表达太复杂的东西，我们可以使用另一个中间件库来进行更多的控制:<a href="https://redux-saga.js.org/" target="_blank" rel="noopener"> Redux Saga </a>。</p>
+<h2 id="using-redux-saga-work-with-side-effects">使用Redux Saga处理副作用</h2>
+<p>Redux Saga是一个旨在通过sagas使副作用更容易工作的库，sagas是来自分布式事务世界的设计模式。如果你想深入研究传奇，我建议你去看看凯铁·麦卡弗里的讲座<a href="https://youtu.be/xDuwrtwYHu8" target="_blank" rel="noopener">应用传奇模式</a>。</p>
+<p>saga管理需要以事务方式执行的流程，维护执行状态并补偿失败的流程。在Redux的上下文中，一个saga被实现为一个中间件，因为我们不能使用一个reducer，它必须是一个纯函数，来协调和触发异步动作(副作用)。</p>
+<p>Redux Saga在<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*" target="_blank" rel="noopener"> ES2015发电机</a>的帮助下做到了这一点:</p>
+<pre class="language-javascript hljs">function* myGenerator(){
+    let first = yield 'first yield value';
+    let second = yield 'second yield value';
+    return 'third returned value';
+}
+</pre>
+<h3>什么是发电机功能？</h3>
+<p>生成器是可以在执行过程中暂停和恢复的函数，而不是一次执行一个函数的所有语句。</p>
+<p>当你调用一个生成器函数时，它将返回一个迭代器对象。随着迭代器的<code>next()</code>方法的每次调用，生成器的主体将被执行，直到下一个<code>yield</code>语句，然后它将暂停:</p>
+<pre class="language-javascript hljs">const it = myGenerator();
+console.log(it.next()); // {value: "first yield value", done: false}
+console.log(it.next()); // {value: "second yield value", done: false}
+console.log(it.next()); // {value: "third returned value", done: true}
+console.log(it.next()); // {value: "undefined", done: true}
+</pre>
+<p>这可以使异步代码易于编写和理解。例如，不这样做:</p>
+<pre class="language-javascript hljs">const data = await fetch(url);
+console.log(data);
+</pre>
+<p>有了发电机，我们可以做到这一点:</p>
+<pre class="language-javascript hljs">let val = yield fetch(url);
+console.log(val);
+</pre>
+<p>对于Redux Saga，我们通常有一个Saga，其工作是监视分派的动作:</p>
+<pre class="language-javascript hljs">function* watchRequestDog(){
+
+}
+</pre>
+<p>为了协调我们想要在saga中实现的逻辑，我们可以使用类似于<a href="https://redux-saga.js.org/docs/api/#takeeverypattern-saga-args" target="_blank" rel="noopener"> <code>takeEvery</code> </a>的帮助器函数来生成一个新的saga来执行一个操作:</p>
+<pre class="language-javascript hljs">// Watcher saga for distributing new tasks
+function* watchRequestDog(){
+    yield takeEvery('FETCHED_DOG', fetchDogAsync)
+}
+
+// Worker saga that performs the task
+function* fetchDogAsync(){
+
+}
+</pre>
+<p>watcher saga是另一个间接层，它增加了实现复杂逻辑的灵活性，但对于简单的应用程序可能是不必要的。</p>
+<h2 id="using-redux-saga-handle-multiple-async-requests">使用Redux Saga处理多个异步请求</h2>
+<p>如果有多个请求，<code>takeEvery</code>将启动工人传奇的多个实例；换句话说，它为您处理并发性。</p>
+<p>回想我们的例子，我们可以用类似这样的东西实现<code>fetchDogAsync()</code>函数(假设我们可以访问<code>dispatch</code>方法):</p>
+<pre class="language-javascript hljs">function* fetchDogAsync(){
+    try{
+        yield dispatch(requestDog());
+        const data = yield fetch(...);
+        yield dispatch(requestDogSuccess(data));
+    }catch (error){
+        yield dispatch(requestDogError());
+    }
+}
+</pre>
+<p>但是Redux Saga允许我们产生一个声明我们执行操作意图的对象，而不是产生执行操作本身的结果。换句话说，上面的例子是这样在Redux Saga中实现的:</p>
+<pre class="language-javascript hljs">function* fetchDogAsync(){
+    try{
+        yield put(requestDog())
+        const data = yield call(() =&gt; fetch(...))
+        yield put(requestDogSuccess(data))
+    }catch(error){
+        yield put(requestDogError())
+    }
+}
+</pre>
+<p>方法<code>call</code>将只返回一个描述操作的普通对象，而不是直接调用异步请求。然后Redux Saga负责调用并将结果返回给生成器。</p>
+<p>同样的事情也会发生在<code>put</code>方法上。<code>put</code>没有在生成器内部分派动作，而是返回一个对象，其中包含中间件分派动作的指令。那些返回的对象被称为效果。下面是一个由<code>call</code>方法返回的效果的例子:</p>
+<pre class="language-javascript hljs">{
+    CALL: {
+        fn: () =&gt; {/* ... */},
+        args: []
+    }
+}
+</pre>
+<p>另一个额外的好处是能够轻松地将许多效果组合到一个复杂的工作流程中。除了<code><a href="https://redux-saga.js.org/docs/api/#takeeverypattern-saga-args" target="_blank" rel="noopener">takeEvery</a></code>、<code><a href="https://redux-saga.js.org/docs/api/#callfn-args" target="_blank" rel="noopener">call</a></code>、<code><a href="https://redux-saga.js.org/docs/api/#putaction" target="_blank" rel="noopener">put</a></code>之外，Redux Saga还提供了很多<a href="https://redux-saga.js.org/docs/api/#effect-creators" target="_blank" rel="noopener">特效创作者</a>用于<a href="https://redux-saga.js.org/docs/recipes/#throttling" target="_blank" rel="noopener">节流</a>、<a href="https://redux-saga.js.org/docs/advanced/FutureActions/" target="_blank" rel="noopener">获取当前状态</a>、<a href="https://redux-saga.js.org/docs/advanced/RunningTasksInParallel/" target="_blank" rel="noopener">并行运行任务</a>、<a href="https://redux-saga.js.org/docs/advanced/TaskCancellation/" target="_blank" rel="noopener">取消任务</a>，不一而足。</p>
+<p>回到我们的例子，这是Redux Saga中的完整实现:</p>
+<p class="codepen" data-height="300" data-theme-id="dark" data-default-tab="css,result" data-slug-hash="MWrjQoB" data-user="olu-damilare">参见<a href="https://codepen.io"> CodePen </a>上Olu ( <a href="https://codepen.io/olu-damilare"> @olu-damilare </a> ) <br/>的笔<a href="https://codepen.io/olu-damilare/pen/MWrjQoB">redux-saga-3</a>。</p>
+<p/>
+<p>这是您单击按钮后在幕后发生的情况:</p>
+<ol>
+<li>动作<code>FETCHED_DOG</code>被分派</li>
+<li>观察者传奇<code>watchFetchDog</code>采取分派的动作并调用工作者传奇<code>fetchDogAsync</code></li>
+<li>显示加载指示器的动作被调度</li>
+<li>执行API调用</li>
+<li>调度更新状态的动作(<code>success</code>或<code>fail</code>)</li>
+</ol>
+<h2 id="test-with-redux-saga">如何用Redux Saga测试</h2>
+<p>通过使用效果，Redux Saga使sagas <a href="https://en.wikipedia.org/wiki/Declarative_programming" target="_blank" rel="noopener">成为声明性的</a>，而不是<a href="https://en.wikipedia.org/wiki/Imperative_programming" target="_blank" rel="noopener">命令性的</a>，这增加了返回简单对象的函数的好处，这比直接进行异步调用的函数更容易测试。</p>
+<p>要运行测试，您不需要使用真正的API、伪造或模仿它——您只需迭代生成器函数，断言生成的值相等:</p>
+<pre class="language-javascript hljs">const iterator = requestTrivia();
+asserts.deepEqual(
+    iterator.next().value,
+    call(fetch(...)),
+    "requestDog should yield the Effect call(fetch)"
+)
+</pre>
+<p>如果你认为一些间接层和一点额外的工作是值得的，Redux Saga可以给你更多的控制，以功能的方式处理副作用。</p>
+<h2>结论</h2>
+<p>这篇文章向您展示了如何用动作创建器、thunks和sagas在Redux中实现异步操作，从最简单的方法到最复杂的方法。</p>
+<p>Redux并没有给出处理副作用的解决方案。在决定采用哪种方法时，您必须考虑应用程序的复杂性。我的建议是从最简单的解决方案开始。</p>
+<p>Redux Saga还有其他替代方案值得尝试。两个最受欢迎的选项是<a href="https://github.com/redux-observable/redux-observable"> Redux Observable </a>(基于<a href="https://github.com/ReactiveX/rxjs" target="_blank" rel="noopener"> RxJS </a>)和<a href="https://github.com/jeffbski/redux-logic" target="_blank" rel="noopener"> Redux Logic </a>(也基于RxJS observables，但是可以自由地用<a href="https://github.com/jeffbski/redux-logic#tldr" target="_blank" rel="noopener">其他风格</a>编写您的逻辑)。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

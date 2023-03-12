@@ -1,0 +1,134 @@
+<html>
+<head>
+<title>Using JSON web tokens in Deno - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Deno - LogRocket博客中使用JSON web令牌</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-json-web-tokens-in-deno/#0001-01-01">https://blog.logrocket.com/using-json-web-tokens-in-deno/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Deno是一个简单、现代、安全的JavaScript和TypeScript运行时，使用V8并内置于Rust中。与Node.js不同，Deno内置了对默认安全的TypeScript的支持。Deno使用带有浏览器兼容URL的第三方包来管理模块，而不是导入并缓存在我们的本地机器中。</p>
+<p><a href="https://en.wikipedia.org/wiki/JSON_Web_Token" target="_blank" rel="noopener noreferrer"> JSON Web Token (JWT) </a>是一种互联网标准，用于创建带有可选签名和/或可选加密的数据，其有效负载包含断言一些声明的JSON。简而言之，它基本上用于认证。当用户登录到应用程序时，应用程序将创建一个JWT并发送给用户。</p>
+<p>Deno中JWT的大多数用例是当开发人员实现身份验证系统时，用户必须登录才能访问特定数据。</p>
+<p>在本文中，我们将使用Deno的<code><a href="https://deno.land/x/djwt@v1.9" target="_blank" rel="noopener noreferrer">djwt</a></code>集成包将JWT集成到我们的Deno应用程序中。</p>
+<h2>先决条件</h2>
+<ul>
+<li>扎实理解<a href="https://www.javascript.com/" target="_blank" rel="noopener noreferrer"> JavaScript </a></li>
+<li>文本编辑器(在我们的例子中，我们将使用<a href="https://code.visualstudio.com/" target="_blank" rel="noopener noreferrer">和代码</a></li>
+<li>安装在本地机器上的邮递员</li>
+</ul>
+<h2>Deno中的JSON web令牌入门</h2>
+<p>为了在我们的Deno应用程序中使用JWT，我们必须为此使用<code>djwt</code> Deno库。注意<code>djwt</code>不处理任何形式的认证或授权——它的作用是生成和验证有效的JSON web令牌。</p>
+<p>首先，让我们在应用程序的主目录中创建一个新目录。在这个目录中，我们将创建一个<code>index.ts</code>文件，在这里我们将编写代码:</p>
+<pre>cd desktop &amp;&amp; mkdir denojwt &amp;&amp; cd denojwt
+touch index.ts
+code .
+</pre>
+<p>这将创建目录和<code>index.ts</code>文件。<code>code .</code>命令将用VS代码打开我们的应用程序。请随意使用您选择的任何文本编辑器。</p>
+<p>要使用<code>djwt</code>库，我们必须将这个方法导入我们的应用程序:</p>
+<pre>import { validateJwt } from "https://deno.land/x/djwt/validate.ts";
+import { makeJwt, setExpiration,Jose,Payload } from "https://deno.land/x/djwt/create.ts";
+</pre>
+<p>这里，<code>validateJwt</code>方法将检查令牌是否有效。<code>makeJwt</code>方法将生成一个有效的JWT，<code>setExpiration</code>方法将为令牌设置一个到期时间。<code>Payload</code>是JWT有效载荷或数据的类型化接口。<code>Jose</code>表示令牌的算法和类型。</p>
+<p>为了定义路线和设置我们的服务器，我们将使用<code>oak</code>库。让我们使用<a href="https://deno.land/x/oak@v6.3.2" target="_blank" rel="noopener noreferrer"> Oak </a>建立一个简单的服务器和路由:</p>
+<pre>import { Application, Router } from "https://deno.land/x/oak/mod.ts";
+const app = new Application();
+const PORT:number = 8080
+//create a new instance of router
+const router = new Router();
+router
+  .get("/test", (context) =&gt; {
+    context.response.body = "Hello world!";
+  })
+  .get("/user", (context) =&gt; {
+    context.response.body = "My name is Wisdom Ekpot";
+  })
+  app.use(router.routes());
+app.use(router.allowedMethods());
+await app.listen({ port: PORT });
+</pre>
+<h2>生成JSON web令牌</h2>
+<p>当使用JWT时，我们必须设置一个密钥、一个有效载荷和一个报头。这是一个基本的JWT配置。最好将这些配置存储在一个变量中:</p>
+<pre>const key = "mynameisxyzekpot";
+
+const header: Jose = {
+    alg: "HS256",
+    typ: "JWT",
+}
+
+let payloader = (name:string) =&gt; {
+  let payload:Payload = {
+    iss: name,
+    exp: setExpiration(new Date("2021-01-01"))
+  }
+  return payload
+}
+</pre>
+<p><code>payloader</code>方法将获取有效负载作为参数，并将到期数据持续时间设置为<code>2021-01-01</code>。我们必须返回有效载荷对象，以便在<code>makeJwt</code>方法中使用它。</p>
+<p>有了这个定义，我们现在可以编写一个简单的方法，使用定义的配置返回一个有效的令牌。为了生成令牌，我们将以这种方式使用<code>makeJwt</code>方法:</p>
+<pre>const generateJWT = (name:string) =&gt; {
+  return makeJwt({ key:secret_key, header, payload:payloader(name) })
+}
+</pre>
+<p>这里我们将把用户输入的名字作为参数传递，然后使用<code>payloader</code>函数作为有效载荷。</p>
+<p>我们现在可以设置一个简单的路由来调用这个方法并发送有效的令牌作为响应。</p>
+<p>因为我们使用Oak作为我们的服务器和路由，所以我们可以创建一个简单的post路由，用于为我们生成一个有效的令牌:</p>
+<pre>.post("/generate", async (context) =&gt; {
+     let body: any = await context.request.body();
+    const { name } = await body.value;
+    let token = await generateJWT(name)
+    context.response.body = { status: true, data: name,token:token };
+  });
+</pre>
+<p>接下来，我们将添加一个新的<code>/generate</code> post请求路由，它将使用<code>generateJWT</code>方法根据输入的名称为用户生成一个令牌。</p>
+<p>获取请求的主体，我们可以从中获取用户输入的名字。现在让我们使用POSTMAN测试我们的端点。</p>
+<p><img decoding="async" src="../Images/c069ea5bd383a4033d2109a4d3c1145f.png" alt="" data-lazy-src="https://paper-attachments.dropbox.com/s_51CDB6FB7D9E8A97555A2DDC95AC82A147B0B68FE0ED89E487EFB24666A59BAA_1603480673378_Screen+Shot+2020-10-23+at+8.17.41+PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropbox.com/s_51CDB6FB7D9E8A97555A2DDC95AC82A147B0B68FE0ED89E487EFB24666A59BAA_1603480673378_Screen+Shot+2020-10-23+at+8.17.41+PM.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/c069ea5bd383a4033d2109a4d3c1145f.png" alt="" data-original-src="https://paper-attachments.dropbox.com/s_51CDB6FB7D9E8A97555A2DDC95AC82A147B0B68FE0ED89E487EFB24666A59BAA_1603480673378_Screen+Shot+2020-10-23+at+8.17.41+PM.png"/></noscript>
+<p>向<code>/generate</code>路由发送一个post请求，并将一个名称作为主体传递，将为该用户生成一个令牌。</p>
+<h2>验证JSON web令牌</h2>
+<p>我们可以使用导入的<code>validateJwt</code>来检查令牌是否有效。这个方法将<code>token</code>、<code>key</code>和<code>algorithm</code>作为参数。我们将使用从<code>makeJwt</code>方法收到的令牌进行测试。</p>
+<p>让我们首先创建一个验证方法:</p>
+<pre>const validateToken = (token:string) =&gt; {
+    return validateJwt({jwt:token, key:secret_key,algorithm:header.alg});
+}
+</pre>
+<p>注意，我们使用了在header对象中定义的算法，也使用了相同的<code>secret_key</code>。</p>
+<p>我们现在可以为验证创建新的发布路径:</p>
+<pre>.post("/validate", async (context) =&gt; {
+    let body: any = await context.request.body();
+    const { token } = await body.value;
+    let validator =  await validateToken(token)
+   context.response.body = {validator};
+  });
+</pre>
+<p>接下来，让我们使用validator方法来检查令牌是否有效。如果令牌有效，它将返回我们在创建时使用的相同负载。但是如果令牌无效，我们将得到如下响应:</p>
+<pre>"validator": {
+        "jwt": "yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJXaXNkb20gRWtwb3QiLCJleHAiOjE2MDk0NTkyMDB9.-uucC6ORuOGNWAkj2d7CTRYzBJTnIn7rcaZXslrSxlg",
+        "error": {
+            "name": "JwtError",
+            "date": "2020-10-23T19:40:29.472Z"
+        },
+        "isValid": false,
+        "isExpired": false
+    }
+</pre>
+<p>这是无效令牌的响应示例:</p>
+<p><img data-attachment-id="30281" data-permalink="https://blog.logrocket.com/using-json-web-tokens-in-deno/attachment/json-web-token-deno-invalid/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png" data-orig-size="730,448" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JSON-web-token-deno-invalid" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png" decoding="async" class="aligncenter size-full wp-image-30281 jetpack-lazy-image" src="../Images/65c32cf680d5c08dd403a2ca92327a45.png" alt="JWT deno invalid token" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid-300x184.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="30281" data-permalink="https://blog.logrocket.com/using-json-web-tokens-in-deno/attachment/json-web-token-deno-invalid/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png" data-orig-size="730,448" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JSON-web-token-deno-invalid" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-30281" src="../Images/65c32cf680d5c08dd403a2ca92327a45.png" alt="JWT deno invalid token" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid-300x184.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JSON-web-token-deno-invalid.png"/></noscript>
+<p>这里，<code>isValid</code>参数作为false返回，并且还返回一个错误对象。</p>
+<p>以下是有效的JWT的样子:</p>
+<p><img data-attachment-id="30282" data-permalink="https://blog.logrocket.com/using-json-web-tokens-in-deno/attachment/jwt-deno-valid-token/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-deno-valid-token" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token-300x195.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png" decoding="async" class="aligncenter size-full wp-image-30282 jetpack-lazy-image" src="../Images/ff49e1f3fa7369f8898190f5c0306e41.png" alt="JSON web token deno valid" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token-300x195.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="30282" data-permalink="https://blog.logrocket.com/using-json-web-tokens-in-deno/attachment/jwt-deno-valid-token/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JWT-deno-valid-token" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token-300x195.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-30282" src="../Images/ff49e1f3fa7369f8898190f5c0306e41.png" alt="JSON web token deno valid" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token-300x195.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/JWT-deno-valid-token.png"/></noscript>
+<h2>结论</h2>
+<p>在Deno应用程序中添加任何形式的身份验证对于应用程序的安全性都至关重要。JWT广泛应用于不同的技术中，因此在我们的应用程序中实现授权和身份验证时，它是一个很好的选择。</p>
+<p>对于这个项目的源代码，请查看我的<a href="https://github.com/Wisdom132/deno/tree/master/djwt" target="_blank" rel="noopener noreferrer"> GitHub repo </a>。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

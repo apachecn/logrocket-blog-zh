@@ -1,0 +1,284 @@
+<html>
+<head>
+<title>Understanding symbols in JavaScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>理解JavaScript - LogRocket博客中的符号</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-symbols-in-javascript/#0001-01-01">https://blog.logrocket.com/understanding-symbols-in-javascript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在符号作为一种新的原语引入ES6之前，JavaScript使用七种主要的数据类型，分为两类:</p>
+<ol>
+<li>原语，包括字符串、数字、bigint、布尔、空和未定义的数据类型</li>
+<li>对象，包括更复杂的数据结构，如数组、函数和常规JS对象</li>
+</ol>
+<p>从ES6开始，符号被添加到原语组。像所有其他原语一样，它们是不可变的，没有自己的方法。</p>
+<p>符号的最初目的是提供全球唯一的值，这些值是私有的，仅供内部使用。然而，在这种原始类型的最终实现中，符号最终没有被私有，但它们确实保持了其值的唯一性。</p>
+<p>我们稍后将解决隐私问题。至于符号的唯一性，如果你用工厂函数<code>Symbol()</code>创建两个不同的符号，它们的值不会相等。</p>
+<pre>const symbol1 = Symbol('1');
+const symbol2 = Symbol('2');
+
+console.log(symbol1 === symbol2); // Outputs False
+</pre>
+<p><code>symbol1</code>和<code>symbol2</code>的数据类型为<code>symbol</code>。您可以通过登录到您的控制台来检查它。</p>
+<pre>console.log(typeof(symbol1)); // Outputs symbol
+console.log(typeof(symbol2)); // Outputs symbol
+</pre>
+<p><code>Symbol()</code>函数可以带一个字符串参数，但是这个参数对符号的值没有影响；它只是出于描述的目的。所以这个字符串对调试很有用，因为它在打印符号时为您提供了一个参考，但它只是一个标签。</p>
+<pre>console.log(symbol1); // Outputs Symbol(symbol1)
+console.log(symbol2); // Outputs Symbol(symbol1)
+</pre>
+<p>您可能想知道为什么<code>Symbol()</code>函数不使用new关键字来创建一个新符号。你不会写<code>const symbol = new Symbol()</code>，因为<code>Symbol()</code>是一个函数，而不是构造函数。</p>
+<pre>const symbol3 = new Symbol('symbol3');
+
+// Outputs: Uncaught TypeError: Symbol is not a constructor 
+</pre>
+<p>由于符号是原语，因此是不可变的，所以符号的值不能改变，就像数字类型原语的值不能改变一样。</p>
+<p>这里有一个实际的例子，首先是一个数字原语:</p>
+<pre>let prim1 = 10;
+console.log(prim1); // Outputs 10
+
+prim1 = 20;
+console.log(prim1); // Outputs 20
+
+10 = 20 // Outputs: Uncaught ReferenceError: Invalid left-hand side in assignment
+
+10 == 20 // Outputs: False
+</pre>
+<p>我们给<code>prim1</code>变量赋值<code>10</code>，这是一个数字原语。我们可以给变量<code>prim1</code>重新分配一个不同的值，所以我们可以说我们希望变量<code>prim1</code>的值是<code>20</code>而不是<code>10</code>。</p>
+<p>然而，我们不能将值<code>20</code>赋给数字原语<code>10</code>。<code>10</code>和<code>20</code>都是数字型原语，所以不能变异。</p>
+<p>这同样适用于符号。我们可以将一个有符号值的变量重新赋值给另一个符号值，但是我们不能改变实际符号原语的值。</p>
+<pre>let symb4 = Symbol('4');
+let symb5 = Symbol('5');
+
+symb4 = symb5; 
+console.log(symb4); // Outputs Symbol(5)
+
+Symbol(4) = Symbol(5); // Outputs: ReferenceError: Invalid left-hand side in assignment
+</pre>
+<p>对于大多数原语，该值总是与具有相同值的其他原语完全相等。</p>
+<pre>const a = 10;
+const b = 10;
+
+a == b; // Outputs True
+a === b; // Outputs True
+
+const str1 = 'abc';
+const str2 = 'abc';
+
+str1 == str2; // Outputs True
+str1 === str2; // Outputs True
+</pre>
+<p>但是，对象数据类型永远不等于其他对象类型；他们每个人都有自己的身份。</p>
+<pre>let obj1 = { 'id': 1 };
+let obj2 = { 'id': 1 };
+
+obj1 == obj2; // Outputs False
+obj1 === obj2; // Outputs False
+</pre>
+<p>您可能会认为符号的行为类似于数字或字符串类型的原语，但从这个角度来看，它们的行为类似于对象，因为每个符号都有唯一的标识。</p>
+<pre>let symbol1 = Symbol('1');
+let symbol2 = Symbol('2');
+
+symbol1 == symbol2; // Outputs False
+symbol1 === symbol2; // Outputs False 
+</pre>
+<p>那么是什么让符号独一无二呢？它们是原语，但是当涉及到它们的值时，它们的行为就像对象一样。在讨论符号的实际用途时，记住这一点非常重要。</p>
+<h2 id="whenandhowaresymbolsusedinreallife">符号在现实生活中什么时候使用，如何使用？</h2>
+<p>如前所述，符号旨在体现独特的私人价值。然而，他们最终没有成为私有。如果打印对象或使用<code>Object.getOwnPropertySymbols()</code>方法，就可以看到它们。</p>
+<p>此方法返回在对象中找到的所有符号属性的数组。</p>
+<pre>let obj = {};
+let sym = Symbol();
+
+obj['name'] = 'name';
+obj[sym] = 'symbol';
+
+console.log(obj);
+</pre>
+<p><img data-attachment-id="18030" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/array-symbol-properties-in-object/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png" data-orig-size="408,529" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Array of symbol properties in an object" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object-231x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png" decoding="async" class="aligncenter size-full wp-image-18030 jetpack-lazy-image" src="../Images/b3452ba882882a389fb22d41a6dcb8e4.png" alt="Array of Symbol Properties in an Object" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png 408w, https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object-231x300.png 231w" data-lazy-sizes="(max-width: 408px) 100vw, 408px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18030" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/array-symbol-properties-in-object/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png" data-orig-size="408,529" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Array of symbol properties in an object" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object-231x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18030" src="../Images/b3452ba882882a389fb22d41a6dcb8e4.png" alt="Array of Symbol Properties in an Object" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png 408w, https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object-231x300.png 231w" sizes="(max-width: 408px) 100vw, 408px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/array-symbol-properties-in-object.png"/></noscript>
+<p>然而，注意这个符号对于<code>for</code>循环是不可见的，所以当迭代发生时它被跳过。</p>
+<pre>for (let item in obj) { 
+   console.log(item) 
+}; // Outputs name
+
+Object.getOwnPropertySymbols(obj); 
+</pre>
+<p>同样，符号不是<code>Object.keys()</code>或<code>Object.getOwnPropertyNames()</code>结果的一部分。</p>
+<p><img data-attachment-id="18032" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/object-keys-getownpropertynames-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png" data-orig-size="340,242" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No symbols in object results" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results-300x214.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png" decoding="async" class="aligncenter size-full wp-image-18032 jetpack-lazy-image" src="../Images/dab56f51eac97228d44ba650c971e34d.png" alt="No Symbols in Object Results" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png 340w, https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results-300x214.png 300w" data-lazy-sizes="(max-width: 340px) 100vw, 340px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18032" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/object-keys-getownpropertynames-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png" data-orig-size="340,242" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="No symbols in object results" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results-300x214.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18032" src="../Images/dab56f51eac97228d44ba650c971e34d.png" alt="No Symbols in Object Results" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png 340w, https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results-300x214.png 300w" sizes="(max-width: 340px) 100vw, 340px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/object-keys-getownpropertynames-results.png"/></noscript>
+<p>此外，如果您尝试将对象转换为JSON字符串，该符号将被跳过。</p>
+<pre>let obj = {};
+let sym = Symbol();
+
+obj['name'] = 'name';
+obj[sym] = 'symbol';
+
+console.log(obj);
+console.log(JSON.stringify(obj));
+</pre>
+<p><img data-attachment-id="18031" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/convert-object-to-json-string/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png" data-orig-size="397,348" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Converting an object to a JSON string" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string-300x263.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png" decoding="async" class="aligncenter size-full wp-image-18031 jetpack-lazy-image" src="../Images/35691832c1d142487e803173269d004a.png" alt="Converting an Object to a JSON String" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png 397w, https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string-300x263.png 300w" data-lazy-sizes="(max-width: 397px) 100vw, 397px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18031" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/convert-object-to-json-string/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png" data-orig-size="397,348" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Converting an object to a JSON string" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string-300x263.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18031" src="../Images/35691832c1d142487e803173269d004a.png" alt="Converting an Object to a JSON String" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png 397w, https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string-300x263.png 300w" sizes="(max-width: 397px) 100vw, 397px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/convert-object-to-json-string.png"/></noscript>
+<p>所以符号并不完全是私有的，但是它们只能通过特定的方式被访问。它们还有用吗？它们在现实生活中的使用时间和方式？</p>
+<p>最常见的是，在两种情况下使用符号:</p>
+<ol>
+<li>您不希望用户误覆盖的唯一属性值</li>
+<li>用于标识对象属性的唯一键</li>
+</ol>
+<p>让我们看看每个场景在实践中是什么样子的。</p>
+<h3>1.唯一属性值</h3>
+<p>对于这个用例，我们将做一个简单的练习，我们假装是一个发布旅行安全建议的国家旅行咨询机构。这里可以看到代码<a href="https://jsfiddle.net/7kshdgye/">。</a></p>
+<p>假设我们有一个颜色编码系统来代表特定区域的各种危险等级。</p>
+<ul>
+<li>红色代码是最高级别；人们不应该去这个地区旅行</li>
+<li>Code Orange是高水平；如果真的有必要，人们应该只去这个地区旅行</li>
+<li>黄色代码代表中度危险；人们去这个地区旅行时应该保持警惕</li>
+<li>绿色代码表示没有危险；人们可以安全地前往这个地区</li>
+</ul>
+<p>我们不希望这些代码及其值被错误地覆盖，所以我们将定义以下变量。</p>
+<pre>const id = Symbol('id');
+
+const RED = Symbol('Red');
+const ORANGE = Symbol('Orange');
+const YELLOW = Symbol('Yellow');
+const GREEN = Symbol('Green');
+
+const redMsg = Symbol('Do not travel');
+const orangeMsg = Symbol('Only travel if necessary');
+const yellowMsg = Symbol('Travel, but be careful');
+const greenMsg = Symbol('Travel, and enjoy your trip');
+
+let colorCodes = [{
+    [id]: RED,
+    name: RED.description,
+    message: redMsg.description,
+  },
+  {
+    [id]: ORANGE,
+    name: ORANGE.description,
+    message: orangeMsg.description,
+  },
+  {
+    [id]: YELLOW,
+    name: YELLOW.description,
+    message: yellowMsg.description,
+  },
+  {
+    [id]: GREEN,
+    name: GREEN.description,
+    message: greenMsg.description,
+  }
+]
+
+let alerts = colorCodes.map(element =&gt; {
+  return (`It is Code ${element.name}. Our recommendation for this region: ${element.message}.`);
+});
+
+let ul = document.getElementById("msgList");
+
+for (let elem in alerts) {
+  let msg = alerts[elem];
+  let li = document.createElement('li');
+  li.appendChild(document.createTextNode(msg));
+  ul.appendChild(li);
+}
+</pre>
+<p>本练习对应的HTML和SCSS片段如下。</p>
+<pre>&lt;div&gt;
+  &lt;h1&gt;Alert messages&lt;/h1&gt;
+  &lt;ul id="msgList"&gt;&lt;/ul&gt;
+&lt;/div&gt;
+
+
+
+ul {
+  list-style: none;
+  display: flex;
+  flex: row wrap;
+  justify-content: center;
+  align-items: stretch;
+  align-content: center;
+}
+
+li {
+  flex-basis: 25%;
+  margin: 10px;
+  padding: 10px;
+
+  &amp;:nth-child(1) {
+    background-color: red;
+  }
+
+  &amp;:nth-child(2) {
+    background-color: orange;
+  }
+
+  &amp;:nth-child(3) {
+    background-color: yellow;
+  }
+
+  &amp;:nth-child(4) {
+    background-color: green;
+  }
+}
+</pre>
+<p>如果您登录<code>colorCodes</code>，您会看到ID和它的值都是符号，所以当以JSON的形式检索数据时，它们不会显示出来。</p>
+<p>因此，很难错误地覆盖这个颜色代码的ID或值本身，除非您知道它们在那里或者您检索它们，如前所述。</p>
+<h3 id="2uniquekeysforidentifyingobjectproperties">2.用于标识对象属性的唯一键</h3>
+<p>在引入符号之前，对象键总是字符串，所以很容易被覆盖。此外，在使用多个库时，名称冲突是很常见的。</p>
+<p>假设您有一个应用程序，它有两个不同的库，试图向一个对象添加属性。或者，也许您正在使用来自第三方的JSON数据，并且希望为每个对象附加一个唯一的<code>userID</code>属性。</p>
+<p>如果你的对象已经有一个名为<code>userID</code>的键，你最终会覆盖它，从而丢失原来的值。在下面的例子中，<code>userID</code>有一个被覆盖的初始值。</p>
+<pre>let user = {};
+
+user.userName = 'User name';
+user.userID = 123123123;
+
+let hiddenID = Symbol();
+user[hiddenID] = 9998763;
+
+console.log(user);
+</pre>
+<p><img data-attachment-id="18022" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/userid-value-overwritten/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png" data-orig-size="625,497" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="username value overwritten" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png" decoding="async" class="aligncenter size-full wp-image-18022 jetpack-lazy-image" src="../Images/52d06de8a91f70a8c10e94ff5ed6c19c.png" alt="Username Value Overwritten" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png 625w, https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten-300x239.png 300w" data-lazy-sizes="(max-width: 625px) 100vw, 625px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18022" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/userid-value-overwritten/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png" data-orig-size="625,497" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="username value overwritten" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18022" src="../Images/52d06de8a91f70a8c10e94ff5ed6c19c.png" alt="Username Value Overwritten" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png 625w, https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten-300x239.png 300w" sizes="(max-width: 625px) 100vw, 625px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/userid-value-overwritten.png"/></noscript>
+<p>如果您查看上面的用户对象，您会发现它也有一个** <code>Symbol(): 9998763</code>属性。这是<code>[hiddenID]</code>键，其实是一个符号。因为这不会在JSON中出现，所以很难覆盖它。此外，当没有描述作为字符串附加到符号时，不能覆盖该值。</p>
+<pre>user[] = 'overwritten?'; // Outputs SyntaxError: Unexpected token ]
+
+user[Symbol()] = 'overwritten?'; 
+
+console.log(user);
+</pre>
+<p><img data-attachment-id="18023" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/symbol-property/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png" data-orig-size="606,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JavaScript symbol property" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property-300x142.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png" decoding="async" class="aligncenter size-full wp-image-18023 jetpack-lazy-image" src="../Images/920aa799bc312932300a3c5cdd6ceeaf.png" alt="JavaScript Symbol Property" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png 606w, https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property-300x142.png 300w" data-lazy-sizes="(max-width: 606px) 100vw, 606px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18023" data-permalink="https://blog.logrocket.com/understanding-symbols-in-javascript/symbol-property/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png" data-orig-size="606,287" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="JavaScript symbol property" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property-300x142.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18023" src="../Images/920aa799bc312932300a3c5cdd6ceeaf.png" alt="JavaScript Symbol Property" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png 606w, https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property-300x142.png 300w" sizes="(max-width: 606px) 100vw, 606px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/symbol-property.png"/></noscript>
+<p>这两个符号都被添加到这个对象中，所以我们用值<code>99987</code>覆盖原始符号的尝试失败了。</p>
+<h2 id="symbolsareuniqueuntiltheyarent">符号是独一无二的——直到它们不再是</h2>
+<p>还有一点需要注意的是，这使得符号没有它们原本的用途那么有用。如果你声明一个新的<code>Symbol()</code>，这个值确实是唯一的，但是如果你使用<code>Symbol.for()</code>方法，你将在全局符号注册表中创建一个新值。</p>
+<p>如果这个值已经存在，只需调用方法<code>Symbol.for(key)</code>就可以检索到它。如果您检查被赋予这些值的变量的唯一性，您会发现它们实际上并不唯一。</p>
+<pre>let unique1 = Symbol.for('unique1');
+let unique2 = Symbol.for('unique1');
+
+unique1 == unique2; // Outputs True
+unique1 == unique2; // Outputs True
+
+Symbol.for('unique1') == Symbol.for('unique1'); // Outputs True
+Symbol.for('unique1') === Symbol.for('unique1'); // Outputs True
+</pre>
+<p>此外，如果你有两个不同的变量，它们的值相等，你给它们赋值<code>Symbol.for()</code>方法，你仍然会得到相等的值。</p>
+<pre>let fstKey = 1;
+let secKey = 1;
+
+Symbol.for(fstKey) == Symbol.for(secKey); // Outputs True
+Symbol.for(fstKey) === Symbol.for(secKey); // Outputs True
+</pre>
+<p>当您想要为变量(如IDs)使用相同的值并在应用程序之间共享它们时，或者如果您想要定义一些仅适用于共享相同密钥的变量的协议时，这可能是有益的。</p>
+<p>现在，您应该对何时何地可以使用符号有了基本的了解。请注意，即使它们在JSON格式中不直接可见或不可检索，它们仍然可以被读取，因为符号不提供真实的属性隐私或安全性。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

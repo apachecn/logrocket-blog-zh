@@ -1,0 +1,469 @@
+<html>
+<head>
+<title>How to create a CI/CD for a Laravel application using GitHub Actions - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何使用GitHub Actions为Laravel应用程序创建CI/CD</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/#0001-01-01">https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>不到一年前，GitHub Actions 推出，从那时起，它已经得到了<a href="https://twitter.com/hashtag/githubactions?lang=en" target="_blank" rel="noopener noreferrer">众多的积极评价</a>。它允许我们将关于项目集成和部署的重要事情放在一个中心位置。换句话说，您的代码可以从GitHub构建、测试和部署，而不需要使用外部CI/CD服务来完成这项工作。</p>
+<p>在本文中，我们将探索一种使用GitHub Actions管理CI/CD流程的实践方法。</p>
+<h3>先决条件</h3>
+<ul>
+<li>GitHub账户。如果你还没有，你可以在这里注册<a href="https://github.com" target="_blank" rel="noopener noreferrer"/></li>
+<li>具有SSH访问权限的服务器</li>
+<li>写作基础知识有效<a href="https://yaml.org" target="_blank" rel="noopener noreferrer"> YAML </a></li>
+<li>GitHub和Git的基础知识</li>
+</ul>
+<h3>我们的计划</h3>
+<p>在本文中，我们将讨论构成我们的演示应用程序的基本CI/CD设置的主要部分。我们的CI/CD设置将监控对我们的存储库的推送和拉取请求。我们希望能够:</p>
+<ul>
+<li>对推送运行测试</li>
+<li>当对特定分支进行推送时，对pull <code>requestDeploy</code>运行测试</li>
+<li>在<code>staging</code>分支上推送时部署到临时服务器</li>
+<li>当发布被标记时，当推送打开时部署到生产服务器</li>
+</ul>
+<h2>示例项目</h2>
+<p>为了使这篇文章有重点和快捷，我创建了一个将在本文中使用的样本Laravel项目。该项目包含一些测试，包括前端测试和后端测试。要克隆项目运行:</p>
+<pre>git clone https://github.com/ichtrojan/deploy_tut</pre>
+<h2>什么是工作流？</h2>
+<p>工作流定义了完成CI/CD流程所需的步骤。根据GitHub的文档:</p>
+<blockquote><p>工作流是定制的自动化过程，您可以在存储库中设置它，以便在Github上构建、测试、打包、发布或部署任何项目</p></blockquote>
+<p>工作流在存储库中定义，并作为存储库的一部分提交。当您提交工作流并推送到GitHub时，GitHub Actions将自动检测工作流并立即解析工作流，并根据其中定义的指令开始处理您的CI/CD流程。工作流是用<code>YAML</code>编写的，存储在项目根目录的<code>.github/workflows</code>目录中。</p>
+<h2>配置工作流</h2>
+<h3>对拉请求工作流运行测试</h3>
+<p>当大型团队在同一个项目上协作时，此工作流非常有用。每当创建一个pull请求时，您都希望运行一些检查，而不是等到它被合并后再进行测试。为此，我们将定义一个工作流，该工作流将在发出拉请求时运行。这种工作流看起来是这样的:</p>
+<pre>name: PR WorkFlow
+
+on:
+  pull_request:
+    branches:
+      - master
+      - staging
+
+jobs:
+  app-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="84e7ece1e7efebf1f0c4f2b5">[email protected]</a>
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+      - name: Install Composer Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-suggest --no-progress --prefer-dist
+      - name: Install NPM Dependencies
+        run: npm install
+      - name: Generate key
+        run: php artisan key:generate
+      - name: Execute tests (Unit and Feature tests) using PHPUnit
+        env:
+          DB_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: ./vendor/bin/phpunit
+      - name: Execute tests (Unit and Feature tests) using JEST
+        run: node_modules/.bin/jest
+
+</pre>
+<blockquote><p>注:<br/>以上应作为<code>pr_workflow.yml</code>保存在<code>.github/workflows</code>目录中。</p></blockquote>
+<pre>name: Pull Request WorkFlow
+
+on:
+  pull_request:
+    branches:
+      - master
+      - staging
+</pre>
+<p>上面的<code>YAML</code>文件的初始部分定义了工作流的名称，然后告诉GitHub在向<code>master</code>和<code>staging</code>分支发出拉请求时运行动作。</p>
+<p>我们定义了一个名为<code>app-tests</code>的任务，它的目的是使用<code>Jest</code>和<code>PHPUnit</code>来运行两个测试。我们告诉Github Actions在设置动作时将<code>MySQL</code>作为服务包含进来。最后，由<code>steps</code>标记的另一部分列出了该工作要执行的步骤。</p>
+<h3>对推送工作流运行测试</h3>
+<p>在大多数情况下，无论何时对源代码进行更改，您都希望确保您的项目是好的。这通常是通过测试来完成的，确保项目的任何部分都不会因为任何变更而中断。为此，我们的初始工作流程如下所示:</p>
+<pre>name: PUSH Workflow
+
+on:
+  push:
+    branches:
+      - master
+      - staging
+
+jobs:
+  app-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dfbcb7babcb4b0aaab9fa9ee">[email protected]</a>
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+      - name: Install Composer Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-suggest --no-progress --prefer-dist
+      - name: Install NPM Dependencies
+        run: npm install
+      - name: Generate Key
+        run: php artisan key:generate
+      - name: Execute tests (Unit and Feature tests) via PHPUnit
+        env:
+          DB_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: vendor/bin/phpunit
+      - name: Execute tests (Unit and Feature tests) via JEST
+        run: node_modules/.bin/jest
+  build-js-production:
+    name: Build JavaScript/CSS for PRODUCTION Server
+    runs-on: ubuntu-latest
+    needs: app-tests
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9ffcf7fafcf4f0eaebdfe9ae">[email protected]</a>
+      - name: NPM Build
+        run: |
+          npm install
+          npm run prod
+      - name: Put built assets in Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2b5e5b47444a4f064a595f424d4a485f6b5d1a">[email protected]</a>
+        with:
+          name: assets
+          path: public
+  build-js-staging:
+    name: Build JavaScript/CSS for STAGING Server
+    runs-on: ubuntu-latest
+    needs: app-tests
+    if: github.ref == 'refs/heads/staging'
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dcbfb4b9bfb7b3a9a89caaed">[email protected]</a>
+      - name: NPM Build
+        run: |
+          npm install
+          npm run dev
+      - name: Put built assets in Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a0d5d0cccfc1c48dc1d2d4c9c6c1c3d4e0d691">[email protected]</a>
+        with:
+          name: assets
+          path: public
+  deploy-production:
+    name: Deploy Project to PRODUCTION Server
+    runs-on: ubuntu-latest
+    needs: [build-js-production, app-tests]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="187b707d7b73776d6c586e29">[email protected]</a>
+      - name: Fetch built assets from Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="54303b233a383b3530793526203d32353720142265">[email protected]</a>
+        with:
+          name: assets
+          path: public
+      - name: Setup PHP
+        uses: shivammathur/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="34475140414419445c4474595547405146">[email protected]</a>
+        with:
+          php-version: 7.4
+          extension-csv: mbstring, bcmath
+      - name: Composer install
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-suggest --no-progress --prefer-dist
+      - name: Setup Deployer
+        uses: atymic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3f5b5a4f5350465a4d124f574f125e5c4b5650517f525e4c4b5a4d">[email protected]</a>
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+      - name: Deploy to PRODUCTION Server
+        env:
+          DOT_ENV: ${{ secrets.DOT_ENV_PRODUCTION }}
+        run: dep deploy production --tag=${{ env.GITHUB_REF }} -vvv
+  deploy-staging:
+    name: Deploy Project to STAGING Server
+    runs-on: ubuntu-latest
+    needs: [build-js-staging, app-tests]
+    if: github.ref == 'refs/heads/staging'
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8ae9e2efe9e1e5fffecafcbb">[email protected]</a>
+      - name: Fetch built assets from Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="55313a223b393a3431783427213c33343621152364">[email protected]</a>
+        with:
+          name: assets
+          path: public
+      - name: Setup PHP
+        uses: shivammathur/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="93e0f6e7e6e3bee3fbe3d3fef2e0e7f6e1">[email protected]</a>
+        with:
+          php-version: 7.4
+          extension-csv: mbstring, bcmath
+      - name: Composer install
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-suggest --no-progress --prefer-dist
+      - name: Setup Deployer
+        uses: atymic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8eeaebfee2e1f7ebfca3fee6fea3efedfae7e1e0cee3effdfaebfc">[email protected]</a>
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+      - name: Deploy to Prod
+        env:
+          DOT_ENV: ${{ secrets.DOT_ENV_STAGING }}
+        run: dep deploy staging --tag=${{ env.GITHUB_REF }} -vvv
+</pre>
+<blockquote><p>注:<br/>以上应作为<code>push_workflow.yml</code>保存在<code>.github/workflows</code>目录下</p></blockquote>
+<p>我们将忽略工作流的<code>app-tests</code>部分，因为它与<code>pr_workflow.yml</code>中的部分相似，只关注使其不同的部分。</p>
+<p>上面的工作流将使用Jest运行前端测试，使用PHPUnit运行后端测试，每当有对存储库的推送时，使用与发出pull请求时相同的方式。这里的不同之处在于，我们向这个工作流添加了另外四个任务—<code>build-js-production</code>、<code>build-js-staging</code>、<code>deploy-staging</code>和<code>deploy-production</code>。我们现在将解释这四项其他工作。</p>
+<p><code>build-js-production</code>和<code>build-js-staging</code>的目的是在我们的项目中构建JavaScript资产，然后将它们上传到GitHub Actions工件，以便它们可以在部署作业中使用。</p>
+<p>需要注意的一件非常重要的事情是这行代码——<code>if: github.ref == 'refs/heads/master'</code>，它检查是否对<code>master</code>进行了推送，如果是，GitHub actions将继续运行<code>steps</code>中定义的步骤。在<code>build-js-staging</code>中，我们用<code>if: github.ref == 'refs/heads/staging'</code>代替，它检查是否对<code>staging</code>分支进行了推送。换句话说，如果对分段分支进行推送，则<code>build-js-staging</code>运行，而如果对主分支进行推送，则<code>build-js-production</code>运行:</p>
+<pre>- name: Put built assets in Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6712170b0806034a0615130e01060413271156">[email protected]</a>
+        with:
+          name: assets
+          path: public</pre>
+<p>在上面显示的代码中，在运行<code>npm run dev</code>或<code>npm run build</code>之后，我们将所有生成的静态资产上传到GitHub Actions工件。我们将在以后的另一项工作中获取它们。我们这样做是为了让我们可以持久化前一个作业中的一些数据，使其在另一个作业中可用。需要注意的是，生成的数据不会跨作业持续存在。</p>
+<p>检查哪个分支进行了推送的相同原理也适用于<code>deploy-staging</code>和<code>deploy-production</code>作业。因此，<code>deploy-staging</code>在对分段进行推送时运行，而<code>deploy-production</code>在对主分支进行推送时运行。如果任何检查结果为真，将执行下面的步骤。</p>
+<p>工作流的另一个重要部分是<code>needs: [build-js-staging, app-tests]</code>(在<code>deploy-staging</code>下)和<code>needs: [build-js-production, app-tests]</code>(在<code>deploy-production</code>下)，它们告诉GitHub动作，<code>deploy-staging</code>需要<code>build-js-staging</code>和<code>app-tests</code>作业成功运行才能运行。这意味着<code>deploy-staging</code>作业将在<code>build-js-staging</code>和<code>app-tests</code>运行并无任何错误退出后运行。这是为了确保如果测试或资产构建失败，部署不会发生。同样的道理也适用于<code>deploy-production</code>，它的运行依赖于<code>build-js-production</code>和<code>app-tests</code>。</p>
+<pre>name: Fetch built assets from Artifacts
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="aacec5ddc4c6c5cbce87cbd8dec3cccbc9deeadc9b">[email protected]</a>
+        with:
+          name: assets
+          path: public
+</pre>
+<p>上面将从工件中下载上传的资产到我们项目的<code>public</code>文件夹中:</p>
+<pre>- name: Composer install
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-suggest --no-progress --prefer-dist
+</pre>
+<p>这将安装composer依赖项，这是我们稍后运行Deployer所需的步骤:</p>
+<pre>- name: Setup PHP
+        uses: shivammathur/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2c5f4958595c015c445c6c414d5f58495e">[email protected]</a>
+        with:
+          php-version: 7.4
+          extension-csv: mbstring, bcmath</pre>
+<p>工作流的这一部分使用另一个GitHub动作(由<code>shivammathur/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5f2c3a2b2a2f722f372f1f323e2c2b3a2d">[email protected]</a></code>标识)来设置要使用的PHP版本和我们需要的扩展:</p>
+<pre>- name: Setup Deployer
+        uses: atymic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5a3e3f2a3635233f28772a322a773b392e3335341a373b292e3f28">[email protected]</a>
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+</pre>
+<p>这一步使用由<code>atymic/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3a5e5f4a5655435f48174a524a175b594e5355547a575b494e5f48">[email protected]</a></code>标识的另一个GitHub动作来设置部署器，并与我们稍后将从服务器获得的<code>SSH_PRIVATE_KEY</code>和<code>SSH_KNOWN_HOSTS</code>一起使用。</p>
+<pre>- name: Deploy to Prod
+        env:
+          DOT_ENV: ${{ secrets.DOT_ENV_STAGING }}
+        run: dep deploy staging --tag=${{ env.GITHUB_REF }} -vvv</pre>
+<pre>- name: Deploy to Prod
+        env:
+          DOT_ENV: ${{ secrets.DOT_ENV_PRODUCTION }}
+        run: dep deploy staging --tag=${{ env.GITHUB_REF }} -vvv</pre>
+<p>最后，最后一步启动部署过程，从那里，部署者将把项目上传到服务器。这两个部分的区别是<code>secrets.DOT_ENV_PRODUCTION</code>和<code>secrets.DOT_ENV_STAGING</code>，这允许我们为不同的部署注入不同的<code>ENVIRONMENT VARIABLES</code>。在我们的例子中，我们使用不同的<code>ENVIRONMENT VARIABLES</code>进行生产和准备。</p>
+<h2>获取服务器凭据</h2>
+<p>这里的目的是让GitHub actions访问我们的服务器来部署更改，您将获得您的服务器的私钥并将其添加到秘密中。为此，您需要生成一个<code>SSH</code>密钥(如果您还没有这样做的话),登录到您的服务器并运行:</p>
+<pre>ssh-keygen</pre>
+<p>会有一些提示，您可以接受默认值。确保在提示设置期间没有为您的SSH密钥提供密码短语。如果已经生成了SSH密钥，可以跳过这一步。运行完提示后，您应该会看到如下内容:</p>
+<p><img data-attachment-id="18281" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/ssh-key-gen-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png" data-orig-size="730,544" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SSH Key Gen Command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command-300x224.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png" decoding="async" class="aligncenter size-full wp-image-18281 jetpack-lazy-image" src="../Images/17a5eb60188b6a8739ed2bcc7ec23bef.png" alt="SSH Key Gen Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command-300x224.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18281" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/ssh-key-gen-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png" data-orig-size="730,544" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SSH Key Gen Command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command-300x224.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18281" src="../Images/17a5eb60188b6a8739ed2bcc7ec23bef.png" alt="SSH Key Gen Command" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command-300x224.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSH-Key-Gen-Command.png"/></noscript>
+<p>在<code>~/.ssh</code>目录下会为你生成两个名为<code>id_rsa.pub</code>和<code>id_rsa</code>的文件。接下来，复制<code>id_rsa</code>的内容，而不是<code>id_rsa.pub</code>。<code>id_rsa.pub</code>包含您的公钥，而<code>id_rsa</code>包含您的私钥:</p>
+<pre>cat ~/.ssh/id_rsa</pre>
+<p><img data-attachment-id="18284" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/catcommand/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png" data-orig-size="730,575" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="catcommand" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand-300x236.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png" decoding="async" class="aligncenter size-full wp-image-18284 jetpack-lazy-image" src="../Images/16caa11bd83f2f2f02fced8fe62885ee.png" alt="Cat Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand-300x236.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18284" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/catcommand/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png" data-orig-size="730,575" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="catcommand" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand-300x236.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18284" src="../Images/16caa11bd83f2f2f02fced8fe62885ee.png" alt="Cat Command" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand-300x236.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/catcommand.png"/></noscript>
+<p>您需要将SSH keygen生成的公钥添加到<code>authorized_keys</code>中，以便允许任何使用私钥的连接尝试。这可以通过运行以下命令来完成:</p>
+<pre>cat ~/.ssh/id_rsa.pub &gt;&gt; ~/.ssh/authorized_keys</pre>
+<p>上面的命令不会产生任何输出，所以如果运行该命令后什么也没有发生，也不用担心。接下来，您将前往GitHub，转到项目的<code>Settings</code>选项卡。然后点击<code>Secrets</code>，如下图所示:</p>
+<p><img data-attachment-id="18286" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/githubsecretspage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="githubsecretspage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png" decoding="async" class="aligncenter size-full wp-image-18286 jetpack-lazy-image" src="../Images/bcc58264a605f743b5953c9b21f59574.png" alt="GitHub Secrets Page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18286" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/githubsecretspage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="githubsecretspage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18286" src="../Images/bcc58264a605f743b5953c9b21f59574.png" alt="GitHub Secrets Page" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/githubsecretspage.png"/></noscript>
+<p>您需要给这个秘密取一个与工作流中定义的内容相对应的名称，即<code>SSH_PRIVATE_KEY</code>，然后将您复制的内容作为值，如下所示:</p>
+<p><img data-attachment-id="18287" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/addinggithusecret/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="addinggithusecret" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png" decoding="async" class="aligncenter size-full wp-image-18287 jetpack-lazy-image" src="../Images/9c3eaff2e29686c9f1a8f31b978fc514.png" alt="Adding GitHub Secret" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18287" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/addinggithusecret/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="addinggithusecret" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18287" src="../Images/9c3eaff2e29686c9f1a8f31b978fc514.png" alt="Adding GitHub Secret" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/addinggithusecret.png"/></noscript>
+<p>添加秘密后，我们将看到如下视图:</p>
+<p><img data-attachment-id="18289" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/secretadded/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="secretadded" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png" decoding="async" class="aligncenter size-full wp-image-18289 jetpack-lazy-image" src="../Images/0a595edba3178420d4b8cae4f1576073.png" alt="Secret Added" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18289" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/secretadded/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="secretadded" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18289" src="../Images/0a595edba3178420d4b8cae4f1576073.png" alt="Secret Added" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/secretadded.png"/></noscript>
+<p>获取服务器的<code>SSH Known Hosts</code>，并将其添加到<code>Secrets</code>部分。从您的本地机器上，您必须运行以获取ssh已知主机:</p>
+<pre>ssh-keyscan rsa -t {server_ip_address}</pre>
+<blockquote><p>注意:<br/>用您的服务器公共IP地址替换<code>{server_ip_address}</code></p></blockquote>
+<p>复制该命令的输出，并将其添加到名为<code>SSH_KNOWN_HOSTS</code>的机密中，内容将被复制。</p>
+<blockquote><p><img data-attachment-id="18321" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/sshkeyscan-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png" data-orig-size="730,595" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SSHkeyscan Command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command-300x245.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png" decoding="async" class="aligncenter size-full wp-image-18321 jetpack-lazy-image" src="../Images/252c034f441322632c6be77928449e7d.png" alt="SSH Key Scan Command" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command-300x245.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18321" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/sshkeyscan-command/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png" data-orig-size="730,595" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SSHkeyscan Command" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command-300x245.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18321" src="../Images/252c034f441322632c6be77928449e7d.png" alt="SSH Key Scan Command" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command-300x245.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/SSHkeyscan-Command.png"/></noscript><br/>
+Note:<br/>
+The part to copy begins with <code>{server_ip_address} sh-rsa</code></blockquote>
+<p>注意，在这种情况下，并不是所有的内容都被复制。只有突出显示的部分被复制。将它添加到Github Secrets后，我们将得到如下内容:</p>
+<p><img data-attachment-id="18326" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/github-secrets-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHub Secrets 2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png" decoding="async" class="aligncenter size-full wp-image-18326 jetpack-lazy-image" src="../Images/0e420a397301e28ded627f324648ea88.png" alt="GitHub Secrets 2" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18326" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/github-secrets-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHub Secrets 2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18326" src="../Images/0e420a397301e28ded627f324648ea88.png" alt="GitHub Secrets 2" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHub-Secrets-2.png"/></noscript><br/>
+To achieve our plan of deploying to different server appropriately, you will need to repeat this process for the <code>staging server</code> and the <code>production Server</code> or else you will need to give appropriate names to the secrets you’re adding to the repository. You must ensure that this naming takes effect in the workflow written above since you’re using different servers for your production and staging environments.
+<h2>添加应用程序环境文件</h2>
+<p>接下来，我们需要像上一节一样在secret中添加环境变量。这里的技术是在操作运行时注入环境变量。要做到这一点，我们要把服务器上app需要的环境变量编译成一个<code>.env</code>文件。</p>
+<p>然后，我们将复制该文件的内容，并将其添加到secrets中，其名称为:</p>
+<pre>`DOT_ENV_STAGING` and `DOT_ENV_PRODUCTION`</pre>
+<p><img data-attachment-id="18329" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/adding-env-prod/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding Env Prod" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png" decoding="async" class="aligncenter size-full wp-image-18329 jetpack-lazy-image" src="../Images/588daf9c8be8fd5432c5528de85d5688.png" alt="Adding Env Prod" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18329" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/adding-env-prod/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding Env Prod" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18329" src="../Images/588daf9c8be8fd5432c5528de85d5688.png" alt="Adding Env Prod" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Adding-Env-Prod.png"/></noscript>
+<p><img data-attachment-id="18330" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/envaddedforstaginandprod/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="envaddedforstaginandprod" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png" decoding="async" class="aligncenter size-full wp-image-18330 jetpack-lazy-image" src="../Images/47cf8e6ac3ebb40e89bc11907bec5e24.png" alt="Env Added for Staging and Prod" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18330" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/envaddedforstaginandprod/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="envaddedforstaginandprod" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18330" src="../Images/47cf8e6ac3ebb40e89bc11907bec5e24.png" alt="Env Added for Staging and Prod" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/envaddedforstaginandprod.png"/></noscript>
+<h2>设置部署者</h2>
+<p>为了启动我们的部署，我们将使用<a href="https://deployer.org" target="_blank" rel="noopener noreferrer"> Deployer </a>。这是一个用PHP编写的部署工具，支持现成的流行框架。要使用它，我们需要在我们的项目中本地设置它，我们通过运行:</p>
+<pre>composer require deployer/deployer deployer/recipes</pre>
+<p><img data-attachment-id="18332" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/requiredeployer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png" data-orig-size="730,592" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="requiredeployer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer-300x243.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png" decoding="async" class="aligncenter size-full wp-image-18332 jetpack-lazy-image" src="../Images/d0d724c6072084a32e84b4c6285ffc07.png" alt="Require Deployer" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer-300x243.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18332" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/requiredeployer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png" data-orig-size="730,592" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="requiredeployer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer-300x243.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18332" src="../Images/d0d724c6072084a32e84b4c6285ffc07.png" alt="Require Deployer" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer-300x243.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/requiredeployer.png"/></noscript>
+<p><span>包<code>deployer/deployer</code>是主要的Deployer项目，而<code>deployer/recipes</code>包含的组件将帮助我们为特定的项目和工具配置Deployer，如Laravel、Symfony、RSync等。</span></p>
+<p><span>接下来，配置部署器，我们将在项目的根目录下创建一个名为<code>deploy.php</code>的文件:</span></p>
+<pre>&lt;?php
+
+namespace Deployer;
+
+require 'recipe/laravel.php';
+require 'recipe/rsync.php';
+
+set('application', 'My App');
+set('ssh_multiplexing', true);
+
+set('rsync_src', function () {
+    return __DIR__;
+});
+
+
+add('rsync', [
+    'exclude' =&gt; [
+        '.git',
+        '/.env',
+        '/storage/',
+        '/vendor/',
+        '/node_modules/',
+        '.github',
+        'deploy.php',
+    ],
+]);
+
+task('deploy:secrets', function () {
+    file_put_contents(__DIR__ . '/.env', getenv('DOT_ENV'));
+    upload('.env', get('deploy_path') . '/shared');
+});
+
+host('myapp.io')
+  -&gt;hostname('104.248.172.220')
+  -&gt;stage('production')
+  -&gt;user('root')
+  -&gt;set('deploy_path', '/var/www/my-app');
+
+host('staging.myapp.io')
+  -&gt;hostname('104.248.172.220')
+  -&gt;stage('staging')
+  -&gt;user('root')
+  -&gt;set('deploy_path', '/var/www/my-app-staging');
+
+after('deploy:failed', 'deploy:unlock');
+
+desc('Deploy the application');
+
+task('deploy', [
+    'deploy:info',
+    'deploy:prepare',
+    'deploy:lock',
+    'deploy:release',
+    'rsync',
+    'deploy:secrets',
+    'deploy:shared',
+    'deploy:vendors',
+    'deploy:writable',
+    'artisan:storage:link',
+    'artisan:view:cache',
+    'artisan:config:cache',
+    'artisan:migrate',
+    'artisan:queue:restart',
+    'deploy:symlink',
+    'deploy:unlock',
+    'cleanup',
+]);
+
+</pre>
+<p>上面代码中的大多数行都是不言自明的。但是，我将继续解释代码的某些部分:</p>
+<pre>&lt;?php
+
+...
+
+require 'recipe/laravel.php';
+require 'recipe/rsync.php';
+</pre>
+<p>这部分包括来自<code>deployer/recipes</code>的两个食谱，第一个是给拉韦尔的，另一个是给<a href="https://linux.die.net/man/1/rsync" target="_blank" rel="noopener noreferrer"> RSync </a>的。<code>'recipe/laravel.php'</code>允许我们使用一些预定义的特定任务，而<code>'recipe/rsync.php'</code>允许我们轻松配置RSync，因为我们将使用它将文件复制到服务器:</p>
+<pre>&lt;?php
+
+...
+
+set('rsync_src', function () {
+    return __DIR__;
+});
+
+
+add('rsync', [
+    'exclude' =&gt; [
+        '.git',
+        '/.env',
+        '/storage/',
+        '/vendor/',
+        '/node_modules/',
+        '.github',
+        'deploy.php',
+    ],
+]);
+</pre>
+<p>该部分配置RSync，它定义了我们将从中复制文件的目录，还定义了在<code>exclude</code>数组键中复制时应排除的目录和文件:</p>
+<pre>&lt;?php
+
+...
+
+task('deploy:secrets', function () {
+    file_put_contents(__DIR__ . '/.env', getenv('DOT_ENV'));
+    upload('.env', get('deploy_path') . '/shared');
+});
+
+host('myapp.io')
+  -&gt;hostname('104.248.172.220')
+  -&gt;stage('production')
+  -&gt;user('root')
+  -&gt;set('deploy_path', '/var/www/my-app');
+
+host('staging.myapp.io')
+  -&gt;hostname('104.248.172.220')
+  -&gt;stage('staging')
+  -&gt;user('root')
+  -&gt;set('deploy_path', '/var/www/my-app-staging');
+</pre>
+<p>上面的第一个代码块定义了一个任务，该任务复制工作流中配置的<code>DOT_ENV</code>的内容，并将其放在部署目录的共享目录中。该代码片段的其余部分是相同的，但略有不同。他们都配置暂存和生产环境以及其他一些东西，如部署路径、IP等，这些都是特定于任一环境的:</p>
+<pre>&lt;?php
+
+...
+
+after('deploy:failed', 'deploy:unlock');
+
+desc('Deploy the application');
+
+task('deploy', [
+    'deploy:info',
+    'deploy:prepare',
+    'deploy:lock',
+    'deploy:release',
+    'rsync',
+    'deploy:secrets',
+    'deploy:shared',
+    'deploy:vendors',
+    'deploy:writable',
+    'artisan:storage:link',
+    'artisan:view:cache',
+    'artisan:config:cache',
+    'artisan:migrate',
+    'artisan:queue:restart',
+    'deploy:symlink',
+    'deploy:unlock',
+    'cleanup',
+]);
+</pre>
+<p>上面的代码部分定义了任务，这些任务是按照部署过程中应该执行的顺序定义的。其中一些任务包括Laravel特定任务、RSync、编写器任务等。</p>
+<p>你可以在这里阅读Deployer <a href="https://deployer.org/docs/getting-started.html" target="_blank" rel="noopener noreferrer">的官方文档。</a></p>
+<p>一旦用上面的内容创建了这个文件，提交更改，然后将更改推送到GitHub上的<code>master</code>分支。转到GitHub并继续您的项目，您可以点击<code>Actions</code>选项卡来监控正在运行的操作，一旦您点击它，您将看到您的推送已经触发了工作流，并且流程已经开始:</p>
+<p><img data-attachment-id="18342" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/githubactionspage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubactionspage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png" decoding="async" class="aligncenter size-full wp-image-18342 jetpack-lazy-image" src="../Images/e413c718608b5ee45aa4d601a73437b8.png" alt="GitHub Actions Page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18342" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/githubactionspage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="GitHubactionspage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18342" src="../Images/e413c718608b5ee45aa4d601a73437b8.png" alt="GitHub Actions Page" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/GitHubactionspage.png"/></noscript>
+<p>单击工作流将显示有关工作流状态的更多详细信息，如下所示:</p>
+<p><img data-attachment-id="18343" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/workflowdetails/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="workflowdetails" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png" decoding="async" class="aligncenter size-full wp-image-18343 jetpack-lazy-image" src="../Images/adbffb1de3c1aa0e1dc09c3723dedffa.png" alt="workflow details" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="18343" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/workflowdetails/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="workflowdetails" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-18343" src="../Images/adbffb1de3c1aa0e1dc09c3723dedffa.png" alt="workflow details" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/workflowdetails.png"/></noscript><br/>
+The process will run in stages as defined in the workflow<code>YAML</code> file, with that you will see a screen like this result:
+<figure id="attachment_18345" aria-describedby="caption-attachment-18345" class="wp-caption aligncenter"><img data-attachment-id="18345" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wfstage1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png" decoding="async" class="wp-image-18345 size-full jetpack-lazy-image" src="../Images/266130d77de91a28d496ade684813d32.png" alt="WF Stage 1" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="18345" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wfstage1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png" decoding="async" loading="lazy" class="wp-image-18345 size-full" src="../Images/266130d77de91a28d496ade684813d32.png" alt="WF Stage 1" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/Wfstage1.png"/></noscript><figcaption id="caption-attachment-18345" class="wp-caption-text">Workflow stage 1</figcaption></figure>
+<figure id="attachment_18346" aria-describedby="caption-attachment-18346" class="wp-caption aligncenter"><img data-attachment-id="18346" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png" decoding="async" class="wp-image-18346 size-full jetpack-lazy-image" src="../Images/80a7bf3db4328cdca782ef0b3505a49a.png" alt="WF Stage 2" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="18346" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png" decoding="async" loading="lazy" class="wp-image-18346 size-full" src="../Images/80a7bf3db4328cdca782ef0b3505a49a.png" alt="WF Stage 2" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage2.png"/></noscript><figcaption id="caption-attachment-18346" class="wp-caption-text">Workflow stage 2</figcaption></figure>
+<figure id="attachment_18347" aria-describedby="caption-attachment-18347" class="wp-caption aligncenter"><img data-attachment-id="18347" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage3" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png" decoding="async" class="wp-image-18347 size-full jetpack-lazy-image" src="../Images/451785d86ed083d37a35f65884977e3b.png" alt="WF Stage 3" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="18347" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage3/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage3" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png" decoding="async" loading="lazy" class="wp-image-18347 size-full" src="../Images/451785d86ed083d37a35f65884977e3b.png" alt="WF Stage 3" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage3.png"/></noscript><figcaption id="caption-attachment-18347" class="wp-caption-text">Workflow stage 3</figcaption></figure>
+<figure id="attachment_18348" aria-describedby="caption-attachment-18348" class="wp-caption aligncenter"><img data-attachment-id="18348" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage4/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage4" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png" decoding="async" class="wp-image-18348 size-full jetpack-lazy-image" src="../Images/b3137cdae04ff5feaf386fcb53dd9be1.png" alt="WF Stage 4" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4-300x221.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="18348" data-permalink="https://blog.logrocket.com/how-to-create-a-ci-cd-for-a-laravel-application-using-github-actions/wfstage4/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png" data-orig-size="730,538" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="WFstage4" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4-300x221.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png" decoding="async" loading="lazy" class="wp-image-18348 size-full" src="../Images/b3137cdae04ff5feaf386fcb53dd9be1.png" alt="WF Stage 4" srcset="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4-300x221.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/05/WFstage4.png"/></noscript><figcaption id="caption-attachment-18348" class="wp-caption-text">Workflow stage 4</figcaption></figure>
+<p><span>在本文中，我们只讨论了持续集成和部署。让你的网站上线的部分(比如Nginx设置)不包括在内。部署的最新版本将在<code>{deploy_path}/current</code>中。其中<code>{deploy_path}</code>是在<code>deploy.php</code>内为<code>staging</code>或<code>production</code>设置的路径。如果您想对这个路径做一些额外的设置，您可以记下这个路径。</span></p>
+<p>你可以在<a href="https://github.com/ichtrojan/deploy_tut" target="_blank" rel="noopener noreferrer"> GitHub </a>上访问这个项目的代码库。</p>
+<h2><span>结论</span></h2>
+<p>在本文中，您能够使用GitHub操作设置CI/CD流程。许多事情都可以建立在这个基础上，因为它形成了一个基本的设置来自动化您的新项目和现有项目的集成和部署。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

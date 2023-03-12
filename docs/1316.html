@@ -1,0 +1,320 @@
+<html>
+<head>
+<title>Building a Slackbot for logging Node.js application activities - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>为记录Node.js应用程序活动构建Slackbot</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/#0001-01-01">https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Slack是一个基于云的即时通讯平台，旨在为公司补充电子邮件，作为一种沟通和共享数据的方法。它还有一些很酷的功能，比如用它的网络钩子<em>向频道发送消息。</em></p>
+<p>Webhooks是当有事情发生时，应用程序自动发送的有效负载。这基本上是应用程序向其他应用程序发送自动消息或信息的一种方式。</p>
+<p>在本文中，我们将使用Node.js构建一个Slackbot来记录应用程序中发生的所有活动。</p>
+<h3>先决条件</h3>
+<ul>
+<li>基本熟悉JavaScript</li>
+<li>安装在开发机器上的Node.js</li>
+<li>安装在开发机器上的MongoDB</li>
+<li>对<a href="https://codesource.io/building-crud-api-using-restify-framework/">REST API</a>的基本理解</li>
+</ul>
+<h2>项目设置</h2>
+<p>在开始构建我们的bot之前，我们必须创建一个简单的Node.js应用程序，用户可以在其中创建一个帐户并登录。我们的机器人将在用户创建帐户时登录；当帐户创建过程中出现错误时；当用户使用正确的凭据登录时；以及当用户试图用不正确的凭证登录时。</p>
+<p>我们将使用Express generator创建一个新的Express应用程序，然后我们将安装我们的应用程序所需的所有必需的依赖项。为此，请打开您的终端并键入以下内容:</p>
+<pre>npx express-generator --no-view</pre>
+<p>搭建应用程序后，运行<code>npm install</code>来安装项目依赖项。</p>
+<pre>npm i axios bcrypt cors jsonwebtoken mongoose dotenv</pre>
+<p>安装好这些之后，您将修改您的<code>app.js</code>文件，如下所示:</p>
+<pre>require('dotenv').config()
+var express = require('express');
+var path = require('path');
+var cookieParser = require('cookie-parser');
+var logger = require('morgan');
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+var app = express();
+app.use(logger('dev'));
+app.use(express.json());
+app.use(express.urlencoded({
+    extended: false
+}));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+require("./config/mongoose")(app);
+
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
+module.exports = app;</pre>
+<p>现在我们需要为我们的应用程序设置Mongoose。创建一个<code>config/mongoose.js</code>文件并添加以下代码:</p>
+<pre>const mongoose = require("mongoose");
+module.exports = app =&gt; {
+    mongoose.connect("mongodb://localhost:27017/slackbot", {
+        useUnifiedTopology: true,
+        useNewUrlParser: true,
+        useFindAndModify: false
+    }).then(() =&gt; console.log("conneceted to db")).catch(err =&gt; console.log(err))
+    mongoose.Promise = global.Promise;
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
+    process.on("SIGHUP", cleanup);
+    if (app) {
+        app.set("mongoose", mongoose);
+    }
+};
+function cleanup() {
+    mongoose.connection.close(function () {
+        process.exit(0);
+    });
+}</pre>
+<p>运行<code>npm start</code>将在控制台上显示<code>connected to db</code>,这就是你所想的那样。</p>
+<p>现在让我们为应用程序设置模型和控制器。创建一个<code>models/users.js</code>文件并添加以下内容:</p>
+<pre>const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Schema = mongoose.Schema;
+const userSchema = new Schema({
+    name: {
+        type: String,
+        required: true,
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        required: true,
+    },
+}, {
+    timestamps: true,
+});
+
+userSchema.methods.hashPassword = async password =&gt; {
+    return await bcrypt.hashSync(password, 10);
+}
+userSchema.methods.compareUserPassword = async (inputtedPassword, hashedPassword) =&gt; {
+    return await bcrypt.compare(inputtedPassword, hashedPassword)
+}
+userSchema.methods.generateJwtToken = async (payload, secret, expires) =&gt; {
+    return jwt.sign(payload, secret, expires)
+}
+module.exports = mongoose.model("User", userSchema);</pre>
+<p>这里，我们为我们的用户模型创建了一个简单的Mongoose模式，并定义了一些函数，这些函数将散列用户的密码，比较用户的密码，并在用户登录凭证正确时生成一个JWT令牌。</p>
+<p>我们还将创建一个<code>controllers/users.js</code>文件，并向其中添加以下代码:</p>
+<pre>const User = require("../models/user");
+exports.createNewUser = async (req, res) =&gt; {
+    try {
+        const user = new User({
+            name: req.body.name,
+            email: req.body.email,
+            phone_number: req.body.phone_number,
+            role: req.body.role
+        });
+        user.password = await user.hashPassword(req.body.password);
+        let addedUser = await user.save()
+        res.status(200).json({
+            msg: "Your Account Has been Created",
+            data: addedUser
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            error: err
+        })
+    }
+}
+exports.logUserIn = async (req, res) =&gt; {
+    const {
+        email,
+        password
+    } = req.body
+    try {
+        let user = await User.findOne({
+            email: email
+        });
+        //check if user exit
+        if (!user) {
+            return res.status(400).json({
+                type: "Not Found",
+                msg: "Wrong Login Details"
+            })
+        }
+        let match = await user.compareUserPassword(password, user.password);
+        if (match) {
+            let token = await user.generateJwtToken({
+                user
+            }, "secret", {
+                expiresIn: 604800
+            })
+            if (token) {
+                res.status(200).json({
+                    success: true,
+                    token: token,
+                    userCredentials: user
+                })
+            }
+        } else {
+            return res.status(400).json({
+                type: "Not Found",
+                msg: "Wrong Login Details"
+            })
+        }
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            type: "Something Went Wrong",
+            msg: err
+        })
+    }
+}</pre>
+<p>这些是创建用户帐户和用户登录的基本功能。</p>
+<p>我们必须修改我们的<code>routes/user.js</code>文件来监听我们创建的控制器:</p>
+<pre>var express = require('express');
+const controller = require('../controllers/user')
+var router = express.Router();
+/* GET users listing. */
+router.get('/', function (req, res, next) {
+  res.send('respond with a resource');
+});
+
+router.post('/register', controller.createNewUser)
+router.post('/login', controller.logUserIn)
+
+
+module.exports = router;</pre>
+<p>您可以使用POSTMAN来测试您的登录和注册路线。</p>
+<h2>建造懒人机器人</h2>
+<p>在我们开始构建我们的bot之前，我们必须创建一个新的slack应用程序。前往<a href="https://api.slack.com" rel="nofollow">https://api.slack.com</a>并确保你已登录。点击<strong>开始构建</strong>按钮，这将把你带到一个页面，提示你给你的机器人起一个名字，并指定你想要集成它的工作空间。</p>
+<p>设置完成后，导航到传入的webhooks路径并激活它:</p>
+<p><img data-attachment-id="28839" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/configuring-slack-webhooks/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png" data-orig-size="730,399" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Configuring webhooks in Slack" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png" decoding="async" class="aligncenter size-full wp-image-28839 jetpack-lazy-image" src="../Images/e322bb8135e386ebcb770aae9863e147.png" alt="Configuring Webhooks in Slack" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks-300x164.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="28839" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/configuring-slack-webhooks/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png" data-orig-size="730,399" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Configuring webhooks in Slack" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-28839" src="../Images/e322bb8135e386ebcb770aae9863e147.png" alt="Configuring Webhooks in Slack" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks-300x164.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/configuring-slack-webhooks.png"/></noscript>
+<p>我们需要一个webhook URL来与我们的工作区进行通信。</p>
+<p><img data-attachment-id="28840" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/specifying-webooks-url/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png" data-orig-size="730,476" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Specifying a webhooks URL" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url-300x196.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png" decoding="async" class="aligncenter size-full wp-image-28840 jetpack-lazy-image" src="../Images/92a9335f67aff68e54e711b804950333.png" alt="Specifying a Webhooks URL" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url-300x196.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="28840" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/specifying-webooks-url/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png" data-orig-size="730,476" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Specifying a webhooks URL" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url-300x196.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-28840" src="../Images/92a9335f67aff68e54e711b804950333.png" alt="Specifying a Webhooks URL" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url-300x196.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/specifying-webooks-url.png"/></noscript>
+<p>点击<strong>添加新的Webhook到工作区</strong>按钮。这将要求您选择一个通道来发布来自bot的消息。选择您选择的频道，然后单击“允许”按钮:</p>
+<p><img data-attachment-id="28841" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/adding-new-webhook/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png" data-orig-size="730,338" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding a new webhook" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png" decoding="async" class="aligncenter size-full wp-image-28841 jetpack-lazy-image" src="../Images/0ddcc179e5717348838326ef4a775d92.png" alt="Adding a New Webhook to the Slack Workspace" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook-300x139.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="28841" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/adding-new-webhook/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png" data-orig-size="730,338" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding a new webhook" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-28841" src="../Images/0ddcc179e5717348838326ef4a775d92.png" alt="Adding a New Webhook to the Slack Workspace" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook-300x139.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/adding-new-webhook.png"/></noscript>
+<p>单击<strong> Allow </strong>将为我们的应用程序生成一个webhook URL。我们可以复制它并将其存储在我们的<code>.env</code>文件中:</p>
+<pre>HOOK=&lt;hook&gt;</pre>
+<p>不要忘记在<code>.gitignore</code>文件中添加你的<code>.env</code>文件。</p>
+<p>现在创建一个<code>util/bot.js</code>文件——这是我们设置机器人的地方。我们将有一个向Slack API发送请求的函数。这个函数将接受两个参数:<code>error</code>和<code>payload</code>。</p>
+<p>为了使用webhook URL发送消息，我们将在JSON中发送一个有效负载(无论是错误还是实际的有效负载)作为<code>application/json</code> POST请求的主体。这就是Axios的用武之地。</p>
+<p>像这样修改您的<code>bot.js</code>文件:</p>
+<pre>const axios = require("axios");
+const hook = process.env.HOOK;
+exports.sendNotificationToBotty = async (error, log) =&gt; {
+    try {
+        let slackbody;
+        if (log) {
+            slackbody = {
+                mkdwn: true,
+                attachments: [{
+                    pretext: "Booty Notification",
+                    title: "Activity Log",
+                    color: "good",
+                    text: log,
+                }, ],
+            };
+        } else if (error) {
+            slackbody = {
+                mkdwn: true,
+                attachments: [{
+                    pretext: "Booty Notification",
+                    title: "Error Notification",
+                    color: "#f50057",
+                    text: error,
+                }, ],
+            };
+        }
+        await axios.post(
+            `https://hooks.slack.com/services/${hook}`,
+            slackbody
+        );
+    } catch (err) {
+        console.log(err);
+    }
+};</pre>
+<p>我们现在可以在我们的应用程序中使用它。我们使用Slack提供的消息附件来显示我们的消息。</p>
+<p>所以现在我们必须将这个模块引入到我们的<code>controllers/user.js</code>文件中，以便我们的机器人可以在活动发生时发送自定义消息。像这样修改<code>controllers/user.js</code>文件:</p>
+<pre>const User = require("../models/user");
+const bot = require("../util/bot")
+exports.createNewUser = async (req, res) =&gt; {
+    try {
+        const user = new User({
+            name: req.body.name,
+            email: req.body.email,
+            phone_number: req.body.phone_number,
+            role: req.body.role
+        });
+        user.password = await user.hashPassword(req.body.password);
+        let addedUser = await user.save()
+        await bot.sendNotificationToBotty(null, `${addedUser.name} Just Created an account with Email as ${addedUser.email}`)
+        res.status(200).json({
+            msg: "Your Account Has been Created",
+            data: addedUser
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            error: err
+        })
+    }
+}
+exports.logUserIn = async (req, res) =&gt; {
+    const {
+        email,
+        password
+    } = req.body
+    try {
+        let user = await User.findOne({
+            email: email
+        });
+        //check if user exit
+        if (!user) {
+            await bot.sendNotificationToBotty(`Login Attempt with Invalid Credentials ${email} as Email and ${password} as Password`)
+            return res.status(400).json({
+                type: "Not Found",
+                msg: "Wrong Login Details"
+            })
+        }
+        let match = await user.compareUserPassword(password, user.password);
+        if (match) {
+            let token = await user.generateJwtToken({
+                user
+            }, "secret", {
+                expiresIn: 604800
+            })
+            if (token) {
+                await bot.sendNotificationToBotty(null, `${user.name} Just Logged in`)
+                res.status(200).json({
+                    success: true,
+                    token: token,
+                    userCredentials: user
+                })
+            }
+        } else {
+            await bot.sendNotificationToBotty(`Login Attempt with Invalid Credentials ${email} as Email and ${password} as Password`)
+            return res.status(400).json({
+                type: "Not Found",
+                msg: "Wrong Login Details"
+            })
+        }
+    } catch (err) {
+        await bot.sendNotificationToBotty(`An Error Occured`)
+        console.log(err)
+        res.status(500).json({
+            type: "Something Went Wrong",
+            msg: err
+        })
+    }
+}</pre>
+<p>现在，当一个新用户创建一个帐户时，机器人会将用户名和电子邮件发送到频道，当用户登录时也会发生同样的事情。</p>
+<p><img data-attachment-id="28842" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/slack-messages-activity/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png" data-orig-size="730,266" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Slack messages indicating app activity" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity-300x109.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png" decoding="async" class="aligncenter size-full wp-image-28842 jetpack-lazy-image" src="../Images/fd21d69d1a8c7c213ff5d4a5489dd7d5.png" alt="Slack Messages Indicating Application Activity" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity-300x109.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="28842" data-permalink="https://blog.logrocket.com/building-slackbot-logging-nodejs-application-activities/slack-messages-activity/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png" data-orig-size="730,266" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Slack messages indicating app activity" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity-300x109.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-28842" src="../Images/fd21d69d1a8c7c213ff5d4a5489dd7d5.png" alt="Slack Messages Indicating Application Activity" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity-300x109.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/slack-messages-activity.png"/></noscript>
+<p>当发生错误时，例如当用户试图用错误登录详细信息登录时，将发送错误消息。</p>
+<h2>结论</h2>
+<p>日志记录是任何应用程序的重要组成部分，必须认真对待。在本文中，我们学习了如何在我们的自定义Node.js应用程序中使用Slack webhooks。它可以用来构建更有趣的应用程序。要获取应用程序源代码，请单击此处的。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

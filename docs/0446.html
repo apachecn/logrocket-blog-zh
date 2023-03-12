@@ -1,0 +1,208 @@
+<html>
+<head>
+<title>Redoing search UI with React Context and refs - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用React上下文和refs - LogRocket博客重做搜索UI</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/#0001-01-01">https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>最近，我公司的产品团队发现我们的大多数用户在使用搜索界面时没有使用过滤器。</p>
+<p>看了我们的分析后，很明显用户没有使用过滤器，因为他们不知道过滤器的存在。</p>
+<p>为了解决这个问题，我们决定重新构建我们的用户界面，以突出这个功能。</p>
+<p>但是建立一个新的搜索界面会带来一系列的问题。在我们的案例中，我们有三个主要关注点:</p>
+<ul>
+<li>通过添加带有嵌套输入的过滤器下拉菜单，我们需要一种方法来轻松管理焦点。</li>
+<li>对于三个过滤菜单，我们需要一种方法来确保在任何给定的时间只有一个菜单是打开的。</li>
+<li>当用户从一个菜单中选择一个过滤器时，我们需要关闭菜单并触发新的搜索。</li>
+</ul>
+<p>我们通过使用<a href="https://blog.logrocket.com/how-and-when-to-use-reacts-new-context-api-b584e41b2704/" target="_blank" rel="noopener noreferrer"> React的上下文API </a>结合refs创建一个管理菜单状态和输入焦点的集中系统，实现了我们所有的目标。</p>
+<p>在本文中，我们将讨论以下内容:</p>
+<p><strong>上下文</strong>:在组件树的任何地方注入数据的基本用法和策略</p>
+<p>参考:它们是什么，为什么我们的用例需要它们</p>
+<h3>语境</h3>
+<p>在v16.3中，官方上下文API被添加到React中，旨在避免通常所说的道具钻取，或者手动将道具传递到组件树中。</p>
+<p>虽然这种方法没有错，但是在处理复杂的组件层次结构时，它可能会很笨拙，特别是如果一些组件不关心数据，只是简单地传递数据。</p>
+<p><img data-attachment-id="5899" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-1-without-context-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 1 – Without Context-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png" decoding="async" class="aligncenter wp-image-5899 jetpack-lazy-image" src="../Images/35f6b586842089634b9058df424b70c7.png" alt="An illustration of a search UI without context." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-768x576.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="5899" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-1-without-context-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 1 – Without Context-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5899" src="../Images/35f6b586842089634b9058df424b70c7.png" alt="An illustration of a search UI without context." srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn-768x576.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-1-Without-Context-nocdn.png"/></noscript>
+<p>为了使用上下文API，您需要创建一个<code>Context.Provider</code>，它采用一个<code>value</code> prop来表示您想要注入到需要它的子组件中的所有数据。</p>
+<p>在<a href="https://blog.logrocket.com/frustrations-with-react-hooks/" target="_blank" rel="noopener noreferrer">钩子</a>出现之前，你可以通过使用关联的<code>Context.Consumer</code>来实现，但是在后钩子时代，我们可以利用<code>useContext</code>钩子将组件订阅给组件树中最近的提供者。</p>
+<p><img data-attachment-id="5900" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-2-with-context-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 2 – With Context-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png" decoding="async" class="aligncenter wp-image-5900 jetpack-lazy-image" src="../Images/00b876c0f7bfed4bb7d8972bb2c7b0dd.png" alt="An illustration with context." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-768x576.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="5900" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-2-with-context-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 2 – With Context-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5900" src="../Images/00b876c0f7bfed4bb7d8972bb2c7b0dd.png" alt="An illustration with context." srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn-768x576.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-2-With-Context-nocdn.png"/></noscript>
+<p>在这种情况下，Context提供了一种方法来跟踪应该在父组件中打开哪个菜单，然后将该值传递给其子组件，而子组件又有条件地呈现适当的下拉菜单。</p>
+<p>这里的关键是我们的上下文还传递了一个setter函数。这很重要，因为它允许使用我们的上下文值的组件更新我们的父组件中的状态，这导致树重新呈现，新菜单现在可见。</p>
+<p><img data-attachment-id="5902" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-3-menu-value-and-setter-function-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 3 – Menu value and setter function-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png" decoding="async" class="aligncenter wp-image-5902 jetpack-lazy-image" src="../Images/476bc7567ae0abd914727a31af78f73f.png" alt="An illustration of a search UI menu value and setter function." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-768x576.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="5902" data-permalink="https://blog.logrocket.com/redoing-search-ui-with-react-context-and-refs/illustration-3-menu-value-and-setter-function-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png" data-orig-size="960,720" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Illustration 3 – Menu value and setter function-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5902" src="../Images/476bc7567ae0abd914727a31af78f73f.png" alt="An illustration of a search UI menu value and setter function." srcset="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png 960w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-300x225.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn-768x576.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/09/Illustration-3-Menu-value-and-setter-function-nocdn.png"/></noscript>
+<p>通过使用上述模式，我们可以类似地管理搜索栏和过滤菜单中各种输入的焦点状态。</p>
+<h3>参考文献</h3>
+<p>虽然refs已经成为React的一部分有一段时间了，但是即使对于更有经验的开发人员来说，它们仍然有些令人困惑。</p>
+<p>本质上，React提供了一个特殊的ref属性，可以应用于任何元素(JSX或HTML)。</p>
+<p>根据所赋元素的类型，ref分别提供对类实例或DOM元素的访问。</p>
+<pre>// Applying a ref directly to an HTML element
+&lt;input
+  className="AuthorFilterMenu__filter-input"
+  ref={authorFilterInputRef}
+  placeholder="Filter by author..."
+  value={filterInputValue}
+  type="search"
+  onInput={event =&gt; {
+    setFilterInputValue(event.currentTarget.value);
+  }}
+/&gt;
+
+// Applying a ref to a React component instance
+&lt;AuthorFilterMenu ref={authorFilterInputRef} /&gt;
+view rawex-1-applying-refs.js hosted with ❤ by GitHub
+// Provide value in App.jsx
+&lt;section className="App__search"&gt;
+  &lt;SearchContext.Provider
+    value={{
+      openMenu: openMenu,
+      toggleOpenMenu: toggleOpenMenu,
+      addAuthor: addAuthor,
+      addYear: addYear,
+      selectedAuthors: selectedAuthors,
+      selectedYears: selectedYears,
+      authorFilterInputRef: authorFilterInputRef,
+      searchBarRef: searchBarRef,
+      yearFilterInputRef: yearFilterInputRef
+    }}
+  &gt;
+    &lt;SearchBar /&gt;
+  &lt;/SearchContext.Provider&gt;
+&lt;/section&gt;
+
+// In AuthorFilterMenu.jsx, we grab the ref from the searchContext
+function AuthorFilterMenu(props) {
+  const contextValue = React.useContext(SearchContext);
+  const {
+    addAuthor,
+    openMenu,
+    selectedAuthors,
+    authorFilterInputRef
+  } = contextValue;
+}
+
+// And then we apply it to the &lt;input&gt;
+return (
+  &lt;div className={menuCn}&gt;
+    &lt;input
+      className="AuthorFilterMenu__filter-input"
+      ref={authorFilterInputRef}
+      placeholder="Filter by author..."
+      value={filterInputValue}
+      type="search"
+      onInput={event =&gt; {
+        setFilterInputValue(event.currentTarget.value);
+      }}
+    /&gt;
+    &lt;ul className="AuthorFilterMenu__list"&gt;{createMenuItems()}&lt;/ul&gt;
+  &lt;/div&gt;
+);</pre>
+<p>尽管我们的用例要求我们沿着这条路走下去，但重要的是要注意refs是一个React反模式，因为它们允许直接DOM访问。React并不打算让开发人员这样做，所以在使用refs时，您应该小心行事。</p>
+<p>或者，React设计为让事件更新虚拟DOM(保存在内存中的文档对象模型的快照)，并允许框架在称为协调的过程中根据需要更新页面。</p>
+<p>这不仅通过减少更新页面所做的工作使React更有性能，而且有助于更一致的用户体验。</p>
+<p>对我们来说，为了使用浏览器的<code>.focus()</code>方法，我们需要直接访问组件树中的三个<code>input</code>。因为我们需要根据用户交互来改变输入的焦点状态，所以在父组件中保持这种逻辑也是有意义的。</p>
+<p>我们将在父组件中创建三个不同的引用，它们将指向以下内容:</p>
+<ol>
+<li>我们搜索栏中的输入</li>
+<li>我们的第一个过滤器菜单中的输入(例如作者)</li>
+<li>第二个过滤器菜单中的输入(例如年份)</li>
+</ol>
+<p>使用我们的上下文，我们可以将这些引用传递给我们的子组件。在子组件中，我们从组件的<code>props</code>对象中析构出适当的<code>ref</code>，并将其直接分配给我们的HTML <code>input</code>:</p>
+<pre>// Applying a ref directly to an HTML element
+&lt;input
+  className="AuthorFilterMenu__filter-input"
+  ref={authorFilterInputRef}
+  placeholder="Filter by author..."
+  value={filterInputValue}
+  type="search"
+  onInput={event =&gt; {
+    setFilterInputValue(event.currentTarget.value);
+  }}
+/&gt;
+
+// Applying a ref to a React component instance
+&lt;AuthorFilterMenu ref={authorFilterInputRef} /&gt;
+view rawex-1-applying-refs.js hosted with ❤ by GitHub
+// Provide value in App.jsx
+&lt;section className="App__search"&gt;
+  &lt;SearchContext.Provider
+    value={{
+      openMenu: openMenu,
+      toggleOpenMenu: toggleOpenMenu,
+      addAuthor: addAuthor,
+      addYear: addYear,
+      selectedAuthors: selectedAuthors,
+      selectedYears: selectedYears,
+      authorFilterInputRef: authorFilterInputRef,
+      searchBarRef: searchBarRef,
+      yearFilterInputRef: yearFilterInputRef
+    }}
+  &gt;
+    &lt;SearchBar /&gt;
+  &lt;/SearchContext.Provider&gt;
+&lt;/section&gt;
+
+// In AuthorFilterMenu.jsx, we grab the ref from the searchContext
+function AuthorFilterMenu(props) {
+  const contextValue = React.useContext(SearchContext);
+  const {
+    addAuthor,
+    openMenu,
+    selectedAuthors,
+    authorFilterInputRef
+  } = contextValue;
+}
+
+// And then we apply it to the &lt;input&gt;
+return (
+  &lt;div className={menuCn}&gt;
+    &lt;input
+      className="AuthorFilterMenu__filter-input"
+      ref={authorFilterInputRef}
+      placeholder="Filter by author..."
+      value={filterInputValue}
+      type="search"
+      onInput={event =&gt; {
+        setFilterInputValue(event.currentTarget.value);
+      }}
+    /&gt;
+    &lt;ul className="AuthorFilterMenu__list"&gt;{createMenuItems()}&lt;/ul&gt;
+  &lt;/div&gt;
+);</pre>
+<p>现在，每当一个子组件调用我们的菜单状态设置函数来切换菜单时，我们可以添加逻辑来更新哪个输入是焦点。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>例如，如果我们的一个过滤器菜单是打开的，然后关闭，我们将希望重新聚焦搜索输入栏，以允许用户继续他们的查询。</p>
+<p>这里需要注意的一点是，函数组件不能很好地处理引用。</p>
+<p>为了将一个<code>ref</code>传递给一个函数组件，您将需要使用<code>React.forwardRef</code>，它创建一个新的组件来接收一个<code>ref</code>属性，然后将它传递给下面的另一个组件。</p>
+<p>要更详细地了解如何使用* <code>forwardRef</code>，请查看<a href="https://reactjs.org/docs/react-api.html#reactforwardref" target="_blank" rel="noopener noreferrer">官方React文档。</a></p>
+<h3>结论</h3>
+<p>虽然Context是一个相对较新的API，而refs在某种程度上是一个反模式，但在这种情况下，它们可以很好地相互补充。通过将两者结合在一起，我们能够在新的搜索界面中创建一种更简单的方式来管理显示和焦点状态。</p>
+<p>虽然我们在这个例子中没有使用任何存储，但是您可以很容易地连接一个存储并将其包含在这个数据流中。</p>
+<p>例如，在我工作时构建的项目中，我的父组件订阅了一个商店，该商店提供了要在我们的下拉菜单中呈现的项目列表。</p>
+<p>一旦父组件接收到这个数据，它就把它添加到我们的上下文的<code>value</code> prop中，并把它传递给子组件。</p>
+<p>最终，以这种方式集中定位逻辑的能力允许更一致的用户体验。</p>
+<p>通过使用上下文，我们可以轻松地将业务逻辑和数据获取从UI组件的表示和功能中分离出来。</p>
+<p>我们还使我们的代码在将来更容易被其他开发者阅读，这从来都不是一件坏事！</p>
+<p>完整教程，看看这个演示:<a href="https://codesandbox.io/s/laughing-lichterman-lxl1y" target="_blank" rel="noopener noreferrer">演示应用。</a></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,420 @@
+<html>
+<head>
+<title>How to implement OAuth 2.0 in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Node.js - LogRocket博客中实现OAuth 2.0</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implement-oauth-2-0-node-js/#0001-01-01">https://blog.logrocket.com/implement-oauth-2-0-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本文最后更新于2022年4月6日，以反映Express和Node.js的最新版本</em></p>
+<p>大家都在谈论<a href="https://oauth.net/2/"> OAuth 2.0 </a>。不管你工作的公司规模有多大，或者你在后台运行的服务和API有多少，如果你还没有使用OAuth 2.0，那么你很有可能需要它。</p>
+<p>考虑到大量的信息、工具和可用的框架，很难理解并轻松地将协议应用到您的项目中。对于JavaScript，更具体地说，Node.js，它还取决于一些因素，比如您选择的服务器以及它是否已经提供了OAuth 2.0支持。考虑项目、文档和社区的成熟度也很重要。</p>
+<p>我们可以使用<a href="https://github.com/oauthjs/node-oauth2-server"> node-oauth2-server </a>来简化这个问题，这是一个框架无关的模块，用于在Node.js中实现oauth2服务器。node-oauth2-server是开源的，简单，易于与您的节点应用程序集成，即使它们已经运行了一段时间。</p>
+<p>虽然repo已经有一段时间没有更新了，但在撰写本文时，它仍然完全兼容最新的Node.js标准。</p>
+<p>在本文中，我们将通过开发我们自己的覆盖实现并通过一个真实的API测试来探索OAuth 2框架。我们还将它与Postgres数据库集成，以查看项目的运行情况，阻止和允许对特定端点的访问。</p>
+<p>为了简单起见，我们的例子将探索OAuth 2的<a href="https://oauth.net/2/grant-types/password/">密码授权类型</a>。基于这个示例，您可以调整实现以适应其他类型。你可以查看<a href="https://github.com/atharvadeosthale/logrocket-oauth2-article">中这个例子</a>的完整源代码。我们开始吧！</p>
+
+<h2 id="about-oauth-2">关于OAuth 2.0</h2>
+<p>在其文档中，您可以找到官方的<a href="https://oauth2-server.readthedocs.io/en/latest/model/spec.html">模型规范</a>，它描述了您的JavaScript代码必须如何覆盖默认的OAuth 2函数来提供您定制的身份验证体验:</p>
+<pre>const model = {
+  // We support returning promises.
+  getAccessToken: function() {
+    return new Promise('works!');
+  },
+
+  // Or, calling a Node-style callback.
+  getAuthorizationCode: function(done) {
+    done(null, 'works!');
+  },
+
+  // Or, using generators.
+  getClient: function*() {
+    yield somethingAsync();
+    return 'works!';
+  },
+
+  // Or, async/wait (using Babel).
+  getUser: async function() {
+    await somethingAsync();
+    return 'works!';
+  }
+};
+
+const OAuth2Server = require('oauth2-server');
+let oauth = new OAuth2Server({model: model});
+</pre>
+<p>有了OAuth2Server对象，就可以覆盖Express服务器的缺省OAuth 2提供者，从而提供自己的身份验证体验。关于框架如何在幕后工作的更多信息，请参考<a href="https://oauth2-server.readthedocs.io/en/latest/docs/getting-started.html">官方文档</a>。</p>
+<h2 id="setting-up-project">设置我们的项目</h2>
+<p>首先，让我们安装项目所需的所有工具和依赖项。确保你已经在各自的操作系统上安装了<a href="https://www.postgresql.org/">Postgres</a>。成功安装Postgres后，使用以下命令创建一个名为<code>logrocket_oauth2</code>的新数据库:</p>
+<pre>CREATE DATABASE logrocket_oauth2;
+</pre>
+<p>要创建我们的用户和访问令牌表，请运行以下SQL命令:</p>
+<pre>CREATE TABLE public.users
+(
+    id serial,
+    username text,
+    user_password text,
+    PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+);
+
+ALTER TABLE public.users
+    OWNER to postgres;
+
+
+
+CREATE TABLE public.access_tokens
+(
+    id serial,
+    access_token text,
+    user_id integer,
+    PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+);
+
+ALTER TABLE public.access_tokens
+    OWNER to postgres;
+</pre>
+<p>确保用自己的Postgres用户名替换<code>postgres</code>。我们已经简化了大部分表格，所以在本文中，我们不会讨论与创建和更新日期时间相关的列。</p>
+<p>接下来，在您选择的目录中创建一个名为<code>logrocket-oauth2-example</code>的新文件夹，并运行<code>npm init -y</code>命令用您的<code>package.json</code>文件初始化它。然后，运行以下命令安装所需的依赖项:</p>
+<pre>npm install express pg node-oauth2-server
+</pre>
+<p>我们使用Express创建REST APIs，pg，node-postgres的缩写，将我们的Node.js服务器连接到PostgreSQL，最后，<code>node-oauth2-server</code>提供帮助我们制作OAuth 2服务器的相关实用程序。</p>
+<p>如果您愿意，也可以使用Yarn运行这些命令，代码如下:</p>
+<pre>yarn add express pg node-oauth2-server
+</pre>
+<p>最后，确保复制以下文件夹结构:</p>
+<p><img data-attachment-id="97983" data-permalink="https://blog.logrocket.com/oauth2-folder-structure-node/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png" data-orig-size="702,770" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="oauth2-folder-structure-node" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node-274x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png" decoding="async" class="aligncenter wp-image-97983 size-full jetpack-lazy-image" src="../Images/ac20cc1f5bae3452ccecf7487a763710.png" alt="Oauth2 Folder Structure Node" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png 702w, https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node-274x300.png 274w" data-lazy-sizes="(max-width: 702px) 100vw, 702px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="97983" data-permalink="https://blog.logrocket.com/oauth2-folder-structure-node/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png" data-orig-size="702,770" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="oauth2-folder-structure-node" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node-274x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png" decoding="async" loading="lazy" class="aligncenter wp-image-97983 size-full" src="../Images/ac20cc1f5bae3452ccecf7487a763710.png" alt="Oauth2 Folder Structure Node" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png 702w, https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node-274x300.png 274w" sizes="(max-width: 702px) 100vw, 702px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/oauth2-folder-structure-node.png"/></noscript>
+<h2 id="database-layer">数据库层</h2>
+<p>现在，让我们继续进行数据库设置。在您成功地创建了数据库和表之后，我们将需要一个Postgres包装器来封装我们将在<code>db</code>文件夹中进行的查询。在<code>db</code>文件夹中，将以下代码添加到<code>pgWrapper.js</code>文件中:</p>
+<pre>const Pool = require("pg").Pool;
+function query(queryString, cbFunc) {
+  const pool = new Pool({
+    user: "postgres",
+    host: "localhost",
+    database: "logrocket_oauth2",
+    password: "postgres",
+    port: 5432,
+  });
+  pool.query(queryString, (error, results) =&gt; {
+    cbFunc(setResponse(error, results));
+  });
+}
+function setResponse(error, results) {
+  return {
+    error: error,
+    results: results ? results : null,
+  };
+}
+module.exports = {
+  query,
+};
+</pre>
+<p>这段代码最重要的部分是<code>query()</code>函数。我们将把Postgres连接池对象集中在这个文件中并导出函数，而不是到处扔。</p>
+<p>这很简单。<code>query()</code>函数由一个新的pg <code>Pool</code>实例和一个回调函数组成，反过来，回调函数将总是接收一个由<code>error</code>和<code>results</code>属性组成的JSON对象。为了简单起见，让我们将<code>results</code>作为一个数组。</p>
+<blockquote><p>注意:确保将数据库属性更改为您自己的属性。</p></blockquote>
+<p>接下来，我们需要两个存储库来处理用户和令牌的数据库操作。第一个是<code>userDB.js</code>文件:</p>
+<pre>let pgPool;
+
+module.exports = (injectedPgPool) =&gt; {
+    pgPool = injectedPgPool;
+
+    return {
+        register,
+        getUser,
+        isValidUser,
+    };
+};
+
+var crypto = require("crypto");
+
+function register(username, password, cbFunc) {
+    var shaPass = crypto.createHash("sha256").update(password).digest("hex");
+
+    const query = `INSERT INTO users (username, user_password) VALUES ('${username}', '${shaPass}')`;
+
+    pgPool.query(query, cbFunc);
+}
+
+function getUser(username, password, cbFunc) {
+    var shaPass = crypto.createHash("sha256").update(password).digest("hex");
+
+    const getUserQuery = `SELECT * FROM users WHERE username = '${username}' AND user_password = '${shaPass}'`;
+
+    pgPool.query(getUserQuery, (response) =&gt; {
+        cbFunc(
+            false,
+            response.results &amp;&amp; response.results.rowCount === 1
+                ? response.results.rows[0]
+                : null
+        );
+    });
+}
+
+function isValidUser(username, cbFunc) {
+    const query = `SELECT * FROM users WHERE username = '${username}'`;
+
+    const checkUsrcbFunc = (response) =&gt; {
+        const isValidUser = response.results
+            ? !(response.results.rowCount &gt; 0)
+            : null;
+
+        cbFunc(response.error, isValidUser);
+    };
+
+    pgPool.query(query, checkUsrcbFunc);
+}
+</pre>
+<p>我们的数据库模型将恢复三个操作，用户的注册、搜索和验证。</p>
+<p>注意，我们在之前创建的文件的开头注入了<code>pgPool</code>。为了让这段代码工作，我们仍然需要将参数传递给<code>index.js</code>文件中的构造函数。</p>
+<p>每个函数处理我们之前创建的<code>query</code>函数。<a href="https://www.npmjs.com/package/pg">NPM pg包</a>接收查询本身作为第一个参数。<code>error-results</code>组合是第二个参数，它包含我们执行的结果。</p>
+<p>我们通过<code>${}</code>操作符注入参数来简化连接。然而，您也可以通过在<code>query</code>函数的第二个可选参数中将值作为数组传递来使用<a href="https://node-postgres.com/features/queries">参数化查询</a>。</p>
+<p>最后，pg包返回<code>results</code>对象中的值，但是没有任何<code>length</code>属性，这与MySQL等其他数据库不同。</p>
+<p>为了查看是否有结果，我们需要访问<code>rowCount</code>属性。请注意，我们传递了许多回调函数，以避免函数返回下的控制，使整个架构异步。请随意根据自己的风格进行调整。</p>
+<p>现在，让我们转到<code>tokenDB.js</code>实现:</p>
+<pre>let pgPool;
+
+module.exports = (injectedPgPool) =&gt; {
+    pgPool = injectedPgPool;
+
+    return {
+        saveAccessToken,
+        getUserIDFromBearerToken,
+    };
+};
+
+function saveAccessToken(accessToken, userID, cbFunc) {
+    const getUserQuery = `INSERT INTO access_tokens (access_token, user_id) VALUES ('${accessToken}', ${userID});`;
+
+    pgPool.query(getUserQuery, (response) =&gt; {
+        cbFunc(response.error);
+    });
+}
+
+function getUserIDFromBearerToken(bearerToken, cbFunc) {
+    const getUserIDQuery = `SELECT * FROM access_tokens WHERE access_token = '${bearerToken}';`;
+
+    pgPool.query(getUserIDQuery, (response) =&gt; {
+        const userID =
+            response.results &amp;&amp; response.results.rowCount == 1
+                ? response.results.rows[0].user_id
+                : null;
+
+        cbFunc(userID);
+    });
+}
+</pre>
+<p>就像我们之前的JavaScript文件一样，我们在构造函数中注入pg <code>Pool</code>并调用相应的查询。</p>
+<p>特别注意<code>getUserIDFromBearerToken</code>功能。注意默认的<code>node-oauth2-server</code>模型契约，我们需要提供一个函数来评估给定的承载令牌是否真的有效，这意味着令牌确实存在于数据库中。</p>
+<p>感谢前面来自<code>userDB.js</code>的<code>isValidUser</code>，它在插入新用户时检查用户名是否重复，我们的令牌将工作。</p>
+<h2 id="oauth2-service-routes">OAuth 2.0服务和路由</h2>
+<p>既然数据库层已经准备好被调用，让我们实现我们需要的服务和路由，从<code>tokenService.js</code>文件开始:</p>
+<pre>let userDB;
+let tokenDB;
+
+module.exports = (injectedUserDB, injectedTokenDB) =&gt; {
+    userDB = injectedUserDB;
+    tokenDB = injectedTokenDB;
+
+    return {
+        getClient,
+        saveAccessToken,
+        getUser,
+        grantTypeAllowed,
+        getAccessToken,
+    };
+};
+
+function getClient(clientID, clientSecret, cbFunc) {
+    const client = {
+        clientID,
+        clientSecret,
+        grants: null,
+        redirectUris: null,
+    };
+
+    cbFunc(false, client);
+}
+
+function grantTypeAllowed(clientID, grantType, cbFunc) {
+    cbFunc(false, true);
+}
+
+function getUser(username, password, cbFunc) {
+    userDB.getUser(username, password, cbFunc);
+}
+
+function saveAccessToken(accessToken, clientID, expires, user, cbFunc) {
+    tokenDB.saveAccessToken(accessToken, user.id, cbFunc);
+}
+
+function getAccessToken(bearerToken, cbFunc) {
+    tokenDB.getUserIDFromBearerToken(bearerToken, (userID) =&gt; {
+        const accessToken = {
+            user: {
+                id: userID,
+            },
+            expires: null,
+        };
+
+        cbFunc(userID === null, userID === null ? null : accessToken);
+    });
+}
+</pre>
+<p>这听起来比实际情况要复杂一些。所有这些功能都是我们前面看到的模型规范契约的简单覆盖版本。</p>
+<p>对于它的每个默认动作，我们需要提供自己的实现，调用我们的数据库存储库来保存新用户，以及新的访问令牌来检索它们或获取客户端应用程序。</p>
+<p>对于<code>grantTypeAllowed</code>函数，我们实际上只是调用回调函数作为第三个参数，由<code>node-oauth2-server</code>框架传递。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>我们验证给定的客户端ID是否具有对该授权类型的实际访问权限，仅设置为密码。您可以添加任意数量的验证。我们还可以将它与您或您的公司可能拥有的其他私有验证API集成。</p>
+<p>现在，让我们回顾一下<code>authenticator.js</code>文件代码:</p>
+<pre>let userDB;
+
+module.exports = (injectedUserDB) =&gt; {
+    userDB = injectedUserDB;
+
+    return {
+        registerUser,
+        login,
+    };
+};
+
+function registerUser(req, res) {
+    userDB.isValidUser(req.body.username, (error, isValidUser) =&gt; {
+        if (error || !isValidUser) {
+            const message = error
+                ? "Something went wrong!"
+                : "This user already exists!";
+
+            sendResponse(res, message, error);
+
+            return;
+        }
+
+        userDB.register(req.body.username, req.body.password, (response) =&gt; {
+            sendResponse(
+                res,
+                response.error === undefined ? "Success!!" : "Something went wrong!",
+                response.error
+            );
+        });
+    });
+}
+
+function login(query, res) {}
+
+function sendResponse(res, message, error) {
+    res.status(error !== undefined ? 400 : 200).json({
+        message: message,
+        error: error,
+    });
+}
+</pre>
+<p>在上面的代码中，我们有两个主要的身份验证方法，一个用于用户注册，另一个用于用户登录。每当试图注册一个用户时，我们首先需要确保它是有效的，这意味着它不是重复的，然后注册它。</p>
+<p>我们已经看到了验证和保存功能。现在，这只是一个电话。反过来，<code>login</code>函数不需要任何实现，因为它将调用框架默认流。最后，检查每个请求是错误还是成功，这样我们就可以设置正确的HTTP响应代码。</p>
+<p>最后，我们需要在<code>routes.js</code>文件中设置我们的快速路线:</p>
+<pre>module.exports = (router, app, authenticator) =&gt; {
+    router.post("/register", authenticator.registerUser);
+    router.post("/login", app.oauth.grant(), authenticator.login);
+
+    return router;
+};
+</pre>
+<p>很简单，不是吗？唯一的区别是我们调用Express <code>oauth</code>函数<code>grant()</code>来确保这个用户正确登录。为了确保实现完全工作，我们还需要一个安全的测试端点。它将像任何其他端点一样被创建，但受到保护，这意味着只有授权用户才能通过发送有效的承载令牌来访问它。</p>
+<p>将以下代码添加到我们的<code>testAPIService.js</code>中:</p>
+<pre>module.exports = {
+    helloWorld: helloWorld,
+};
+
+function helloWorld(req, res) {
+    res.send("Hello World OAuth2!");
+}
+</pre>
+<p>现在，将下面的代码添加到<code>testAPIRoutes.js</code>:</p>
+<pre>module.exports = (router, app, testAPIService) =&gt; {
+    router.post("/hello", app.oauth.authorise(), testAPIService.helloWorld);
+
+    return router;
+};
+</pre>
+<p>最后但同样重要的是，我们需要设置<code>index.js</code>映射:</p>
+<pre>// Database imports
+const pgPool = require("./db/pgWrapper");
+const tokenDB = require("./db/tokenDB")(pgPool);
+const userDB = require("./db/userDB")(pgPool);
+// OAuth imports
+const oAuthService = require("./auth/tokenService")(userDB, tokenDB);
+const oAuth2Server = require("node-oauth2-server");
+// Express
+const express = require("express");
+const app = express();
+app.oauth = oAuth2Server({
+    model: oAuthService,
+    grants: ["password"],
+    debug: true,
+});
+const testAPIService = require("./test/testAPIService.js");
+const testAPIRoutes = require("./test/testAPIRoutes.js")(
+    express.Router(),
+    app,
+    testAPIService
+);
+// Auth and routes
+const authenticator = require("./auth/authenticator")(userDB);
+const routes = require("./auth/routes")(
+    express.Router(),
+    app,
+    authenticator
+);
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
+app.use(app.oauth.errorHandler());
+app.use("/auth", routes);
+app.use("/test", testAPIRoutes);
+const port = 3000;
+app.listen(port, () =&gt; {
+    console.log(`listening on port ${port}`);
+});
+</pre>
+<p>我们基本上是导入所有需要的模块，以及将相应的模块相互注入。</p>
+<p>请特别注意快速设置。注意，我们用自己的实现覆盖了Express的默认<code>oauth</code>对象，并定义了授权类型和模型服务。</p>
+<p>然后，我们必须将验证器和测试的路由分配给Express路由器，以便Express了解如何重定向每个接近的请求。</p>
+<p>现在，让我们测试我们的端点。我们将使用<a href="https://www.postman.com/"> Postman工具</a>,因为它简单实用，不过，你可以随意选择使用。然后，通过运行以下代码启动服务器:</p>
+<pre>node index.js
+</pre>
+<p>首先，我们需要创建一个新用户。为此，使用编码为<code>x-www-form-urlencoded</code>的以下主体参数对<code><a href="http://localhost:3000/auth/register/" rel="nofollow">http://localhost:3000/auth/register/</a></code>执行<code>POST</code>请求:</p>
+<p><img data-attachment-id="97985" data-permalink="https://blog.logrocket.com/postman0create-new-user-endpoints/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png" data-orig-size="730,345" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="postman-create-new-user-endpoints" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints-300x142.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png" decoding="async" class="aligncenter wp-image-97985 size-full jetpack-lazy-image" src="../Images/1ea19df6c3b9c0fa17d05077d3f4031c.png" alt="Postman Create New User Endpoints" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints-300x142.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="97985" data-permalink="https://blog.logrocket.com/postman0create-new-user-endpoints/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png" data-orig-size="730,345" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="postman-create-new-user-endpoints" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints-300x142.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png" decoding="async" loading="lazy" class="aligncenter wp-image-97985 size-full" src="../Images/1ea19df6c3b9c0fa17d05077d3f4031c.png" alt="Postman Create New User Endpoints" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints-300x142.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman0create-new-user-endpoints.png"/></noscript>
+<h3 id="creating-new-user-postman">通过邮递员创建新用户</h3>
+<p>继续检查是否在您的数据库中成功创建了用户。</p>
+<p>有了一个有效的用户，您现在可以通过向<code><a href="http://localhost:3000/auth/login/" rel="nofollow">http://localhost:3000/auth/login/</a></code>发送另一个<code>POST</code>请求来登录，请求的主体参数如下:</p>
+<p><img data-attachment-id="97987" data-permalink="https://blog.logrocket.com/check-user-created-success/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png" data-orig-size="730,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="check-user-created-success" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png" decoding="async" class="aligncenter wp-image-97987 size-full jetpack-lazy-image" src="../Images/b318a51155f89dd4702ecaa25c1da2c7.png" alt="Check User Created Success" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success-300x166.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="97987" data-permalink="https://blog.logrocket.com/check-user-created-success/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png" data-orig-size="730,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="check-user-created-success" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png" decoding="async" loading="lazy" class="aligncenter wp-image-97987 size-full" src="../Images/b318a51155f89dd4702ecaa25c1da2c7.png" alt="Check User Created Success" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success-300x166.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/check-user-created-success.png"/></noscript>
+<h3 id="login-created-user-postman">通过邮递员登录创建的用户</h3>
+<p>如果您将凭证更改为无效凭证，您将得到一条消息，显示为<code>OAuth2Error: User credentials are invalid</code>。</p>
+<p>现在，随着OAuth 2的实现和运行，我们可以运行我们最重要的测试，验证我们的安全端点。Postman为我们提供了特殊的功能来测试这一点，即授权选项卡:</p>
+<p><img data-attachment-id="97989" data-permalink="https://blog.logrocket.com/postman-authorization-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png" data-orig-size="730,382" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="postman-authorization-tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png" decoding="async" class="aligncenter wp-image-97989 size-full jetpack-lazy-image" src="../Images/3f230b1aad54d97b8668dcb01770ae52.png" alt="Postman Authorization Tab" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab-300x157.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="97989" data-permalink="https://blog.logrocket.com/postman-authorization-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png" data-orig-size="730,382" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="postman-authorization-tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab-300x157.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png" decoding="async" loading="lazy" class="aligncenter wp-image-97989 size-full" src="../Images/3f230b1aad54d97b8668dcb01770ae52.png" alt="Postman Authorization Tab" srcset="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab-300x157.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/03/postman-authorization-tab.png"/></noscript>
+<h3 id="postman-authorization-tab">邮递员授权标签</h3>
+<p>通过选择<strong> Authorization </strong>选项卡，您可以访问一些有趣的测试特性，比如您的API正在使用的授权流类型，在我们的例子中是<code>OAuth 2.0</code>。</p>
+<p>您还可以选择Postman应该将授权数据放在哪里。例如，选择<strong>头</strong>选项将授权数据放入请求头或请求体。</p>
+<p>此外，您有两种选择来获取访问令牌。您可以显式地将令牌文本拖放到可用的<code>textarea</code>中，或者单击<strong> Get NewAccess Token </strong>按钮，这将依次打开一个包含更多字段的对话框。这些字段将要求访问令牌URL端点获取新的令牌、TTL、授权类型等。</p>
+<p>在这里，您可以预览请求。单击该按钮后，输入的值将自动转换为当前请求的标题和正文配置。这样，您不必在每次需要运行新请求时手动更改每个头。</p>
+<p>点击<strong>发送按钮</strong>，结果会出现<code>Hello World OAuth2</code>。</p>
+<h2 id="conclusion">结论</h2>
+<p>这个框架只是现有的选择之一。你可以去OAuth.net项目查看Node.js的最新建议以及你喜欢的语言。当然，有很多可看的。</p>
+<p>OAuth 2.0是一个庞大的协议，在阅读和应用它的规范时，应该花更多的时间和精力。然而，这个简单的介绍会让你理解这个框架是如何与Express和Postgres一起工作的。</p>
+<p>您还可以更改服务器和数据库来满足您的需求。只要确保使用我们到目前为止建立的同一个合同。我希望你喜欢这篇文章。编码快乐！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

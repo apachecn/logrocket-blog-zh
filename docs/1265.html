@@ -1,0 +1,494 @@
+<html>
+<head>
+<title>Build a fully offline app using React Native and WatermelonDB - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用React Native和WatermelonDB - LogRocket Blog构建一个完全离线的应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/offline-app-react-native-watermelondb/#0001-01-01">https://blog.logrocket.com/offline-app-react-native-watermelondb/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>鼓舞士气的讲话</h2>
+<p>有时，为了在一个实用的应用程序中提供全套功能，我们并不需要连接到互联网。如果我们不需要，为什么要将数据发送到某个API服务器，并支付一大笔钱来存储这些数据呢？</p>
+<p>有时，用户只是想要一个可以存储一些信息并在以后显示的应用程序，而不必担心是否有稳定的互联网连接。如果你同意，但你不太确定如何构建这样一个应用程序，那么做得很好——你今天正在阅读正确的博文。🙂</p>
+<p>在这篇文章中，我将带你构建一个React本机应用程序，让用户跟踪他们的体重，并随着时间的推移，按需可视化存储的数据。所有这一切都不需要连接到大坏互联网！</p>
+<h2>你需要带来什么</h2>
+<p>没什么——不管你带什么，都欢迎你入席。</p>
+<p>然而，本文将假设您对TypeScript和React Native有所了解，并对数据库有基本的了解。如果你不熟悉以上的一个或全部，仍然欢迎你一起阅读，但是有些东西可能看起来有点太神秘，需要你做更多的研究。</p>
+<p>对于像我这样没有耐心的人来说，他们想在提交帖子之前先看看代码，这里是GitHub 上的<a href="https://github.com/foysalit/weightress-app-blog">完整代码库。</a></p>
+<h2>入门指南</h2>
+<p>任何企业的首要问题是什么？收入来源，对吗？</p>
+<p>不对！是名字。在构建应用程序时，选择正确的名称始终是每个人最需要关注的事情。</p>
+<p>所以，当然，在我开始写这篇文章之前，我就想出了Weightress这个名字，如果你没注意到的话，这是一个非常聪明的文字游戏，因为这个应用程序会跟踪你的体重。太神奇了，对吧？</p>
+<p>什么？你觉得你能做得更好吗？好吧，我想看到你尝试一下——如果你能为一个体重跟踪应用想出一个更好的名字，请发微博给我。</p>
+<p>好了，玩笑开够了。我们现在开始工作吧。</p>
+<p>如果您是第一次接触React Native，在开始之前，您可能需要用一些工具来设置您的机器。前往RN的<a href="https://reactnative.dev/docs/environment-setup">官方环境设置文档</a>并完成安装过程。完成所有设置后，您可以让React Native CLI为您创建一个样板应用程序，只需运行:</p>
+<pre>npx react-native init weightress --template react-native-template-typescript</pre>
+<p>这将生成一个名为<code>weightress</code>的新文件夹，并在其中放入一些文件。用您最喜欢的代码编辑器打开文件夹，从终端窗口在文件夹内导航。</p>
+<p>为了将用户的数据存储在他们的设备上，我们将使用<a href="https://nozbe.github.io/"> WatermelonDB </a>。首先，我们将使用Yarn将其安装为一个依赖项，Yarn是样板文件React Native应用程序的默认包管理器。运行以下命令:</p>
+<pre>cd weightress
+yarn add @nozbe/watermelondb @nozbe/with-observables
+yarn add --dev @babel/plugin-proposal-decorators</pre>
+<p>第一个命令安装与WatermelonDB相关的依赖项，第二个命令安装一个开发专用包，我们需要在代码中使用ES6装饰语法。</p>
+<p>只是安装包不会开箱即用；你还是要让巴别塔知道它的存在。打开<code>babel.config.js</code>文件，添加一个新的插件属性，如下所示:</p>
+<pre>module.exports = {
+  presets: ['module:metro-react-native-babel-preset'],
+  plugins: [
+    ["@babel/plugin-proposal-decorators", { "legacy": true }]
+  ]
+};</pre>
+<p>现在，根据您正在构建的平台，您必须遵循一组不同的指令来完成DB设置。对于iOS，请遵循<a href="https://nozbe.github.io/WatermelonDB/Installation.html#ios-react-native">这些步骤</a>，对于Android，请遵循<a href="https://nozbe.github.io/WatermelonDB/Installation.html#android-react-native">这些步骤</a>。</p>
+<p>好吧，你已经活下来了。为原生开发设置包有点乏味，所以希望包的维护者很快会实现自动链接的方法。</p>
+<p>现在，您可以将您的设备连接到开发机器，或者在仿真器中运行应用程序。我将使用我的物理Android设备，但无论哪种方式，你只需要在你的终端中运行<code>yarn start</code>，然后在另一个终端窗口中，根据你想要在哪个平台上运行应用程序，运行<code>yarn ios</code>或<code>yarn android</code>。</p>
+<p>这应该会在您的设备/仿真器上打开应用程序，您应该会看到如下屏幕:</p>
+<p><img data-attachment-id="27671" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/react-native-starter-template/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png" data-orig-size="450,800" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React Native starter template" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png" decoding="async" class="aligncenter size-full wp-image-27671 jetpack-lazy-image" src="../Images/eda2c2e7af303f6e0a00d3dab0a0a28d.png" alt="React Native Starter Template" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png 450w, https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template-169x300.png 169w" data-lazy-sizes="(max-width: 450px) 100vw, 450px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27671" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/react-native-starter-template/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png" data-orig-size="450,800" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React Native starter template" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template-169x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27671" src="../Images/eda2c2e7af303f6e0a00d3dab0a0a28d.png" alt="React Native Starter Template" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png 450w, https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template-169x300.png 169w" sizes="(max-width: 450px) 100vw, 450px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/react-native-starter-template.png"/></noscript>
+<h2>数据结构</h2>
+<p>当构建一个新的应用程序或功能时，我喜欢从头开始规划。这种规划的合适位置是在数据库级别。弄清楚我们将存储什么样的数据以及每个实体将包含什么，让我对构建UI和UX所需的方法有了更好的理解。</p>
+<p>我们的应用程序将允许用户随时输入他们的体重，我们将把它保存在数据库中。然后，在稍后的时间，我们将检索历史条目并向用户显示它们。对于这个简单的数据，我们只需要存储用户输入的数字和输入的时间戳。</p>
+<p>此外，让用户在记录体重时输入额外的注释可能会更好。也许他们想写下他们那天的感受，他们吃了什么，等等。笔记也有助于快速搜索特定的内容。现在让我们使用WatermelonDB来促进这种数据存储。</p>
+<p>创建一个名为<code>data/</code>的新文件夹和一个名为<code>schema.ts</code>的新文件，并将以下代码放入其中:</p>
+<pre>import {appSchema, tableSchema} from '@nozbe/watermelondb';
+
+export default appSchema({
+  version: 1,
+  tables: [
+    tableSchema({
+      name: 'weights',
+      columns: [
+        {name: 'weight', type: 'number'},
+        {name: 'created_at', type: 'number'},
+        {name: 'note', type: 'string', isOptional: true},
+      ],
+    }),
+  ],
+});</pre>
+<p>在上面的代码中，我们为一个名为weights的表设置了模式，该表有三列。注意，<code>note</code>列有一个设置为<code>true</code>的<code>isOptional</code>属性。我们不想强迫用户为每个条目输入注释，这就是为什么我们把它设为可选的。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>另外，<code>created_at</code>列是数字类型，尽管它是日期。这是因为日期作为Unix时间戳存储在WatermelonDB中。哦，只有<code>note</code>和<code>create_at</code>的<code>isIndexed</code>被设置为真，因为我们将让用户搜索他们的笔记或找到某一天的条目。当涉及到这些列时，索引使查询运行得更快。</p>
+<p>这就是建立数据库的全部内容，但是我们的代码仍然需要与这些数据进行通信。这就是模特出现的地方。模型是原始数据在代码中的表示。通常，每张桌子都有一个模型。因此，让我们为权重表创建模型。</p>
+<p>在<code>data/</code>文件夹中创建一个名为<code>weight.ts</code>的新文件，并填入:</p>
+<pre>import {Model} from '@nozbe/watermelondb';
+import {field, readonly, date} from '@nozbe/watermelondb/decorators';
+
+export default class Weight extends Model {
+  static table = 'weights';
+
+  @field('note') note;
+  @field('weight') weight;
+  @readonly @date('created_at') createdAt;
+}</pre>
+<p>如您所见，它几乎是我们刚刚为数据库表创建的模式的镜像。这只是在数据库列和我们的模型对象的属性之间创建映射。这里有一个神奇的东西是<code>@date</code>装饰器，它会自动生成当前时间戳，并在数据库中插入新条目时为我们插入时间戳。</p>
+<p>我们几乎完成了设置阶段。现在在<code>data/</code>文件夹中，创建另一个名为<code>database.ts</code>的文件，并输入以下内容:</p>
+<pre>import {Database} from '@nozbe/watermelondb';
+import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+
+import Weight from './weight';
+import schema from './schema';
+
+const adapter = new SQLiteAdapter({
+  schema,
+});
+
+export const database = new Database({
+  adapter,
+  modelClasses: [Weight],
+  actionsEnabled: true,
+});</pre>
+<p>这里，我们引入了刚刚构建的模式和模型，并创建了一个新的数据库实例，它知道在哪里可以找到数据的模式和模型。有了所有这些，我们现在就可以创建、读取、更新和删除本地数据库中的数据了。</p>
+<p>然而，本着将关注点分开的精神，我们将把所有与数据相关的代码放在一个地方，而不是直接从组件访问/操作数据库。让我们在名为<code>helpers.ts</code>的<code>data/</code>文件夹中创建最后一个文件，并将以下代码放入其中:</p>
+<pre>import {database} from './database';
+
+export type Weight = {
+  createdAt?: Date;
+  weight: string | number;
+  note: string | undefined;
+};
+
+const weights = database.collections.get('weights');
+
+export const observeWeights = () =&gt; weights.query().observe();
+export const saveWeight = async ({weight, note}: Weight) =&gt; {
+  await database.action(async () =&gt; {
+    await weights.create((entry) =&gt; {
+      entry.weight = Number(weight);
+      entry.note = note;
+    });
+  });
+};</pre>
+<p>这里，我们为<code>Weight</code>定义并导出了一个类型，其中包含了它所定义的字段，这样在组件之间传递的数据就可以被正确地输入。然后，我们在数据库中为我们的<code>weights</code>表/集合定义一个容器，我们将在下面的函数中使用它。</p>
+<p>目前，我们只定义了一个getter和一个setter。<code>observeWeights</code>函数在<code>weights</code>表上设置一个订阅，每次数据库发生变化时，这个订阅的监听器都会收到变化。更改可以是创建新条目、更新现有条目或删除条目。</p>
+<p>最后导出的是一个函数，给定一个权重和一个注释，它将在数据库的<code>weights</code>表中创建一个新条目。需要注意的一点是，权重输入将来自一个输入字段，它通常作为React Native中的字符串给出。但是在数据库中，我们希望将它们存储为数字，所以我们在保存之前将字符串转换为数字。</p>
+<h2>用户界面</h2>
+<p>所有这些都是后台工作——让应用程序正常工作，但不会受到关注。用户界面是用户最终看到的，所以让我们做一些好的工作。</p>
+<p>就像以前一样，我们将从一个计划开始，从头开始构建。所以，让我们从UI的角度来思考一下我们的应用程序。它可以很容易地分成两个主要部分:一个让用户插入体重条目的表单和一个显示所有以前插入的体重的列表。为了让它更有趣一点，让我们使用一个图表来显示历史数据，而不是简单的旧列表。</p>
+<p>为了获得一个愉快的UX，让我们一直查看图表，只在需要时显示输入表单。尽管如此，我们可以把这个应用分成三个部分:<code>Header</code>、<code>Creator</code>和<code>Chart</code>。记住这一点，打开<code>App.tsx</code>文件，删除其中的所有内容，并放入以下代码:</p>
+<pre>import React, {useState} from 'react';
+import {SafeAreaView, ScrollView, StatusBar} from 'react-native';
+
+import Chart from './components/chart';
+import Header from './components/header';
+import Creator from './components/creator';
+
+const App = () =&gt; {
+  const [showCreator, setShowCreator] = useState&lt;boolean&gt;(false);
+  return (
+    &lt;&gt;
+      &lt;StatusBar /&gt;
+      &lt;SafeAreaView&gt;
+        &lt;ScrollView contentInsetAdjustmentBehavior="automatic"&gt;
+          &lt;Header onOpenCreator={() =&gt; setShowCreator(true)} /&gt;
+          &lt;Creator
+            isCreatorVisible={showCreator}
+            onHideCreator={() =&gt; setShowCreator(false)}
+          /&gt;
+          &lt;Chart /&gt;
+        &lt;/ScrollView&gt;
+      &lt;/SafeAreaView&gt;
+    &lt;/&gt;
+  );
+};
+
+export default App;</pre>
+<p>这很简单。我们引入了我们计划的三个组件，将<code>StatusBar</code>组件放在顶部，并将所有内容包装在<code>SafeAreaView</code>组件中，以确保我们的内容不会与状态栏重叠或被可怕的缺口切断。然后，我们还有另一个包装器，<code>ScrollView</code>，如果里面的内容溢出了屏幕的垂直高度，它将允许用户向下滚动。</p>
+<p>我们看到一个名为<code>showCreator</code>的本地布尔状态，它将决定是否向用户显示<code>Creator</code>。当渲染<code>Header</code>组件时，我们传递一个函数属性<code>onOpenCreator</code>，它在被调用时简单地将<code>showCreator</code>设置为真。</p>
+<p>在<code>Creator</code>组件中，我们传递了<code>showCreator</code>状态和一个函数，通过将<code>showCreator</code>设置为false来隐藏创建者。</p>
+<p>然后，最后，我们有了<code>Chart</code>组件，它不需要任何道具。在某些时候，通过一些用户交互，<code>Header</code>组件将触发<code>onOpenCreator</code>，这将把<code>Creator</code>带入视图，这将让用户输入他们的体重。</p>
+<p>现在，让我们深入了解一下每个组件的内部。新建一个名为<code>components</code>的文件夹，在里面新建三个文件:<code>chart.tsx</code>、<code>creator.tsx</code>和<code>header.tsx</code>。</p>
+<h3><code>Header</code>组件</h3>
+<p>打开<code>components/header.tsx</code>文件，输入以下代码:</p>
+<pre>import React, {FC} from 'react';
+import {View, Text, TouchableHighlight} from 'react-native';
+import {headerStyles} from './styles';
+
+const Header: FC&lt;{onOpenCreator: () =&gt; void}&gt; = ({onOpenCreator}) =&gt; {
+  return (
+    &lt;&gt;
+      &lt;View style={headerStyles.container}&gt;
+        &lt;Text style={headerStyles.headerTitle}&gt;Weightress&lt;/Text&gt;
+        &lt;TouchableHighlight
+          style={headerStyles.addButton}
+          onPress={() =&gt; onOpenCreator()}&gt;
+          &lt;Text&gt;+ Add&lt;/Text&gt;
+        &lt;/TouchableHighlight&gt;
+      &lt;/View&gt;
+    &lt;/&gt;
+  );
+};
+
+export default Header;</pre>
+<p>这是一个小组件，它呈现一个标题文本，只有应用程序的名称Weightress和一个按钮，当按下时会触发<code>onOpenCreator</code>功能属性。按钮是使用<code>TouchableHighlight</code>组件呈现的，但是您也可以使用<code>Button</code>或<code>Pressable</code>组件。</p>
+<p>注意，我们使用<code>headerStyles</code>在所有三个组件上应用样式，它们是从一个我们还没有创建的文件中导入的。因此，让我们创建文件<code>components/styles.ts</code>并放入以下代码:</p>
+<pre>import {StyleSheet} from 'react-native';
+
+export const primaryColor = '#FB8C00';
+
+export const headerStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    flexDirection: 'row',
+    paddingHorizontal: 15,
+    justifyContent: 'space-between',
+  },
+  addButton: {
+    borderColor: primaryColor,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 3,
+    borderWidth: 1,
+  },
+  headerTitle: {
+    fontSize: 25,
+    fontWeight: 'bold',
+    borderLeftWidth: 3,
+    paddingLeft: 10,
+    borderLeftColor: primaryColor,
+  },
+});</pre>
+<p>如您所见，<code>headerStyles</code>是一个React原生样式表，它有三个属性。每个属性包含一个组件的样式。容器在整个标题周围留出一些空间，并使用<code>justifyContent: 'space-between'</code>确保标题文本和添加按钮位于屏幕的相对两侧。</p>
+<p>在右侧按钮周围留出一些空间，并在文本周围添加一个圆形(但不要太圆)边框，使其看起来更像按钮。注意，边框颜色是使用<code>primaryColor</code>变量设置的。隔离主要颜色将有助于我们在其他组件风格中重用它，并使在一个地方更改应用程序的品牌变得容易。</p>
+<p>最后但并非最不重要的是，我们有一些标题文本的样式，下面有一个边框，使它看起来更像一个标志。我们还不能在我们的应用程序中看到它，所以下面是上面代码的截图:</p>
+<p><img data-attachment-id="27674" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/header-component-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png" data-orig-size="730,154" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Header component preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview-300x63.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png" decoding="async" class="aligncenter size-full wp-image-27674 jetpack-lazy-image" src="../Images/5694c0bfcf4a1cebfb8894e725789d3c.png" alt="Preview of Our Header Component" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview-300x63.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27674" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/header-component-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png" data-orig-size="730,154" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Header component preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview-300x63.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27674" src="../Images/5694c0bfcf4a1cebfb8894e725789d3c.png" alt="Preview of Our Header Component" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview-300x63.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/header-component-preview.png"/></noscript>
+<h3><code>Creator</code>组件</h3>
+<p>打开<code>components/creator.tsx</code>文件，输入以下代码:</p>
+<pre>import React, {FC, useState} from 'react';
+import {
+  Button,
+  Modal,
+  Text,
+  TextInput,
+  TouchableHighlight,
+  View,
+} from 'react-native';
+import {saveWeight} from '../data/helpers';
+import {creatorStyles, primaryColor} from './styles';
+
+const Creator: FC&lt;{
+  isCreatorVisible: boolean;
+  onHideCreator: () =&gt; void;
+}&gt; = ({onHideCreator, isCreatorVisible}) =&gt; {
+  const [isSaving, setIsSaving] = useState&lt;boolean&gt;(false);
+  const [weight, setWeight] = useState&lt;string&gt;('');
+  const [note, setNote] = useState&lt;string&gt;('');
+
+  const handleSavePress = async () =&gt; {
+    setIsSaving(true);
+    await saveWeight({weight, note});
+    // hide modal
+    onHideCreator();
+    // Clear out the inputs
+    setWeight('');
+    setNote('');
+    // Make button active again
+    setIsSaving(false);
+  };
+
+  return (
+    &lt;Modal animationType="slide" transparent={true} visible={isCreatorVisible}&gt;
+      &lt;View style={creatorStyles.centeredView}&gt;
+        &lt;View style={creatorStyles.modalView}&gt;
+          &lt;View style={creatorStyles.topActions}&gt;
+            &lt;Text&gt;Add your weight&lt;/Text&gt;
+            &lt;TouchableHighlight
+              onPress={() =&gt; {
+                onHideCreator();
+              }}&gt;
+              &lt;Text style={creatorStyles.topCloseButton}&gt;×&lt;/Text&gt;
+            &lt;/TouchableHighlight&gt;
+          &lt;/View&gt;
+          &lt;TextInput
+            style={creatorStyles.input}
+            placeholder="Your weight"
+            keyboardType="decimal-pad"
+            onChangeText={(text) =&gt; setWeight(text)}
+            value={weight}
+          /&gt;
+          &lt;TextInput
+            placeholder="Additional note (optional)"
+            style={creatorStyles.input}
+            onChangeText={(text) =&gt; setNote(text)}
+            value={note}
+          /&gt;
+          &lt;Button
+            title="Save"
+            disabled={isSaving}
+            color={primaryColor}
+            onPress={handleSavePress}
+          /&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+    &lt;/Modal&gt;
+  );
+};
+
+export default Creator;</pre>
+<p>这一个比<code>Header</code>组件多一点肉，不是吗？让我们从本地状态开始。我们有三种:<code>isSaving</code>、<code>weight</code>和<code>note</code>。</p>
+<p>节省数据库重量的辅助函数是一个异步函数，因此在请求数据存储和完成数据存储之间可能会有一些延迟。当发生这种情况时，我们希望让用户知道幕后的活动，这就是将使用<code>isSaving</code>的地方。另外两个将包含来自用户的输入。</p>
+<p>还记得我们说过只按需显示<code>Creator</code>吗？我们通过React Native的<code>Modal</code>组件实现了这一点。把<code>true</code>传给那个组件的<code>visible</code>道具会把它带入视野，<code>false</code>会把它拿出来。我们通过传递一个<code>animationType="slide"</code>道具使过渡看起来感觉良好。</p>
+<p>组件覆盖了整个屏幕，但是对于有两个输入的小表单，我们不需要那么大的空间。因此，我们将内容包装在两个<code>View</code>组件中，包装器使用一些flexbox魔法将所有内容放在屏幕底部。</p>
+<p>让我们来看看可以实现这一点的风格。返回到<code>styles.ts</code>文件并创建一个新的样式表:</p>
+<pre>import {Dimensions, StyleSheet} from 'react-native';
+// previous code.....
+const windowDim = Dimensions.get('window');
+export const windowHeight = windowDim.height;
+export const creatorStyles = StyleSheet.create({
+  centeredView: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+  },
+  modalView: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 10,
+    height: windowHeight / 2,
+    shadowColor: '#cacaca',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+}</pre>
+<p><code>centeredView</code>是封装所有内容的父包装器，有一个半透明的背景。<code>justifyContent: 'flex-end'</code>确保里面的任何元素都放在元素的底部。对于里面的<code>View</code>，我们用的是<code>modalView</code>风格，白色背景，占据了屏幕一半的高度。</p>
+<p>为了准确地确定屏幕的一半是什么，我们需要使用React Native的<code>Dimensions</code>助手，它让我们可以访问窗口的<code>height</code>和<code>width</code>以及设备的其他一些大小属性。我们还在元素上添加了一些阴影和边框，让事情看起来更好更平滑。</p>
+<p>好的，让我们回头看看这个组件。在模态内部，我们首先看到这个:</p>
+<pre>         &lt;View style={creatorStyles.topActions}&gt;
+            &lt;Text&gt;Add your weight&lt;/Text&gt;
+            &lt;TouchableHighlight
+              onPress={() =&gt; {
+                onHideCreator();
+              }}&gt;
+              &lt;Text style={creatorStyles.topCloseButton}&gt;×&lt;/Text&gt;
+            &lt;/TouchableHighlight&gt;
+          &lt;/View&gt;</pre>
+<p>这在模态中添加了一个标题文本，并在右侧添加了一个按钮，当按下按钮时会触发<code>onHideCreator</code> prop函数。请记住，我们从<code>App.tsx</code>传递这个消息，它让用户关闭模态。让我们在<code>styles.ts</code>文件中为此创建样式:</p>
+<pre>export const creatorStyles = StyleSheet.create({
+  // previous code...
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topCloseButton: {
+    padding: 10,
+    color: '#494949',
+    fontWeight: 'bold',
+    fontSize: 25,
+  },</pre>
+<p>它的设置与<code>Header</code>组件类似，我们使用flexbox将包装器分成两个水平部分。右侧的关闭按钮周围有一些空间，使其易于点击，文本保留在左侧。</p>
+<p>现在，情态的主要内容:</p>
+<pre>          &lt;TextInput
+            style={creatorStyles.input}
+            placeholder="Your weight"
+            keyboardType="decimal-pad"
+            onChangeText={(text) =&gt; setWeight(text)}
+            value={weight}
+          /&gt;
+          &lt;TextInput
+            placeholder="Additional note (optional)"
+            style={creatorStyles.input}
+            onChangeText={(text) =&gt; setNote(text)}
+            value={note}
+          /&gt;
+          &lt;Button
+            title="Save"
+            disabled={isSaving}
+            color={primaryColor}
+            onPress={handleSavePress}
+          /&gt;</pre>
+<p>我们这里有两个<code>TextInput</code>组件和一个<code>Button</code>。第一个<code>TextInput</code>只接受一个数字输入，因为我们在它上面设置了<code>keyboardType="decimal-pad"</code>道具，它链接到<code>weight</code>状态。第二个是任何附加说明；因此，它连接到<code>note</code>状态。最后，我们有一个<code>Button</code>,当它被按下时会触发<code>handleSavePress</code>功能。</p>
+<p>请注意，为了在保存输入时禁用按钮，我们设置了<code>disabled={isSaving}</code>，为了使其与我们的品牌相匹配，我们设置了<code>color={primaryColor}</code>。我们还没有定义这些字段的样式，所以让我们回到<code>styles.ts</code>文件并添加如下内容:</p>
+<pre>export const creatorStyles = StyleSheet.create({
+// previous code...
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 3,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderColor: '#c9c9c9',
+  },
+});</pre>
+<p>我们只是在字段周围添加一些间距，并添加一个边框，使它看起来很好。现在让我们看看<code>handleSavePress</code>是做什么的:</p>
+<pre> const handleSavePress = async () =&gt; {
+    setIsSaving(true);
+    await saveWeight({weight, note});
+    // hide modal
+    onHideCreator();
+    // Clear out the inputs
+    setWeight('');
+    setNote('');
+    // Make button active again
+    setIsSaving(false);
+  };</pre>
+<p>当被触发时，它将首先将状态<code>isSaving</code>切换到true，这又会禁用<strong>保存</strong>按钮。然后，它用来自状态的权重和注释输入调用<code>saveWeight</code>函数。它将异步保存WatermelonDB中的数据。</p>
+<p>一旦完成，我们首先启动<code>onHideCreator</code>函数prop，如果您还记得的话，它隐藏了模态本身。然后，我们只是清除输入，以便当模式重新打开时，用户看到的是空的输入字段，而不是之前插入的权重和注释。最后，我们将<code>isSaving</code>切换回false来重新启用<strong>保存</strong>按钮，以便用户下次打开模态。</p>
+<p>同样，我们还不能在我们的应用程序中看到它，所以这里有一个截图来润润你的嘴…</p>
+<p><img data-attachment-id="27675" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/creator-component-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png" data-orig-size="730,573" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creator component preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview-300x235.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png" decoding="async" class="aligncenter size-full wp-image-27675 jetpack-lazy-image" src="../Images/0b5a0f11356fbdecbb46e16d27cbd532.png" alt="Preview of Our Creator Component" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview-300x235.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27675" data-permalink="https://blog.logrocket.com/offline-app-react-native-watermelondb/creator-component-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png" data-orig-size="730,573" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Creator component preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview-300x235.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27675" src="../Images/0b5a0f11356fbdecbb46e16d27cbd532.png" alt="Preview of Our Creator Component" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview-300x235.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/creator-component-preview.png"/></noscript>
+<h3><code>Chart</code>组件</h3>
+<p>React原生生态系统缺少一些在网络上或原生平台上可用的优秀图表和数据库。然而，对于我们的需求，<a href="https://www.npmjs.com/package/react-native-chart-kit"> react-native-chart-kit </a>提供了开箱即用的一切。这个库依赖于react-native-svg库，所以让我们通过运行<code>yarn add react-native-svg react-native-chart-kit</code>来安装这两个库。</p>
+<p>现在打开<code>components/chart.tsx</code>文件，输入以下代码:</p>
+<pre>import React, {FC} from 'react';
+import withObservables from '@nozbe/with-observables';
+import {LineChart} from 'react-native-chart-kit';
+
+import {observeWeights, Weight} from '../data/helpers';
+import {chartConfig, chartStyles, windowWidth} from './styles';
+
+const Chart: FC&lt;{weights: Weight[]}&gt; = ({weights}) =&gt; {
+  if (weights.length &lt; 1) {
+    return null;
+  }
+
+  const labels: string[] = [];
+  const data: number[] = [];
+  weights.forEach((w) =&gt; {
+    labels.push(`${w?.createdAt.getDate()}/${w.createdAt.getMonth() + 1}`);
+    data.push(w.weight);
+  });
+  return (
+    &lt;LineChart
+      bezier
+      height={250}
+      width={windowWidth - 30}
+      chartConfig={chartConfig}
+      style={chartStyles.chart}
+      data={{labels, datasets: [{data}]}}
+    /&gt;
+  );
+};
+
+const enhanceWithWeights = withObservables([], () =&gt; ({
+  weights: observeWeights(),
+}));
+
+export default enhanceWithWeights(Chart);</pre>
+<p>首先，我们将<code>Chart</code>组件设置为接收权重数组的功能组件。如果数组是空的，我们就不渲染任何东西。否则，我们遍历权重数组并构建一个包含每个条目日期的<code>labels</code>数组，格式为<code>dd/mm</code>。</p>
+<p>我们还将所有权重值存储在一个<code>data</code>数组中，存储顺序与<code>labels</code>数组相同。我们正在将数据库中的原始数据转换成这个结构，<code>LineChart</code>组件可以理解和可视化。该组件只是呈现从react-native-chart-kit库中导入的<code>LineChart</code>组件。</p>
+<p><code>data</code>道具是我们传递刚刚构建的<code>labels</code>和<code>data</code>数组的地方。<code>bezier</code>道具使外推的折线图具有弯曲的外观。我们正在传递一个<code>height</code>和一个<code>width</code>，其中高度是硬编码的，但是宽度是从一个从<code>styles.ts</code>文件导入的<code>windowWidth</code>变量中导出的，还有<code>chartConfig</code>和<code>chartStyles</code>。</p>
+<p>让我们回到<code>styles.ts</code>文件，看看它们是什么:</p>
+<pre>export const windowWidth = windowDim.width;
+export const chartStyles = StyleSheet.create({
+  chart: {
+    marginLeft: 15,
+    borderRadius: 10,
+  },
+});
+
+export const chartConfig = {
+  backgroundColor: primaryColor,
+  backgroundGradientFrom: primaryColor,
+  backgroundGradientTo: '#FFA726',
+  decimalPlaces: 2,
+  color: (opacity = 1) =&gt; `rgba(255, 255, 255, ${opacity})`,
+  labelColor: (opacity = 1) =&gt; `rgba(255, 255, 255, ${opacity})`,
+  style: {
+    borderRadius: 16,
+  },
+  propsForDots: {
+    r: '6',
+    strokeWidth: '2',
+    stroke: '#ffa726',
+  },
+};</pre>
+<p>从<code>Dimension</code>模块，我们正在导出设备窗口的宽度，图表的宽度将比全宽小30px。然后，在<code>chartStyles</code>中，我们在左边给它一个<code>15px</code>空白，这样图表在屏幕上水平居中，两边各有一个漂亮的<code>15px</code>。我们还在它的边界周围增加了一些半径。</p>
+<p>大部分样式是通过<code>chartConfig</code>道具而不是React原生样式完成的。我们将图表配置为在背景中使用渐变，从<code>primaryColor</code>重音开始。其余属性用于图表中显示的内容的各种形状和颜色。你可以从<a href="https://www.npmjs.com/package/react-native-chart-kit">图书馆的官方文档</a>中找到更多配置图表的方法。</p>
+<p>回到组件内部，注意我们没有像对待其他两个组件那样直接导出<code>Chart</code>组件。相反，我们将其包装在一个高阶组件(HOC)中，并导出该包装版本:</p>
+<pre>const enhanceWithWeights = withObservables([], () =&gt; ({
+  weights: observeWeights(),
+}));
+
+export default enhanceWithWeights(Chart);</pre>
+<p>这就是WatermelonDB的威力所在。HOC为我们提供了一种将React组件实时直接连接到数据库中的数据的方法。</p>
+<p>这是我们应用<code>observeWeights()</code>助手函数的地方，用HOC包装我们的<code>Chart</code>组件意味着组件将自动接收一个名为<code>weight</code>的道具。该道具将包含数据库中的所有权重条目，每次添加新数据或更新或删除现有数据时，组件都将使用最新数据重新呈现。</p>
+<h2>带它去兜一圈</h2>
+<p>有了所有这些，我们终于可以在设备或模拟器上打开我们的应用程序并检查它了。这是我摆弄它的视频:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/P27SvfaafNc?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p>请注意，如果您关闭应用程序并重新打开它，图表将显示您之前保存的所有体重，这要归功于WatermelonDB。</p>
+<h2>《要么做大，要么呆在家》</h2>
+<p>首先，为自己能走到这一步而感到欣慰。但是有趣的火车不一定要停在这里。这款应用还能提供更多功能。</p>
+<p>以下是您可以在此基础上构建的功能列表，这将有助于您了解更多关于React Native、数据结构、存储和架构的信息，并在此过程中，将此项目转化为一个更加完美的生产就绪型应用程序:</p>
+<h3>时间段选择器</h3>
+<p>随着时间的推移，随着用户输入越来越多的数据，图表视图将变得过于拥挤，无法显示所有内容。允许用户选择一个时间段，并从数据库中过滤数据，以便只获取和显示该时间段的重量</p>
+<h3>导入/导出数据</h3>
+<p>离线应用的一个常见问题是数据同步。用户可能会丢失手机、摔坏手机、重置手机等。还有许多其他情况，设备存储的数据将永远丢失。为了避免这种混乱，离线应用程序需要提供一种将数据导出为CSV或PDF文件等可移植格式的方法。</p>
+<p>还应该有一个导入功能，让用户从以前导出的文件导入数据。当用户获得新设备并希望在新设备上继续使用您的应用程序时，这尤其有用。</p>
+<h3>提醒通知</h3>
+<p>如果用户当天没有记录体重，应用程序可以在一天结束时发送提醒推送通知，这将非常方便。当然，推送不想要的通知可能会非常烦人，所以构建一个设置选项，以便用户可以打开或关闭。</p>
+<p>随着上述三个想法的实施，以及你选择添加的任何你自己的想法，我相信你可以将其转变为商店中的下一个大应用。如果你真的在商店上发布了它或者开发了一个或多个这样的功能，别忘了发推文。</p><div class="code-block code-block-18">
+<div class="blog-plug inline-plug react-native-plug"><h2><a href="https://lp.logrocket.com/blg/react-native-signup"> LogRocket </a>:即时重现React原生应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/110055665562c1e02069b3698e6cc671.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/110055665562c1e02069b3698e6cc671.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/10/react-native-plug_v2-2.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款React原生监控解决方案，可帮助您即时重现问题、确定bug的优先级并了解React原生应用的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的React原生应用— <a class="signup" href="https://lp.logrocket.com/blg/react-native-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

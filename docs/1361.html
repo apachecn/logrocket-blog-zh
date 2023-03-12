@@ -1,0 +1,98 @@
+<html>
+<head>
+<title>How the virtual DOM works in Vue.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>虚拟DOM如何在Vue.js - LogRocket博客中工作</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-the-virtual-dom-works-in-vue-js/#0001-01-01">https://blog.logrocket.com/how-the-virtual-dom-works-in-vue-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>Vue.js是一个JavaScript框架，以其快速的加载速度和易于扩展而闻名。它的一些特性可以直接联系到它使用虚拟DOM来更新实际的DOM。</p>
+<p>理解虚拟DOM并不是学习Vue.js的要求，但它肯定可以帮助初学Vue的开发人员开始理解幕后发生的一些事情。</p>
+<h2>大教堂本身</h2>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Page Title&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;This is a Heading&lt;/h1&gt;
+&lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>在我们讨论Vue.js虚拟DOM之前，理解DOM本身是什么很重要。文档对象模型(DOM)是一种将所有标记语言(您的HTML)视为连接节点的接口。它可以被视为存储在树状结构中的标记元素的对象接口。</p>
+<p>DOM允许我们编写和改变元素的样式，甚至改变元素本身。这是通过在文档的头和主体中添加、修改或删除元素标记或CSS样式来实现的，因为它们被表示为节点和对象。这就是HTML DOM的工作方式——那么为什么Vue会有另一个DOM呢？</p>
+<p><img data-attachment-id="29918" data-permalink="https://blog.logrocket.com/how-the-virtual-dom-works-in-vue-js/wireframe-html-dom/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wireframe of HTML DOM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png" decoding="async" class="aligncenter size-full wp-image-29918 jetpack-lazy-image" src="../Images/bb56861f581bb72627ba4dcfc5b507cf.png" alt="Wireframe of the HTML DOM" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom-300x191.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29918" data-permalink="https://blog.logrocket.com/how-the-virtual-dom-works-in-vue-js/wireframe-html-dom/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Wireframe of HTML DOM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29918" src="../Images/bb56861f581bb72627ba4dcfc5b507cf.png" alt="Wireframe of the HTML DOM" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom-300x191.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/wireframe-html-dom.png"/></noscript>
+<h3>为什么传统的DOM是不够的</h3>
+<p>所以DOM一切都很好。然而，随着应用程序的增长——这意味着要遍历更多的节点、更多的元素以及更多的与这些元素通信的脚本DOM增长得更慢，并且消耗了大量的处理能力。</p>
+<p>尝试执行搜索甚至更新DOM变得很困难，最终会影响应用程序的性能。这就是创建虚拟DOM的原因。</p>
+<h2>Vue.js虚拟DOM</h2>
+<p>Vue.js团队构建了虚拟DOM，作为传统DOM的一种抽象；这是一个HTML DOM的“精简”版本，但是拥有超能力。虚拟DOM更智能，因此它找到了比传统DOM更高效的方法。</p>
+<p>实现这一点的主要方法是通过各种diff算法来避免在对文档进行任何新的更改或更新后重新呈现整个DOM。仅仅这一点就在很大程度上提高了效率和资源管理，因为DOM API被调用的频率降低了。</p>
+<p>根据解释，虚拟DOM位于实际DOM和Vue实例之间。</p>
+<pre>new Vue({
+ el: '#app',
+ data: {
+   text: 'hi LogRocket'
+ },
+ render(createElement) {
+   return createElement(
+    'h1',
+    { attrs: { id: 'headers' } },
+  this.text
+  );
+ }
+});
+</pre>
+<p>这会在渲染时返回以下元素:</p>
+<pre>&lt;div id=’app’&gt;
+ &lt;h1 id=’headers’&gt;hi LogRocket&lt;/h1&gt;
+&lt;/div&gt;
+</pre>
+<p>你看到Vue虚拟DOM是由Vue组件组成的，这些组件是扩展Vue实例的JavaScript对象。Vue之所以使用虚拟DOM，是因为与实际的DOM相比，虚拟DOM在速度和效率上有着天壤之别。虚拟DOM的大小也比实际的DOM小，因此非常高效。</p>
+<h3>它是如何工作的</h3>
+<p>让我们使用一个包含条件语句的表单来展示虚拟DOM是如何工作的:</p>
+<pre>&lt;form&gt;
+ &lt;div&gt;
+ &lt;div class=”form-group” :class=”{‘form-group — error’: $v.name.$error }”&gt;
+ &lt;label class=”form__label”&gt;Full Name&lt;/label&gt;
+ &lt;input class=”form__input” v-model.trim=”$v.name.$model”/&gt;
+ &lt;/div&gt;
+  &lt;span class=”error” v-if=”!$v.name.required”&gt;Field is required&lt;/span&gt;
+ &lt;/div&gt;
+&lt;/form&gt;
+</pre>
+<p>注意上面的代码块有一个<code>span</code>和一个<code>v-if</code>语句，当没有输入名字时，显示一个<code>error</code>类。在这段代码中，如果您没有在指示“字段是必需的”的框中键入名称，则会出现一条小横线如果<code>v-if</code>条件返回<code>true</code>，虚拟DOM中的变化将是有条件地添加这个<code>span</code>元素。</p>
+<p>在读取这一行之前，实际的DOM和虚拟的DOM将读取相同的内容；满足这个条件后，现在在两种状态之间进行比较(在实际DOM和虚拟DOM中)，这个比较将输出一个修改补丁，这些修改将应用于实际DOM，而无需重新呈现它。通过这种方式，两个DOM立即恢复原样。</p>
+<h3>如何将虚拟DOM挂载到HTML元素中</h3>
+<p>您可能没有注意到，但是每当您为新项目运行Vue.js命令时，比如hello world:</p>
+<pre>vue create hello-world
+</pre>
+<p>您会看到，默认情况下，您已经在使用Vue的虚拟DOM你可以在查看<code>main.js</code>文件时确认这一点。它应该类似于下面的代码块:</p>
+<pre>import Vue from 'vue'
+import App from './App'
+
+new Vue({
+  el: '#app',
+  components: { App }
+});
+</pre>
+<p>你可以看到这里的元素是任何ID为<code>App</code>的元素，通常是<code>App.vue</code>文件中的<code>App</code>组件。在任何组件中，您都可以通过使用<code>el</code>选项来明确地定位您选择的元素，并且它会被挂载到HTML DOM中。</p>
+<h2>一些教训</h2>
+<p>看到Vue.js中的虚拟DOM在幕后发生的事情令人耳目一新。同样重要的是要认识到，我们编写的任何代码都是由虚拟DOM解析的，而我们的模板部分中的指令甚至事件并不会以这种方式在实际的DOM中结束。</p>
+<p>Vue利用它们，处理它们，创建的补丁就是实际的DOM。您可以在浏览器中轻松检查您的应用程序，以确认您不会看到任何指令。</p>
+<h2>结论</h2>
+<p>这篇文章概述了虚拟DOM在Vue.js中是如何工作的，并附有一些插图以及如何挂载它。我希望在读完这篇文章后，你能欣赏你每天创建Vue项目时所使用的东西背后的概念。黑客快乐！</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

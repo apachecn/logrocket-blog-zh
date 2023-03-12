@@ -1,0 +1,222 @@
+<html>
+<head>
+<title>Handling server-side applications with Nuxt’s Composition API - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Nuxt的组合API处理服务器端应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/handling-server-side-applications-with-nuxts-composition-api/#0001-01-01">https://blog.logrocket.com/handling-server-side-applications-with-nuxts-composition-api/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>最近，生态系统中采用Vue的组合API的情况有所增加。它在组件增长时维护组件的能力，以及它对重用组件的鼓励，在许多大型项目中都很有用。由于服务器端渲染，用Nuxt写的项目很难使用Vue的Composition API。Nuxt团队观察到了这一点，并为用Nuxt编写的项目整合了一个组合API。在本文中，我们将看看Nuxt组合API是如何工作的，它对Vue组合API的影响，以及在项目中使用它的最佳实践。</p>
+<h2>入门指南</h2>
+<p>要将Nuxt的Composition API添加到您的项目中，请像安装插件一样安装它:</p>
+<pre>npm install @nuxtjs/composition-api --save
+
+/*  For Yarn users */
+
+yarn add @nuxtjs/composition-api</pre>
+<p>成功完成后，在Nuxt配置文件中启用该模块:</p>
+<pre>{
+  buildModules: [
+    '@nuxtjs/composition-api'
+  ]
+}</pre>
+<h2>处理应用程序数据</h2>
+<p>用户在Nuxt项目中使用Vue的组合API时遇到的主要挑战来自于在应用程序的服务器端和客户端之间的通信期间没有返回数据。假设我们想要从API中检索数据并显示在Nuxt应用程序上:</p>
+<pre>import { ref } from '@nuxtjs/composition-api'
+
+function useTodo () {
+  const todo = ref({})
+
+  const fetchPost = async (id) =&gt; {
+    fetch('https://gorest.co.in/public-api/todos/' + user_id)
+      .then(response =&gt; response.json())
+      .then(json =&gt; post.value = json)
+  }
+
+  return {
+    todo,
+    fetchTodo
+  }  
+}</pre>
+<p>当我们试图在Nuxt应用程序中导入并使用<code>useTodo</code>函数时，从API中检索到的数据无法到达服务器端，因为获取数据的基本操作是异步的，而默认情况下，服务器端的实现是同步运行的。因此，下面的代码示例将返回一个空的<code>div</code>:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;{{ data.title }}&lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { useTodo } from '@/composables'
+
+export default defineComponent({
+  setup (props, { root }) {
+    const { todo, fetchTodo } = useTodo($root.route.params.user_id)
+
+    fetchTodo()
+
+    return { todo }
+  }
+})
+&lt;/script&gt;</pre>
+<p>Nuxt的Composition API提供了一个名为<code>useFetch</code>的包装器，用于从服务器端获取数据并将其转发给客户端。它在防止多个异步网络调用方面做了有用的工作，因为它确保导航只在服务器端进行一次，并且结果数据由我们的客户端代码检索并用作其初始状态。使用一个模拟REST API示例，让我们看看如何使用<code>useFetch</code>包装器检索数据:</p>
+<pre>import { defineComponent } from '@nuxtjs/composition-api'
+import { ref, useFetch } from '@nuxtjs/composition-api'
+
+function useTodo (id) {
+  const todo = ref({})
+
+  const { fetch: fetchTodo } = useFetch(async () =&gt; fetch('https://gorest.co.in/public-api/todos/' + user_id)
+    .then(response =&gt; response.json())
+    .then(json =&gt; todo.value = json)
+  )
+
+  return {
+    post,
+    fetchTodo
+  }  
+}</pre>
+<p>在上面的代码块中，<code>useFetch</code>返回<code>fetchTodo</code>——一个用于进行异步调用的fetch函数。一旦第一次进行这个调用，我们的服务器端代码将包含我们的待办事项列表:</p>
+<pre>&lt;div key="0"&gt;
+  Aggredior the testimony of the multitude, therefore I will restore the color of whic   h I see.
+&lt;/div&gt;</pre>
+<h2>使用Nuxt上下文访问附加模块</h2>
+<p>组合API还提供了访问由Nuxt上下文提供的属性的能力，比如存储、路由或环境变量。它通过一个名为<code>useContext</code>的包装器来实现这个功能，这个包装器也可以访问Nuxt模块属性。让我们看看<code>context</code>如何利用<code>nuxtjs/axios</code>模块发出请求。我们要做的第一件事是安装我们想要从中访问属性的模块:</p>
+<pre>npm install @nuxtjs/axios</pre>
+<p>接下来，我们将它添加到我们的Nuxt配置文件中:</p>
+<pre>// nuxt.config.js
+
+export default {
+  modules: [
+    '@nuxtjs/axios',
+  ],
+
+  axios: {
+    // proxy: true
+  }
+}</pre>
+<p>然后我们调用<code>$axios</code>属性来使用这个模块。让我们试着用<code>@nuxt/axios</code>替换前面的<code>fetchTodo</code>示例中的本机<code>fetch</code>方法:</p>
+<pre>import { defineComponent } from '@nuxtjs/composition-api'
+import { ref, useFetch, useContext } from '@nuxtjs/composition-api'
+
+function useTodo (id) {
+  const todo = ref({})
+  const { @axios } = useContext()
+
+  const { fetch: fetchTodo } = useFetch(async () =&gt;
+      todo.value = await $axios.$get('https://gorest.co.in/public-api/todos/' + id)
+
+  return {
+    post,
+    fetchTodo
+  }  
+}</pre>
+<h2>更新标题和HTML属性</h2>
+<p>Composition API提供了一个<code>usemeta()</code>钩子，使您能够直接与应用程序的标题属性和meta标签进行交互。使用<code>useMeta()</code>，您可以设置并限制对一个组件的标题状态的修改。让我们来看看这是如何工作的:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    Welcome Back
+    &lt;nuxt /&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+import {
+  defineComponent,
+  useContext,
+  useMeta,
+  watchEffect,
+} from "nuxt-composition-api";
+
+export default defineComponent({
+  name: "Home",
+  head: {},
+  setup() {
+    const { route } = useContext();
+    const { title } = useMeta();
+    watchEffect(() =&gt; {
+      title.value = route.value.path;
+    });
+  },
+});
+&lt;/script&gt;</pre>
+<p>在上面的代码示例中，我们利用<code>useMeta()</code>标签将我们的头值设置为由<code>useContext</code>包装器定义的路由——我们还可以进一步定义路由并个性化它们的头:</p>
+<pre>// StudentProfile.vue
+
+&lt;template&gt;
+  &lt;div&gt;
+    Student's Profile
+    &lt;nuxt-link to="/Grades"&gt;Grades&lt;/nuxt-link&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script lang="ts"&gt;
+import { defineComponent, useMeta } from "nuxt-composition-api";
+export default defineComponent({
+  name: "StudentProfile",
+  head: {},
+  setup() {
+    const { title } = useMeta();
+    title.value = "Here is your profile";
+  },
+});
+&lt;/script&gt;</pre>
+<p>通过<code>useMeta</code>标签分配给<code>title.value</code>的值定义了我们正在查看的任何路线的标题。另外，请注意，<code>head</code>属性的声明对于<code>useMeta</code>标签的工作非常重要:</p>
+<pre>// Grades.vue
+
+&lt;template&gt;
+  &lt;div&gt;
+    Grades
+    &lt;nuxt-link to="/StudentProfile"&gt;Student's Profile&lt;/nuxt-link&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script lang="ts"&gt;
+import { defineComponent, useMeta } from "nuxt-composition-api";
+export default defineComponent({
+  name: "Grades",
+  head: {},
+  setup() {
+    const { title } = useMeta();
+    title.value = "View your grades here";
+  },
+});
+&lt;/script&gt;</pre>
+<p>在浏览器上，它看起来是这样的:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/oMDb3hirA58?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h2>组合API的性能注意事项</h2>
+<p>Nuxt的组合API在事实检查方面非常严格，因此在使用过程中需要遵守一些规则。其中一个规则是，当在全局<a href="https://pikax.me/vue-composable/composable/" target="_blank" rel="noopener">组件</a>中应用<code>useAsync</code>和<code>ssrRef</code>这样的帮助函数时，要确保使用一个唯一的键。未能为相关函数设置唯一键可能会导致常量或变量采用未分配给它们的值。看看下面的代码示例:</p>
+<pre>function useTodo() {
+
+// Only one unique key is generated, no matter how many times this function is called.
+
+    const todo = ssrRef('')
+
+    return todo
+}
+
+const a = useTodo()
+const b = useTodo()
+
+b.value = 'Buy Gas'</pre>
+<p>在上面的代码示例中，如果没有设置唯一键，客户端上的值<code>a</code>也会被初始化为<code>Buy Gas</code>。如果给<code>useTodo</code>功能分配一个键，就可以防止这种情况:</p>
+<pre>function useTodo(path: string) {
+    const task = useAsync(
+        () =&gt; fetch(`https://api.com/slug/${path}`).then(r =&gt; r.json()),
+        path,
+    )
+
+    return {
+        task
+    }
+}
+
+export default useTodo</pre>
+<h2>结论</h2>
+<p>Nuxt的组合API是出于更无缝地处理服务器端应用程序中的组合的需要而创建的。尽管它的采用仍处于早期阶段——看到它支持大型项目并取得与Vue的Composition API类似的成功并不奇怪。如果你需要看一下这篇文章中的一个例子的代码演示，你可以点击这里查看。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

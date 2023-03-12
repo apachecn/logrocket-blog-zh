@@ -1,0 +1,273 @@
+<html>
+<head>
+<title>Infinite scroll techniques in React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React - LogRocket博客中的无限滚动技术</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/infinite-scroll-techniques-in-react-adcfd7ff32bd/#0001-01-01">https://blog.logrocket.com/infinite-scroll-techniques-in-react-adcfd7ff32bd/#0001-01-01</a></blockquote><div><article class="article-post">
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/150c76036ebc88002413c648acb161b2.png" data-image-id="0*ADvLjzLzT7SELZDs.gif" data-width="800" data-height="600" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*ADvLjzLzT7SELZDs.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*ADvLjzLzT7SELZDs.gif"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/150c76036ebc88002413c648acb161b2.png" data-image-id="0*ADvLjzLzT7SELZDs.gif" data-width="800" data-height="600" data-original-src="https://cdn-images-1.medium.com/max/1600/0*ADvLjzLzT7SELZDs.gif"/></noscript></figure>
+<h3 class="graf graf--h3">介绍</h3>
+<p class="graf graf--p"><strong class="markup--strong markup--p-strong">无限滚动</strong>是一种网页设计技术，当用户向下滚动页面时，它会持续加载内容，从而消除了分页的需要。</p>
+<p class="graf graf--p">内容通常通过向服务器发出请求来异步加载。通常这可以改善网站的用户体验。</p>
+<p class="graf graf--p">但并不总是如此。有时候很可怕。</p>
+<p class="graf graf--p">无限滚动技术上需要给window对象或者某个div添加一个<code>scroll</code>事件监听器。这将确定滚动何时到达div的底部，然后相应地执行操作。</p>
+<p class="graf graf--p">在本教程中，我将解释在React中实现无限滚动的两种方法:</p>
+<ol class="postList">
+<li class="graf graf--li">第一种方法描述了从头开始实现一切</li>
+<li class="graf graf--li">第二种方法使用已经可用的无限卷轴库/组件</li>
+</ol>
+<p class="graf graf--p">要完成本教程，需要对React有基本的了解。</p>
+<figure class="graf graf--figure graf--layoutOutsetCenter"><a class="graf-imageAnchor" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer" data-href="https://logrocket.com/signup/" data-action="image-link" data-action-observe-only="true"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/37fb366b01f8ba4b23129468d1953129.png" data-image-id="1*GPjaPKNNUYHU8EsA3Z0JGA.png" data-width="3212" data-height="750" data-lazy-src="https://cdn-images-1.medium.com/max/2400/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/2400/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/37fb366b01f8ba4b23129468d1953129.png" data-image-id="1*GPjaPKNNUYHU8EsA3Z0JGA.png" data-width="3212" data-height="750" data-original-src="https://cdn-images-1.medium.com/max/2400/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/></noscript></a></figure>
+<h3 class="graf graf--h3">从头开始实施</h3>
+<p class="graf graf--p">如前所述，无限滚动是将事件侦听器附加到DOM元素，同时观察滚动条何时到达div的底部。</p>
+<p class="graf graf--p">看看下面这个组件的渲染函数:</p>
+<pre>render() {
+return (
+  &lt;div
+    className="App"
+    ref="myscroll"
+    style={{ height: "420px", overflow: "auto" }}
+  &gt;
+    &lt;header className="App-header"&gt;
+      &lt;h1 className="App-title"&gt;Welcome to React&lt;/h1&gt;
+    &lt;/header&gt;
+    &lt;ul&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+);
+}</pre>
+<p class="graf graf--p">假设您想在每次带有类<code>App</code>的div到达div末尾时将更多的<code>li</code>项加载到<code>ul</code>标签中，您如何处理这个问题？</p>
+<p class="graf graf--p">首先，注意有一个对名为<code>myscroll</code>的div的引用，这使得使用<code>this.refs.myscroll</code>访问React中的元素成为可能。</p>
+<p class="graf graf--p">在构造函数中声明一个初始状态:</p>
+<pre>constructor(props) {
+    super(props);
+    this.state = {
+      items: 20,
+      loading: false
+    };
+}</pre>
+<p class="graf graf--p">在这里，您声明了两种状态:<code>items</code>和<code>loading</code>。项目包含了可显示为<code>li</code>标签的项目数量，而加载状态将在无限加载器获取更多项目时显示。</p>
+<p class="graf graf--p">接下来，创建一个呈现所有项目的函数:</p>
+<pre>showItems() {
+    var items = [];
+    for (var i = 0; i &lt; this.state.items; i++) {
+      items.push(&lt;li key={i}&gt;Item {i}&lt;/li&gt;);
+    }
+    return items;
+}</pre>
+<p class="graf graf--p">该函数遍历当前的商品数量，并创建一个显示商品编号的<code>li</code>标签。</p>
+<p class="graf graf--p">现在，更新您的渲染函数以显示这些项目:</p>
+<pre>render() {
+    return (
+      &lt;div
+        className="App"
+        ref="myscroll"
+        style={{ height: "420px", overflow: "auto" }}
+      &gt;
+        &lt;header className="App-header"&gt;
+          &lt;h1 className="App-title"&gt;Welcome to React&lt;/h1&gt;
+        &lt;/header&gt;
+        &lt;ul&gt;
+          {this.showItems()}
+        &lt;/ul&gt;
+        {this.state.loading
+          ? &lt;p className="App-intro"&gt;
+          loading ...
+        &lt;/p&gt;
+          : ""}
+      &lt;/div&gt;
+    );
+}</pre>
+<p class="graf graf--p">你所拥有的是一个普通的组件，它显示了几个显示商品编号的<code>li</code>。如何给这个组件添加无限滚动？还记得那个叫<code>myscroll</code>的<code>ref</code>吗？你现在可以用它了。定义<code>ComponentWillMount</code>方法:</p>
+<pre>componentDidMount() {
+    // Detect when scrolled to bottom.
+    this.refs.myscroll.addEventListener("scroll", () =&gt; {
+      if (
+        this.refs.myscroll.scrollTop + this.refs.myscroll.clientHeight &gt;=
+        this.refs.myscroll.scrollHeight
+      ) {
+        this.loadMore();
+      }
+    });
+}</pre>
+<p class="graf graf--p">在上面的方法中，一个滚动监听器被添加到引用目标div的<code>myscroll</code> ref中。在这里，您使用元素的<code>scrollTop</code>属性获取滚动位置(相对于窗口顶部)，然后将其添加到<code>clientHeight</code>属性(文档的高度)。</p>
+<p class="graf graf--p">接下来，检查这两个属性的总和是否大于或等于滚动条的高度。如果假设为真，那么已经到达了div的底部。然后，一个名为<code>loadMore</code>(接下来将创建)的新函数被触发。</p>
+<p class="graf graf--p">下面是<code>loadMore</code>函数的样子:</p>
+<pre>loadMore() {
+    this.setState({ loading: true });
+    setTimeout(() =&gt; {
+        this.setState({ items: this.state.items + 20, loading: false });
+    }, 2000);
+}</pre>
+<p class="graf graf--p">在这个方法中，<code>loading</code>首先被设置为<code>true</code>，因此显示加载div。接下来，调用超时功能，在此之后，项目增加<code>20</code>，并且<code>loading</code>状态被设置回假。</p>
+<p class="graf graf--p">然而，超时的原因是为了引起一点延迟。在您的应用程序中，您可能想对您的服务器发出一个<code>fetch or</code> <code>axios</code>调用，然后改变状态。</p>
+<p class="graf graf--p">但是不管你的用例是什么，这个概念都是一样的。</p>
+<p class="graf graf--p">最终组件应该是这样的:</p>
+<pre>import React, { Component } from "react";
+    import logo from "./logo.svg";
+    import "./App.css";
+    
+    class App extends Component {
+      constructor(props) {
+        super(props);
+        this.state = {
+          items: 20,
+          loading: false
+        };
+      }
+      componentDidMount() {
+        // Detect when scrolled to bottom.
+        this.refs.myscroll.addEventListener("scroll", () =&gt; {
+          if (
+            this.refs.myscroll.scrollTop + this.refs.myscroll.clientHeight &gt;=
+            this.refs.myscroll.scrollHeight
+          ) {
+            this.loadMore();
+          }
+        });
+      }
+    
+      showItems() {
+        var items = [];
+        for (var i = 0; i &lt; this.state.items; i++) {
+          items.push(&lt;li key={i}&gt;Item {i}&lt;/li&gt;);
+        }
+        return items;
+      }
+    
+      loadMore() {
+        this.setState({ loading: true });
+        setTimeout(() =&gt; {
+          this.setState({ items: this.state.items + 20, loading: false });
+        }, 2000);
+      }
+    
+      render() {
+        return (
+          &lt;div
+            className="App"
+            ref="myscroll"
+            style={{ height: "420px", overflow: "auto" }}
+          &gt;
+            &lt;header className="App-header"&gt;
+              &lt;img src={logo} className="App-logo" alt="logo" /&gt;
+              &lt;h1 className="App-title"&gt;Welcome to React&lt;/h1&gt;
+            &lt;/header&gt;
+            &lt;ul&gt;
+              {this.showItems()}
+            &lt;/ul&gt;
+            {this.state.loading
+              ? &lt;p className="App-intro"&gt;
+                  loading ...
+                &lt;/p&gt;
+              : ""}
+    
+          &lt;/div&gt;
+        );
+      }
+    }
+    
+    export default App;
+</pre>
+<h3 class="graf graf--h3">使用无限卷轴库</h3>
+<p class="graf graf--p">虽然第一种方法展示了在React应用程序中实现无限滚动是多么容易，但是您可能不满足于自己实现事件侦听器。</p>
+<p class="graf graf--p">你也可能只是想要一个简单的解决方案，因为你有点懒(或者，更有可能的是，时间紧迫)。</p>
+<p class="graf graf--p">没关系，我会掩护你的。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p class="graf graf--p">为此，您可以使用<code>React-infinite-scroller</code>，此处可用<a class="markup--anchor markup--p-anchor" href="https://github.com/CassetteRocks/react-infinite-scroller" target="_blank" rel="noopener noreferrer" data-href="https://github.com/CassetteRocks/react-infinite-scroller"/>。这里有一个如何使用它的例子:</p>
+<pre>import React, { Component } from "react";
+    import logo from "./logo.svg";
+    import "./App.css";
+    
+    import InfiniteScroll from "react-infinite-scroller";
+    
+    class Scroll2 extends Component {
+      constructor(props) {
+        super(props);
+        this.state = {
+          items: 20,
+          hasMoreItems: true
+        };
+      }
+    
+      showItems() {
+        var items = [];
+        for (var i = 0; i &lt; this.state.items; i++) {
+          items.push(&lt;li key={i}&gt; Item {i} &lt;/li&gt;);
+        }
+        return items;
+      }
+    
+      loadMore() {
+        if(this.state.items===200){
+          
+          this.setState({ hasMoreItems: false});
+        }else{
+            setTimeout(() =&gt; {
+            this.setState({ items: this.state.items + 20});
+        }, 2000);
+        }
+        
+      }
+    
+      render() {
+        return (
+          &lt;div className="App"&gt;
+            &lt;header className="App-header"&gt;
+              &lt;img src={logo} className="App-logo" alt="logo" /&gt;
+              &lt;h1 className="App-title"&gt; Welcome to React &lt;/h1&gt;{" "}
+            &lt;/header&gt;
+    
+            &lt;div style={{height:'200px', overflow:'auto'}}&gt;
+              &lt;InfiniteScroll
+                loadMore={this.loadMore.bind(this)}
+                hasMore={this.state.hasMoreItems}
+                loader={&lt;div className="loader"&gt; Loading... &lt;/div&gt;}
+                useWindow={false}
+              &gt;
+                {this.showItems()}{" "}
+              &lt;/InfiniteScroll&gt;{" "}
+            &lt;/div&gt;{" "}
+          &lt;/div&gt;
+        );
+      }
+    }
+    
+    export default Scroll2;
+</pre>
+<p class="graf graf--p">看上面的代码，注意它看起来和前面的方法相似？这个代码与前一个方法的主要区别是什么？</p>
+<ul class="postList">
+<li class="graf graf--li">这里，没有附加事件侦听器</li>
+<li class="graf graf--li">这里没有引用div，因为不需要它</li>
+<li class="graf graf--li">未定义加载状态。相反，有一个<code>hasMoreItems</code>用于告诉无限滚动组件分离事件监听器</li>
+<li class="graf graf--li">对<code>loadMore</code>函数的修改，一旦项目his 200，就将<code>hasMoreItems</code>状态设置为假</li>
+</ul>
+<h3 class="graf graf--h3">结论</h3>
+<p class="graf graf--p">现在你有了两种不同的方法，可以让你在React应用中实现无限滚动。</p>
+<p class="graf graf--p">对于那些想自己参与编写事件侦听器的人来说，您已经看到了它是多么简单和容易。</p>
+<p class="graf graf--p">对于那些不想参与附加事件侦听器的人来说，有一种方法也适用于您。</p>
+<p class="graf graf--p">有什么评论或意见吗？评论区就是干这个的。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+  </div>    
+</body>
+</html>

@@ -1,0 +1,407 @@
+<html>
+<head>
+<title>Understanding Shadow DOM v1 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解Shadow DOM v1 - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-shadow-dom-v1-fa9b81ebe3ac/#0001-01-01">https://blog.logrocket.com/understanding-shadow-dom-v1-fa9b81ebe3ac/#0001-01-01</a></blockquote><div><div class="section-inner sectionLayout--insetColumn">
+<h3 class="graf graf--h3">什么是DOM？</h3>
+<p class="graf graf--p">在我们深入研究如何创建影子DOM之前，理解DOM是什么很重要。W3C文档对象模型(DOM)提供了一个平台和语言中立的应用程序编程接口(API ),用于表示和操作存储在HTML和XML文档中的信息。</p>
+<p class="graf graf--p">使用DOM，程序员可以访问、添加、删除或更改元素和内容。DOM将网页视为树结构，每个分支以一个节点结束，每个节点保存一个对象，可以使用JavaScript等脚本语言修改该对象。考虑下面的HTML文档:</p>
+<pre class="graf graf--pre">&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Sample document&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;Heading&lt;/h1&gt;
+    &lt;a href="<a class="markup--anchor markup--pre-anchor" href="https://example.com" target="_blank" rel="nofollow noopener noreferrer" data-href="https://example.com">https://example.com</a>"&gt;Link&lt;/a&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p class="graf graf--p">这个HTML的DOM表示如下:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/6a5415f92791b59386cf2d4422ff61b9.png" data-image-id="1*bM6Ql5lImhMD3NCTuiF68g.png" data-width="1117" data-height="883" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*bM6Ql5lImhMD3NCTuiF68g.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*bM6Ql5lImhMD3NCTuiF68g.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/6a5415f92791b59386cf2d4422ff61b9.png" data-image-id="1*bM6Ql5lImhMD3NCTuiF68g.png" data-width="1117" data-height="883" data-original-src="https://storage.googleapis.com/blog-images-backup/1*bM6Ql5lImhMD3NCTuiF68g.png"/></noscript><figcaption class="imageCaption">All boxes in this figure are nodes.</figcaption></figure>
+<p class="graf graf--p">用于描述DOM各部分的术语类似于现实世界中的家谱:</p>
+<ul class="postList">
+<li class="graf graf--li">给定节点上一级的节点是该节点的父节点</li>
+<li class="graf graf--li">给定节点下一级的节点是该节点的子节点</li>
+<li class="graf graf--li">具有相同父节点的节点是兄弟节点</li>
+<li class="graf graf--li">给定节点之上的所有节点，包括父节点和祖父节点，都被称为该节点的祖先</li>
+<li class="graf graf--li">最后，给定节点下的所有节点都称为该节点的后代</li>
+</ul>
+<p class="graf graf--p">节点的类型取决于它所代表的HTML元素的种类。HTML标签被称为元素节点。嵌套标签形成了一个元素树。元素中的文本称为文本节点。文本节点可能没有子节点；你可以把它想象成一片树叶。</p>
+<p class="graf graf--p">为了访问树，DOM提供了一组方法，程序员可以用这些方法修改文档的内容和结构。例如，当您编写<code>document.createElement('p');</code>时，您正在使用DOM提供的方法。没有DOM，JavaScript就无法理解HTML和XML文档的结构。</p>
+<p class="graf graf--p">以下JavaScript代码显示了如何使用DOM方法创建两个HTML元素，将一个元素嵌套在另一个元素中，设置文本内容，并将它们追加到文档正文中:</p>
+<pre class="graf graf--pre">const section = document.createElement('section');
+const p = document.createElement('p');
+
+p.textContent = 'Hello!';
+
+section.appendChild(p);
+
+document.body.appendChild(section);</pre>
+<p class="graf graf--p">以下是运行这段JavaScript代码后得到的DOM结构:</p>
+<pre class="graf graf--pre">&lt;body&gt;
+  &lt;section&gt;
+    &lt;p&gt;Hello!&lt;/p&gt;
+  &lt;/section&gt;
+&lt;/body&gt;</pre>
+<h3 class="graf graf--h3">什么是影子DOM？</h3>
+<p class="graf graf--p">封装是面向对象编程的一个基本特性，它使程序员能够限制对对象组件的未授权访问。</p>
+<p class="graf graf--p">根据这个定义，对象以可公开访问的方法的形式提供一个接口，作为与其数据交互的一种方式。这样，就不能从对象定义的外部直接访问对象的内部表示。</p>
+<p class="graf graf--p">影子DOM将这个概念带到了HTML中。它使您能够将一个隐藏的、分离的DOM链接到一个元素，这意味着您可以对HTML和CSS进行本地作用域。您现在可以使用更通用的CSS选择器，而不用担心命名冲突，并且样式不再泄漏或应用于它们不应该应用的元素。</p>
+<p class="graf graf--p">实际上，Shadow DOM API正是库和小部件开发人员将HTML结构、样式和行为与代码的其他部分分开所需要的。</p>
+<p class="graf graf--p">影像根是影像树中最顶端的节点。这是创建影子DOM时附加到常规DOM节点的内容。与影子根相关联的节点称为影子主机。</p>
+<p class="graf graf--p">您可以像对待普通DOM一样将元素附加到影子根。链接到影子根的节点形成影子树。一张图应该能让这一点更清楚:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/10cba990c7f0d403a3fdb5b4bf47c8e1.png" data-image-id="1*G35_koIDio_s94u57QzmZA.png" data-width="1255" data-height="804" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*G35_koIDio_s94u57QzmZA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*G35_koIDio_s94u57QzmZA.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/10cba990c7f0d403a3fdb5b4bf47c8e1.png" data-image-id="1*G35_koIDio_s94u57QzmZA.png" data-width="1255" data-height="804" data-original-src="https://storage.googleapis.com/blog-images-backup/1*G35_koIDio_s94u57QzmZA.png"/></noscript></figure>
+<p class="graf graf--p">术语光DOM通常用于区分正常DOM和阴影DOM。阴影DOM和光DOM合起来称为逻辑DOM。灯光DOM与阴影DOM分离的点称为阴影边界。DOM查询和CSS规则不能到达阴影边界的另一边，从而创建封装。</p>
+<h3 class="graf graf--h3">创建阴影DOM</h3>
+<p class="graf graf--p">要创建一个影子DOM，您需要使用<code>Element.attachShadow()</code>方法将一个影子根附加到一个元素上。下面是语法:</p>
+<pre class="graf graf--pre">var shadowroot = element.attachShadow(shadowRootInit);</pre>
+<p class="graf graf--p">让我们看一个简单的例子:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;p&gt;Default text&lt;/p&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+     
+  // attach a shadow root to #host
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+     
+  // create a &lt;p&gt; element
+  const p = document.createElement('p');
+     
+  // add &lt;p&gt; to the shadow DOM
+  shadowRoot.appendChild(p);
+     
+  // add text to &lt;p&gt; 
+  p.textContent = 'Hello!';
+&lt;/script&gt;</pre>
+<p class="graf graf--p">这段代码将一个阴影DOM树附加到一个<code>id</code>为<code>host</code>的<code>div</code>元素上。这个树与<code>div</code>的实际子树是分开的，添加到树中的任何东西都是宿主元素的本地内容。</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/547cbb7416a337a6df021764c9ce842d.png" data-image-id="1*y2gTKKe8oJ9NOoi6t3lZ4Q.png" data-width="840" data-height="197" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*y2gTKKe8oJ9NOoi6t3lZ4Q.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*y2gTKKe8oJ9NOoi6t3lZ4Q.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/547cbb7416a337a6df021764c9ce842d.png" data-image-id="1*y2gTKKe8oJ9NOoi6t3lZ4Q.png" data-width="840" data-height="197" data-original-src="https://storage.googleapis.com/blog-images-backup/1*y2gTKKe8oJ9NOoi6t3lZ4Q.png"/></noscript><figcaption class="imageCaption"><em class="markup--em markup--figure-em">Shadow root in Chrome DevTools.</em></figcaption></figure>
+<p class="graf graf--p">注意<code>#host</code>中的现有元素是如何被影子根替换的。不支持影子DOM的浏览器将使用默认内容。</p>
+<p class="graf graf--p">现在，当向主文档添加CSS时，样式规则不会影响影子DOM:</p>
+<pre class="graf graf--pre">&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+ 
+  // attach a shadow root to #host
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+ 
+  // set the HTML contained within the shadow root
+  shadowRoot.innerHTML = '&lt;p&gt;Shadow DOM&lt;/p&gt;';
+&lt;/script&gt;
+
+&lt;style&gt;
+  p {color: red}
+&lt;/style&gt;</pre>
+<p class="graf graf--p">light DOM中定义的样式不能跨越阴影边界。因此，只有浅色DOM中的段落会变成红色。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/150ee60eaa4e84c819facf0c0ba9628a.png" data-image-id="1*suNI_ZRw7DTKw4qVglba2A.png" data-width="699" data-height="256" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*suNI_ZRw7DTKw4qVglba2A.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*suNI_ZRw7DTKw4qVglba2A.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/150ee60eaa4e84c819facf0c0ba9628a.png" data-image-id="1*suNI_ZRw7DTKw4qVglba2A.png" data-width="699" data-height="256" data-original-src="https://storage.googleapis.com/blog-images-backup/1*suNI_ZRw7DTKw4qVglba2A.png"/></noscript></figure>
+<p class="graf graf--p">相反，添加到影子DOM中的CSS是宿主元素的本地元素，不会影响DOM中的其他元素:</p>
+<pre class="graf graf--pre">&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});</pre>
+<pre class="graf graf--pre">  shadowRoot.innerHTML = `
+    &lt;p&gt;Shadow DOM&lt;/p&gt;
+    &lt;style&gt;p {color: red}&lt;/style&gt;`;
+
+&lt;/script&gt;</pre>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/5c9dc5734ff81902c5e1736631565da7.png" data-image-id="1*urR49nrpiy0bmGlY2Fdwmg.png" data-width="699" data-height="256" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*urR49nrpiy0bmGlY2Fdwmg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*urR49nrpiy0bmGlY2Fdwmg.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/5c9dc5734ff81902c5e1736631565da7.png" data-image-id="1*urR49nrpiy0bmGlY2Fdwmg.png" data-width="699" data-height="256" data-original-src="https://storage.googleapis.com/blog-images-backup/1*urR49nrpiy0bmGlY2Fdwmg.png"/></noscript></figure>
+<p class="graf graf--p">您也可以将样式规则放在外部样式表中，如下所示:</p>
+<pre class="graf graf--pre">shadowRoot.innerHTML = `
+  &lt;p&gt;Shadow DOM&lt;/p&gt;
+  &lt;link rel="stylesheet" href="style.css"&gt;`;</pre>
+<p class="graf graf--p">要获取对附加了<code>shadowRoot</code>的元素的引用，可以使用<code>host</code>属性:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  console.log(shadowRoot.host);    // =&gt; &lt;div id="host"&gt;&lt;/div&gt;
+&lt;/script&gt;</pre>
+<p class="graf graf--p">要做相反的事情并获得对由元素托管的影子根的引用，请使用元素的<code>shadowRoot</code>属性:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+ 
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  console.log(elem.shadowRoot);    // =&gt; #shadow-root (open)
+&lt;/script&gt;</pre>
+<h3 class="graf graf--h3">影网尝尝</h3>
+<p class="graf graf--p">当调用<code>Element.attachShadow()</code>方法来附加一个影子根时，必须通过传递一个对象作为参数来指定影子DOM树的封装模式，否则会抛出一个<code>TypeError</code>。该对象必须有一个值为<code>open</code>或<code>closed</code>的<code>mode</code>属性。</p>
+<p class="graf graf--p">开放的影像根允许您使用主机元素的<code>shadowRoot</code>属性从根外部访问影像根的元素，如下例所示:</p>
+<pre class="graf graf--pre">&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+
+  // attach an open shadow root to #host
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `&lt;p&gt;Shadow DOM&lt;/p&gt;`;
+
+  // Nodes of an open shadow DOM are accessible
+  // from outside the shadow root
+  elem.shadowRoot.querySelector('p').innerText = 'Changed from outside the shadow root';
+  elem.shadowRoot.querySelector('p').style.color = 'red';
+&lt;/script&gt;</pre>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/5647b7e9482d91029595cc33d84a57fa.png" data-image-id="1*OOc1pkscCQoL9oCwJhS0Cg.png" data-width="699" data-height="256" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*OOc1pkscCQoL9oCwJhS0Cg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*OOc1pkscCQoL9oCwJhS0Cg.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/5647b7e9482d91029595cc33d84a57fa.png" data-image-id="1*OOc1pkscCQoL9oCwJhS0Cg.png" data-width="699" data-height="256" data-original-src="https://storage.googleapis.com/blog-images-backup/1*OOc1pkscCQoL9oCwJhS0Cg.png"/></noscript></figure>
+<p class="graf graf--p">但是如果mode属性的值为<code>closed</code>，试图从根之外使用JavaScript来访问影子根的元素会抛出一个<code>TypeError</code>:</p>
+<pre class="graf graf--pre">&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+
+  // attach a closed shadow root to #host
+  const shadowRoot = elem.attachShadow({mode: 'closed'});
+
+  shadowRoot.innerHTML = `&lt;p&gt;Shadow DOM&lt;/p&gt;`;
+ 
+  elem.shadowRoot.querySelector('p').innerText = 'Now nodes cannot be accessed from outside';
+  // =&gt; TypeError: Cannot read property 'querySelector' of null 
+&lt;/script&gt;</pre>
+<p class="graf graf--p">当模式设置为<code>closed</code>时，<code>shadowRoot</code>属性返回<code>null</code>。因为一个<code>null</code>值没有任何属性或方法，对它调用<code>querySelector()</code>会导致一个<code>TypeError</code>。浏览器通常使用封闭的影子根来使一些元素的实现内部从JavaScript中不可访问和不可更改。</p>
+<p class="graf graf--p">要确定阴影DOM是处于打开模式还是关闭模式，可以参考阴影根的<code>mode</code>属性:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'closed'});
+
+  console.log(shadowRoot.mode);    // =&gt; closed
+&lt;/script&gt;</pre>
+<p class="graf graf--p">表面上，对于不想暴露组件影子根的Web组件作者来说，封闭的影子DOM显得非常方便；然而，在实践中，绕过封闭的阴影穹顶并不难。一般来说，完全隐藏一个影子DOM所需的努力是不值得的。</p>
+<h3 class="graf graf--h3">并非所有HTML元素都可以承载影子DOM</h3>
+<p class="graf graf--p">只有有限的元素集可以承载影子DOM。下表列出了支持的元素:</p>
+<pre class="graf graf--pre">+----------------+----------------+----------------+
+|    article     |      aside     |   blockquote   |
++----------------+----------------+----------------+
+|     body       |       div      |     footer     |
++----------------+----------------+----------------+
+|      h1        |       h2       |       h3       |
++----------------+----------------+----------------+
+|      h4        |       h5       |       h6       |
++----------------+----------------+----------------+
+|    header      |      main      |      nav       |
++----------------+----------------+----------------+
+|      p         |     section    |      span      |
++----------------+----------------+----------------+</pre>
+<p class="graf graf--p">试图将阴影DOM树附加到任何其他元素都会导致一个<code>DOMException</code>错误。例如:</p>
+<pre class="graf graf--pre">document.createElement('img').attachShadow({mode: 'open'});    
+// =&gt; DOMException</pre>
+<p class="graf graf--p">使用一个<code>&lt;img&gt;</code>元素作为影子主机是不合理的，所以这段代码抛出一个错误也就不足为奇了。您可能会得到一个<code>DOMException</code>错误的另一个原因是浏览器已经使用该元素来托管一个影子DOM。</p>
+<h3 class="graf graf--h3">浏览器会自动将阴影DOM附加到一些元素上</h3>
+<p class="graf graf--p">影子DOM已经存在了相当一段时间，浏览器一直用它来隐藏<code>&lt;input&gt;</code>、<code>&lt;textarea&gt;</code>、<code>&lt;video&gt;</code>等元素的内部结构。</p>
+<p class="graf graf--p">当您在HTML中使用<code>&lt;video&gt;</code>元素时，浏览器会自动为该元素附加一个阴影DOM，其中包含默认的浏览器控件。但是在DOM中唯一可见的是<code>&lt;video&gt;</code>元素本身:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/a72198b1d108b02833dcf1661b60794c.png" data-image-id="1*fkpGG-1YIDngidtJS97xPA.png" data-width="938" data-height="119" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*fkpGG-1YIDngidtJS97xPA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*fkpGG-1YIDngidtJS97xPA.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/a72198b1d108b02833dcf1661b60794c.png" data-image-id="1*fkpGG-1YIDngidtJS97xPA.png" data-width="938" data-height="119" data-original-src="https://storage.googleapis.com/blog-images-backup/1*fkpGG-1YIDngidtJS97xPA.png"/></noscript></figure>
+<p class="graf graf--p">要使这些元素的影子根在Chrome中可见，请打开Chrome DevTools设置(按F1)，并在“元素”部分选中“显示用户代理影子DOM”:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/4161f96e21fcc1eb26d6bfbf9cd73e75.png" data-image-id="1*ZRlGZWuWGu36sHx3d1KCHg.png" data-width="1160" data-height="437" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*ZRlGZWuWGu36sHx3d1KCHg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ZRlGZWuWGu36sHx3d1KCHg.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/4161f96e21fcc1eb26d6bfbf9cd73e75.png" data-image-id="1*ZRlGZWuWGu36sHx3d1KCHg.png" data-width="1160" data-height="437" data-original-src="https://storage.googleapis.com/blog-images-backup/1*ZRlGZWuWGu36sHx3d1KCHg.png"/></noscript></figure>
+<p class="graf graf--p">选中“显示用户代理影子DOM”选项后，影子根节点及其子节点变得可见。以下是启用该选项后相同代码的样子:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/03acc2bb9ea8d4fd88b916d134f5aba8.png" data-image-id="1*dNuxhiSTOp12KxYpuSLNkw.png" data-width="1095" data-height="448" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*dNuxhiSTOp12KxYpuSLNkw.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*dNuxhiSTOp12KxYpuSLNkw.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/03acc2bb9ea8d4fd88b916d134f5aba8.png" data-image-id="1*dNuxhiSTOp12KxYpuSLNkw.png" data-width="1095" data-height="448" data-original-src="https://storage.googleapis.com/blog-images-backup/1*dNuxhiSTOp12KxYpuSLNkw.png"/></noscript></figure>
+<h3 class="graf graf--h3">在自定义元素上承载阴影DOM</h3>
+<p class="graf graf--p">由自定义元素API创建的自定义元素可以像任何其他元素一样承载影子DOM。考虑下面的例子:</p>
+<pre class="graf graf--pre">&lt;my-element&gt;&lt;/my-element&gt;
+
+&lt;script&gt;
+  class MyElement extends HTMLElement {
+    constructor() {
+
+      // must be called before the this keyword
+      super();
+
+      // attach a shadow root to &lt;my-element&gt;
+      const shadowRoot = this.attachShadow({mode: 'open'});
+
+      shadowRoot.innerHTML = `
+        &lt;style&gt;p {color: red}&lt;/style&gt;
+        &lt;p&gt;Hello&lt;/p&gt;`;
+    }
+  }
+ 
+  // register a custom element on the page
+  customElements.define('my-element', MyElement);
+&lt;/script&gt;</pre>
+<p class="graf graf--p">这段代码创建了一个托管影子DOM的自治自定义元素。为此，它调用<code>customElements.define()</code>方法，将元素名作为第一个参数，将一个类对象作为第二个参数。该类扩展了<code>HTMLElement</code>并定义了元素的行为。</p>
+<p class="graf graf--p">在构造函数内部，<code>super()</code>用来建立原型链，一个影子根附加在自定义元素上。现在，当您在页面上使用<code>&lt;my-element&gt;</code>时，它会创建自己的影子DOM:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/610ba3c6f8b90bf60d38ab836971ee45.png" data-image-id="1*4iydLrl9S1UXTDZ94CmXxQ.png" data-width="806" data-height="127" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*4iydLrl9S1UXTDZ94CmXxQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*4iydLrl9S1UXTDZ94CmXxQ.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/610ba3c6f8b90bf60d38ab836971ee45.png" data-image-id="1*4iydLrl9S1UXTDZ94CmXxQ.png" data-width="806" data-height="127" data-original-src="https://storage.googleapis.com/blog-images-backup/1*4iydLrl9S1UXTDZ94CmXxQ.png"/></noscript></figure>
+<p class="graf graf--p">请记住，有效的自定义元素不能是一个单词，其名称中必须有一个连字符(-)。例如，<em class="markup--em markup--p-em"> myelement </em>不能用作定制元素的名称，并且会抛出一个<code>DOMException</code>错误。</p>
+<h3 class="graf graf--h3">设置主体元素的样式</h3>
+<p class="graf graf--p">通常，要设计主机元素的样式，需要将CSS添加到light DOM中，因为主机元素就位于那里。但是，如果需要在影子DOM中设计主机元素的样式，该怎么办呢？</p>
+<p class="graf graf--p">这就是<code>host()</code>伪类函数的用处。该选择器允许您从影子根目录中的任何位置访问影子主机。这里有一个例子:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `
+    &lt;p&gt;Shadow DOM&lt;/p&gt;
+    &lt;style&gt;
+      :host {
+        display: inline-block;
+        border: solid 3px #ccc;
+        padding: 0 15px;
+      }
+    &lt;/style&gt;`;
+
+&lt;/script&gt;</pre>
+<p class="graf graf--p">值得注意的是<code>:host</code>只在一个影子根内有效。还要记住，在影子根之外定义的样式规则比在<code>:host</code>中定义的规则具有更高的特异性。</p>
+<p class="graf graf--p">例如，<code>#host { font-size: 16px; }</code>击败了影子DOM的<code>:host { font-size: 20px; }</code>。这实际上很有用，因为它允许您为组件定义默认样式，并让组件的用户覆盖您的样式。唯一的例外是<code>!important</code>规则，它在影子DOM中有更高的特异性。</p>
+<p>您还可以将一个选择器作为参数传递给<code>:host()</code>，这允许您仅当主机与指定的选择器匹配时才将其作为目标。换句话说，它允许您针对同一主机的不同状态:</p>
+<pre class="graf graf--pre">&lt;style&gt;
+  :host(:focus) {
+    /* style host only if it has received focus */
+  }
+ 
+  :host(.blue) {
+    /* style host only if has a blue class */
+  }
+ 
+  :host([disabled]) {
+    /* style host only if it's disabled */
+  }
+&lt;/style&gt;</pre>
+<h3 class="graf graf--h3">基于上下文的样式</h3>
+<p class="graf graf--p">要选择特定祖先内部的影子根主机，可以使用<code>:host-context()</code>伪类函数。例如:</p>
+<pre class="graf graf--pre">:host-context(.main) {
+  font-weight: bold;
+}</pre>
+<p class="graf graf--p">只有当影子主机是<code>.main</code>的后代时，这个CSS代码才选择它:</p>
+<pre class="graf graf--pre">&lt;body class="main"&gt;
+  &lt;div id="host"&gt;
+  &lt;/div&gt;
+&lt;/body&gt;</pre>
+<p class="graf graf--p"><code>:host-context()</code>对主题化特别有用，因为它允许作者根据组件使用的上下文来设计组件的样式。</p>
+<h3 class="graf graf--h3">风格挂钩</h3>
+<p class="graf graf--p">shadow DOM的一个有趣的方面是它能够创建“样式占位符”并允许用户填充它们。这可以通过使用<a class="markup--anchor markup--p-anchor" href="https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables" target="_blank" rel="noopener noreferrer" data-href="https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables"> CSS自定义属性</a>来完成。让我们看一个简单的例子:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;style&gt;
+  #host {--size: 20px;}
+&lt;/style&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `
+    &lt;p&gt;Shadow DOM&lt;/p&gt;
+    &lt;style&gt;p {font-size: var(--size, 16px);}&lt;/style&gt;`;
+
+&lt;/script&gt;</pre>
+<p class="graf graf--p">这个阴影DOM允许用户覆盖其段落的字体大小。使用自定义属性符号(<code>— size: 20px</code>)设置该值，shadow DOM使用<code>var()</code>函数(<code>font-size: var( — size, 16px)</code>)检索该值。就概念而言，这类似于<code>&lt;slot&gt;</code>元素的工作方式。</p>
+<h3 class="graf graf--h3">可继承的风格</h3>
+<p class="graf graf--p">Shadow DOM允许您创建从外部看不到选择器的独立DOM元素，但这并不意味着继承的属性不会通过Shadow边界。</p>
+<p class="graf graf--p">某些属性，如<code>color</code>、<code>background</code>和<code>font-family</code>，通过阴影边界并应用于阴影树。因此，与iframe相比，影子DOM不是一个很强的障碍。</p>
+<pre class="graf graf--pre">&lt;style&gt;
+  div {
+    font-size: 25px;
+    text-transform: uppercase;
+    color: red;
+  }
+&lt;/style&gt;
+
+&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `&lt;p&gt;Shadow DOM&lt;/p&gt;`;
+&lt;/script&gt;</pre>
+<p class="graf graf--p">解决方法很简单:通过声明<code>all: initial</code>将可继承的样式重置为初始值，如下所示:</p>
+<pre class="graf graf--pre">&lt;style&gt;
+  div {
+    font-size: 25px;
+    text-transform: uppercase;
+    color: red;
+  }
+&lt;/style&gt;
+
+&lt;div&gt;&lt;p&gt;Light DOM&lt;/p&gt;&lt;/div&gt;
+&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `
+    &lt;p&gt;Shadow DOM&lt;/p&gt;
+    &lt;style&gt;
+      :host p {
+        all: initial;
+      }
+    &lt;/style&gt;`;
+&lt;/script&gt;</pre>
+<p class="graf graf--p">在本例中，元素被强制返回到初始状态，因此跨越阴影边界的样式没有效果。</p>
+<h3 class="graf graf--h3">事件重定向</h3>
+<p class="graf graf--p">在阴影DOM中触发的事件可能会越过阴影边界，并冒泡到光DOM中；然而，<code>Event.target</code>的值是自动改变的，所以看起来好像事件是从包含影像树的主机元素而不是实际元素中产生的。</p>
+<p class="graf graf--p">这种变化被称为事件重定向，其背后的原因是为了保留影子DOM封装。考虑下面的例子:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `
+    &lt;ul&gt;
+      &lt;li&gt;One&lt;/li&gt;
+      &lt;li&gt;Two&lt;/li&gt;
+      &lt;li&gt;Three&lt;/li&gt;
+    &lt;ul&gt;
+    `;
+
+  document.addEventListener('click', (event) =&gt; {
+    console.log(event.target);
+  }, false);
+&lt;/script&gt;</pre>
+<p class="graf graf--p">当您单击shadow DOM中的任意位置时，这段代码会将<code>&lt;div id="host"&gt;…&lt;/div&gt;</code>记录到控制台，因此侦听器看不到调度事件的实际元素。</p>
+<p class="graf graf--p">但是，重定目标不会在shadow DOM中发生，您可以很容易地找到与事件关联的实际元素:</p>
+<pre class="graf graf--pre">&lt;div id="host"&gt;&lt;/div&gt;
+
+&lt;script&gt;
+  const elem = document.querySelector('#host');
+  const shadowRoot = elem.attachShadow({mode: 'open'});
+
+  shadowRoot.innerHTML = `
+    &lt;ul&gt;
+      &lt;li&gt;One&lt;/li&gt;
+      &lt;li&gt;Two&lt;/li&gt;
+      &lt;li&gt;Three&lt;/li&gt;
+    &lt;/ul&gt;`;
+
+  shadowRoot.querySelector('ul').addEventListener('click', (event) =&gt; {
+    console.log(event.target);
+  }, false);  
+&lt;/script&gt;</pre>
+<p class="graf graf--p">请注意，并非所有事件都从影子DOM传播出去。那些做的被重定目标，但是其他的被简单地忽略。如果你正在使用<a class="markup--anchor markup--p-anchor" href="https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Creating_and_triggering_events#Creating_custom_events" target="_blank" rel="noreferrer nofollow noopener" data-href="https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Creating_and_triggering_events#Creating_custom_events">自定义事件</a>，你将需要使用<code>composed: true</code>标志，否则事件将不会出现在阴影边界之外。</p>
+<h3 class="graf graf--h3">阴影DOM v0与v1</h3>
+<p class="graf graf--p">Shadow DOM规范的最初版本是在Chrome 25中实现的，当时被称为Shadow DOM v0。该规范的更新版本改进了Shadow DOM API的许多方面。</p>
+<p class="graf graf--p">例如，一个元素不能再承载多个影子DOM，有些元素根本不能承载一个影子DOM。违反这些规则会导致错误。</p>
+<p class="graf graf--p">此外，Shadow DOM v1提供了一组新特性，比如开放阴影模式、回退内容等等。你可以在这里找到v0和v1 <a class="markup--anchor markup--p-anchor" href="https://hayato.io/2016/shadowdomv1/#multiple-shadow-roots" target="_blank" rel="noreferrer nofollow noopener" data-href="https://hayato.io/2016/shadowdomv1/#multiple-shadow-roots">的全面并列比较，作者之一是该规范的作者。Shadow DOM v1的完整描述可以在</a><a class="markup--anchor markup--p-anchor" href="https://www.w3.org/TR/shadow-dom/" target="_blank" rel="noreferrer nofollow noopener" data-href="https://www.w3.org/TR/shadow-dom/"> W3C </a>找到。</p>
+<h3 class="graf graf--h3">浏览器对影子DOM v1的支持</h3>
+<p class="graf graf--p">在撰写本文时，Firefox和Chrome完全支持Shadow DOM v1。可惜Edge还没有实现v1，Safari部分支持。在<a class="markup--anchor markup--p-anchor" href="https://caniuse.com/#feat=shadowdomv1" target="_blank" rel="noopener noreferrer" data-href="https://caniuse.com/#feat=shadowdomv1">我可以使用……</a>上可以找到支持的浏览器的最新列表。</p>
+<p class="graf graf--p">要在不支持shadow DOM v1的浏览器上实现Shadow DOM，可以使用<a class="markup--anchor markup--p-anchor" href="https://github.com/webcomponents/shadydom" target="_blank" rel="noreferrer nofollow noopener" data-href="https://github.com/webcomponents/shadydom"> shadydom </a>和<a class="markup--anchor markup--p-anchor" href="https://github.com/webcomponents/shadycss" target="_blank" rel="noreferrer nofollow noopener" data-href="https://github.com/webcomponents/shadycss">shady CSS</a>poly fill。</p>
+<h3 class="graf graf--h3">包扎</h3>
+<p class="graf graf--p">DOM缺乏封装一直是web开发人员面临的问题。Shadow DOM API为我们提供了创建作用域DOM的能力，从而为这个问题提供了一个优雅的解决方案。</p>
+<p class="graf graf--p">现在，风格冲突不再是一个令人担忧的问题，选择器也不会失去控制。shadow DOM是小部件开发者的游戏改变者。能够创建从页面的其余部分封装出来的小部件，并且不受其他样式表和脚本的影响，这是一个巨大的优势。</p>
+<p class="graf graf--p">如前所述，Web组件由三种主要技术组成，影子DOM是其中的关键部分。希望在读完这篇文章后，你会更容易理解这三种技术是如何一起构建Web组件的。</p>
+<p class="graf graf--p">有什么小技巧可以分享吗？请在评论中告诉我们！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+</div>
+</div>    
+</body>
+</html>

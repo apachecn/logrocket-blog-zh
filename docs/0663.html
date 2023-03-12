@@ -1,0 +1,331 @@
+<html>
+<head>
+<title>Building a GraphQL server in Next.js via API routes - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>通过API routes在Next.js中构建GraphQL服务器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-a-graphql-server-in-next-js/#0001-01-01">https://blog.logrocket.com/building-a-graphql-server-in-next-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong> </em> <em>这篇文章于2021年5月14日更新，以反映更新的信息和新代码，使用TypeScript添加类型安全，使用DataLoader避免N+1，对数据库层使用Prisma代替Knex，并采用代码优先的GraphQL模式方法。</em></p>
+<p>很多人只把<a href="https://nextjs.org/" target="_blank" rel="noopener"> Next.js </a>看作一个前端React框架，提供服务器端渲染、内置路由和大量性能特性。所有这些都是真的，但是Next.js还通过其API routes支持无服务器功能，这是一种为React前端代码提供后端的简单方法，所有这些都在同一个应用程序中。</p>
+<p>在这篇文章中，我们将学习如何使用API routes在Next.js中设置GraphQL API。我们将使用完全类型化的设置:<a href="https://www.typescriptlang.org/" target="_blank" rel="noopener"> TypeScript </a>，使用<a href="https://www.prisma.io/" target="_blank" rel="noopener"> Prisma </a>从Postgres加载数据，并使用带有Nexus的<a href="https://blog.graphqleditor.com/graphql-schemafirst-codefirst" target="_blank" rel="noopener">代码优先</a> GraphQL模式。</p>
+<p>我们还将了解如何使用DataLoader包和模式来提高性能，避免代价高昂的N+1查询。完整的源代码可以在这里找到。</p>
+<h2>构建GraphQL服务器</h2>
+<p>在本文结束时，我们希望能够执行以下GraphQL专辑和艺术家查询，从我们的Postgres数据库中高效地加载(仅使用两个SQL查询):</p>
+<pre>{
+  albums(first: 5) {
+    id
+    name
+    year
+    artist {
+      id
+      name
+    }
+  }
+}</pre>
+<p>产生的输出可能类似于:</p>
+<pre>{
+  "data": {
+    "albums": [
+      {
+        "id": 3,
+        "name": "Rotation &amp; Frequency",
+        "year": "2020",
+        "artist": {
+          "id": 2,
+          "name": "Slick Shoes"
+        }
+      },
+      {
+        "id": 5,
+        "name": "I Am",
+        "year": "2018",
+        "artist": {
+          "id": 3,
+          "name": "Sleeping Giant"
+        }
+      }
+      // etc...
+    ]
+  }
+}</pre>
+<h2>设置Next.js</h2>
+<p>设置Next.js最简单的方法是运行命令<code>yarn create next-app</code>。一旦你将Next.js中的一个文件更改为TypeScript扩展名(<code>.ts</code>或<code>.tsx</code>)并运行<code>yarn dev</code>，它会要求你安装一些额外的包，并自动创建一个<code>tsconfig.json</code>文件。</p>
+<p>您可以随意避开这一步，但是我们将稍微修改一下<code>tsconfig.json</code>文件，让TypeScript执行更严格的规则:</p>
+<pre>// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["dom", "esnext"],
+    "incremental": true,
+    "allowJs": false,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "allowSyntheticDefaultImports": true,
+
+    /* Module Resolution */
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    /* Type Checking */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", ".next"]
+}</pre>
+<p>关于本文中使用的包的完整列表，请参考<a href="https://github.com/leighhalliday/next-prisma-nexus-graphql/blob/main/package.json" target="_blank" rel="noopener"> package.json文件</a>。</p>
+<h2>配置Prisma</h2>
+<p>Prisma将是我们用来从Postgres数据库加载数据的工具。首先，运行命令<code>npx prisma init</code>，这将生成一个包含<code>schema.prisma</code>文件的<code>prisma</code>文件夹。</p>
+<p>注意，它引用了一个<code>DATABASE_URL</code>环境变量。确保这可以通过一个<code>.env</code>文件获得(但是不要提交它！).我们将修改模式文件以包含两个模型:Album和Artist。</p>
+<pre>// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Album {
+  id       Int    @id @default(autoincrement())
+  name     String
+  year     String
+  artist   Artist @relation(fields: [artistId], references: [id])
+  artistId Int
+}
+
+model Artist {
+  id     Int     @id @default(autoincrement())
+  name   String
+  url    String
+  albums Album[]
+}</pre>
+<p>为了在数据库中创建<code>Album</code>和<code>Artist</code>表，我们需要告诉Prisma创建并运行数据库迁移:<code>npx prisma migrate dev --name init</code>。</p>
+<h2>使用Prism加载种子数据</h2>
+<p>在本地开发时，最好有一些一致的种子数据。Prisma支持数据库播种，但是首先让我们更新我们的<code>package.json</code>文件中的<code>scripts</code>部分，使其具有一个执行Prisma seed命令所需的<code>ts-node</code>脚本。</p>
+<pre>// package.json
+{
+  "scripts": {
+    "ts-node": "ts-node --compiler-options '{\"module\":\"CommonJS\"}'"
+  }
+}</pre>
+<p>接下来，我们将在<code>prisma</code>文件夹中创建一个<code>seed.ts</code>文件。它的目的是生成开发时要在本地使用的任何数据。请随意把你最喜欢的乐队放在这里！</p>
+<pre>// prisma/seed.ts
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+async function main() {
+  const comeback = await prisma.artist.create({
+    data: {
+      name: "Comeback Kid",
+      url: "https://comeback-kid.com/",
+      albums: {
+        create: [
+          { name: "Turn It Around", year: "2003" },
+          { name: "Wake the Dead", year: "2005" },
+        ],
+      },
+    },
+  });
+  console.log({ comeback });
+}
+
+main()
+  .catch((e) =&gt; {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () =&gt; {
+    await prisma.$disconnect();
+  });</pre>
+<p>准备好之后，运行<code>npx prisma db seed --preview-feature</code>来执行种子文件并填充我们的本地数据库。</p>
+<h2>在GraphQL中添加API路由</h2>
+<p>设置好Next.js后，我们将向我们的应用程序添加一个API(服务器)路由。这就像在名为<code>graphql.ts</code>的<code>pages/api</code>文件夹中创建一个文件一样简单。现在，它的内容将是:</p>
+<pre>// pages/api/graphql.ts
+export default (_req, res) =&gt; res.end("GraphQL!");</pre>
+<p>搞定了。GraphQL不是很容易吗？开个玩笑…上面的代码将简单地用文本“GraphQL！”来响应但是通过这种设置，我们可以用任何我们想要的JSON来响应，读取查询参数、头等。来自<code>req</code>(请求)对象。</p>
+<p>实际GraphQL处理的时间。为此，我们将使用<code>ApolloServer</code>(来自<code>apollo-server-micro</code>包——这个在Next.js中非常好用)。你会注意到我们从两个文件中导入了<code>schema</code>和<code>context</code>。这些现在还不存在，但是我们以后会花大部分时间在这里。</p>
+<pre>// pages/api/graphql.ts
+import { ApolloServer } from "apollo-server-micro";
+import { schema } from "../../src/schema";
+import { context } from "../../src/context";
+
+const server = new ApolloServer({ schema, context });
+const handler = server.createHandler({ path: "/api/graphql" });
+
+export default handler;</pre>
+<h2>GraphQL上下文</h2>
+<p>GraphQL中的每个解析器都会接收到一个叫做上下文的东西。这是一个放置全球事物的地方，例如:</p>
+<ul>
+<li>认证用户</li>
+<li>数据库连接(Prisma)</li>
+<li>数据加载器(避免N+1次查询)</li>
+</ul>
+<p>在这个例子中我们没有经过身份验证的用户，但是我们有另外两个。我们将从导出一个返回Prisma客户端实例的<code>context</code>函数开始。</p>
+<pre>// src/context.ts
+import { PrismaClient } from "@prisma/client";
+import { Artist } from ".prisma/client";
+
+const prisma = new PrismaClient({ log: ["query"] });
+
+export interface Context {
+  prisma: PrismaClient;
+}
+
+export function context(): Context {
+  return { prisma };
+}</pre>
+<h2>设置GraphQL模式</h2>
+<p>有了上下文，就该生成GraphQL模式了。您经常会发现手写的<code>schema.graphql</code>文件，以及相应的解析器来加载从每个字段返回的数据。</p>
+<p>Nexus就不是这样了。Nexus采用代码优先的方法，其中<code>schema.graphql</code>文件是从GraphQL类型定义中生成的工件。这意味着您不必让它们保持同步！</p>
+<p>我们将创建三种GraphQL类型:查询、艺术家和相册。本次<code>makeSchema</code>拜访的关键部分是:</p>
+<ul>
+<li><code>outputs</code>:您希望将<code>schema.graphql</code>和TypeScript类型输出到哪里？这些是我上面提到的人工制品</li>
+<li><code>sourceTypes</code>:如果您已经有了与您的GraphQL类型一致的TypeScript类型，您可以避免重新创建它们！我们将把它指向从我们的Prisma客户端创建的类型</li>
+<li>这允许我们告诉Nexus在哪里寻找我们上下文的类型脚本类型</li>
+<li>默认情况下，我们将把我们的每个GraphQL字段定义为非空…这可以被覆盖，但我觉得默认情况下从严格的代码开始会更好</li>
+</ul>
+<pre>// src/schema.ts
+import { makeSchema, objectType, queryType } from "nexus";
+import { join } from "path";
+
+export const schema = makeSchema({
+  types: [Query, Artist, Album],
+  shouldGenerateArtifacts: process.env.NODE_ENV === "development",
+  outputs: {
+    schema: join(process.cwd(), "schema.graphql"),
+    typegen: join(process.cwd(), "nexus.ts"),
+  },
+  sourceTypes: {
+    modules: [{ module: ".prisma/client", alias: "prisma" }],
+    debug: process.env.NODE_ENV === "development",
+  },
+  contextType: {
+    module: join(process.cwd(), "src", "context.ts"),
+    export: "Context",
+  },
+  nonNullDefaults: {
+    input: true,
+    output: true,
+  },
+});</pre>
+<h2>GraphQL API中的顶级查询类型</h2>
+<p><code>Query</code>类型(以及<code>Mutation</code>和<code>Subscription</code>，我们不会在这里讨论)是GraphQL API的顶级字段。它们是API的入口点。在我们的<code>Query</code>类型中，我们将定义一个字段:<code>albums</code>，它将使用我们上下文中的Prisma客户端来加载相册。</p>
+<pre>// src/schema.ts
+const Query = queryType({
+  definition(t) {
+    t.list.field("albums", {
+      type: "Album",
+      args: {
+        first: "Int",
+      },
+      resolve(_root, args, ctx) {
+        return ctx.prisma.album.findMany({ take: args.first });
+      },
+    });
+  },
+});</pre>
+<h2><code>Album</code>和<code>Artist</code>类型</h2>
+<p>使用Nexus的<code>objectType</code>函数创建<code>Artist</code>和<code>Album</code>的类型。大多数字段可以不使用显式解析器，因为它们只是访问属性，没有任何操作。</p>
+<p>虽然,<code>Album</code>类型能够加载一个<code>Artist</code>,我们将创建一个自定义解析器来从数据库中加载艺术家。</p>
+<pre>// src/schema.ts
+const Artist = objectType({
+  name: "Artist",
+  definition(t) {
+    t.int("id");
+    t.string("name");
+    t.string("url");
+  },
+});
+
+const Album = objectType({
+  name: "Album",
+  definition(t) {
+    t.int("id");
+    t.string("name");
+    t.string("year");
+    t.field("artist", {
+      type: "Artist",
+      async resolve(album, _args, ctx) {
+        const artist = await ctx.prisma.artist.findFirst({
+          where: { id: album.artistId },
+        });
+        // The ! tells TypeScript to trust us, it won't be null
+        return artist!;
+      },
+    });
+  },
+});</pre>
+<h2>使用数据加载器避免N+1查询</h2>
+<p>上述解决方案存在一个隐藏的问题。具体来说，加载每张专辑的艺术家。针对每个专辑运行一个SQL查询，这意味着如果您有50个专辑要显示，您将不得不执行50个额外的SQL查询来加载每个专辑的艺术家。Marc-André Giroux 在这个问题上有一篇<a href="https://xuorig.medium.com/the-graphql-dataloader-pattern-visualized-3064a00f319f" target="_blank" rel="noopener">的好文章</a>，我们现在就来看看如何解决这个问题！</p>
+<p>第一步是定义一个加载器函数。加载器的目的是汇集id(在我们的例子中是艺术家的id ),并一次在一个批处理中加载所有id，而不是单独加载每个id。你在偷懒加载数据。</p>
+<pre>// src/context.ts
+const createArtistLoader = () =&gt;
+  new DataLoader&lt;number, Artist | null&gt;(async (ids) =&gt; {
+    // Load all of the artists for the given `ids`
+    const artists = await prisma.artist.findMany({
+      where: { id: { in: [...ids] } },
+    });
+
+    // To make for more efficient lookup, convert to a Map of id =&gt; Artist records
+    const artistMap = artists.reduce(
+      (acc, artist) =&gt; acc.set(artist.id, artist),
+      new Map&lt;number, Artist&gt;()
+    );
+
+    // Map the ids back to the loaded Artist record
+    return ids.map((id) =&gt; artistMap.get(id) ?? null);
+  });</pre>
+<p>我们需要将这个数据加载器实例添加到我们的上下文中，并进行以下更改:</p>
+<pre>// src/context.ts
+export interface Context {
+  prisma: PrismaClient;
+  artistLoader: ReturnType;
+}
+
+export function createContext(): Context {
+  return { prisma, artistLoader: createArtistLoader() };
+}</pre>
+<p>这允许我们更新我们的<code>Album</code>类型，以利用<code>artist</code>解析器内部的数据加载器:</p>
+<pre>const Album = objectType({
+  name: "Album",
+  definition(t) {
+    t.int("id");
+    t.string("name");
+    t.string("year");
+    t.field("artist", {
+      type: "Artist",
+      async resolve(album, _args, ctx) {
+        const artist = await ctx.artistLoader.load(album.artistId);
+        return artist!;
+      },
+    });
+  },
+});</pre>
+<p>最终的结果是对数据库的一个简单查询就可以一次加载所有的艺术家… N+1问题解决了！我们现在应该看到总共两个查询:一个加载专辑，另一个加载所有艺术家。</p>
+<h2>结论</h2>
+<p>在本文中，我们能够在Next.js中创建一个类型化的、代码优先的GraphQL服务器，使用Prisma从Postgres加载数据，并使用DataLoader解决N+1性能问题。对于一天的工作来说还不错！</p>
+<p>下一步可能包括在我们的应用程序中添加突变和认证，使用户能够以正确的权限创建和修改数据。如你所见，Next.js不再仅仅用于前端。它拥有对无服务器端点的一流支持，是放置GraphQL API的最佳位置。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

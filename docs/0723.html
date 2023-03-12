@@ -1,0 +1,161 @@
+<html>
+<head>
+<title>Variable fonts: Is the performance trade-off worth it? - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>可变字体:性能权衡值得吗？- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/variable-fonts-is-the-performance-trade-off-worth-it/#0001-01-01">https://blog.logrocket.com/variable-fonts-is-the-performance-trade-off-worth-it/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>可变字体受欢迎有两个原因:它们扩展了设计的可能性，提高了网站的性能。虽然前一种说法肯定是正确的，因为可变字体确实提供了无限的印刷选择，但后一种说法只在某些情况下成立。</p>
+<p>在本教程中，我们将在一个实时服务器上进行性能测试，以更好地理解可变字体的性能权衡。</p>
+<h2 id="whatarevariablefonts">什么是可变字体？</h2>
+<p>由新的<a href="https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview" target="_blank" rel="noopener noreferrer"> OpenType字体规范</a>定义的可变字体没有预设的字体样式，如粗体、斜体或细体。相反，它们由一个或多个设计轴组成，允许我们为宽度、重量、倾斜度等属性生成唯一的值。</p>
+<p>设计轴总是由字体的创建者来选择，并且它们根据不同的字体而不同。但是，OpenType字体变化规范标准化了五个注册轴:粗细(<code>wght</code>)、宽度(<code>wdth</code>)、斜体(<code>ital</code>)、倾斜(<code>slnt</code>)和光学大小(<code>opsz</code>)。除此之外，字体创建者可以用<code><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/font-variation-settings" target="_blank" rel="noopener noreferrer">font-variation-settings</a></code> CSS属性注册任何用户可以访问的自定义轴。</p>
+<p>要了解更多关于可变字体的信息，请查看MDN优秀的<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide"> v </a> <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide" target="_blank" rel="noopener noreferrer">可变字体指南</a>或在<a href="https://v-fonts.com/" target="_blank" rel="noopener noreferrer"> V字体</a>或<a href="https://www.axis-praxis.org/specimens/__DEFAULT__" target="_blank" rel="noopener noreferrer"> Axis Praxis </a>测试站点上进行试验。</p>
+<h2 id="howvariablefontsimpactperformance">可变字体如何影响性能</h2>
+<p>在我们进行性能测试之前，让我们看看可变字体是如何影响网站性能的。</p>
+<p>通常，可变字体可以提高性能，因为您只需使用一个字体文件。静态字体需要一个不同的文件来对应你想在网站上使用的每个变体，而可变字体本质上是动态的。换句话说，它们在一个文件中包含了所有的可能性，这意味着只有一个HTTP请求，而不是多个。此外，您只需使用一个<code><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face" target="_blank" rel="noopener noreferrer">@font-face</a></code>规则，这将产生一个更小的CSS文件。</p>
+<p>另一方面，可变字体文件非常大，因为它包含了所有的变化。例如，Roboto可变字体在TTF格式中为3.36MB，而静态Roboto字体变体在TTF格式中约为165-175 kb。即使我们需要使用所有12种变体，总共也只有2MB左右。</p>
+<p>最终，可变字体的性能权衡取决于这两个指标(HTTP请求的数量和字体文件的总大小)如何相互平衡。</p>
+<h2 id="thechallengeoftestingvariablefonts">测试可变字体的挑战</h2>
+<p>测试可变字体可能很困难，因为大多数可变字体没有静态版本，反之亦然。字样通常是静态字体或可变字体，但不能同时是静态字体和可变字体。事实上，我只能找到一种既有静态版本又有可变版本的字体:Roboto。</p>
+<p>在我们的可变字体性能测试中，我们将比较可以从谷歌字体下载的静态版Roboto 和可以在TypeNetwork的GitHub库中找到的<a href="https://github.com/TypeNetwork/Roboto" target="_blank" rel="noopener noreferrer"> Roboto可变字体</a>。</p>
+<p>Roboto的静态版本有12种变化(数字代表<code>font-weight</code>值):</p>
+<ol>
+<li>瘦(100)</li>
+<li>细斜体(100)</li>
+<li>灯(300)</li>
+<li>轻斜体(300)</li>
+<li>常规(400)</li>
+<li>常规斜体(400)</li>
+<li>中等(500)</li>
+<li>中等斜体(500)</li>
+<li>粗体(700)</li>
+<li>粗体斜体(700)</li>
+<li>黑色(900)</li>
+<li>黑色斜体(900)</li>
+</ol>
+<p>在可变字体方面，它沿着两个设计轴有12种静态字体变化:粗细(<code>wght</code>)和斜体(<code>ital</code>)。另一方面，Roboto可变字体包括三个设计轴:粗细(<code>wght</code>)、宽度(<code>wdth</code>)和倾斜(<code>slnt</code>)。</p>
+<p>为了准确地比较这两种字体类型，我们应该生成Roboto可变字体的12种变体，它们与静态版本的12种变体相同。但是尽管两个版本都包括<code>wght</code>轴，Roboto VF使用<code>slnt</code>而不是<code>ital</code>。因此，我们将使用<code>slnt</code>设计轴来生成可变字体的斜体变体。然而，重要的是要记住这不是一回事。</p>
+<p><code><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Italic" target="_blank" rel="noopener noreferrer">ital</a></code>轴有一个二进制值(0或1)。可以通过高级<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/font-style" target="_blank" rel="noopener noreferrer"> <code>font-style</code> </a>或者低级<code><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/font-variation-settings" target="_blank" rel="noopener noreferrer">font-variation-settings</a></code>属性访问。如果两个属性都可用/受支持，您应该总是使用高级属性，这里是<code>font-style</code>。</p>
+<pre>font-style: italic;
+font-variation-settings: 'ital' 1;
+</pre>
+<p><code><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Slant" target="_blank" rel="noopener noreferrer">slnt</a></code>轴的范围通常在0到20度之间。可以使用相同的CSS属性(<code>font-style</code>和<code>font-variation-settings</code>)来访问它，但是方式不同。</p>
+<pre>font-style: oblique 12deg;
+font-variation-settings: 'slnt' 12;
+</pre>
+<p>由于Roboto可变字体的<code>slnt</code>轴在0到12之间，我们将使用它的最高值(12)来创建一个倾斜的字体变体，它或多或少可以与静态版本的斜体变体相媲美。</p>
+<p>你可能也注意到了，静态版本使用两个设计轴，而不是像Roboto VF那样使用三个轴。然而，由于这些只是理论上的轴(我称它们为轴是为了使这两种字体具有可比性)，这不会扭曲测试结果。静态字体不包含任何轴；简单地绘制字符，而不向用户提供任何动态功能。</p>
+<h2 id="thetestcases">测试案例</h2>
+<p>我们将使用三个测试用例来分析可变字体的性能权衡。每个测试用例使用相同的HTML页面，该页面由12个“lorem ipsum”段落组成，每个段落以不同的Roboto字体显示。这三个测试案例是:</p>
+<ol>
+<li>Roboto静态字体及其所有12种变体(每个字体文件都来自谷歌的CDN)</li>
+<li>Roboto静态字体及其所有12种变体(每个字体文件都在本地添加)</li>
+<li>机器人可变字体12种变化产生的一个单一的可变字体文件，我们在本地添加</li>
+</ol>
+<p>此外，我们将探索一个额外的测试用例，它只有Roboto字体静态版本的四种变体。</p>
+<p>你可以在这个<a href="https://github.com/azaleamollis/variable-fonts-performance-tests" target="_blank" rel="noopener noreferrer"> GitHub repo </a>中找到完整的性能测试，并在这个<a href="https://www.annalytic.com/variable-fonts-performance-tests/" target="_blank" rel="noopener noreferrer">演示网站</a>上自己运行测试，在那里你还可以找到关于测试的更多信息。</p>
+<p>所有的测试用例都使用<a href="https://developer.mozilla.org/en-US/docs/Web/Guide/WOFF" target="_blank" rel="noopener noreferrer"> WOFF2 </a>压缩字体格式，并且不包括任何对旧浏览器的回退。尽管Roboto VF只有TTF格式，我还是用谷歌的<a href="https://github.com/google/woff2" target="_blank" rel="noopener noreferrer"> woff2 CLI工具</a>创建了一个WOFF2版本，它的大小从3.36MB减少到了1.40MB</p>
+<p>对于性能测试，我们将使用两个工具:</p>
+<ol>
+<li><a href="https://gtmetrix.com/" target="_blank" rel="noopener noreferrer"> GTMetrix </a>，计算PageSpeed Insights和YSlow得分</li>
+<li><a href="https://chrome.google.com/webstore/detail/lighthouse/blipmdconlkpinefehnmjammfjpmpbjk?hl=es" target="_blank" rel="noopener noreferrer"> Lighthouse </a>，它允许我们在Chrome DevTools中运行性能审计</li>
+</ol>
+<h3>测试用例1: Roboto Static，托管在Google CDN上</h3>
+<p>我们可以通过将下面的代码添加到HTML页面的<code>&lt;head&gt;</code>部分，将Roboto Static从Google的CDN中提取出来。</p>
+<pre>&amp;lt;link href="https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i&amp;amp;display=swap" rel="stylesheet"&amp;gt;
+</pre>
+<p>该链接指定了我们想要加载的字体变化——例如，100代表Roboto Thin，700i代表Roboto Bold Italic。在<a href="https://fonts.google.com/specimen/Roboto?selection.family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i" target="_blank" rel="noopener noreferrer">谷歌字体</a>上，通过选择定制标签下的变化，很容易生成这个定制链接。</p>
+<p><img decoding="async" src="../Images/e14092318235b5f8b176583121c68ca2.png" alt="Customizing Roboto on Google Fonts" data-lazy-src="https://www.dropbox.com/s/1yizxxh9nqpsfd5/generate-roboto-link-google-cdn.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/1yizxxh9nqpsfd5/generate-roboto-link-google-cdn.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/e14092318235b5f8b176583121c68ca2.png" alt="Customizing Roboto on Google Fonts" data-original-src="https://www.dropbox.com/s/1yizxxh9nqpsfd5/generate-roboto-link-google-cdn.jpg?raw=1"/></noscript>
+<p>该链接指向谷歌服务器上的一个<a href="https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i&amp;display=swap" target="_blank" rel="noopener noreferrer"> CSS文件</a>，包括一堆<code>@font-face</code>规则——确切地说是84条。Google Fonts为每个字符集(拉丁语、西里尔语、希腊语等)添加了一个<code>@font-face</code>规则。)，而且这是不可能改变的。然而，Google Fonts只加载页面请求的字体文件(在我们的例子中，是拉丁字符集)。</p>
+<p>在这个测试案例中，我们总共从Google的CDN中提取了84条<code>@font-face</code>规则和12个WOFF2文件。</p>
+<p>注意:如果您使用旧版本的浏览器运行性能测试，Google会为您加载WOFF或TFF格式——它总是加载用户浏览器支持的最新格式。</p>
+<p>此外，我们在服务器上有两个本地文件— <a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/1-static-fonts-google-cdn/index.html" target="_blank" rel="noopener noreferrer"> <code>index.html</code> </a>和<code><a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/1-static-fonts-google-cdn/style.css" target="_blank" rel="noopener noreferrer">style.css</a></code>。</p>
+<p>现在，让我们看看这个设置是如何执行的。首先，我们将运行GTMetrix应用程序中第一个测试案例的<a href="https://www.annalytic.com/variable-fonts-performance-tests/1-static-fonts-google-cdn/index.html" target="_blank" rel="noopener noreferrer">演示页面</a>。</p>
+<p><img decoding="async" src="../Images/1833149b3db95f1f17d6ff4c6db5f03a.png" alt="" data-lazy-src="https://www.dropbox.com/s/x9fs48rtyf4t3lt/gtmetrix-test-case-1.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/x9fs48rtyf4t3lt/gtmetrix-test-case-1.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/1833149b3db95f1f17d6ff4c6db5f03a.png" alt="" data-original-src="https://www.dropbox.com/s/x9fs48rtyf4t3lt/gtmetrix-test-case-1.jpg?raw=1"/></noscript>
+<p>如您所见，我们有197kB的总页面大小和15个HTTP请求——12个针对字体文件，一个针对<code>index.html</code>，一个针对<code>style.css</code>，还有一个针对包含84个<code>@font-face</code>规则的在线CSS文件。</p>
+<p>灯塔的业绩报告是这样的:</p>
+<p><img decoding="async" src="../Images/657c4810239a3582ccefeba46b9c2efe.png" alt="" data-lazy-src="https://www.dropbox.com/s/rfycai1vpjwd25z/lighthouse-test-case-1.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/rfycai1vpjwd25z/lighthouse-test-case-1.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/657c4810239a3582ccefeba46b9c2efe.png" alt="" data-original-src="https://www.dropbox.com/s/rfycai1vpjwd25z/lighthouse-test-case-1.jpg?raw=1"/></noscript>
+<p>总成绩99，第一次内容丰富的油漆发生在1.6秒。让我们看看这些结果与其他测试案例相比如何。</p>
+<h3>测试用例2:robot to Static，自托管</h3>
+<p>在这个测试案例中，我们将使用相同的<code>index.html</code>和<code>style.css</code>文件。您可以在<a href="https://github.com/azaleamollis/variable-fonts-performance-tests/tree/master/2-static-fonts-self-hosted" target="_blank" rel="noopener noreferrer"> GitHub repo </a>中查看这些文件。然而，这次我们将手动添加<code>@font-face</code>规则。因为我们想要加载12个字体文件，所以我们需要12个<code>@font-face</code>规则。</p>
+<p>我们会尽量让它和Google CDN的(不可变)<code>@font-face</code>规则相似，但不会为我们不想用的字符集添加<code>@font-face</code>规则。尽管这有点扭曲了测试结果，但没有人会在真实的网站上使用这些字符集，我们的主要目标是确定哪种设置更好。</p>
+<p>让我们来看看我们的一个<code>@font-face</code>规则(你可以在GitHub上查看整个<a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/2-static-fonts-self-hosted/fonts.css" target="_blank" rel="noopener noreferrer"> <code>fonts.css</code> </a>):</p>
+<pre>@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 100;
+    font-display: swap;
+    src: local('Roboto Thin'), local('Roboto-Thin'),
+         url('fonts/roboto-v20-latin-100.woff2') format('woff2');
+     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+</pre>
+<p>正如你所看到的，我们把12个WOFF2字体文件放到了<a href="https://github.com/azaleamollis/variable-fonts-performance-tests/tree/master/2-static-fonts-self-hosted/fonts" target="_blank" rel="noopener noreferrer"> <code>fonts/</code> </a>文件夹中。</p>
+<p>下面是GTMetrix返回的内容:</p>
+<p><img decoding="async" src="../Images/663ef0c7713e6ae6f59a3e461447a6ac.png" alt="" data-lazy-src="https://www.dropbox.com/s/l9namw2ffvjvnn0/gtmetrix-test-case-2.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/l9namw2ffvjvnn0/gtmetrix-test-case-2.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/663ef0c7713e6ae6f59a3e461447a6ac.png" alt="" data-original-src="https://www.dropbox.com/s/l9namw2ffvjvnn0/gtmetrix-test-case-2.jpg?raw=1"/></noscript>
+<p>页面加载时间(0.7s)和HTTP请求数量(15)都与前一种情况相同。但是，总的页面大小减少了1KB，这一定是减少了<code>@font-face</code>规则数量的结果(12个而不是84个)。</p>
+<p>Lighthouse的性能审计产生了以下指标。</p>
+<p><img decoding="async" src="../Images/1e91e0a762dec736a92c71bec5c90199.png" alt="" data-lazy-src="https://www.dropbox.com/s/mf4m077cca2gl6a/lighthouse-test-case-2.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/mf4m077cca2gl6a/lighthouse-test-case-2.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/1e91e0a762dec736a92c71bec5c90199.png" alt="" data-original-src="https://www.dropbox.com/s/mf4m077cca2gl6a/lighthouse-test-case-2.jpg?raw=1"/></noscript>
+<p>第一幅令人满意的画只花了1.2秒，比1.6秒下降了25%。因此，Lighthouse的性能分数也高了一点:100分而不是99分。这很可能是因为Google Fonts运行一些检查来决定加载哪种字体格式/文件，而我们的自托管CSS包含静态文件路径。</p>
+<h3>测试用例3: Roboto可变字体，自托管</h3>
+<p>在第三个测试案例中，我们将使用与之前相同的<code><a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/3-variable-fonts/index.html" target="_blank" rel="noopener noreferrer">index.html</a></code>文件来分析Roboto可变字体的性能。<a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/3-variable-fonts/style.css" target="_blank" rel="noopener noreferrer"> <code>style.css</code> </a>文件几乎是相同的，但是，如前所述，由于Roboto VF没有斜体设计轴，所以斜体效果是通过使用斜轴来实现的。</p>
+<p>我们将在本地加载<code>fonts.css</code>，类似于第二个测试用例，只是现在它只包含一个<code>@font-face</code>规则。</p>
+<pre>@font-face {
+        font-family: 'Roboto VF';
+        font-weight: 100 900;
+        font-stretch: 75% 100%;
+        font-style: oblique 0deg 12deg;
+        font-display: swap;
+        src: local('Roboto VF'), local('Roboto-VF'), 
+             url('fonts/Roboto-VF.woff2') format('woff2-variations');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;  
+}
+</pre>
+<p>我们定义了Roboto VF中所有三个设计轴的可用范围。这也是添加可变字体的推荐方式(更多细节见<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Using_a_variable_font_font-face_changes" target="_blank" rel="noopener noreferrer"> MDN文档</a>)。</p>
+<p><code>font-weight</code>属性代表<code>wght</code>轴，范围从100到900。<code>font-stretch</code>代表<code>wdth</code>轴，跨度从75%到100%——我们不会使用这个轴，因为Roboto Static没有不同字体宽度的变体。<code>font-style: oblique;</code>代表<code>slnt</code>轴，跨度从0度到12度(我们用这个轴的最大值代替斜体)。</p>
+<p>注意，在生产中，我们将在<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/@supports" target="_blank" rel="noopener noreferrer"> <code>@supports</code> </a>特征查询中使用这个<code>@font-face</code>规则，并添加Roboto Static(或另一种字体)作为后备，因为许多浏览器仍然不支持可变字体。这在一定程度上扭曲了测试结果，因为我们使用的<code>fonts.css</code>文件比生产中的要小。然而，正如已经提到的，由于它们不同的性质，不可能百分之百准确地比较静态字体和可变字体。</p>
+<p>对于第三个测试案例，GTmetrix工具返回了以下结果。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p><img decoding="async" src="../Images/65875d22765b2de4ddada9ca05bf9a20.png" alt="" data-lazy-src="https://www.dropbox.com/s/czctjkgf6ghsfbc/gtmetrix-test-case-3.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/czctjkgf6ghsfbc/gtmetrix-test-case-3.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/65875d22765b2de4ddada9ca05bf9a20.png" alt="" data-original-src="https://www.dropbox.com/s/czctjkgf6ghsfbc/gtmetrix-test-case-3.jpg?raw=1"/></noscript>
+<p>HTTP请求的数量急剧减少，从15个减少到4个。这是因为我们只处理一个字体文件，而不是12个。另一方面，总页面大小显著增长，从197/196KB增长到1.41MB，这是由于可变字体文件的巨大大小。</p>
+<p>这两种价值观如何相互平衡？鉴于总的页面加载时间从700毫秒缩短到490毫秒——提高了30%——在这种情况下，切换到可变字体似乎是一个不错的选择。</p>
+<p>灯塔绩效审计还显示了改进的绩效指标。</p>
+<p><img decoding="async" src="../Images/2a4e9915108e28e8be9e6e99fc5c319e.png" alt="" data-lazy-src="https://www.dropbox.com/s/ujszg1p33dewg36/lighthouse-test-case-3.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/ujszg1p33dewg36/lighthouse-test-case-3.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/2a4e9915108e28e8be9e6e99fc5c319e.png" alt="" data-original-src="https://www.dropbox.com/s/ujszg1p33dewg36/lighthouse-test-case-3.jpg?raw=1"/></noscript>
+<p>第一个内容丰富的paint的速度是第一个测试案例的两倍(0.8s比1.6s)，比第二个测试案例快1.5倍(0.8s比1.2s)。</p>
+<p>根据这些测试结果判断，当您想要加载Roboto静态版本的所有12种变体时，使用可变字体是一个不错的选择。尽管总的字体大小和页面大小要大得多，但是HTTP请求的显著减少(4个对15个)仍然导致了更好的页面加载时间。</p>
+<h3>额外测试案例</h3>
+<p>这里出现了一个重要的问题:什么时候使用可变字体不再值得？为了回答这个问题，我们将研究一个额外的测试案例。</p>
+<p>这个测试用例与第一个几乎相同。我们将从Google的CDN加载Roboto Static，并在本地添加<code>index.html</code>和<code>style.css</code>。然而，我们没有添加所有12种静态变体，而是只使用了四种:Roboto Light、Roboto Regular、Roboto Regular Italic和Roboto Bold。<a href="https://github.com/azaleamollis/variable-fonts-performance-tests/blob/master/additional-test-case/index.html" target="_blank" rel="noopener noreferrer"> <code>index.html</code> </a>文件仍然由相同的12个段落组成，但是我们将在三个段落而不是一个段落上使用相同的字体变化。</p>
+<p>下面的<code>&lt;link&gt;</code>标签将加载四种字体变体。</p>
+<pre>&amp;lt;link href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700&amp;amp;display=swap" rel="stylesheet"&amp;gt;
+</pre>
+<p>让我们看看这个额外的测试案例在GTmetrix中的表现如何:</p>
+<p><img decoding="async" src="../Images/ea61a025f730c26259594926e6de45a8.png" alt="" data-lazy-src="https://www.dropbox.com/s/xeol7c3jk5x5w47/gtmetrix-test-case-additional.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/xeol7c3jk5x5w47/gtmetrix-test-case-additional.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/ea61a025f730c26259594926e6de45a8.png" alt="" data-original-src="https://www.dropbox.com/s/xeol7c3jk5x5w47/gtmetrix-test-case-additional.jpg?raw=1"/></noscript>
+<p>正如所料，HTTP请求的数量从15个减少到7个，因为我们加载了4个字体文件，而不是12个。显然，总的页面大小也比第一个测试用例小得多(66.3KB对197 kb)。</p>
+<p>总的页面加载时间比之前的任何测试案例都要快得多。在前两个测试案例中，加载时间为700毫秒，而Roboto可变字体的加载时间为490毫秒。这一次，页面加载只用了301毫秒。</p>
+<p>但是，灯塔绩效审计说了什么？</p>
+<p><img decoding="async" src="../Images/df03a6cb1dace04ea3c7812ba1fcfd1b.png" alt="" data-lazy-src="https://www.dropbox.com/s/kolnh7kqey6hv2o/lighthouse-test-case-additional.jpg?raw=1&amp;is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://www.dropbox.com/s/kolnh7kqey6hv2o/lighthouse-test-case-additional.jpg?raw=1"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/df03a6cb1dace04ea3c7812ba1fcfd1b.png" alt="" data-original-src="https://www.dropbox.com/s/kolnh7kqey6hv2o/lighthouse-test-case-additional.jpg?raw=1"/></noscript>
+<p>第一个内容丰富的油漆为1.6s，与第一个测试案例中的结果相同，但比第二个(1.2s)和第三个(0.8s)都差。这很可能是因为字体是从CDN而不是本地下载的，而不是使用静态字体而不是可变字体或HTTP请求数。</p>
+<p>总而言之，由于总的页面加载时间比可变字体的情况下快得多，我们可以说，如果您只想使用/加载四种字体，使用Roboto VF是不值得的。</p>
+<h2 id="conclusion">结论</h2>
+<p>在得出最终结论之前，让我们一起来看看结果:</p>
+<p><img data-attachment-id="15218" data-permalink="https://blog.logrocket.com/variable-fonts-is-the-performance-trade-off-worth-it/variable-static-fonts-performance-test-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png" data-orig-size="730,283" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chart comparing the results of the four test cases" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png" decoding="async" class="aligncenter size-full wp-image-15218 jetpack-lazy-image" src="../Images/f053ad002c034727a26fcbd67f0109cb.png" alt="Chart Comparing the Results of the Four Test Cases" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results-300x116.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="15218" data-permalink="https://blog.logrocket.com/variable-fonts-is-the-performance-trade-off-worth-it/variable-static-fonts-performance-test-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png" data-orig-size="730,283" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chart comparing the results of the four test cases" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results-300x116.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-15218" src="../Images/f053ad002c034727a26fcbd67f0109cb.png" alt="Chart Comparing the Results of the Four Test Cases" srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results-300x116.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/variable-static-fonts-performance-test-results.png"/></noscript>
+<p>在性能方面，使用可变字体是否值得取决于HTTP请求的减少和总页面大小的增加如何相互平衡。</p>
+<p>如果您想使用同一字样的几种变体，使用可变字体绝对是一个不错的选择。但是，如果您想以普通方式使用字体，例如粗体、斜体和粗斜体变体，您可能希望坚持使用静态版本。</p>
+<p>现在，可变字体的性能权衡更多的是一个理论问题，而不是实际问题。由于绝大多数字体没有静态和可变版本，实际上，我们通常没有选择。然而，随着可变字体的发展和改进，这种情况将会改变。</p>
+<p>最后，不要忘记，在评估可变字体的有用性时，性能方面只是一个考虑因素。设计灵活性同样重要。可变字体将网页排版的极限推向了一个新的高度，让我们能够创作出以前从未想过的网站设计。</p><div class="code-block code-block-25">
+<div class="blog-plug inline-plug css-plug"><h2>你的前端是否占用了用户的CPU？</h2><p>随着web前端变得越来越复杂，资源贪婪的特性对浏览器的要求越来越高。如果您对监控和跟踪生产环境中所有用户的客户端CPU使用、内存使用等感兴趣，</p><a target="_blank" href="https://lp.logrocket.com/blg/css-signup">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/></noscript></a><a href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录你的网络应用或网站上发生的一切。您可以汇总和报告关键的前端性能指标，重放用户会话和应用程序状态，记录网络请求，并自动显示所有错误，而不是猜测问题发生的原因。</p><p>现代化您调试web和移动应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

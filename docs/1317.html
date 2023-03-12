@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>Setting up MongoDB in Deno - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Deno - LogRocket博客中设置MongoDB</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/setting-up-mongodb-in-deno/#0001-01-01">https://blog.logrocket.com/setting-up-mongodb-in-deno/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Deno是一个简单而安全的JavaScript运行时，默认情况下支持和配置TypeScript。MongoDB是一个跨平台的面向文档的数据库程序，被开发人员广泛使用。在本文中，我们将学习如何将MongoDB集成到Deno应用程序中。</p>
+<h3>先决条件</h3>
+<ul>
+<li>熟悉打字稿</li>
+<li>VS代码，或者安装在开发机器上的任何代码编辑器。</li>
+<li>MongoDB的基础知识。</li>
+<li>安装在本地机器上的邮递员。</li>
+</ul>
+<p>在我们开始之前，确保您已经在本地机器上安装了Deno。如果您正在使用Mac，但尚未安装，请打开您的终端并运行以下命令:</p>
+<pre>brew install deno</pre>
+<p>如果您使用的是Windows机器，可以通过在终端上运行以下命令来安装它:</p>
+<pre>iwr https://deno.land/x/install/install.ps1 -useb | iex</pre>
+<p>或者，如果您安装了Chocolatey，您可以运行:</p>
+<pre>choco install deno</pre>
+<h2>入门指南</h2>
+<p>我们将首先创建一个<code>server.js</code>文件，然后设置我们的Deno服务器。由于Node.js中没有<code>package.json</code>文件，Deno使用通过URL或文件路径引用的模块。</p>
+<pre>import { Application, Router } from "https://deno.land/x/oak/mod.ts";
+const app = new Application();
+const router = new Router();
+const PORT = 3000;
+router
+  .get("/", (ctx) =&gt; {
+    ctx.response.body = "This is the home route";
+  });
+app.use(router.routes());
+app.use(router.allowedMethods());
+app.listen({ port: PORT });
+</pre>
+<p>我们使用Oak来运行我们的服务器。Oak是一个用于HTTP服务器的Deno中间件框架，它还包括一个路由器中间件。</p>
+<p>我们现在可以在终端上运行<code>deno run --allow-net server.ts</code>来服务我们的应用程序。由于Deno的安全性，我们需要添加<code>--allow-net</code>来运行服务器。我们可以在<code>localhost:8000</code>的浏览器上查找应用程序。</p>
+<p>现在我们的服务器已经启动并运行了，我们可以开始在应用程序中设置MongoDB了。创建一个<code>db.js</code>文件，我们将在这里设置我们的数据库配置:</p>
+<pre>// import the package from url
+import { init, MongoClient } from "https://deno.land/x/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="076a686960684771372936352936">[email protected]</a>/mod.ts";
+// Intialize the plugin
+await init();
+// Create client
+const client = new MongoClient();
+// Connect to mongodb
+client.connectWithUri("mongodb://localhost:27017");
+// Give your database a name
+const dbname: string = "denoMongoApp";
+const db = client.database(dbname);
+// Declare the mongodb collections here. Here we are using only one collection (i.e user).
+// Defining schema interface
+interface UserSchema {
+  _id: { $oid: string };
+  name: string;
+  email: string;
+  phone: string;
+}
+const User = db.collection&lt;UserSchema&gt;("user");
+export { db, User };</pre>
+<p>这里我们导入插件，然后初始化它。我们创建了一个<code>mongoClient</code>的实例，然后将它连接到MongoDB。我们设置了一个<code>User</code>集合，我们将使用它来测试我们的Mongo配置。我们还为MongoDB模型定义了一个TypeScript接口，它将接受一个名称、电子邮件、电话和一个生成的Mongo ID。</p>
+<p>既然已经设置好了，我们将构建一个简单的CRUD应用程序来测试它。为了使我们的应用程序更具可伸缩性，我们需要创建一个<code>routes.ts</code>和一个<code>controller.ts</code>文件。我们的<code>routes.ts</code>文件将处理我们的路由，<code>controller.ts</code>文件将处理我们的MongoDB逻辑。</p>
+<p>我们的<code>routes.ts</code>文件应该是这样的:</p>
+<pre>import { Router } from "https://deno.land/x/oak/mod.ts";
+import { getUsers, createUser } from "./controller.ts";
+const router = new Router();
+router
+  .get("/", (ctx) =&gt; {
+    ctx.response.body = "This is the home route";
+  })
+  .get("/get-users", getUsers)
+  .post("/create-user", createUser);
+export default router;</pre>
+<p>有了这个新配置，我们需要将我们的<code>server.ts</code>文件修改为:</p>
+<pre>import { Application } from "https://deno.land/x/oak/mod.ts";
+const app = new Application();
+import router from "./routes.ts";
+const PORT: number = 3000;
+//
+app.use(router.routes());
+app.use(router.allowedMethods());
+app.listen({ port: PORT });</pre>
+<p>现在我们需要定义我们在<code>router.ts</code>文件中调用的路由方法。我们将从创建<code>getUser</code>方法开始。记住，我们必须引入我们在<code>db.ts</code>文件中创建的数据库实例:</p>
+<pre>import { User } from "./db.ts";
+
+let getUsers = async (ctx: any) =&gt; {
+  try {
+    const data: any = await User.find();
+    ctx.response.body = { "status": true, data: data };
+    ctx.response.status = 200;
+  } catch (err) {
+    ctx.response.body = { status: false, data: null };
+    ctx.response.status = 500;
+    console.log(err);
+  }
+};</pre>
+<p>现在我们可以调用<code>get-user</code>端点，默认情况下它将返回一个空数组和一个状态<code>200</code>。</p>
+<p>我们将使用相同的技术来实现<code>createUser</code>方法:</p>
+<pre>let createUser = async (ctx: any) =&gt; {
+  try {
+    let body: any = await ctx.request.body();
+    console.log(await body.value);
+    const { name, phone, email } = await body.value;
+    const id = await User.insertOne({
+      name: name,
+      phone: phone,
+      email: email,
+    });
+    ctx.response.body = { status: true, data: id };
+    ctx.response.status = 201;
+  } catch (err) {
+    ctx.response.body = { status: false, data: null };
+    ctx.response.status = 500;
+    console.log(err);
+  }
+};</pre>
+<p>永远记住等待<code>body.value</code>，因为这是一个异步请求。如果不这样做，它将只返回对象ID。</p>
+<p>让我们运行应用程序:</p>
+<pre>deno run --allow-all --unstable server.ts</pre>
+<p>在我们的应用程序中，<code>--allow-all</code>标志将允许所有权限并禁用Deno的安全性。</p>
+<h2>测试我们的端点</h2>
+<p>让我们继续使用POSTMAN测试我们的端点。下面是获取用户的测试:</p>
+<p><img data-attachment-id="29003" data-permalink="https://blog.logrocket.com/setting-up-mongodb-in-deno/attachment/postman-test-getting-users/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="POSTMAN test for getting users" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png" decoding="async" class="aligncenter size-full wp-image-29003 jetpack-lazy-image" src="../Images/3fb17546708deba86e25cc8da004a0b9.png" alt="POSTMAN Test for Getting Users" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users-300x190.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29003" data-permalink="https://blog.logrocket.com/setting-up-mongodb-in-deno/attachment/postman-test-getting-users/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="POSTMAN test for getting users" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29003" src="../Images/3fb17546708deba86e25cc8da004a0b9.png" alt="POSTMAN Test for Getting Users" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users-300x190.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-getting-users.png"/></noscript>
+<p>下面是创建用户的测试:</p>
+<p><img data-attachment-id="29004" data-permalink="https://blog.logrocket.com/setting-up-mongodb-in-deno/attachment/postman-test-creating-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png" data-orig-size="730,402" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="POSTMAN test for creating a user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user-300x165.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png" decoding="async" class="aligncenter size-full wp-image-29004 jetpack-lazy-image" src="../Images/d62e6a429adcd3fca02fbbd0ce3ae590.png" alt="POSTMAN Test for Creating a User" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user-300x165.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="29004" data-permalink="https://blog.logrocket.com/setting-up-mongodb-in-deno/attachment/postman-test-creating-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png" data-orig-size="730,402" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="POSTMAN test for creating a user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user-300x165.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-29004" src="../Images/d62e6a429adcd3fca02fbbd0ce3ae590.png" alt="POSTMAN Test for Creating a User" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user-300x165.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/postman-test-creating-user.png"/></noscript>
+<h2>结论</h2>
+<p>在Deno中设置应用程序非常容易，也更安全。只要有Deno控制器，您就可以使用自己选择的任何数据库。由于Deno没有一个<code>package.json</code>文件，它将所有的模块缓存在我们的本地机器上，这样要快得多。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+ <p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

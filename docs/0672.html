@@ -1,0 +1,504 @@
+<html>
+<head>
+<title>Scalable WebSockets with NestJS and Redis - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用NestJS和Redis - LogRocket博客的可伸缩WebSockets</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/#0001-01-01">https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当开发一个相对年轻的应用程序时，为了更快地实现功能，人们往往会忽略对可伸缩性的需求。然而，我相信即使在项目的最早期阶段，确保我们的代码尽可能具有可伸缩性也是至关重要的。</p>
+<p>最近，当我在做一个项目时，我面临着向NestJS应用程序添加WebSockets的挑战。虽然由于惊人的<a href="https://docs.nestjs.com/websockets/gateways">文档</a>，这是一个相对简单的任务，但是它有一个很大的缺点:它给以前无状态的应用程序引入了一个状态。</p>
+<p>得益于Docker和Kubernetes等工具，如今的后端应用程序很容易扩展。创建一个应用程序的许多实例的复杂性已经大大降低了——也就是说，只要应用程序保持无状态。由于没有状态，应用程序可以关闭和再次打开，不会出现意外的行为。换句话说，应用程序很容易被丢弃。</p>
+<p>WebSocket协议的每个实现都必须将当前打开的连接保持在某种状态下。这意味着，如果我们有应用程序的两个实例，第二个实例分派的事件将永远不会到达连接到第一个实例的客户端。</p>
+<p>也就是说，有一些方法可以在许多实例之间“共享”开放连接池。一种方法是使用Redis的发布/订阅机制在应用程序的所有实例之间转发发出的事件，以确保每个打开的连接都能接收到它们。</p>
+<p>下面的实现完全包含了Nest生态系统，并涵盖了如下情况:仅向一个用户发出事件；向所有打开的连接发出事件；并将事件发送给所有经过身份验证的用户。</p>
+<blockquote><p><strong>注意:</strong>在NestJS文档中，有一个非常简单的方法，用几行代码就可以添加Redis来转发实例之间的事件。如果你正在寻找一个简单但有限的解决方案，看看这里的<a href="https://docs.nestjs.com/websockets/adapter"/>。如果您想自己找出如何实现上述机制，请继续。</p></blockquote>
+<p>本文假设您对Docker、TypeScript和RxJS有基本的了解。</p>
+<h2>设置嵌套应用程序</h2>
+<p>我已经在本文的<a href="https://blog.logrocket.com/containerized-development-nestjs-docker/">中详细描述了我将在这里使用的设置。简而言之，我们使用Nest CLI为我们搭建应用程序，使用docker-compose为Docker添加Redis和Postgres进行本地开发。</a></p>
+<p>我建议你下载<a href="https://github.com/maciejcieslar/scalable-websocket-nestjs">库</a>并跟着做，因为我将只解释相关的代码，而没有嵌套的样板文件，比如<code>modules</code>。</p>
+<h2>add redis(添加歌词)</h2>
+<p>Redis是内存中的数据结构存储，可以用作数据库、缓存或发布/订阅客户端。请注意，这些只是Redis的几种可能性。如果您有兴趣了解更多信息，请点击。</p>
+<p>通常，你必须在你的电脑上安装Redis，但是由于Docker把这个应用程序容器化了，我们不需要这么做。Docker负责为我们安装和启动Redis。</p>
+<p>要从节点运行时与Redis通信，有几个库是可用的。我们将使用<a href="https://github.com/luin/ioredis"> ioredis </a>,因为它在保持强大性能的同时提供了大量的功能。</p>
+<p>我们必须创建一个嵌套模块来封装与Redis相关的代码。在<code><a href="https://github.com/maciejcieslar/scalable-websocket-nestjs/tree/master/src/app/shared/redis">RedisModule</a></code>中，我们有providers数组，在其中我们创建ioredis客户端来与redis通信。我们还实现了<code>RedisService</code>，它抽象出监听和发送Redis消息。</p>
+<p>如上所述，我们创建了两个具有不同目的的Redis客户机:一个用于订阅，一个用于发布消息。</p>
+<pre class="typescript">//redis.providers.ts
+
+import { Provider } from '@nestjs/common';
+import Redis from 'ioredis';
+
+import { REDIS_PUBLISHER_CLIENT, REDIS_SUBSCRIBER_CLIENT } from './redis.constants';
+
+export type RedisClient = Redis.Redis;
+
+export const redisProviders: Provider[] = [
+ {
+   useFactory: (): RedisClient =&gt; {
+     return new Redis({
+       host: 'socket-redis',
+       port: 6379,
+     });
+   },
+   provide: REDIS_SUBSCRIBER_CLIENT,
+ },
+ {
+   useFactory: (): RedisClient =&gt; {
+     return new Redis({
+       host: 'socket-redis',
+       port: 6379,
+     });
+   },
+   provide: REDIS_PUBLISHER_CLIENT,
+ },
+];</pre>
+<p>注意，<code>host</code>和<code>port</code>值通常通过某种形式的配置来配置，比如<code>ConfigService</code>，但是为了简单起见，这里省略了。</p>
+<p>有了在<code>RedisModule</code>中注册的那些提供者，我们就能够将它们作为依赖项注入到我们的服务中。</p>
+<p>所以让我们创建一个<code>RedisService</code>。</p>
+<pre class="typescript">//redis.service.ts
+
+import {
+ REDIS_PUBLISHER_CLIENT,
+ REDIS_SUBSCRIBER_CLIENT,
+} from './redis.constants';
+import { RedisClient } from './redis.providers';
+
+export interface RedisSubscribeMessage {
+ readonly message: string;
+ readonly channel: string;
+}
+
+@Injectable()
+export class RedisService {
+ public constructor(
+   @Inject(REDIS_SUBSCRIBER_CLIENT)
+   private readonly redisSubscriberClient: RedisClient,
+   @Inject(REDIS_PUBLISHER_CLIENT)
+   private readonly redisPublisherClient: RedisClient,
+ ) {}
+
+ // ...
+}</pre>
+<p>在构造函数中，我们按照预期注入了两个Redis客户端。</p>
+<p>然后我们定义两个方法:<code>fromEvent</code>和<code>publish</code>。让我们先来看看<code>fromEvent</code>法。</p>
+<pre class="typescript"> public fromEvent&lt;T&gt;(eventName: string): Observable&lt;T&gt; {
+   this.redisSubscriberClient.subscribe(eventName);
+
+   return Observable.create((observer: Observer&lt;RedisSubscribeMessage&gt;) =&gt;
+     this.redisSubscriberClient.on('message', (channel, message) =&gt; observer.next({ channel, message })),
+   ).pipe(
+     filter(({ channel }) =&gt; channel === eventName),
+     map(({ message }) =&gt; JSON.parse(message)),
+   );
+ }</pre>
+<p>它通过使用<code>redisSubscriberClient</code>的subscribe方法告诉Redis留意所提供的事件。然后我们返回一个可观察值，在这个值中，我们通过在<code>message</code>事件上附加一个监听器来监听任何新消息。</p>
+<p>当我们收到一个新消息时，我们首先检查<code>channel</code>(事件的Redis名称)是否等于提供的<code>eventName</code>。如果是，我们使用<code>JSON.parse</code>将重新发送的字符串转换成一个对象。</p>
+<pre class="&quot;typescript"> public async publish(channel: string, value: unknown): Promise&lt;number&gt; {
+   return new Promise&lt;number&gt;((resolve, reject) =&gt; {
+     return this.redisPublisherClient.publish(channel, JSON.stringify(value), (error, reply) =&gt; {
+       if (error) {
+         return reject(error);
+       }
+
+       return resolve(reply);
+     });
+   });
+ }</pre>
+<p><code>publish</code>方法获取一个<code>channel</code>和一个未知的<code>value</code>，并使用<code>redisPublisherClient</code>来发布它。我们假设提供的值可以用<code>JSON.stringify</code>进行字符串化，因为Redis无法传输JavaScript对象。</p>
+<p>通过这两种方法，我们成功地抽象出了所有连接到底层Redis客户端的麻烦代码，现在可以使用可靠的API通过使用<code>RedisService</code>在实例之间发送事件。</p>
+<h2>创建套接字状态</h2>
+<p>我们已经提到，当前打开的WebSocket连接必须保持某种状态。像socket.io这样的库，我们将在这里使用，为我们做这件事。</p>
+<p>这些库提供了有用的方法，如<code>.send</code>或<code>.emit</code>，这使得以特定的格式获取当前活动的套接字(连接)变得非常困难。为了使我们更容易检索和管理套接字，我们将实现我们自己的套接字状态。</p>
+<p>在我们的状态实现中，我们感兴趣的是检索指定用户的套接字。这样，如果3号实例分派了ID为<code>1234</code>的用户应该收到的事件，我们将能够很容易地检查所有实例是否有这个ID的用户的套接字。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>我们假设我们正在创建的应用程序支持某种身份验证。如何认证一个传入的套接字将在后面讨论；现在，让我们假设每个套接字都有一个可用的<code>userId</code>。</p>
+<p>这真的很简单。我们将以下面的格式存储套接字:<code>Map&lt;string, Socket[]&gt;</code>。换句话说，键将是用户的<code>id</code>,相应的值将是他们所有的套接字。</p>
+<p>让我们创建一个名为<code><a href="https://github.com/maciejcieslar/scalable-websocket-nestjs/blob/master/src/app/shared/socket-state/socket-state.module.ts">SocketStateModule</a></code>的嵌套模块和负责保持状态的服务。</p>
+<pre class="typescript">//socket-state-service.ts
+
+@Injectable()
+export class SocketStateService {
+  private socketState = new Map&lt;string, Socket[]&gt;()
+
+  // ...
+}</pre>
+<p>首先，我们定义一个私有属性来保存地图中的状态，然后我们添加一些方法来简化服务的使用。</p>
+<pre class="typescript">public add(userId: string, socket: Socket): boolean {
+   const existingSockets = this.socketState.get(userId) || []
+
+   const sockets = [...existingSockets, socket]
+
+   this.socketState.set(userId, sockets)
+
+   return true
+ }</pre>
+<p><code>add</code>方法将参数<code>userId</code>和<code>socket</code>作为参数，它们代表一个新打开的连接。首先，它在<code>existingSockets</code>中保存用户的现有套接字(或者一个空数组，如果没有现有套接字的话)。然后，它将提供的套接字附加到集合的末尾，并将新的套接字集合保存在状态中。</p>
+<pre class="typescript">public remove(userId: string, socket: Socket): boolean {
+   const existingSockets = this.socketState.get(userId)
+
+   if (!existingSockets) {
+     return true
+   }
+
+   const sockets = existingSockets.filter(s =&gt; s.id !== socket.id)
+
+   if (!sockets.length) {
+     this.socketState.delete(userId)
+   } else {
+     this.socketState.set(userId, sockets)
+   }
+
+   return true
+ }</pre>
+<p><code>remove</code>方法为用户从当前存在的套接字中过滤掉不需要的套接字。每个套接字都有一个唯一的<code>id</code>，可以用来检查是否相等。如果在删除套接字后，用户在该状态下不再有任何套接字，则该阵列将从映射中完全删除以节省内存。如果过滤后数组中还有一些套接字，我们只需将其设置回状态。</p>
+<pre class="typescript"> public get(userId: string): Socket[] {
+   return this.socketState.get(userId) || []
+ }
+
+ public getAll(): Socket[] {
+   const all = []
+
+   this.socketState.forEach(sockets =&gt; all.push(sockets))
+
+   return all
+ }</pre>
+<p>另外还有两种方法:<code>get</code>和<code>getAll</code>。在<code>get</code>方法中，我们返回属于给定用户的所有套接字(如果没有套接字，则返回一个空数组)。</p>
+<p>在<code>getAll</code>中，我们利用<code>Map</code>的<code>forEach</code>方法，获取每个用户的套接字，并将它们合并成一个数组。</p>
+<h2>创建适配器</h2>
+<p>Nest最好的特性之一是，它允许开发人员通过定义明确、可靠的抽象来处理底层库，如服务器的Express和Fastify，或套接字的socket.io和ws。</p>
+<p>这样，从开发人员的角度来看，库很容易交换，而无需对代码库进行任何重大更改。为了让它工作，Nest有自己的适配器集，这些适配器将一个库的API“装配”到Nest期望的API上。这使得Nest很容易支持许多具有不同API的库。</p>
+<p>由于我们想要跟踪当前打开的套接字，我们必须扩展socket.io的适配器。该适配器作为<code>@nestjs/platform-socket.io</code>包的一部分提供。通过扩展现有的适配器，我们可以只覆盖我们需要的方法，把其他的事情留给适配器。</p>
+<p>在Nest的文档中，非常详细地解释了定制适配器是如何工作的，以及它们为什么如此强大。我建议<a href="https://docs.nestjs.com/websockets/adapter">在继续之前阅读</a>。</p>
+<pre class="typescript">export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
+ public constructor(
+   private readonly app: INestApplicationContext,
+   private readonly socketStateService: SocketStateService,
+ ) {
+   super(app);
+ }
+
+ private server: socketio.Server;
+
+ public create(port: number, options: socketio.ServerOptions = {}): socketio.Server {
+   this.server = super.createIOServer(port, options);
+
+   this.server.use(async (socket: AuthenticatedSocket, next) =&gt; {
+     const token = socket.handshake.query?.token || socket.handshake.headers?.authorization;
+
+     if (!token) {
+       socket.auth = null;
+
+       // not authenticated connection is still valid
+       // thus no error
+       return next();
+     }
+
+     try {
+       // fake auth
+       socket.auth = {
+         userId: '1234',
+       };
+
+       return next();
+     } catch (e) {
+       return next(e);
+     }
+   });
+
+   return this.server;
+ }
+
+ public bindClientConnect(server: socketio.Server, callback: Function): void {
+   server.on('connection', (socket: AuthenticatedSocket) =&gt; {
+     if (socket.auth) {
+       this.socketStateService.add(socket.auth.userId, socket);
+
+       socket.on('disconnect', () =&gt; {
+         this.socketStateService.remove(socket.auth.userId, socket);
+       });
+     }
+
+     callback(socket);
+   });
+ }
+}</pre>
+<p>我们的类扩展了<code>IoAdapter</code>并覆盖了两个方法:<code>create</code>和<code>bindClientConnect</code>。</p>
+<p>顾名思义，<code>create</code>方法负责创建WebSocket服务器的实例。我们使用<code>IoAdapter</code>的<code>createIOServer</code>方法尽可能多地重用代码，并确保一切尽可能接近原始适配器。</p>
+<p>然后我们建立了一个用于认证的中间件——在我们的例子中，是一个假的中间件。我们假设认证是基于令牌的。</p>
+<p>在中间件中，我们首先检查是否在我们期望的地方提供了令牌:在<code>authorization</code>头中或者在查询的<code>token</code>参数中。</p>
+<p>如果没有提供令牌，我们将<code>socket.auth</code>设置为空，并调用<code>next</code>继续执行其他中间件。如果有令牌，我们通常会用一个<code>AuthService</code>来检查和验证它，但这超出了本文的范围。</p>
+<p>相反，我们将把经过验证的令牌的有效负载模拟为一个具有等于<code>1234</code>的单一属性<code>userId</code>的对象。令牌验证被放在一个<code>try/catch</code>块中，因为令牌验证方法会抛出一个错误。如果发生了，我们应该捕捉它，并使用error参数调用<code>next</code>,向socket.io指示发生了错误。</p>
+<p>第二个方法是<code>bindClientConnect</code>，它负责在我们的套接字服务器中注册连接监听器。在这里，我们可以访问服务器，在这里我们可以监听<code>connect</code>事件。我们在<code>create</code>方法中定义的中间件将被预先执行，因此我们可以安全地检查socket对象的<code>auth</code>属性。</p>
+<p>现在记住:我们也允许存在未认证的套接字，所以我们必须首先检查<code>auth</code>属性是否存在。如果是的话，我们使用之前定义的方法<code>socketStateService</code>将<code>socket</code>添加到用户的套接字池中。</p>
+<p>我们还为<code>disconnect</code>事件注册了一个事件监听器，以将<code>socket</code>从状态中移除。为了完全确定我们没有任何内存泄漏，我们使用了<code>socket</code>对象的<code>removeAllListeners</code>方法来移除<code>disconnect</code>事件监听器。</p>
+<p>不管是否有<code>auth</code>属性，我们都必须调用作为第二个参数提供的<code>callback</code>函数，让socket.io适配器也保持对套接字的引用。</p>
+<p>要注册我们的定制适配器，我们必须使用嵌套应用程序的<code>useWebSocketAdapter</code>方法:</p>
+<pre class="typescript">//adapter.init.ts
+
+export const initAdapters = (app: INestApplication): INestApplication =&gt; {
+ const socketStateService = app.get(SocketStateService);
+ const redisPropagatorService = app.get(RedisPropagatorService);
+
+ app.useWebSocketAdapter(new SocketStateAdapter(app, socketStateService, redisPropagatorService));
+
+ return app;
+};</pre>
+<p><code>redisPropagatorService</code>解释如下。</p>
+<pre class="typescript">//main.ts
+
+async function bootstrap(): Promise&lt;void&gt; {
+ const app = await NestFactory.create(AppModule);
+
+ initAdapters(app);
+
+ await app.listen(3000, () =&gt; {
+   console.log(`Listening on port 3000.`);
+ });
+}
+
+bootstrap();</pre>
+<h2>创建Redis事件传播器</h2>
+<p>有了Redis集成和我们自己的套接字状态和适配器，剩下要做的就是创建最后一个跨应用程序所有实例调度事件的服务。</p>
+<p>为此，我们必须再创建一个名为<code><a href="https://github.com/maciejcieslar/scalable-websocket-nestjs/blob/master/src/app/shared/redis-propagator/redis-propagator.module.ts">RedisPropagatorModule</a></code>的嵌套模块。\</p>
+<p>在<code>RedisPropagatorService</code>中，我们将监听来自其他实例的任何传入的Redis事件，并向它们发送事件。瞧啊。我们自己的发布/订阅服务！</p>
+<p>通过Redis的事件有三种类型:</p>
+<ul>
+<li>向所有打开的连接发出事件</li>
+<li>仅向通过身份验证的用户发出事件</li>
+<li>仅向指定用户发出事件</li>
+</ul>
+<p>在代码中，我们将对它们进行如下定义:</p>
+<pre class="typescript">export const REDIS_SOCKET_EVENT_SEND_NAME = 'REDIS_SOCKET_EVENT_SEND_NAME';
+export const REDIS_SOCKET_EVENT_EMIT_ALL_NAME =
+ 'REDIS_SOCKET_EVENT_EMIT_ALL_NAME';
+export const REDIS_SOCKET_EVENT_EMIT_AUTHENTICATED_NAME =
+ 'REDIS_SOCKET_EVENT_EMIT_AUTHENTICATED_NAME';</pre>
+<p>现在让我们创建服务:</p>
+<pre class="typescript">@Injectable()
+export class RedisPropagatorService {
+ private socketServer: Server;
+
+ public constructor(
+   private readonly socketStateService: SocketStateService,
+   private readonly redisService: RedisService,
+ ) {}
+
+ public propagateEvent(eventInfo: RedisSocketEventSendDTO): boolean {
+   if (!eventInfo.userId) {
+     return false;
+   }
+
+   this.redisService.publish(REDIS_SOCKET_EVENT_SEND_NAME, eventInfo);
+
+   return true;
+ }
+
+ public emitToAuthenticated(eventInfo: RedisSocketEventEmitDTO): boolean {
+   this.redisService.publish(
+     REDIS_SOCKET_EVENT_EMIT_AUTHENTICATED_NAME,
+     eventInfo,
+   );
+
+   return true;
+ }
+
+ public emitToAll(eventInfo: RedisSocketEventEmitDTO): boolean {
+   this.redisService.publish(REDIS_SOCKET_EVENT_EMIT_ALL_NAME, eventInfo);
+
+   return true;
+ }
+
+ // ...
+}</pre>
+<p>在构造函数中，我们使用了之前创建的两个服务。我们定义了三种有用的方法。它们都做一件简单的事情:用提供的信息调度预期的Redis事件。唯一的区别是在<code>propagateEvent</code>方法中，我们不想发布事件，除非提供了<code>userId</code>。</p>
+<p>除此之外，<code>emitToAll</code>和<code>emitToAuthenticated</code>方法都可以从我们代码库中的任何地方调用。<code>propagateEvent</code>的情况并非如此；每当我们的socket服务器向前端客户端发送事件时，都会调用这个方法。</p>
+<h3>监听事件调度程序</h3>
+<p>为了最大限度地利用Nest生态系统，我们将创建一个拦截器来访问每个套接字事件响应。这样，我们就不必在每个网关中手动调用<code>propagateEvent</code>。</p>
+<pre class="typescript">//redis-propagator.interceptor.ts
+
+@Injectable()
+export class RedisPropagatorInterceptor&lt;T&gt; implements NestInterceptor&lt;T, WsResponse&lt;T&gt;&gt; {
+ public constructor(private readonly redisPropagatorService: RedisPropagatorService) {}
+
+ public intercept(context: ExecutionContext, next: CallHandler): Observable&lt;WsResponse&lt;T&gt;&gt; {
+   const socket: AuthenticatedSocket = context.switchToWs().getClient();
+
+   return next.handle().pipe(
+     tap((data) =&gt; {
+       this.redisPropagatorService.propagateEvent({
+         ...data,
+         socketId: socket.id,
+         userId: socket.auth?.userId,
+       });
+     }),
+   );
+ }
+}</pre>
+<p>拦截器可以订阅由<code>next.handle()</code>方法返回的可观察对象。我们的服务器发送的每个WebSocket事件都会经过这里。通过使用RxJS' <code>tap</code>方法，我们可以对响应做出反应而不改变它。</p>
+<p>每个调度的事件，在返回到前端客户端之前，在我们的所有实例中传播，其中我们将事件发送到属于用户的所有套接字。</p>
+<p>请记住，<code>auth</code>对象是可选的，所以我们使用TypeScript新的可选链接语法来确保我们的代码在没有<code>auth</code>对象时不会中断。</p>
+<p>在<code>propagateEvent</code>方法中，我们拒绝没有<code>userId</code>的事件。这是因为此类事件无意跨实例传播，因为连接是唯一的。</p>
+<p>记住，无论是否使用了<code>propagateEvent</code>方法，事件都会被发送到前端客户端。所以如果没有<code>auth</code>对象，网关发送的事件还是会到达前端客户端。我们只是确保它被发送到用户可能已经打开的所有其他套接字。</p>
+<p>我们将在文章结尾的例子中展示如何附加拦截器。</p>
+<h3>在<code>RedisPropagatorService</code>中创建事件监听器</h3>
+<p>除了将事件分派给其他实例之外，我们还希望监听来自其他实例的事件。</p>
+<pre class="typescript">@Injectable()
+export class RedisPropagatorService {
+ // ...
+
+ private socketServer: Server;
+
+ public constructor(
+   private readonly socketStateService: SocketStateService,
+   private readonly redisService: RedisService,
+ ) {
+   this.redisService
+     .fromEvent(REDIS_SOCKET_EVENT_SEND_NAME)
+     .pipe(tap(this.consumeSendEvent))
+     .subscribe();
+
+   this.redisService
+     .fromEvent(REDIS_SOCKET_EVENT_EMIT_ALL_NAME)
+     .pipe(tap(this.consumeEmitToAllEvent))
+     .subscribe();
+
+   this.redisService
+     .fromEvent(REDIS_SOCKET_EVENT_EMIT_AUTHENTICATED_NAME)
+     .pipe(tap(this.consumeEmitToAuthenticatedEvent))
+     .subscribe();
+ }
+
+ public injectSocketServer(server: Server): RedisPropagatorService {
+   this.socketServer = server;
+
+   return this;
+ }
+}</pre>
+<p>多亏了<code>redisService</code>，我们可以轻松订阅Redis活动。使用RxJS <code>tap</code>操作符，我们可以调用我们的方法之一来对可观察的事件流做出适当的反应。</p>
+<h3>改变<code>socketStateAdapter</code></h3>
+<p>我们还创建了一个<code>injectSocketServer</code>方法，让我们将一个WebSocket服务器实例注入到我们的服务中。通过依赖注入来实现这一点会更好，但是在编写定制适配器时这实际上是不可能的。然而，有了这个方法，我们必须调整适配器的代码:</p>
+<pre class="typescript">export class SocketStateAdapter extends IoAdapter implements WebSocketAdapter {
+ public constructor(
+   private readonly app: INestApplicationContext,
+   private readonly socketStateService: SocketStateService,
+   private readonly redisPropagatorService: RedisPropagatorService,
+ ) {
+   super(app);
+ }
+
+ public create(port: number, options: socketio.ServerOptions = {}): socketio.Server {
+  const server = super.createIOServer(port, options);
+  this.redisPropagatorService.injectSocketServer(server);
+  // ...
+}</pre>
+<p>我们使用了依赖注入来获得<code>redisPropagatorService</code>的实例，在创建WebSocket服务器的过程中，我们简单地将它注入到我们的singleton服务中。</p>
+<p>说完这些，让我们回到我们的<code>redisPropagatorService</code>并定义用于监听事件的方法。</p>
+<h3><code>consumeSendEvent</code>方法</h3>
+<p>首先，我们将创建一个名为<code>consumeSendEvent</code>的方法来监听Redis事件，该事件告诉我们向指定的用户发送一个事件。</p>
+<pre class="typescript"> private consumeSendEvent = (eventInfo: RedisSocketEventSendDTO): void =&gt; {
+   const { userId, event, data, socketId } = eventInfo;
+
+   return this.socketStateService
+     .get(userId)
+     .filter((socket) =&gt; socket.id !== socketId)
+     .forEach((socket) =&gt; socket.emit(event, data));
+ };</pre>
+<p>在<code>eventInfo</code>中，我们传递以下信息:</p>
+<pre class="typescript">export class RedisSocketEventSendDTO {
+ public readonly userId: string;
+ public readonly socketId: string;
+ public readonly event: string;
+ public readonly data: unknown;
+}</pre>
+<p>知道将事件发送到哪里(<code>userId</code>)、事件的名称是什么(<code>event</code>)、它应该包含什么数据(<code>data</code>)以及事件来自哪个套接字(<code>socketId</code>，我们就可以安全地将事件发送到现有用户的套接字。</p>
+<p>我们首先获取用户的套接字，通过使用提供的<code>socketId</code>过滤套接字来确保我们不会两次发送相同的事件，然后使用每个套接字的<code>emit</code>方法来发送事件。</p>
+<p>如果当前没有为用户打开的套接字(如果用户在某个其他实例上只有一个打开的连接，就会出现这种情况)，<code>socketStateService</code>的get方法将返回一个空数组，并且后面的所有方法都不会被执行。</p>
+<p>在拦截器内部，我们使用<code>propagateEvent</code>方法将事件发送到我们所有的实例。然后，事件被发送到前端客户端。这就是我们跟踪事件起源的套接字的原因:确保我们不会在同一个套接字上两次发送相同的事件。</p>
+<h3><code>consumeEmitToAllEvent</code></h3>
+<pre class="typescript"> private consumeEmitToAllEvent = (
+   eventInfo: RedisSocketEventEmitDTO,
+ ): void =&gt; {
+   this.socketServer.emit(eventInfo.event, eventInfo.data);
+ };</pre>
+<p>这个方法非常简单——所要做的就是使用套接字服务器的<code>emit</code>方法将事件发送给所有当前打开的连接，无论是否经过身份验证。</p>
+<h3><code>consumeEmitToAuthenticated</code></h3>
+<pre class="typescript"> private consumeEmitToAuthenticatedEvent = (
+   eventInfo: RedisSocketEventEmitDTO,
+ ): void =&gt; {
+   const { event, data } = eventInfo;
+
+   return this.socketStateService
+     .getAll()
+     .forEach((socket) =&gt; socket.emit(event, data));
+ };</pre>
+<p>在<code>consumeEmitToAuthenticated</code>方法中，我们利用了<code>socketStateService</code>的<code>getAll</code>方法。在获得所有经过身份验证的套接字后，我们使用套接字的emit方法来发送事件。</p>
+<h2>工作示例</h2>
+<p>最后要做的事情是创建一个网关来监听传入的事件，并检查是否一切都按预期工作。</p>
+<pre class="typescript">@UseInterceptors(RedisPropagatorInterceptor)
+@WebSocketGateway()
+export class EventsGateway {
+ @SubscribeMessage('events')
+ public findAll(): Observable&lt;any&gt; {
+   return from([1, 2, 3]).pipe(
+     map((item) =&gt; {
+       return { event: 'events', data: item };
+     }),
+   );
+ }
+}</pre>
+<p>通过使用<code>@UseInterceptors</code>装饰器，我们注册了跨所有实例发出事件的拦截器。如果我们希望传播事件，拦截器必须在我们创建的每个网关上注册。</p>
+<p>现在来看一个简单的带有socket.io客户端库的HTML文件:</p>
+<pre class="html">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+ &lt;head&gt;
+   &lt;meta charset="UTF-8" /&gt;
+   &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+   &lt;meta http-equiv="X-UA-Compatible" content="ie=edge" /&gt;
+   &lt;title&gt;Sockets test&lt;/title&gt;
+ &lt;/head&gt;
+ &lt;body&gt;
+   &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.dev.js"&gt;&lt;/script&gt;
+   &lt;script&gt;
+     window.s = io('http://localhost:3000', {
+       query: {
+         token: '123',
+       },
+     });
+
+     s.emit('events', { event: 'events', data: { test: true } });
+     s.on('events', (response) =&gt; {
+       console.log(response);
+     });
+   &lt;/script&gt;
+ &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>提供的令牌明显是假的，我们只是想模拟有一个。</p>
+<p>从<a href="https://github.com/maciejcieslar/scalable-websocket-nestjs">库</a>获取代码后，为了启动应用程序，运行:</p>
+<pre class="bash">docker-compose up</pre>
+<p><img data-attachment-id="13995" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/compiling-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png" data-orig-size="730,162" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Compiling our app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png" decoding="async" class="aligncenter size-full wp-image-13995 jetpack-lazy-image" src="../Images/0116cad5d2c882288907ba33d0c3ba99.png" alt="Compiling Our App In Watch Mode" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app-300x67.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="13995" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/compiling-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png" data-orig-size="730,162" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Compiling our app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-13995" src="../Images/0116cad5d2c882288907ba33d0c3ba99.png" alt="Compiling Our App In Watch Mode" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app-300x67.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/compiling-app.png"/></noscript>
+<p>服务器启动并运行后，打开文件并检查控制台:</p>
+<p><img data-attachment-id="13997" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/html-file-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png" data-orig-size="730,68" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Checking the console in our HTML file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console-300x28.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png" decoding="async" class="aligncenter size-full wp-image-13997 jetpack-lazy-image" src="../Images/18f739bf528eca064c85d5a660925c02.png" alt="Checking The Console In Our HTML File" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console-300x28.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="13997" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/html-file-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png" data-orig-size="730,68" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Checking the console in our HTML file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console-300x28.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-13997" src="../Images/18f739bf528eca064c85d5a660925c02.png" alt="Checking The Console In Our HTML File" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console-300x28.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/html-file-console.png"/></noscript>
+<p>知道提供了一个令牌，我们可以通过打开第二个选项卡来检查两个选项卡是否应该接收相同的事件(因为它们是来自一个用户的两个会话):</p>
+<p><img data-attachment-id="13998" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/console-logs-two-sessions/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png" data-orig-size="730,205" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Console reflecting two sessions" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions-300x84.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png" decoding="async" class="aligncenter size-full wp-image-13998 jetpack-lazy-image" src="../Images/e6b47ab7696a0d58277fdf84fe01e367.png" alt="Console Reflecting Two Sessions" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions-300x84.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="13998" data-permalink="https://blog.logrocket.com/scalable-websockets-with-nestjs-and-redis/console-logs-two-sessions/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png" data-orig-size="730,205" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Console reflecting two sessions" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions-300x84.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-13998" src="../Images/e6b47ab7696a0d58277fdf84fe01e367.png" alt="Console Reflecting Two Sessions" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions-300x84.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/console-logs-two-sessions.png"/></noscript>
+<p>通过刷新一个选项卡，我们使第二个选项卡也接收事件。我们的事件通过Redis客户端，然后客户端将它们转发到它们来自的同一个实例，但是这一次，我们只将它发送到还没有接收到事件的套接字。</p>
+<p>完整代码可在<a href="https://github.com/maciejcieslar/scalable-websocket-nestjs">这里</a>获得。</p>
+<h2>摘要</h2>
+<p>当将WebSockets添加到我们的应用程序中时，我们面临着一个决定:我们的应用程序是否是可伸缩的。一旦应用程序需要跨多个实例进行复制，预先决定采用可伸缩的解决方案会让我们受益匪浅。由于Nest的模块化，一旦实现，该解决方案可以很容易地复制到其他项目中。</p>
+<p>确保我们的应用程序是可伸缩的是一项艰巨的工作。在很大程度上，这需要我们彻底改变思维。但这绝对值得。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

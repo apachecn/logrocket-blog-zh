@@ -1,0 +1,217 @@
+<html>
+<head>
+<title>Creating your first CRUD with Dgraph and GraphQL - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Dgraph和GraphQL创建你的第一个CRUD</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/#0001-01-01">https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Dgraph是一个可水平扩展的、快速的、高度可用的分布式图形数据库，提供ACID事务、一致的复制和可线性化的读取。</p>
+<p>它还支持类似GraphQL的查询语法，这对于拥有更细粒度的搜索特性非常有用。</p>
+<p>图形数据库则是使用图形结构(如节点和边)来表示实体关系和存储数据的数据库。</p>
+<p><a href="https://graphql.org/" target="_blank" rel="noopener noreferrer"> GraphQL </a>顾名思义，也是基于图的面积的技术。那么，为什么不把两者混合呢？</p>
+<p>如您所知，GraphQL是一种替代的、健壮的方法来公开API端点，而不是通常的REST。</p>
+<p>它灵活、不受语言限制、功能强大，并且被社区广泛接受。但这并不意味着您必须在图形数据库中编写数据存储逻辑。</p>
+<p>本文旨在以实用的方式触及这一主题。</p>
+<p>我们将使用Dgraph创建一个CRUD，反过来，它将为每一个查询和变化生成搭建的方法。然后，通过使用GraphQL Playground，我们将对它们进行测试。</p>
+<h2>设置</h2>
+<p>启动和运行Dgraph的最快方法是通过Docker。你也可以通过<code>curl</code>下载它，并按照<a href="https://github.com/dgraph-io/dgraph#quick-install" target="_blank" rel="noopener noreferrer">这些指令</a>将它添加到bash中。</p>
+<p>然而，为了简单起见，我们将坚持Docker策略。</p>
+<p>首先，<a href="https://docs.docker.com/get-docker/" target="_blank" rel="noopener noreferrer">安装Docker </a>如果你还没有的话。</p>
+<p>然后，让我们运行下面的命令，该命令提取最新的<a href="https://hub.docker.com/r/dgraph/dgraph/" target="_blank" rel="noopener noreferrer">图形Docker图像</a>:</p>
+<pre>docker pull dgraph/dgraph:latest</pre>
+<p>如果你愿意，你也可以安装一个特定的版本而不是最新的版本。</p>
+<p>完成后，您可以运行以下命令来检查下载的图像:</p>
+<pre>docker images</pre>
+<p>最后，让我们启动并运行Dgraph:</p>
+<pre>docker run -it -p 8080:8080 dgraph/dgraph:latest</pre>
+<p>这将在端口8080的<code>localhost</code>中启动我们的应用程序。您可以随意更改端口。</p>
+<p>请务必等到消息“<code>Listening on ...</code>”出现，以证明它已启动。</p>
+<p>这就是了。设置非常简单，下一步是向我们的Dgraph数据库提供模式。</p>
+<p>现在，让我们分析一下我们的模式将会是什么样子:</p>
+<pre>type Post {
+    id: ID!
+    title: String! @search(by: [exact])
+    content: String!
+    authors: [User]
+    comments: [Comment]
+}
+
+type User {
+    id: ID!
+    username: String! @search(by: [exact])
+    name: String! @search(by: [fulltext])
+    avatar_url: Url
+}
+
+type Comment {
+    id: ID!
+    description: String!
+    likes: Int
+}
+
+type Url {
+    url_address: String!
+}</pre>
+<p>我们的例子是一篇博客文章的模式。我们将对博客用户、帖子和评论创建一个CRUD。</p>
+<p>如果你不熟悉GraphQL模式，我推荐你阅读一下这个。</p>
+<p>在创建模式时，重要的是要像考虑数据库表一样考虑它。每种类型对应一个表，该表应该有一个id(自动生成)。在我们的例子中，<code>Url</code>类型没有id，所以这意味着我们必须显式地将URL插入用户。</p>
+<p>其余字段遵循惯例。你有一个类型，<code>!</code>定义了它是否是必需的。</p>
+<p>这里特别注意<code>@search</code>指令。</p>
+<p>它告诉Dgraph我们的模型需要能够搜索特定的属性值。</p>
+<p><code>exact</code>值表示要在param提供的精确字符串上进行搜索，而<code>fulltext</code>值启用了另外两个选项，我们将进一步看到它们的作用。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>您还有选项<code>regexp</code>，它允许通过regex进行过滤。</p>
+<p>你可以在这里阅读更多关于这个<a href="https://graphql.dgraph.io/quick-start" target="_blank" rel="noopener noreferrer">的内容。</a></p>
+<p>现在，让我们运行命令，根据看到的模式创建所有数据库结构:</p>
+<pre>curl -H "Content-Type: application/json" http://localhost:8080/admin/schema -XPOST -d $'
+type Post {
+    id: ID!
+    title: String! @search(by: [exact])
+    content: String!
+    authors: [User]
+    comments: [Comment]
+}
+
+type User {
+    id: ID!
+    username: String! @search(by: [exact])
+    name: String! @search(by: [fulltext])
+    avatar_url: Url
+}
+
+type Comment {
+    id: ID!
+    description: String!
+    likes: Int
+}
+
+type Url {
+    url_address: String!
+}'</pre>
+<p>该命令成功完成后，您应该会看到以下输出消息:</p>
+<pre>{"data":{"code":"Success","message":"Done"}}</pre>
+<h2>测试</h2>
+<p>现在是时候测试我们的示例并向数据库提供博客数据了。</p>
+<p>首先，你需要下载并安装GraphQL Playground 工具到你的电脑上。</p>
+<p>显然，您可以使用最适合您的任何工具，但是我们将坚持使用操场，因为它很简单，并且当您在服务器上更改它时会自动刷新GraphQL模式。</p>
+<p>现在，打开它，在地址栏中键入<a href="http://localhost:8080/graphql" rel="nofollow">http://localhost:8080/graph QL</a>。</p>
+<p>点击窗口右侧的<code>SCHEMA</code>按钮，会出现以下内容:</p>
+<figure id="attachment_20133" aria-describedby="caption-attachment-20133" class="wp-caption aligncenter"><img data-attachment-id="20133" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/schema-graphql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png" data-orig-size="921,1600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="schema-graphql" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-173x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-589x1024.png" decoding="async" class="wp-image-20133 jetpack-lazy-image" src="../Images/2151bde83c00fd4a5e5685b0cd5db035.png" alt="A schema generated in Dgraph." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png 921w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-173x300.png 173w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-589x1024.png 589w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-768x1334.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-884x1536.png 884w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20133" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/schema-graphql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png" data-orig-size="921,1600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="schema-graphql" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-173x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-589x1024.png" decoding="async" loading="lazy" class="wp-image-20133" src="../Images/2151bde83c00fd4a5e5685b0cd5db035.png" alt="A schema generated in Dgraph." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png 921w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-173x300.png 173w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-589x1024.png 589w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-768x1334.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql-884x1536.png 884w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/schema-graphql.png"/></noscript><figcaption id="caption-attachment-20133" class="wp-caption-text">Dgraph generated schema.</figcaption></figure>
+<p>您可能已经注意到，我们提供给Dgraph命令的初始模式并不是最终的模式。实际上，Dgraph会以此为默认基础，在每一个已建立的关系上生成CRUD模式操作。</p>
+<p>模式及其关系越复杂，最终生成的GraphQL模式就越复杂。</p>
+<p>Dgraph遵循以下模式:将<code>Add</code>(创建新项)、<code>Update</code>(更新现有项)、<code>Remove</code>(删除)和<code>Get</code>(检索和过滤)作为前缀出现在操作名的开头。</p>
+<p>让我们从创建新注释的简单突变开始测试。这是内容:</p>
+<figure id="attachment_20137" aria-describedby="caption-attachment-20137" class="wp-caption aligncenter"><img data-attachment-id="20137" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/add-comment/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png" data-orig-size="1600,697" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="add-comment" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1024x446.png" decoding="async" class="wp-image-20137 jetpack-lazy-image" src="../Images/bd318e86539795cfd530c43692b5b621.png" alt="Creating a new comment." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png 1600w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-300x131.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1024x446.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-768x335.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1536x669.png 1536w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20137" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/add-comment/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png" data-orig-size="1600,697" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="add-comment" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1024x446.png" decoding="async" loading="lazy" class="wp-image-20137" src="../Images/bd318e86539795cfd530c43692b5b621.png" alt="Creating a new comment." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png 1600w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-300x131.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1024x446.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-768x335.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment-1536x669.png 1536w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-comment.png"/></noscript><figcaption id="caption-attachment-20137" class="wp-caption-text">Creating a new comment.</figcaption></figure>
+<p>为了在这个API中进行调用，您必须遵循由Dgraph确定的类型系统——这个系统是自动生成的，我们以前见过。</p>
+<p>每个突变接收一个参数，即<code>input</code>。它基本上是一个条目数组，根据您正在执行的操作类型而变化。例如，为了创建一个新的评论，你必须提供一个<code>description</code>和<code>likes</code>的号码。</p>
+<p>还要注意，在我们放置结果字段之后，我们希望返回结果字段。这是必须的。</p>
+<p>最后，在右边，您可以看到结果，包括自动生成的id值。这个值很重要，因为它是您在获取评论时必须使用的值。例如:</p>
+<figure id="attachment_20138" aria-describedby="caption-attachment-20138" class="wp-caption aligncenter"><img data-attachment-id="20138" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/get-comment/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png" data-orig-size="1600,697" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="get-comment" data-image-description="" data-image-caption="&lt;p&gt;Querying for a specific id.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1024x446.png" decoding="async" class="wp-image-20138 size-full jetpack-lazy-image" src="../Images/5efca0bf01a14381000cada6c465cf22.png" alt="Querying for a specific id." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png 1600w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-300x131.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1024x446.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-768x335.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1536x669.png 1536w" data-lazy-sizes="(max-width: 1600px) 100vw, 1600px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20138" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/get-comment/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png" data-orig-size="1600,697" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="get-comment" data-image-description="" data-image-caption="&lt;p&gt;Querying for a specific id.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1024x446.png" decoding="async" loading="lazy" class="wp-image-20138 size-full" src="../Images/5efca0bf01a14381000cada6c465cf22.png" alt="Querying for a specific id." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png 1600w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-300x131.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1024x446.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-768x335.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment-1536x669.png 1536w" sizes="(max-width: 1600px) 100vw, 1600px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/get-comment.png"/></noscript><figcaption id="caption-attachment-20138" class="wp-caption-text">Querying for a specific id.</figcaption></figure>
+<p>现在让我们创建一个新用户。这是它的变异内容:</p>
+<pre>mutation {
+  addUser(
+    input: [
+      {
+        username: "logrocket"
+        name: "LogRocket"
+        avatar_url: {
+          url_address: "https://blog.logrocket.com/wp-content/uploads/2020/01/logrocket-blog-logo.png"
+        }
+      }
+    ]
+  ) {
+    user {
+      id
+      username
+      name
+      avatar_url {
+        url_address
+      }
+    }
+    numUids
+  }
+}</pre>
+<p>注意，我们应该显式地将头像url内容作为一个整体类型放置。如果你有许多对象在另一个里面，它们也必须在这里说明。</p>
+<p>这是输出:</p>
+<figure id="attachment_20139" aria-describedby="caption-attachment-20139" class="wp-caption aligncenter"><img data-attachment-id="20139" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/add-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png" data-orig-size="730,338" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="add-user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png" decoding="async" class="wp-image-20139 size-full jetpack-lazy-image" src="../Images/d76acfd3aee4606b4689dff63bb094c8.png" alt="The output after we add a new user." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-user-300x139.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20139" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/add-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png" data-orig-size="730,338" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="add-user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png" decoding="async" loading="lazy" class="wp-image-20139 size-full" src="../Images/d76acfd3aee4606b4689dff63bb094c8.png" alt="The output after we add a new user." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/add-user-300x139.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/add-user.png"/></noscript><figcaption id="caption-attachment-20139" class="wp-caption-text">Adding a new user.</figcaption></figure>
+<p>查询已创建的用户与注释非常相似。Playground实际上通过自动完成突变和查询的可用选项帮了大忙。</p>
+<p>这是最近创建的用户的查询示例:</p>
+<pre>query {
+  getUser(id: "0x6") {
+    id
+    username
+    name
+    avatar_url {
+      url_address
+    }
+  }
+}</pre>
+<p>现在，让我们来探索一下<a href="https://dgraph.io/tour/basic/6/" target="_blank" rel="noopener noreferrer">滤镜特性</a>。</p>
+<p>正如我们提到的，它允许我们查询特定的语句或文本片段。例如，假设您有一群已经注册的用户，您想搜索用户名为“logrocket”的所有用户。</p>
+<p>这可能是您的疑问:</p>
+<pre>query {
+  queryUser(filter: { username: { eq : "logrocket" } }) {
+    id
+    username
+    name
+    avatar_url {
+      url_address
+    }
+  }
+}</pre>
+<p><code>eq</code>运算符代表<code>equals to</code>。请记住，这是唯一可能的，因为我们已经在模式中定义了<code>username</code>字段是可搜索的(<code>@search(by: [exact])</code>)。</p>
+<figure id="attachment_20143" aria-describedby="caption-attachment-20143" class="wp-caption aligncenter"><img data-attachment-id="20143" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/new-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png" data-orig-size="730,250" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="new-tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab-300x103.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png" decoding="async" class="wp-image-20143 size-full jetpack-lazy-image" src="../Images/6181591b97e8472d40a271f8b188a19c.png" alt="An example of a query in GraphQL by the exact username value." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab-300x103.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20143" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/new-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png" data-orig-size="730,250" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="new-tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab-300x103.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png" decoding="async" loading="lazy" class="wp-image-20143 size-full" src="../Images/6181591b97e8472d40a271f8b188a19c.png" alt="An example of a query in GraphQL by the exact username value." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab-300x103.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/new-tab.png"/></noscript><figcaption id="caption-attachment-20143" class="wp-caption-text">Querying by exact username value.</figcaption></figure>
+<p>另一方面，name字段是作为可搜索字段创建的，但是带有选项<code>fulltext</code>。该选项为我们提供了两个搜索操作符:<code>alloftext</code>(包含所有这些)和<code>anyoftext</code>(至少包含其中一个)。</p>
+<p>看看带有第一个选项的查询:</p>
+<pre>query {
+  queryUser(filter: { name: { alloftext: "Login" } }) {
+    id
+    username
+    name
+    avatar_url {
+      url_address
+    }
+  }
+}</pre>
+<p>这将是结果:</p>
+<figure id="attachment_20145" aria-describedby="caption-attachment-20145" class="wp-caption aligncenter"><img data-attachment-id="20145" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/query-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png" data-orig-size="730,256" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Query-user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user-300x105.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png" decoding="async" class="wp-image-20145 size-full jetpack-lazy-image" src="../Images/8d9e1427cce4d42120f4fb074d5eb00b.png" alt="An example of testing with the alloftext option." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user-300x105.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20145" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/query-user/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png" data-orig-size="730,256" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Query-user" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user-300x105.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png" decoding="async" loading="lazy" class="wp-image-20145 size-full" src="../Images/8d9e1427cce4d42120f4fb074d5eb00b.png" alt="An example of testing with the alloftext option." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user-300x105.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/Query-user.png"/></noscript><figcaption id="caption-attachment-20145" class="wp-caption-text">Testing with alloftext option.</figcaption></figure>
+<p>说到第二种选择，我们得到的是:</p>
+<figure id="attachment_20146" aria-describedby="caption-attachment-20146" class="wp-caption aligncenter"><img data-attachment-id="20146" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/testing-anyoftext/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png" data-orig-size="730,335" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-anyoftext" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png" decoding="async" class="wp-image-20146 size-full jetpack-lazy-image" src="../Images/a2618e0c577e4cf52b3e4a9a28013b7c.png" alt="Testing with the anyoftext option." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext-300x138.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="20146" data-permalink="https://blog.logrocket.com/creating-your-first-crud-with-dgraph-and-graphql/attachment/testing-anyoftext/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png" data-orig-size="730,335" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-anyoftext" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png" decoding="async" loading="lazy" class="wp-image-20146 size-full" src="../Images/a2618e0c577e4cf52b3e4a9a28013b7c.png" alt="Testing with the anyoftext option." srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext-300x138.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/testing-anyoftext.png"/></noscript><figcaption id="caption-attachment-20146" class="wp-caption-text">Testing with anyoftext option.</figcaption></figure>
+<p>现在我们有了一个包含两个元素的数组。Dgraph将搜索与至少一个字符串参数匹配的任何内容。</p>
+<p>另一个可能的查询如下:</p>
+<pre>query {
+  queryPost(
+    filter: { title: { eq: "bla" } }
+    order: { asc: content }
+    first: 2
+  ) {
+    id
+    title
+    content
+    comments {
+      description
+      likes
+    }
+  }
+}</pre>
+<p>插入一些文章后，您可以查询标题为“bla”的所有文章，按内容排序，结果是找到前两个条目。</p>
+<h2>结论</h2>
+<p>这些只是Dgraph与GraphQL结合的几个例子。它的脚手架性质对从头构建CRUD并让它立即运行很有帮助。</p>
+<p>Dgraph为我们提供了其他有趣的特性，比如授权和认证指令、自定义解析器、自定义字段等等。</p>
+<p>请务必参考他们的<a href="https://graphql.dgraph.io/quick-start" target="_blank" rel="noopener noreferrer">官方文件</a>了解更多信息。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

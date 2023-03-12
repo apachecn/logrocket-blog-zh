@@ -1,0 +1,593 @@
+<html>
+<head>
+<title>Creating a Node.js GraphQL server using Prisma 2 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Prisma 2 - LogRocket博客创建Node.js GraphQL服务器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/#0001-01-01">https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p><a href="https://www.prisma.io/" target="_blank" rel="noopener noreferrer"> Prisma </a>是一个替代传统ORM的开源数据库工具包。它通过为TypeScript和Node自动生成的查询生成器使数据库访问变得容易。js。仅使用直观的API和普通的旧JavaScript对象，它使开发人员只需担心数据，而不用担心获取数据的原生数据库查询。</p>
+<p>Prisma由以下部分组成:</p>
+<ul>
+<li>Prisma Client —为Node.js和TypeScript自动生成的类型安全查询生成器</li>
+<li>Prisma Migrate ( <strong>实验</strong> ) —声明式数据建模和迁移系统</li>
+<li>prisma Studio(<strong>experimental</strong>)—查看和编辑数据库中数据的GUI</li>
+</ul>
+<p>Prisma目前支持的数据库有PostgreSQL，MySQL，SQLite。在本文中，我们将构建一个基本的轮询GraphQL服务器。对Prisma有所了解会使这篇文章更容易理解。如果你不熟悉Prisma，<a href="https://blog.logrocket.com/author/deadcoder0904/" target="_blank" rel="noopener noreferrer">阿克谢·卡达姆</a>写了一篇很棒的<a href="https://blog.logrocket.com/an-introduction-to-prisma-2/" target="_blank" rel="noopener noreferrer">文章</a>，应该可以帮你入门。当我们完成了服务器，你应该能够创建一个用户，用户可以创建一个投票，其他用户可以投票。</p>
+<h2>先决条件</h2>
+<p>如前所述，Prisma和<a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer"> Node.js </a>的基础知识将是必要的。确保您的机器上安装了<a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer">节点</a>和<a href="https://yarnpkg.com/" target="_blank" rel="noopener noreferrer">纱线</a>，或<a href="https://npmjs.com/" target="_blank" rel="noopener noreferrer"> npm </a>。</p>
+<h2>入门指南</h2>
+<p>我们需要做的第一件事是在全球范围内安装Prisma 2。如果您安装了Prisma的早期版本，您需要先卸载它，然后才能继续。要安装Prisma，请在终端中运行以下任何命令:</p>
+<pre>npm install -g @prisma/cli
+yarn global add @prisma/cli</pre>
+<h2>设置</h2>
+<p>让我们为投票服务器创建文件夹结构:</p>
+<pre>$ mkdir voting-app
+$ cd voting-app
+$ touch README.md index.js .gitignore</pre>
+<p>您可以在README.md中添加对服务器功能的描述。gitignore文件如下:</p>
+<pre>node_modules/</pre>
+<p>要生成不带提示的package.json文件，请运行以下命令:</p>
+<pre>$ npm init -y</pre>
+<p>package.json文件的内容如下所示:</p>
+<pre>{
+  "name": "voting-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}</pre>
+<h3>安装依赖项</h3>
+<pre>$ yarn add graphql-tools graphql-yoga</pre>
+<h3>用Prisma和SQLite建立我们的项目</h3>
+<p>在我们项目的根目录下创建一个名为<code>prisma</code>的文件夹，然后将一个名为<code>schema.prisma</code>的文件添加到该文件夹中。您可以使用以下命令来完成此操作:</p>
+<pre>mkdir prisma
+touch prisma/schema.prisma</pre>
+<p>设置Prisma客户端需要使用<code>schema.prisma</code>。它由三部分组成:</p>
+<ul>
+<li>数据源—定义您的数据库连接</li>
+<li>生成器—表示您要生成Prisma客户端</li>
+<li>数据模型—定义您的应用程序模型。应该至少有一个模型</li>
+</ul>
+<p>打开<code>schema.prisma</code>文件并添加以下代码:</p>
+<pre>// 1
+datasource db {
+  provider = "sqlite"
+  url = "file:./dev.db"
+}
+
+// 2
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 3
+model User {
+  id          String @default(cuid()) @id
+  name        String
+  polls       Poll[]
+}
+
+// 4
+model Poll {
+  id          String  @default(cuid()) @id
+  description String
+  user        User
+  options     Option[]
+  votes       Vote[]
+
+}
+
+// 5
+model Option {
+  id          String  @default(cuid()) @id
+  text        String
+  poll        Poll
+  votes       Vote[]
+}
+
+// 6
+model Vote {
+  id          String  @default(cuid()) @id
+  user        User
+  poll        Poll
+  option      Option
+}</pre>
+<p>我们到底加了什么？告诉Prisma我们的数据库正在使用SQLite。我们还定义了这个投票应用程序将使用的模型。在这些模型中，我们定义了连接以及每个模型如何连接到另一个模型，如果有的话。</p>
+<h2>创建SQLite数据库</h2>
+<p>官方<a href="https://www.sqlite.org/index.html" target="_blank" rel="noopener noreferrer"> SQLite </a>网站将其定义为实现了一个<a href="https://www.sqlite.org/footprint.html" target="_blank" rel="noopener noreferrer">小</a>、<a href="https://www.sqlite.org/fasterthanfs.html" target="_blank" rel="noopener noreferrer">快</a>、<a href="https://www.sqlite.org/selfcontained.html" target="_blank" rel="noopener noreferrer">自含</a>、<a href="https://www.sqlite.org/hirely.html" target="_blank" rel="noopener noreferrer">高可靠</a>、<a href="https://www.sqlite.org/fullsql.html" target="_blank" rel="noopener noreferrer">全功能</a>、SQL数据库引擎的C语言库。它直接读写普通磁盘文件。</p>
+<p>为了进行设置，我们使用<a href="https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-migrate" target="_blank" rel="noopener noreferrer"> Prisma Migrate </a>。Prisma Migrate是一个允许您对数据库进行更改(模式迁移)的工具，例如向现有表中添加列。</p>
+<p>第一步是在您的<a href="https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-schema/" target="_blank" rel="noopener noreferrer"> Prisma模式文件</a>中以<a href="https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-schema/data-model/" target="_blank" rel="noopener noreferrer"> Prisma数据模型</a>的形式编写您的数据库模式。将数据模型映射到数据库模式是一个两步的过程，需要运行两个命令:</p>
+<ol>
+<li><code>prisma migrate save --experimental</code></li>
+<li><code>prisma migrate up --experimental</code></li>
+</ol>
+<p><code>prisma migrate save --experimental</code>将新的迁移保存到项目根文件夹中的<code>prisma/migrations</code>中，并更新数据库中的<code>_Migration</code>表。每次运行该命令时，都会保存一个新的迁移，并带有自己的<code>README.md</code>文件，详细说明有关迁移的信息。</p>
+<p><img data-attachment-id="25371" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pirsma2mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png" data-orig-size="730,871" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pirsma2mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode-251x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png" decoding="async" class="aligncenter size-full wp-image-25371 jetpack-lazy-image" src="../Images/3e74f6cdc2235602cac53f889f8b52fd.png" alt="new migrations saved to readme" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode-251x300.png 251w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25371" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pirsma2mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png" data-orig-size="730,871" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pirsma2mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode-251x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25371" src="../Images/3e74f6cdc2235602cac53f889f8b52fd.png" alt="new migrations saved to readme" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode-251x300.png 251w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pirsma2mode.png"/></noscript>
+<p>让我们通过在文件夹的根目录下运行以下命令来创建我们的第一个迁移:</p>
+<pre>npx prisma migrate save --experimental</pre>
+<p>第一次运行该命令时，系统会提示您创建一个新的数据库。选择选项<strong> Yes </strong>后，您需要为您的迁移添加一个名称。您会注意到，在运行该命令后，已经创建了一个迁移文件夹。</p>
+<p>为了实际执行生成的迁移，您需要运行第二个命令:</p>
+<pre>npx prisma migrate up --experimental</pre>
+<p><img data-attachment-id="25373" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/prismaexperimental/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png" data-orig-size="730,873" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaexperimental" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental-251x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png" decoding="async" class="aligncenter size-full wp-image-25373 jetpack-lazy-image" src="../Images/14e803b9ec67df6864dc5730b62b376e.png" alt="Datamodel that will initialize the db" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental-251x300.png 251w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25373" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/prismaexperimental/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png" data-orig-size="730,873" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaexperimental" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental-251x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25373" src="../Images/14e803b9ec67df6864dc5730b62b376e.png" alt="Datamodel that will initialize the db" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental-251x300.png 251w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaexperimental.png"/></noscript>
+<h2>生成Prisma客户端</h2>
+<p>Prisma Client是一个自动生成的、类型安全的查询生成器，专门为您的数据量身定制。我们已经准备好产生我们的客户。我们可以使用以下命令之一生成我们的客户端:</p>
+<pre>yarn add @prisma/client
+
+prisma generate</pre>
+<p>注意，<code>yarn add @prisma/client</code>命令也运行<code>prisma generate</code>命令，该命令将Prisma客户端生成到<code>node_modules/@prisma/client</code>目录中:</p>
+<p><img data-attachment-id="25376" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/prismaclientincommandline/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png" data-orig-size="730,252" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaclientincommandline" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline-300x104.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png" decoding="async" class="aligncenter size-full wp-image-25376 jetpack-lazy-image" src="../Images/800048794bc8d3fb3d31ff3c1df6b489.png" alt="prisma client shown running in sommand line" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline-300x104.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25376" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/prismaclientincommandline/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png" data-orig-size="730,252" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaclientincommandline" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline-300x104.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25376" src="../Images/800048794bc8d3fb3d31ff3c1df6b489.png" alt="prisma client shown running in sommand line" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline-300x104.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/prismaclientincommandline.png"/></noscript>
+<h2>创建GraphQL服务器</h2>
+<p>打开我们之前创建的<code>index.js</code>文件，输入下面的代码:</p>
+<pre>const { GraphQLServer } = require('graphql-yoga')
+
+const typeDefs = `
+  type Query {
+    hello(name: String): String!
+  }
+`
+
+const resolvers = {
+  Query: {
+    hello: (_, { name }) =&gt; `Hello ${name || 'World'}`,
+  },
+}
+
+const server = new GraphQLServer({
+  typeDefs,
+  resolvers,
+})
+
+const options = {
+  port: 8000,
+  endpoint: '/graphql',
+  subscriptions: '/subscriptions',
+  playground: '/playground',
+}
+server.start(options, ({ port }) =&gt;
+  console.log(
+    `Server started, listening on port ${port} for incoming requests.`,
+  ),
+)</pre>
+<p><a href="https://github.com/prisma-labs/graphql-yoga" target="_blank" rel="noopener noreferrer"> Graphql-yoga </a>是一款全功能的Graphql服务器，专注于易用性、性能和出色的开发人员体验。您使用构造函数<code>GraphQLServer</code>创建服务器。此构造函数采用以下选项:</p>
+<ul>
+<li>typeDefs —包含在<a href="https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51" target="_blank" rel="noopener noreferrer"> SDL </a>中的GraphQL类型定义或类型定义的文件路径(如果未提供<code>schema</code>则需要)</li>
+<li>解析器—包含在<code>typeDefs</code>中指定的字段的解析器(如果未提供<code>schema</code>则需要)</li>
+<li>模式—一个<a href="http://graphql.org/graphql-js/type/#graphqlschema" target="_blank" rel="noopener noreferrer"> <code>GraphQLSchema</code> </a>的实例(如果没有提供<code>typeDefs</code>和<code>resolvers</code>则需要)</li>
+</ul>
+<p>我们可以测试一下GraphQL服务器。运行以下命令启动服务器:</p>
+<pre>node index.js</pre>
+<p>为了测试我们创建的示例查询，导航到<a href="http://localhost:8000/playground" target="_blank" rel="noopener noreferrer"> <code>http://localhost:8000/playground</code> </a>。在左侧面板中输入以下查询。</p>
+<pre>query {
+  hello(name: "John Doe")
+}</pre>
+<p>按下play按钮，您应该会得到服务器的如下响应:</p>
+<pre>{
+  "data": {
+    "hello": "Hello John Doe"
+  }
+}</pre>
+<p><img data-attachment-id="25379" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/graphqlpalyground1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlpalyground1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png" decoding="async" class="aligncenter size-full wp-image-25379 jetpack-lazy-image" src="../Images/fa75c0897bbd854b80d4de0241df41e1.png" alt="data with &quot;hello John Doe&quot; in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25379" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/graphqlpalyground1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlpalyground1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25379" src="../Images/fa75c0897bbd854b80d4de0241df41e1.png" alt="data with &quot;hello John Doe&quot; in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/graphqlpalyground1.png"/></noscript>
+<h2>将Prisma客户端连接到GraphQL服务器</h2>
+<p>为了访问我们的Prisma客户机提供的数据库查询，我们需要导入生成的Prisma客户机库，并设置服务器来使用它。</p>
+<p>将以下内容添加到您的<code>index.js</code>文件的顶部:</p>
+<pre>const { PrismaClient } = require('@prisma/client');</pre>
+<p>创建一个<code>PrismaClient</code>的实例，并通过上下文键将其传递给GraphQL服务器构造函数。上下文键包含通过解析器链传递的自定义数据。这可以作为一个对象传入，或者作为一个带有签名<code>(req: ContextParameters) =&gt; any</code>的函数传入。</p>
+<pre>const prisma = new PrismaClient()
+
+const server = new GraphQLServer({
+  typeDefs,
+  resolvers,
+  context: {
+    prisma,
+  }
+})</pre>
+<p>当我构建GraphQL时，我喜欢使用<a href="https://www.graphql-tools.com/docs/introduction/" target="_blank" rel="noopener noreferrer"> GraphQL Tools </a>，它是一个npm包，是一个关于如何在JavaScript中构建GraphQL模式和解析器的自以为是的结构，遵循GraphQL优先的开发工作流。通过使用graphql-tools包中的<code>makeExecutableSchema</code>函数，您可以创建一个基于<a href="https://graphql.org/learn/schema/" target="_blank" rel="noopener noreferrer"> GraphQL模式语言</a>的GraphQLSchema实例。</p>
+<p>让我们更新代码以使用graphql-tools:</p>
+<pre>const { makeExecutableSchema } = require('@graphql-tools/schema');
+.....
+
+const schema = makeExecutableSchema({
+  typeDefs,
+  resolvers,
+});
+
+.....
+const server = new GraphQLServer({
+  schema,
+  context: {
+    prisma,
+  }
+})
+
+.....</pre>
+<h2>更新<code>typeDefs</code></h2>
+<p>我们需要更新前面定义的<code>typeDefs</code>,以便根据我们在开始时创建的数据模型包含我们正在使用的所有类型。此外，我们需要添加graphQL服务器公开的所有查询和变化。我们将需要查询来获得用户，民意测验和投票。我们将创建的突变将用于创建用户、投票和投票。</p>
+<p>用以下内容更新之前的<code>typeDefs</code>:</p>
+<pre>const typeDefs = `
+  type User {
+    id          :ID!
+    name        :String!
+    polls       :[Poll]
+  }
+  type Poll {
+    id          :ID!
+    description :String!
+    user        :User!
+    options     :[Option!]
+    votes       :[Vote]
+  }
+  type Option {
+    id          :ID!
+    text        :String!
+    poll        :Poll!
+    votes       :[Vote]
+  }
+  type Vote {
+    id          :ID!
+    user        :User!
+    poll        :Poll!
+    option      :Option!
+  }
+  type Query {
+    users: [User]
+    polls: [Poll]
+    votes: [Vote]
+    user(id: ID!): User
+    poll(id: ID!): Poll
+  }
+  type Mutation {
+    createUser(
+      name: String!
+    ): User
+    createPoll(
+      description: String!
+      id: ID!
+      options: [String!]
+    ): Poll
+    createVote(
+      userID: ID!
+      pollID: ID!
+      optionID: ID!
+    ): Vote
+  }
+`;</pre>
+<h2>更新解析程序</h2>
+<p>创建轮询需要用户与通过上下文传递给解析器的Prisma进行交互。我们需要更新我们之前创建的resolvers对象，以包含我们添加到<code>typeDefs</code>中的查询和变异。</p>
+<h3>创建用户</h3>
+<p>创建投票后，它将与特定用户相关联。因此，我们首先需要创建的是一个用户，然后可以创建投票。因为这是一个非常基本的例子，所以我们不会实现身份验证来验证创建投票的用户。我们只对使用Prisma 2创建基本GraphQL服务器的概念感兴趣。要创建用户，我们需要一个名称。这将通过<code>args</code>传递。我们的<code>createUser</code>解析器应该是这样的:</p>
+<pre>const resolvers = {
+  Query: {
+    ....
+  },
+  Mutation: {
+    createUser: (parent, args, context, info) =&gt; {
+      const newUser = context.prisma.user.create({
+        data: {
+          name: args.name,
+        },
+      })
+      return newUser
+    },
+  },
+}</pre>
+<p>我们可以在操场上测试创建一个用户。</p>
+<p><img data-attachment-id="25386" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/createduserinplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png" data-orig-size="730,188" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="createduserinplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground-300x77.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png" decoding="async" class="aligncenter size-full wp-image-25386 jetpack-lazy-image" src="../Images/3c7daa6db60ab6b521fa5fadb58a0c20.png" alt="creating user in the graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground-300x77.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25386" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/createduserinplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png" data-orig-size="730,188" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="createduserinplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground-300x77.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25386" src="../Images/3c7daa6db60ab6b521fa5fadb58a0c20.png" alt="creating user in the graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground-300x77.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/createduserinplayground.png"/></noscript>
+<h2>获取用户</h2>
+<p>您会注意到在<code>typeDefs</code>中，我们有通过ID获取单个用户或多个用户的查询。以下查询将帮助我们检索单个或多个用户及其相关投票:</p>
+<pre>const resolvers = {
+  Query: {
+    user: async (parent, args, context) =&gt; {
+      const { id } = args
+      return context.prisma.user.findOne({
+        where: {
+          id,
+        },
+        include: { polls: true }
+      })
+    },
+    users: async (parent, args, context) =&gt; {
+      return context.prisma.user.findMany({
+        include: { polls: true }
+      });
+    },
+  },
+  Mutation: {
+    ....
+  }
+}</pre>
+<p><code>findOne</code>方法用于使用ID过滤器获取单个用户，而<code>findMany</code>方法获取符合特定标准的所有用户。在上面的例子中，我们获得了所有创建的用户，没有任何过滤器。如果您需要查询一个给定的数据集和嵌套字段，查询方法需要一个带有键<code>include</code>的选项对象。在这个键中，包含所有应该填充的嵌套字段，并将它们设置为true。让我们来测试一下。</p>
+<p><img data-attachment-id="25389" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png" data-orig-size="730,165" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test-300x68.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png" decoding="async" class="aligncenter size-full wp-image-25389 jetpack-lazy-image" src="../Images/0b9d100023862aa64868179e4af3b48f.png" alt="test in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/test-300x68.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25389" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/test/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png" data-orig-size="730,165" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="test" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test-300x68.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25389" src="../Images/0b9d100023862aa64868179e4af3b48f.png" alt="test in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/test-300x68.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/test.png"/></noscript>
+<p><img data-attachment-id="25390" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/returneddata/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png" data-orig-size="730,317" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="returneddata" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata-300x130.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png" decoding="async" class="aligncenter size-full wp-image-25390 jetpack-lazy-image" src="../Images/910d77d731dc1f5956729b56b8bcd6c7.png" alt="returned data " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata-300x130.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25390" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/returneddata/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png" data-orig-size="730,317" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="returneddata" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata-300x130.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25390" src="../Images/910d77d731dc1f5956729b56b8bcd6c7.png" alt="returned data " srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata-300x130.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/returneddata.png"/></noscript>
+<h2>创建投票</h2>
+<p>创建的任何投票都将与特定用户相关联，因此我们需要在创建投票时传递用户的ID。还将提供描述/问题。最后一个必需的值是一个字符串数组，包含用户可以投票的选项:</p>
+<pre>const resolvers = {
+  Query: {
+    ....
+  },
+  Mutation: {
+    createPoll: (parent, args, context, info) =&gt; {
+      const { description, id, options } = args
+      const newPoll = context.prisma.poll.create({
+        data: {
+          description,
+          user: {
+            connect: { id }
+          },
+          options: {
+            create: options.map(option =&gt; ({ text: option }))
+          }
+        }
+      });
+      return newPoll;
+    }
+  },
+}</pre>
+<p>使用我们在上面创建的用户，我们可以创建一个样本投票:</p>
+<pre>mutation {
+  createPoll(
+    description: "which of the following rice based dishes do you like the most"
+    id: "USERID"
+    options: ["Nigerian Jollof Rice", "Ghanaian Jollof Rice", "Pilau", "Biryiani"]
+  ) {
+    id
+    description
+  }
+}</pre>
+<p><img data-attachment-id="25393" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pollingraphqlplaygorund/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png" data-orig-size="730,172" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pollingraphqlplaygorund" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund-300x71.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png" decoding="async" class="aligncenter size-full wp-image-25393 jetpack-lazy-image" src="../Images/65e420357502cea2a926ee47d546de43.png" alt="poll in graphql playground asking what rice based dishes the user likes " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund-300x71.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25393" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pollingraphqlplaygorund/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png" data-orig-size="730,172" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pollingraphqlplaygorund" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund-300x71.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25393" src="../Images/65e420357502cea2a926ee47d546de43.png" alt="poll in graphql playground asking what rice based dishes the user likes " srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund-300x71.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplaygorund.png"/></noscript>
+<h2>获得投票</h2>
+<p>获取单个投票或多个投票的查询将以与用户查询相同的方式构造。唯一的区别是我们查询的模型和要填充的嵌套字段。将以下代码添加到解析器定义中:</p>
+<pre>const resolvers = {
+  Query: {
+    ....
+    poll: async (parent, args, context) =&gt; {
+      const { id } = args
+      return context.prisma.poll.findOne({
+        where: {
+          id,
+        },
+        include: {
+          user: true,
+          options: true,
+          votes: {
+            select: { user: true, option: true }
+          }
+        }
+      })
+    },
+    polls: async (parent, args, context) =&gt; {
+      return context.prisma.poll.findMany({
+        include: {
+          user: true,
+          options: true,
+          votes: {
+            select: { user: true, option: true }
+          }
+        }
+      })
+    },
+    ....
+  },
+  Mutation: {
+    ....
+  }
+}</pre>
+<p>当您还需要检索深度嵌套的字段时，请注意<code>findMany</code>方法的<code>include</code>选项是如何构造的。</p>
+<p><img data-attachment-id="25396" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pollingraphqlplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png" data-orig-size="730,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pollingraphqlplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png" decoding="async" class="aligncenter size-full wp-image-25396 jetpack-lazy-image" src="../Images/8199be1f348ded6bfe8fd8944554e012.png" alt="answers to poll questions in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground-300x135.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25396" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/pollingraphqlplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png" data-orig-size="730,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pollingraphqlplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25396" src="../Images/8199be1f348ded6bfe8fd8944554e012.png" alt="answers to poll questions in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground-300x135.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/pollingraphqlplayground.png"/></noscript>
+<p><img data-attachment-id="25397" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/resultsofpoll2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png" data-orig-size="730,344" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="resultsofpoll2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png" decoding="async" class="aligncenter size-full wp-image-25397 jetpack-lazy-image" src="../Images/3721ea8f78ac521b6103b122971f6b1a.png" alt="results of polls in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2-300x141.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25397" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/resultsofpoll2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png" data-orig-size="730,344" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="resultsofpoll2" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25397" src="../Images/3721ea8f78ac521b6103b122971f6b1a.png" alt="results of polls in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2-300x141.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/resultsofpoll2.png"/></noscript>
+<h2>投票赞成一个选项</h2>
+<p>如果有一个与GraphQL服务器配对的用户界面，用户将能够进行投票，并得到他们可以投票的选项。在选择一个选项时，会触发一个突变，从而为特定的选项创建一个投票。投票需要与投票、投票选项和投票用户相关联。因此，创建投票的解析器将接收投票ID、选项ID和用户ID。它看起来会像这样:</p>
+<pre>const resolvers = {
+  Query: {
+    .....
+  },
+  Mutation: {
+    .....
+    createVote: (parent, args, context, info) =&gt; {
+      const { userID, pollID, optionID } = args
+      const newVote = context.prisma.vote.create({
+        data: {
+          user: {
+            connect: { id: userID }
+          },
+          poll: {
+            connect: { id: pollID }
+          },
+          option: {
+            connect: { id: optionID }
+          }
+        }
+      });
+      return newVote;
+    }
+  },
+}
+</pre>
+<p>让我们投票选出最好的米饭菜肴吧！<br/> <img data-attachment-id="25399" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/votesingraphqlplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png" data-orig-size="730,203" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="votesingraphqlplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground-300x83.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png" decoding="async" class="aligncenter size-full wp-image-25399 jetpack-lazy-image" src="../Images/cd0d93aed586c75a966fefed41896248.png" alt="votes in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground-300x83.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25399" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/votesingraphqlplayground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png" data-orig-size="730,203" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="votesingraphqlplayground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground-300x83.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25399" src="../Images/cd0d93aed586c75a966fefed41896248.png" alt="votes in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground-300x83.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesingraphqlplayground.png"/></noscript><br/>
+Querying the poll that we just voted on should show votes made for the poll with the name of the user that voted and the option that they chose.
+<p><img data-attachment-id="25400" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/votesresultsingraphql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png" data-orig-size="730,342" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="votesresultsingraphql" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png" decoding="async" class="aligncenter size-full wp-image-25400 jetpack-lazy-image" src="../Images/795195463e4a8a106f39b9696c88d27e.png" alt="vote results in graphql playground" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql-300x141.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25400" data-permalink="https://blog.logrocket.com/creating-a-node-js-graphql-server-using-prisma-2/votesresultsingraphql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png" data-orig-size="730,342" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="votesresultsingraphql" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25400" src="../Images/795195463e4a8a106f39b9696c88d27e.png" alt="vote results in graphql playground" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql-300x141.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/votesresultsingraphql.png"/></noscript>
+<p>就是这样！我们设法创建了一个简单的Node.js GraphQL服务器，它可以用来创建用户、投票和在投票中投票。</p>
+<p><code>index.js</code>文件的最终代码将是:</p>
+<pre>const { PrismaClient } = require('@prisma/client');
+const { GraphQLServer } = require("graphql-yoga");
+const { makeExecutableSchema } = require("graphql-tools");
+const typeDefs = `
+  type User {
+    id          :ID!
+    name        :String!
+    polls       :[Poll]
+  }
+  type Poll {
+    id          :ID!
+    description :String!
+    user        :User!
+    options     :[Option!]
+    votes       :[Vote]
+  }
+  type Option {
+    id          :ID!
+    text        :String!
+    poll        :Poll!
+    votes       :[Vote]
+  }
+  type Vote {
+    id          :ID!
+    user        :User!
+    poll        :Poll!
+    option      :Option!
+  }
+  type Query {
+    hello(name: String): String!
+    users: [User]
+    polls: [Poll]
+    votes: [Vote]
+    user(id: ID!): User
+    poll(id: ID!): Poll
+  }
+  type Mutation {
+    createUser(
+      name: String!
+    ): User
+    createPoll(
+      description: String!
+      id: ID!
+      options: [String!]
+    ): Poll
+    createVote(
+      userID: ID!
+      pollID: ID!
+      optionID: ID!
+    ): Vote
+  }
+`;
+
+const resolvers = {
+  Query: {
+    users: async (parent, args, context) =&gt; {
+      return context.prisma.user.findMany({
+        include: { polls: true }
+      });
+    },
+    polls: async (parent, args, context) =&gt; {
+      return context.prisma.poll.findMany({
+        include: {
+          user: true,
+          options: true,
+          votes: {
+            select: { user: true, option: true }
+          }
+        }
+      })
+    },
+    user: async (parent, args, context) =&gt; {
+      const { id } = args
+      return context.prisma.user.findOne({
+        where: {
+          id,
+        },
+        include: { polls: true }
+      })
+    },
+    poll: async (parent, args, context) =&gt; {
+      const { id } = args
+      return context.prisma.poll.findOne({
+        where: {
+          id,
+        },
+        include: {
+          user: true,
+          options: true,
+          votes: {
+            select: { user: true, option: true }
+          }
+        }
+      })
+    }
+  },
+  Mutation: {
+    createUser: (parent, args, context, info) =&gt; {
+      const newUser = context.prisma.user.create({
+        data: {
+          name: args.name,
+        },
+      })
+      return newUser
+    },
+    createPoll: (parent, args, context, info) =&gt; {
+      const { description, id, options } = args
+      const newPoll = context.prisma.poll.create({
+        data: {
+          description,
+          user: {
+            connect: { id }
+          },
+          options: {
+            create: options.map(option =&gt; ({ text: option }))
+          }
+        }
+      });
+      return newPoll;
+    },
+    createVote: (parent, args, context, info) =&gt; {
+      const { userID, pollID, optionID } = args
+      const newVote = context.prisma.vote.create({
+        data: {
+          user: {
+            connect: { id: userID }
+          },
+          poll: {
+            connect: { id: pollID }
+          },
+          option: {
+            connect: { id: optionID }
+          }
+        }
+      });
+      return newVote;
+    }
+  },
+}
+const schema = makeExecutableSchema({
+  typeDefs,
+  resolvers,
+});
+const prisma = new PrismaClient()
+const server = new GraphQLServer({
+  schema,
+  context: {
+    prisma,
+  }
+})
+const options = {
+  port: 8000,
+  endpoint: '/graphql',
+  subscriptions: '/subscriptions',
+  playground: '/playground',
+}
+server.start(options, ({ port }) =&gt;
+  console.log(
+    `Server started, listening on port ${port} for incoming requests.`,
+  ),
+)</pre>
+<h2>后续步骤</h2>
+<p>本文的目的是展示如何开始使用Prisma构建一个基本的GraphQL服务器。虽然我们创建了用户，但我们没有实现对用户进行身份验证的方法，也没有添加检查来防止像用户在自己的投票中投票或用户多次投票这样的事情。这通常是通过使用解析器指令来实现的，解析器指令可以检查令牌和用户角色的有效性，然后将它们的详细信息添加到上下文中。指令还可以用来限制用户可以访问的查询和变异。另一件要注意的事情是，我们将我们的<code>typeDefs</code>和解析器添加到了<code>index.js</code>文件中。在一个相当复杂的应用程序中，这些文件可能会变得很大，最好将它们分别放入各自的文件中。<a href="https://www.prisma.io/docs/" target="_blank" rel="noopener noreferrer"> Prisma网站</a>提供了许多与Prisma合作的好文档。您可以找到本文中没有涉及的各种<a href="https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/crud" target="_blank" rel="noopener noreferrer"> CRUD </a>(创建、读取、更新、删除)操作的信息，以及如何过滤和排序数据。</p>
+<h2>结论</h2>
+<p>使用原始查询来检索和操作数据有很多优点。在某些情况下，您会发现Prisma生成的查询可能不是最佳的。同样，在你的项目中使用Prisma也有好处。它提供了一种快速入门的方法，并且是您的软件库中的一个方便的工具包。本文使用的代码可以在<a href="https://github.com/jkithome/prisma-2-node" target="_blank" rel="noopener noreferrer"> GitHub </a>中找到。我很想听听您对Prisma的体验以及任何总体反馈。编码快乐！</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

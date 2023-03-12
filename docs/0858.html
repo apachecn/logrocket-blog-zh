@@ -1,0 +1,325 @@
+<html>
+<head>
+<title>How to create a GraphQL server in Rust - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Rust - LogRocket博客中创建GraphQL服务器</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-create-a-graphql-server-in-rust/#0001-01-01">https://blog.logrocket.com/how-to-create-a-graphql-server-in-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>随着围绕Rust的生态系统的增长，它正成为后端web服务的一个更有吸引力的选择。在本指南中，我们将向您展示如何在Rust中使用Juniper库对Postgres进行查询和变异。</p>
+<p/>
+<p>作为参考，最终应用程序的完整源代码可以在<a href="https://github.com/joshua-cooper/rust-graphql-intro" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到。</p>
+<h2 id="projectsetup">项目设置</h2>
+<p>首先用Cargo创建一个新项目，并将所需的依赖项添加到<code>Cargo.toml</code>中。</p>
+<pre>cargo new graphql_intro
+cd graphql_intro
+# Cargo.toml
+[dependencies]
+warp = "0.2"
+tokio = { version = "0.2", features = ["macros"] }
+serde_json = "1.0"
+futures = { version = "0.3.1", features = ["compat"] }
+futures-macro = "=0.3.1"
+juniper = { git = "https://github.com/graphql-rust/juniper", branch = "async-await", features = ["async"] }
+tokio-postgres = { version = "0.5", features = ["with-uuid-0_8"] }
+uuid = { version = "0.8", features = ["v4"] }
+</pre>
+<p>我们将使用Juniper来实现特定于GraphQL的功能，使用warp来实现web服务器，使用<code>tokio-postgres</code>来访问数据库。因为我们将使用异步信任，所以需要一个执行器来轮询未来。在这个例子中，我们将使用Tokio提供的带有异步主函数的宏特性标志的执行器。</p>
+<h2 id="settingupthewebserver">设置web服务器</h2>
+<p>在开始使用GraphQL之前，我们应该设置一个web服务器来处理HTTP请求。Juniper的一大优点是，它可以轻松地与任何web服务器配合使用。如果你想使用warp之外的东西，请随意修改这个例子。</p>
+<p>web服务器中只需要两条路由:一条处理GraphQL请求，另一条服务于graph QL测试客户机。</p>
+<pre>// main.rs
+use warp::Filter;
+use std::sync::Arc;
+use juniper::http::graphiql::graphiql_source;
+
+#[tokio::main]
+async fn main () {
+    let schema = Arc::new(Schema::new(QueryRoot, MutationRoot));
+    // Create a warp filter for the schema
+    let schema = warp::any().map(move || Arc::clone(&amp;schema));
+
+    let ctx = Arc::new(Context { client });
+    // Create a warp filter for the context
+    let ctx = warp::any().map(move || Arc::clone(&amp;ctx));
+
+    let graphql_route = warp::post()
+        .and(warp::path!("graphql"))
+        .and(schema.clone())
+        .and(ctx.clone())
+        .and(warp::body::json())
+        .and_then(graphql);
+
+    let graphiql_route = warp::get()
+        .and(warp::path!("graphiql"))
+        .map(|| warp::reply::html(graphiql_source("graphql")));
+
+    let routes = graphql_route.or(graphiql_route);
+
+    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+}
+</pre>
+<p>这还不能编译；我们仍然需要定义<code>Schema</code>、<code>QueryRoot</code>、<code>MutationRoot</code>和<code>Context</code>类型。</p>
+<p>首先，我们定义了一些模式，并把它做成一个warp过滤器，这样我们就可以在我们的route处理程序中访问它。然后我们对一个上下文做了同样的事情，它可以包含像数据库连接这样的东西。</p>
+<p>接下来，我们创建了<code>graphql_route</code>变量，这是一个warp过滤器，将任何POST请求与路径“graphql”匹配，然后使模式、上下文和JSON主体对一个名为<code>graphql</code>的处理程序可用，我们将在后面定义它。</p>
+<p>类似地，<code>graphiql_route</code>变量是一个过滤器，它将任何GET请求匹配到路径“graphiql ”,并以HTML响应GraphiQL客户端。</p>
+<p>最后，将这些过滤器组合起来，启动服务器。</p>
+<p>为了编译这段代码，让我们定义那些我们错过的类型。</p>
+<pre>use juniper::RootNode;
+use tokio_postgres::Client;
+
+struct QueryRoot;
+struct MutationRoot;
+
+#[juniper::graphql_object(Context = Context)]
+impl QueryRoot {}
+
+#[juniper::graphql_object(Context = Context)]
+impl MutationRoot {}
+
+type Schema = RootNode&lt;'static, QueryRoot, MutationRoot&gt;;
+
+struct Context {
+    client: Client,
+}
+
+impl juniper::Context for Context {}
+</pre>
+<p>接下来，定义<code>graphql</code>路由处理器。</p>
+<pre>use std::convert::Infallible;
+use juniper::http::GraphQLRequest;
+
+async fn graphql(
+    schema: Arc&lt;Schema&gt;,
+    ctx: Arc&lt;Context&gt;,
+    req: GraphQLRequest,
+) -&gt; Result&lt;impl warp::Reply, Infallible&gt; {
+    let res = req.execute_async(&amp;schema, &amp;ctx).await;
+    let json = serde_json::to_string(&amp;res).expect("Invalid JSON response");
+    Ok(json)
+}
+</pre>
+<p>创建到Postgres数据库的连接。</p>
+<pre>use tokio_postgres::NoTls;
+
+#[tokio::main]
+async fn main() {
+    let (client, connection) = tokio_postgres::connect("host=localhost user=postgres", NoTls)
+        .await
+        .unwrap();
+
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    // ...
+}
+</pre>
+<p>请注意，我们在这里创建的客户端是在<code>ctx</code>中使用的。从现在开始，您需要有一个正在运行的Postgres实例来连接它。如果您想使用Docker，下面的命令将为您启动一个数据库容器。</p>
+<pre>docker run --rm -it -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:alpine
+</pre>
+<p>如果您的数据库使用不同的凭证，请确保将它们放在<code>tokio_postgres::connect()</code>中。此时，您可以编译并运行服务器，然后在浏览器中打开<a href="http://localhost:8000/graphiql" rel="nofollow">http://localhost:8000/graphiql</a>来查看它是否工作。</p>
+<h2 id="databaseschema">数据库模式</h2>
+<p>在使用GraphQL解析器之前，要做的最后一件事是定义一个数据库模式。对于这个例子，我们将创建一个客户API，允许我们查询客户数据并创建新的客户条目。</p>
+<p>让我们在连接建立之后创建一个表。</p>
+<pre>client
+    .execute(
+        "CREATE TABLE IF NOT EXISTS customers(
+            id UUID PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            address TEXT NOT NULL
+        )",
+        &amp;[],
+    )
+    .await
+    .expect("Could not create table");
+</pre>
+<p>execute方法中的第一个参数只是普通的SQL，第二个参数是paramaters数组。在这种情况下，我们没有使用任何参数，但我们稍后会使用它们。</p>
+<h2 id="graphql">GraphQL</h2>
+<p>现在我们已经设置了服务器样板和数据库，我们可以开始实现GraphQL解析器来使它正常工作。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们为客户数据创建一个结构。</p>
+<pre>#[derive(juniper::GraphQLObject)]
+struct Customer {
+    id: String,
+    name: String,
+    age: i32,
+    email: String,
+    address: String,
+}
+</pre>
+<p>请注意结构上方的derive宏。这就是我们要使我们的自定义数据类型与Juniper无缝协作所需要做的一切。因为我们的数据库目前是空的，所以我们将从GraphQL突变开始添加客户数据。</p>
+<h3>GraphQL突变</h3>
+<p>还记得之前的<code>MutationRoot</code>吗？它是实现所有GraphQL变化的结构。</p>
+<p>我们可以做的最简单的改变是为新客户创建一个记录。这里有一个我们之前创建的<code>impl</code>块中的虚拟<code>register_customer</code>方法。</p>
+<pre>#[juniper::graphql_object(Context = Context)]
+impl MutationRoot {
+    async fn register_customer(
+        ctx: &amp;Context,
+        name: String,
+        age: i32,
+        email: String,
+        address: String,
+    ) -&gt; juniper::FieldResult&lt;Customer&gt; {
+        Ok(Customer {
+            id: "1".into(),
+            name,
+            age,
+            email,
+            address,
+        })
+    }
+}
+</pre>
+<p>同样，我们利用Rust宏来删除大量样板文件。在这种情况下，我们使包含数据库连接的上下文对所有突变都可用。</p>
+<p>现在，<code>register_customer</code>方法立即返回一个ID为<code>1</code>的用户，以及传入的姓名、年龄、电子邮件和地址。用户被包裹在<code>Ok()</code>中，因为这个方法返回一个<code>Result</code>。</p>
+<p>现在你可以运行服务器并在<a href="http://localhost:8000/graphiql" rel="nofollow">打开浏览器http://localhost:8000/graphiql</a>来测试这个虚拟突变。</p>
+<pre>mutation {
+  registerCustomer(name: "John Smith", age: 29, email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c8a2a7a0a688adb0a9a5b8a4ade6aba7a5">[email protected]</a>", address: "19 Small Street London") {
+    id,
+    name,
+    age,
+  }
+}
+</pre>
+<p>如您所见，我们惯用的Rust snake_cased方法名已经自动更改为惯用的GraphQL camelCase，并且所有的GraphQL类型都是从我们的<code>Customer</code>结构中派生出来的。如果您试图删除<code>registerCustomer</code>的一些参数，您会得到一个不错的错误消息。Rust没有空类型，所以我们必须明确选择Rust的<code>Option</code>类型的可空字段。</p>
+<p>我们可以将数据存储在数据库中，而不仅仅是返回数据。</p>
+<pre>async fn register_customer(
+    ctx: &amp;Context,
+    name: String,
+    age: i32,
+    email: String,
+    address: String,
+) -&gt; juniper::FieldResult&lt;Customer&gt; {
+    let id = uuid::Uuid::new_v4();
+    let email = email.to_lowercase();
+    ctx.client
+        .execute(
+            "INSERT INTO customers (id, name, age, email, address) VALUES ($1, $2, $3, $4, $5)",
+            &amp;[&amp;id, &amp;name, &amp;age, &amp;email, &amp;address],
+        )
+        .await?;
+    Ok(Customer {
+        id: id.to_string(),
+        name,
+        age,
+        email,
+        address,
+    })
+}
+</pre>
+<p>现在我们正在生成一个随机UUID，然后将用户保存在数据库中。我们还通过将提供的电子邮件转换成小写来使其规范化。您可以看到参数化的SQL和这里的<code>tokio_postgres</code>是什么样子，其中<code>execute</code>的第二个参数是我们想要使用的数据的引用列表。</p>
+<p>与虚拟示例不同，这可能会产生错误。幸运的是，Juniper会相应地格式化响应。任何实现<code>std::fmt::Display</code>的东西都可以被格式化为错误，所以很容易使用定制的错误消息。但是现在，我们将只使用由<code>tokio_postgres</code>提供的那些。</p>
+<p>其他的突变也会和这个相似。让我们看看如何更新客户的电子邮件和删除客户记录。</p>
+<pre>async fn update_customer_email(
+    ctx: &amp;Context,
+    id: String,
+    email: String,
+) -&gt; juniper::FieldResult&lt;String&gt; {
+    let uuid = uuid::Uuid::parse_str(&amp;id)?;
+    let email = email.to_lowercase();
+    let n = ctx
+        .client
+        .execute(
+            "UPDATE customers SET email = $1 WHERE id = $2",
+            &amp;[&amp;email, &amp;uuid],
+        )
+        .await?;
+    if n == 0 {
+        return Err("User does not exist".into());
+    }
+    Ok(email)
+}
+
+async fn delete_customer(ctx: &amp;Context, id: String) -&gt; juniper::FieldResult&lt;bool&gt; {
+    let uuid = uuid::Uuid::parse_str(&amp;id)?;
+    let n = ctx
+        .client
+        .execute("DELETE FROM customers WHERE id = $1", &amp;[&amp;uuid])
+        .await?;
+    if n == 0 {
+        return Err("User does not exist".into());
+    }
+    Ok(true)
+}
+</pre>
+<p>这一次，我们检查更新了多少行。如果没有行被更新，这意味着用户不存在，我们返回一个错误。</p>
+<h3>你想要什么</h3>
+<p>查询以类似于突变的方式实现，但是使用了<code>QueryRoot</code>而不是<code>MutationRoot</code>。我们的第一个查询将简单地查找具有给定ID的客户。</p>
+<pre>#[juniper::graphql_object(Context = Context)]
+impl QueryRoot {
+    async fn customer(ctx: &amp;Context, id: String) -&gt; juniper::FieldResult&lt;Customer&gt; {
+        let uuid = uuid::Uuid::parse_str(&amp;id)?;
+        let row = ctx
+            .client
+            .query_one(
+                "SELECT name, age, email, address FROM customers WHERE id = $1",
+                &amp;[&amp;uuid],
+            )
+            .await?;
+        let customer = Customer {
+            id,
+            name: row.try_get(0)?,
+            age: row.try_get(1)?,
+            email: row.try_get(2)?,
+            address: row.try_get(3)?,
+        };
+        Ok(customer)
+    }
+}
+</pre>
+<p>我们没有在数据库客户机上使用<code>execute</code>，而是使用<code>query_one</code>，它将返回一个数据库行或一个错误。我们会做类似的事情来查询客户列表。</p>
+<pre>async fn customers(ctx: &amp;Context) -&gt; juniper::FieldResult&lt;Vec&lt;Customer&gt;&gt; {
+    let rows = ctx
+        .client
+        .query("SELECT id, name, age, email, address FROM customers", &amp;[])
+        .await?;
+    let mut customers = Vec::new();
+    for row in rows {
+        let id: uuid::Uuid = row.try_get(0)?;
+        let customer = Customer {
+            id: id.to_string(),
+            name: row.try_get(1)?,
+            age: row.try_get(2)?,
+            email: row.try_get(3)?,
+            address: row.try_get(4)?,
+        };
+        customers.push(customer);
+    }
+    Ok(customers)
+}
+</pre>
+<p>这一次，我们使用了<code>query</code>,因为我们期望从数据库中得到不止一行。之后，循环遍历每一行，并将每个客户添加到一个向量中。在GraphiQL测试客户端中尝试此查询；它应该返回一个客户列表。</p>
+<pre>{
+  customers {
+    id
+    name
+    email
+    address
+  }
+}
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>现在，您应该已经很好地理解了Rust中的GraphQL如何与Juniper协同工作。这里我们只使用了一种数据类型，但是添加更多的数据类型也是一样的。您甚至可以使用具有嵌套自定义数据类型的字段，由于Juniper提供的宏，一切都将正常工作。下一步可能是向API添加身份验证和权限，并为所有可能的失败情况使用自定义错误类型。</p>
+<p>Rust是构建可靠和高性能web后端的一个很好的选择，它强大的宏支持使使用GraphQL成为一种绝对的乐趣。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

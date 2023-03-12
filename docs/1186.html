@@ -1,0 +1,142 @@
+<html>
+<head>
+<title>State management in Alpine.js using Spruce - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Spruce - LogRocket博客在Alpine.js中进行状态管理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-apply-state-management-in-alpine-js-using-spruce/#0001-01-01">https://blog.logrocket.com/how-to-apply-state-management-in-alpine-js-using-spruce/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果您使用过React和Vue.js等JavaScript框架，那么您可能已经熟悉了状态管理的概念，它创建了一种跨组件通信和共享数据的方式。</p>
+<p>理想情况下，当用户的应用程序有两个或更多组件应该通信和共享数据，而不必在每个组件的范围内声明数据并手动传递它们时，用户需要状态管理。通常，用户有某种类型的存储，作为应用程序状态/数据的单一真实来源。</p>
+<p>进入<a href="https://github.com/alpinejs/alpine" target="_blank" rel="noopener noreferrer"> Alpine.js </a>，这是一个相对较新的JavaScript框架，它借鉴了React和Vue.js的概念，并通过一个名为<a href="https://github.com/ryangjchandler/spruce" target="_blank" rel="noopener noreferrer"> Spruce </a>的库实现了自己的状态管理。Spruce是Alpine.js的一个轻量级状态管理库，就像Alpine.js一样，Spruce很简单，占用空间很小。</p>
+<h2>我们正在建造的东西</h2>
+<p>在本文中，我们将构建一个简单的待办事项应用程序，它包含两个组件:一个用于添加新待办事项的输入和一个显示待办事项列表的表格。这将使我们有机会从两个独立组件内部的全局存储中访问状态。</p>
+<h2>云杉入门</h2>
+<p>首先，让我们创建一个新的项目目录，我们称之为<code>alpine-spruce-todo</code>:</p>
+<pre>mkdir alpine-spruce-todo</pre>
+<p>接下来，在项目目录中创建一个<code>index.html</code>文件。</p>
+<pre>cd alpine-spruce-todo
+touch index.html</pre>
+<p>就像Alpine.js一样，Spruce既可以从CDN安装，也可以使用npm或Yarn安装。在本教程中，我们将使用CDN。在<code>index.html</code>中添加以下代码:</p>
+<p/>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;meta http-equiv="X-UA-Compatible" content="ie=edge"&gt;
+    &lt;title&gt;Todo&lt;/title&gt;
+
+    &lt;link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c6a4b3aaaba786f6e8ffe8f6">[email protected]</a>/css/bulma.min.css"
+    /&gt;
+
+    &lt;script src="https://cdn.jsdelivr.net/npm/@ryangjchandler/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7506050700161035445b445b45">[email protected]</a>/dist/spruce.umd.js"&gt;&lt;/script&gt;
+    &lt;script src="https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="650409150c0b000f1625574b534b55">[email protected]</a>/dist/alpine.min.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;section class="section"&gt;
+      &lt;div class="container"&gt;
+        &lt;div class="columns"&gt;
+          &lt;div class="column is-three-fifths is-offset-one-fifth"&gt;
+            
+</pre>
+<p/>
+<p>因为我们使用的是CDN，所以我们需要在Alpine.js之前引入云杉。对于样式，我们使用布尔玛CSS，它也将从CDN引入。</p>
+<h2>创建全球商店</h2>
+<p>要开始使用Spruce，我们需要定义一个全局存储，它将作为我们应用程序所有组件的单一真实来源。让我们创建应用程序的全局存储。</p>
+<p>将以下代码段添加到结束body标记之前:</p>
+<p/>
+<pre>&lt;script&gt;
+  Spruce.store('todo', {
+    todos: [],
+  })
+&lt;/script&gt;
+</pre>
+<p>我们正在使用CDN构建，这意味着Spruce在窗口范围内可用。使用<code>Spruce</code>变量，我们调用<code>store</code>方法来创建商店。</p>
+<p>该方法有两个参数:存储的名称和存储的状态(数据)。因为我们正在构建一个todo应用程序，所以将商店命名为<code>todo</code>是有意义的。商店只有一个状态(<code>todos</code>)，这是一个todos数组，默认情况下我们将它设置为空。</p>
+<h2>访问状态</h2>
+<p>有了全局存储之后，我们现在需要确定如何从我们的组件访问存储。对我们来说幸运的是，Spruce通过公开一个<code>$store</code>魔法属性实现了无缝连接。</p>
+<p>用以下代码替换<strong>“component goes here”</strong>文本:</p>
+<p/>
+<pre>&lt;div x-data="{}"&gt;
+  &lt;template x-if="$store.todo.todos.length"&gt;
+    &lt;div class="box mt-5"&gt;
+      &lt;table class="table is-fullwidth"&gt;
+        &lt;tbody&gt;
+          &lt;template
+            x-for="(todo, index) in $store.todo.todos"
+            :key="index"
+          &gt;
+            &lt;tr&gt;
+              &lt;td x-text="todo.title"&gt;&lt;/td&gt;
+            &lt;/tr&gt;
+          &lt;/template&gt;
+        &lt;/tbody&gt;
+      &lt;/table&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/div&gt;
+</pre>
+<p>这是一个典型的Alpine.js组件，但是您会注意到我们没有为该组件声明任何范围。这是因为我们希望利用来自全局存储的数据，这样我们就可以使用<code>$store.todo</code>访问<code>todo</code>存储，然后访问存储属性。</p>
+<p>首先，我们将检查以确保<code>todos</code>数组包含一些todos。然后我们将通过遍历<code>todos</code>数组在一个表中显示todos。</p>
+<h2>修改存储状态</h2>
+<p>我们已经看到了如何访问存储中的状态。如果我们想修改状态呢？为此，我们遵循与之前类似的步骤。要修改一个状态，我们只需给该状态重新分配一个新值。但是因为我们使用一个数组作为我们的状态，我们将不得不把新的条目推送到数组中。</p>
+<p>在前一个组件之前添加以下代码:</p>
+<p/>
+<pre>&lt;div x-data="todoInput()"&gt;
+  &lt;div class="field"&gt;
+    &lt;div class="control"&gt;
+      &lt;input
+        type="text"
+        class="input"
+        x-model="newTodo"
+        placeholder="What needs to be done?"
+        @keyup.enter="addTodo"
+      /&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+</pre>
+<p>这是一个典型的Alpine.js组件，但这一次，该组件有自己的范围，我们将把它提取到一个名为<code>todoInput()</code>的独立函数中。输入被绑定到一个<code>newTodo</code>数据，一旦按下回车键，我们就调用<code>addTodo</code>方法。</p>
+<p>让我们创建函数。在定义云杉商店的代码后添加以下代码片段:</p>
+<pre>function todoInput() {
+  return {
+    newTodo: '',
+    addTodo() {
+      if (!this.newTodo) {
+        return
+      }
+
+      this.$store.todo.todos.push({
+        title: this.newTodo,
+      })
+
+      this.newTodo = ''
+    }
+  }
+}
+</pre>
+<p>因为我们从一个函数访问商店，所以我们需要利用<code>this</code>。我们只需将新的todo添加到<code>todos</code>数组中。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h2>结论</h2>
+<p>在本教程中，我们讨论了状态管理的定义，以及为什么和什么时候使用它。我们还学习了如何使用Spruce在Alpine.js中应用状态管理，以及如何访问和修改商店的状态。</p>
+<p>要了解关于Spruce的更多信息，请查看GitHub repo 。</p><div class="code-block code-block-28">
+<div class="blog-plug inline-plug js-libraries-plug"><h2>您是否添加了新的JS库来提高性能或构建新特性？如果他们反其道而行之呢？</h2><p>毫无疑问，前端变得越来越复杂。当您向应用程序添加新的JavaScript库和其他依赖项时，您将需要更多的可见性，以确保您的用户不会遇到未知的问题。</p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放JavaScript错误，就像它们发生在您自己的浏览器中一样，这样您就可以更有效地对错误做出反应。</p><a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a>
+<a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p><a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>自信地构建— <a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

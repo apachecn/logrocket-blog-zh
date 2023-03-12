@@ -1,0 +1,432 @@
+<html>
+<head>
+<title>Intro to GraphQL with Prisma - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Prisma - LogRocket博客介绍GraphQL</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/intro-to-graphql-with-prisma/#0001-01-01">https://blog.logrocket.com/intro-to-graphql-with-prisma/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>传统的API专注于REST服务，使用标准端点和HTTP动词，如GET、POST、PUT和DELETE。随着<a href="https://graphql.org/" target="_blank" rel="noopener noreferrer"> <strong> GraphQL </strong> </a>的出现，REST现在有了一个替代方案，对于任何项目来说都一样强大和可行。</p>
+<p>关于使用GraphQL有很多可用的<a href="https://graphql.org/learn/" target="_blank" rel="noopener noreferrer">信息</a>，但是一个常见的问题是将GraphQL服务器连接到数据库。<a href="https://www.prisma.io/" target="_blank" rel="noopener noreferrer"> Prisma </a>是一个优秀的工具，它通过GraphQL API极大地简化了与数据库的交互。</p>
+<p>这篇文章将介绍GraphQL的一些基础知识，然后展示如何在GraphQL实例中使用Prisma。</p>
+<p>我们将与一个GraphQL项目合作，该项目与《星球大战》角色数据库进行交互。这个项目可以在Github <a href="https://github.com/andrewevans0102/starwars-graphql" target="_blank" rel="noopener noreferrer">这里</a>找到。我将在Mac上浏览这篇文章，但是只要你安装了<a href="https://en.wikipedia.org/wiki/Bash_(Unix_shell)" target="_blank" rel="noopener noreferrer"> Bash Shell </a>，命令应该是一样的。</p>
+<p>此外，如果你想有一个有趣的方法来为你的数据库查找星球大战人物，请点击查看<a href="https://www.starwars.com/databank" target="_blank" rel="noopener noreferrer">星球大战数据库。</a></p>
+<h2>一些背景</h2>
+<p>GraphQL最初是由脸书在2012年开发的，由一种用于API的查询和操作语言组成。GraphQL使您能够通过特定的查询与应用程序的数据进行交互，而不是构建传统的请求/响应模型。这可以是实际的查询，或者您可以使用<a href="https://graphql.org/learn/queries/" target="_blank" rel="noopener noreferrer">突变</a>来更新您的数据。当您关心API的效率，并且只检索必要的内容时，这是特别有益的。</p>
+<p>使用GraphQL，您可以构建一个<a href="https://graphql.org/learn/schema/" target="_blank" rel="noopener noreferrer">数据模式</a>和<a href="https://graphql.org/learn/execution/" target="_blank" rel="noopener noreferrer">解析器</a>来控制返回什么数据以及如何与之交互。通过数据库连接数据可能会变得复杂，但这正是<strong> Prisma </strong>的闪光点。</p>
+<p>Prisma 为你的GraphQL API提供了一个数据库客户端。这个客户机使您作为开发人员的生活变得非常容易，因为它为您自动生成基本的数据库命令。</p>
+<p>Prisma CLI甚至只需几个命令就能在docker容器中启动数据库。Prisma目前支持TypeScript、JavaScript、Flow和Go。</p>
+<p>在接下来的部分中，我们将创建一个与星球大战角色数据库交互的GraphQL API。我们将首先设置GraphQL API，然后用Prisma将其连接到一个数据库。</p>
+<h2>图形SQL设置</h2>
+<p>首先，转到您的终端，让我们创建一个文件夹，并用以下内容初始化一个项目:</p>
+<pre>mkdir starwars-graphql
+cd starwars-graphql
+yarn init -y</pre>
+<p><strong>(注意:我们在这里使用的是纱线，但是你也可以很容易地使用npm) </strong></p>
+<p>这只是创建一个基本的<code>package.json</code>，然后让您有一个工作空间来开始创建您的GraphQL服务器。</p>
+<p>现在让我们用传统的<code>index.js</code>文件为您的服务器创建一个源目录:</p>
+<pre>mkdir src
+touch src/index.js</pre>
+<p>接下来，安装<a href="https://www.npmjs.com/package/graphql-yoga" target="_blank" rel="noopener noreferrer"> graphql-yoga </a>包来自动创建graphql的完整实例:</p>
+<pre>yarn add graphql-yoga</pre>
+<p>现在我们已经有了依赖项，让我们添加以下内容:</p>
+<ul>
+<li><strong>类型定义</strong> =定义我们的数据和操作</li>
+<li><strong>解析器</strong> =处理我们数据的GraphQL查询的方法</li>
+<li><strong>服务器</strong> =我们的GraphQL实例的正式实例化</li>
+</ul>
+<p>在您的<code>index.js</code>文件中继续添加以下内容:</p>
+<pre>const { GraphQLServer } = require('graphql-yoga')
+
+// Type Definition
+const typeDefs = `
+type Query {
+  character: String!
+}
+`
+
+// Resolvers
+const resolvers = {
+  Query: {
+    character: () =&gt; `The force is strong with this API!`
+  }
+}
+
+// Server
+const server = new GraphQLServer({
+  typeDefs,
+  resolvers,
+})
+server.start(() =&gt; console.log(`Server is running on http://localhost:4000`))</pre>
+<p>现在让我们继续用下面的代码测试您的GraphQL实例:</p>
+<pre>node src/index.js</pre>
+<p>这应该会在<code><a href="http://localhost:4000" rel="nofollow">http://localhost:4000</a></code>启动您的服务器。如果你打开那个端口的浏览器，你应该会看到类似这样的内容:<br/> <img data-attachment-id="7595" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/nodeserver/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png" data-orig-size="957,944" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="nodeserver" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-300x296.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png" decoding="async" class="aligncenter wp-image-7595 size-full jetpack-lazy-image" src="../Images/8239656dde5eb83ea1cb941c8954417b.png" alt="node server" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png 957w, https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-300x296.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-768x758.png 768w" data-lazy-sizes="(max-width: 957px) 100vw, 957px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7595" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/nodeserver/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png" data-orig-size="957,944" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="nodeserver" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-300x296.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png" decoding="async" loading="lazy" class="aligncenter wp-image-7595 size-full" src="../Images/8239656dde5eb83ea1cb941c8954417b.png" alt="node server" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png 957w, https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-300x296.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver-768x758.png 768w" sizes="(max-width: 957px) 100vw, 957px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/nodeserver.png"/></noscript>
+<p>这是什么？这是<a href="https://github.com/graphcool/graphql-playground" target="_blank" rel="noopener noreferrer"> GraphQL游乐场</a>。GraphQL Playground使您能够在本地与GraphQL服务器进行交互。在左边的面板中，您可以放置将直接与您的数据交互的查询。您还可以打开右边的<strong>模式</strong>，它显示了服务器正在期待的数据(稍后会有更多相关内容)。</p>
+<p>出于我们初始测试的目的，继续将以下内容复制并粘贴到左侧面板中，然后单击小箭头运行您的第一个查询:</p>
+<pre>query {
+  character
+}</pre>
+<p>运行查询后，您应该会看到以下内容:</p>
+<p><img data-attachment-id="7597" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/querycharacter/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png" data-orig-size="953,443" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="querycharacter" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png" decoding="async" class="aligncenter wp-image-7597 size-full jetpack-lazy-image" src="../Images/8fa56e12600e73ab6ba8ab61da3e617b.png" alt="run query character" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png 953w, https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-300x139.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-768x357.png 768w" data-lazy-sizes="(max-width: 953px) 100vw, 953px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7597" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/querycharacter/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png" data-orig-size="953,443" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="querycharacter" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-300x139.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png" decoding="async" loading="lazy" class="aligncenter wp-image-7597 size-full" src="../Images/8fa56e12600e73ab6ba8ab61da3e617b.png" alt="run query character" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png 953w, https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-300x139.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter-768x357.png 768w" sizes="(max-width: 953px) 100vw, 953px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/querycharacter.png"/></noscript>
+<p>这做了什么？它刚刚运行了您的第一个GraphQL查询！</p>
+<p>现在让我们一行一行地看代码:</p>
+<pre>// Type Definition
+const typeDefs = 
+`type Query {
+  character: String!
+}`;</pre>
+<p><code>typeDefs</code>设置你如何与你的数据交互，这也被称为<a href="https://graphql.org/learn/schema/" target="_blank" rel="noopener noreferrer"> GraphQL模式</a>。在这种情况下，数据非常简单，只有一个名为<code>character</code>的字符串字段。感叹号(<code>!</code>)表示<code>character</code>字段不会返回空值。</p>
+<p>一个<strong> GraphQL模式</strong>决定你的API的行为，并使用特殊的<strong>根类型</strong>。这些<strong>根类型</strong>是GraphQL用来确定API如何与数据交互的特殊值。</p>
+<p>常用的三种不同的<strong>根类型</strong>是:</p>
+<ul>
+<li><strong>查询</strong> =选择数据</li>
+<li><strong>突变</strong> =改变数据</li>
+<li><strong>订阅</strong> =订阅数据流</li>
+</ul>
+<p><em>注意:对于我们的项目，我们将创建一个查询和一个变异。关于订阅的更多信息，请参考<a href="https://graphql.org/blog/subscriptions-in-graphql-and-relay/" target="_blank" rel="noopener noreferrer">graph QL的博客文章</a>。</em></p>
+<pre>// Resolvers
+const resolvers = {
+  Query: {
+    character: () =&gt; `The force is strong with this API!`
+  }
+};</pre>
+<p><code>resolver</code>决定了如何处理来自类型定义的响应。在这种情况下，每当为<code>character</code>创建一个查询时，字符串“这个API的作用很大！”被退回。</p>
+<h2>如何设置我们的星球大战图表服务器</h2>
+<p>因此，对于我们的星球大战GraphQL服务器，我们将与具有以下字段的角色数据库进行交互:</p>
+<ul>
+<li>名字</li>
+<li>种类</li>
+<li>从属关系(叛军联盟或帝国)</li>
+<li>武器</li>
+</ul>
+<p>让我们首先改变我们的<code>typeDefs</code>部分来反映一个<code>character</code>对象，如下所示:</p>
+<pre>// Type Definition
+const typeDefs = `
+type Query {
+  characters: [Character!]!
+}
+
+type Character {
+  name: String!,
+  species: String!,
+  affiliation: affiliation!
+  weapon: String!
+}
+
+enum affiliation {
+  REBEL_ALLIANCE,
+  EMPIRE
+}`;</pre>
+<p><em>注意关于GraphQL类型和字段的更多信息，请查看<a href="https://graphql.org/learn/schema/#object-types-and-fields" target="_blank" rel="noopener noreferrer">这里的官方文档</a>。</em></p>
+<p>那么这个做了什么？我们一段一段来。</p>
+<pre>type Query {
+  characters: [Character!]!
+}</pre>
+<p>首先，我们定义了查询的外观。在这里，值为“characters”的查询将返回一个由<code>Character</code>对象组成的数组。感叹号(<code>!</code>)表示返回类型不会为空。</p>
+<pre>type Character {
+  name: String!,
+  species: String!,
+  affiliation: affiliation! 
+  weapon: String!
+}</pre>
+<p>接下来，我们定义我们的角色对象。</p>
+<pre>enum affiliation {
+  REBEL_ALLIANCE,
+  EMPIRE
+}</pre>
+<p>最后，我们定义了一个可能的从属关系值的枚举(在这个例子中，要么是反抗军联盟，要么是帝国)。</p>
+<p>现在设置好查询和对象定义，让我们用<strong>定义解析器</strong>来处理实际的查询。</p>
+<p>用以下内容替换上述解析器部分:</p>
+<pre>// local storage of characters, this will be moved later
+const characters = [
+  {
+    name: "Han Solo",
+    species: "Human",
+    affiliation: "REBEL_ALLIANCE",
+    weapon: "blaster rifle"
+  },
+  {
+    name: "Chewbacca",
+    species: "Wookie",
+    affiliation: "REBEL_ALLIANCE",
+    weapon: "bowcaster"
+  }
+];
+
+// resolving queries
+const resolvers = {
+  Query: {
+    characters: () =&gt; characters
+  },
+  Character: {
+    name: parent =&gt; parent.name,
+    species: parent =&gt; parent.species,
+    affiliation: parent =&gt; parent.affiliation,
+    weapon: parent =&gt; parent.weapon
+  }
+};</pre>
+<p>这做了什么？</p>
+<pre>// local storage of characters, this will be moved later
+const characters = [
+  {
+    name: "Han Solo",
+    species: "Human",
+    affiliation: "REBEL_ALLIANCE",
+    weapon: "blaster rifle"
+  },
+  {
+    name: "Chewbacca",
+    species: "Wookie",
+    affiliation: "REBEL_ALLIANCE",
+    weapon: "bowcaster"
+  }
+];</pre>
+<p>首先，我们定义角色的本地存储版本。一旦Prisma安装完毕，我们将直接从数据库中检索这些数据。在这里，我们只是在本地数组中定义它们，这样我们就可以在连接Prisma之前构建我们服务器的基础。</p>
+<pre>// resolving queries
+const resolvers = {
+  Query: {
+    characters: () =&gt; characters
+  },
+  Character: {
+    name: parent =&gt; parent.name,
+    species: parent =&gt; parent.species,
+    affiliation: parent =&gt; parent.affiliation,
+    weapon: parent =&gt; parent.weapon
+  }
+};</pre>
+<p>接下来，我们为查询定义一个解析器来选择字符。为什么我们在这里使用<code>parent</code>？这是为了让GraphQL能够解析<code>nested</code>查询。</p>
+<p>基本上，我们首先必须定义<code>Query</code>操作来返回一个<code>characters</code>数组。使用这里的<code>parent</code>字段，我们说对于来自<code>characters</code>数组的每条记录，让我们拉回相应的字符字段。</p>
+<p>现在继续，用<code>node src/index.js</code>重启你的服务器。</p>
+<p>打开<code><a href="http://localhost:4200" rel="nofollow">http://localhost:4200</a></code>打开GraphQL游乐场。</p>
+<p>将以下查询复制到操场:</p>
+<pre>query {
+  characters {
+    name
+    species
+    affiliation
+    weapon
+  }
+}</pre>
+<p>运行您的查询，您应该会看到类似这样的内容:</p>
+<p><img data-attachment-id="7609" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/queryofcharacters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters.png" data-orig-size="2274,1160" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="queryofcharacters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png" decoding="async" class="aligncenter wp-image-7609 size-large jetpack-lazy-image" src="../Images/d3140f13b3f5af14d7d3dad6cfa3c4fa.png" alt="run query of characters" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png 1024w, https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-300x153.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-768x392.png 768w" data-lazy-sizes="(max-width: 1024px) 100vw, 1024px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7609" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/queryofcharacters/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters.png" data-orig-size="2274,1160" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="queryofcharacters" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png" decoding="async" loading="lazy" class="aligncenter wp-image-7609 size-large" src="../Images/d3140f13b3f5af14d7d3dad6cfa3c4fa.png" alt="run query of characters" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png 1024w, https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-300x153.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-768x392.png 768w" sizes="(max-width: 1024px) 100vw, 1024px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/queryofcharacters-1024x522.png"/></noscript><br/>
+Note: If you saw an error about null fields (or something to that effect), it just means that GraphQL was unable to return a value based on your query. You probably just have a syntax error, and I’d recommend just consulting the final <a href="https://github.com/andrewevans0102/starwars-graphql" target="_blank" rel="noopener noreferrer">GitHub project</a> to make sure your code matches.
+<p>如果您点击<code>SCHEMA</code>按钮，您将看到我们在上面定义的值。这是验证GraphQL在寻找什么的一个很好的方法。</p>
+<p><img data-attachment-id="7611" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/graphqlschema/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png" data-orig-size="730,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlschema" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema-300x114.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png" decoding="async" class="aligncenter wp-image-7611 size-full jetpack-lazy-image" src="../Images/f23d0239fe1e265ae3f834498290e917.png" alt="graphql schema" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema-300x114.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7611" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/graphqlschema/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png" data-orig-size="730,278" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlschema" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema-300x114.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png" decoding="async" loading="lazy" class="aligncenter wp-image-7611 size-full" src="../Images/f23d0239fe1e265ae3f834498290e917.png" alt="graphql schema" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema-300x114.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlschema.png"/></noscript>
+<h2>用突变改变数据</h2>
+<p>回顾一下，有三种不同的常用根字段:</p>
+<ul>
+<li><strong>查询</strong> =选择数据</li>
+<li><strong>突变</strong> =改变数据</li>
+<li><strong>订阅</strong> =订阅数据流</li>
+</ul>
+<p>到目前为止，我们已经建立了一个可以应用于内存数组的查询。现在让我们写一个<strong>突变</strong>，它将使你能够更新数组值并创建一个角色。</p>
+<p>将以下内容添加到<code>typeDefs</code>部分:</p>
+<pre>type Mutation {
+  post(name: String!, species: String!, affiliation: affiliation!, weapon: String!): Character!
+}</pre>
+<p>也就是说，对于带有相关参数(名称、物种、隶属关系和武器)的<code>post</code>,创建一个<code>Character</code>对象。</p>
+<p>接下来在<code>resolvers</code>中添加一个函数来处理<code>Mutation</code>操作，如下所示:</p>
+<pre>Mutation: {
+  post: (parent, args) =&gt; {
+    const character = {
+      name: args.name,
+      species: args.species,
+      affiliation: args.affiliation,
+      weapon: args.weapon
+    };
+    characters.push(character);
+    return character;
+  }
+}</pre>
+<p>这就是说，对于一个<strong>突变</strong>，用提供的<code>args</code>创建一个角色，并将其推送到<code>characters</code>数组。</p>
+<p>如果您使用<code>node src/index.js</code>运行您的服务器，那么在<code>localhost:4000</code>在浏览器中打开GraphQL IDE。</p>
+<p>在GraphQL IDE中运行以下命令:</p>
+<pre>mutation {
+  post(
+    name: "Darth Vader"
+    species: "Human",
+    affiliation: EMPIRE,
+    weapon: "lightsaber"
+  ) {
+    name
+  }
+}</pre>
+<p>现在继续运行我们之前创建的查询，您应该会看到如下所示的内容:</p>
+<p><img data-attachment-id="7618" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/darthvadermutation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png" data-orig-size="730,344" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="darthvadermutation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png" decoding="async" class="aligncenter wp-image-7618 size-full jetpack-lazy-image" src="../Images/1284022c41be49a4cbd4ad85e7be4159.png" alt="darth vader mutation" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation-300x141.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7618" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/darthvadermutation/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png" data-orig-size="730,344" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="darthvadermutation" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png" decoding="async" loading="lazy" class="aligncenter wp-image-7618 size-full" src="../Images/1284022c41be49a4cbd4ad85e7be4159.png" alt="darth vader mutation" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation-300x141.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/darthvadermutation.png"/></noscript>
+<p>然后，如果您注释掉这个突变并运行原始查询，您应该会看到数组更新为“Darth Vader”的值，如下所示:</p>
+<p><img data-attachment-id="7619" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/mutationsetup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png" data-orig-size="730,354" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mutationsetup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png" decoding="async" class="aligncenter wp-image-7619 size-full jetpack-lazy-image" src="../Images/c582b302d34d2db1e06067be6b471c4d.png" alt="Mutation set up" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup-300x145.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7619" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/mutationsetup/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png" data-orig-size="730,354" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mutationsetup" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup-300x145.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png" decoding="async" loading="lazy" class="aligncenter wp-image-7619 size-full" src="../Images/c582b302d34d2db1e06067be6b471c4d.png" alt="Mutation set up" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup-300x145.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/mutationsetup.png"/></noscript>
+<p>恭喜你！现在，您的GraphQL服务器已经有了一个<strong>突变</strong>设置！</p>
+<h2>创建Prisma客户端</h2>
+<p>什么是<a href="https://www.prisma.io/" target="_blank" rel="noopener noreferrer"> Prisma </a>？正如介绍中提到的，Prisma提供了一个客户机，GraphQL可以用它来与您的数据库进行交互。</p>
+<p>为什么这很重要？当您使用GraphQL时，您会希望将您的服务器连接到一个实际的数据库。数据库访问需要构建直接的SQL查询或使用传统的<a href="https://stackoverflow.com/questions/1279613/what-is-an-orm-how-does-it-work-and-how-should-i-use-one" target="_blank" rel="noopener noreferrer">对象关系映射(ORM) </a>与数据库交互。<strong> SQL查询</strong>容易出错，因为它们必须作为字符串发送。<strong>ORM</strong>通常非常简单，很难扩展以适用于复杂的应用程序。</p>
+<p><em><strong>…输入棱镜</strong> </em></p>
+<p>Prisma通过(1)一个生成的客户机和(2)一个将GraphQL调用翻译成数据库命令的服务器来处理将服务器连接到数据库的挑战。</p>
+<p>产生的流应该如下所示:</p>
+<p><img data-attachment-id="7625" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaflow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png" data-orig-size="646,181" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaflow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow-300x84.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png" decoding="async" class="aligncenter wp-image-7625 size-full jetpack-lazy-image" src="../Images/6cd6a91f28de20af77ec36b1daa5d3a6.png" alt="prisma flow" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png 646w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow-300x84.png 300w" data-lazy-sizes="(max-width: 646px) 100vw, 646px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7625" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaflow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png" data-orig-size="646,181" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaflow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow-300x84.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png" decoding="async" loading="lazy" class="aligncenter wp-image-7625 size-full" src="../Images/6cd6a91f28de20af77ec36b1daa5d3a6.png" alt="prisma flow" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png 646w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow-300x84.png 300w" sizes="(max-width: 646px) 100vw, 646px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaflow.png"/></noscript>
+<p>生成的客户机成为GraphQL服务器的一部分，并作为将查询、变更和订阅转换成数据库调用的手段。</p>
+<p>Prisma有一个CLI使整个过程变得非常简单。对于我们的项目，我们将使用Prisma CLI建立一个由<a href="https://aws.amazon.com/rds/aurora/" target="_blank" rel="noopener noreferrer"> AWS Aurora DB </a>托管的演示数据库。</p>
+<p>所以让我们开始吧！</p>
+<p>首先，让我们在项目中创建一个Prisma目录:</p>
+<pre>mkdir prisma
+touch prisma/prisma.yml
+touch prisma/datamodel.prisma</pre>
+<p>打开<code>datamodel.prisma</code>文件并添加以下内容:</p>
+<pre>type Character {
+  id: ID! @id
+  name: String!
+  species: String!
+  affiliation: affiliation!
+  weapon: String!
+}
+
+enum affiliation {
+  REBEL_ALLIANCE
+  EMPIRE
+}</pre>
+<p>这为Prisma定义了<code>Character</code>对象。如果您注意到我们在这里创建了<code>@id</code>值，那么用Prisma创建的每个记录都是唯一的。Prisma会自动为我们生成ID值，每个新记录。</p>
+<p>接下来，打开<code>prisma.yml</code>文件并添加以下内容:</p>
+<pre># HTTP Endpoint
+endpoint: ""
+
+# location of the datamodel file
+datamodel: datamodel.prisma
+
+# identifiy the language and location of the Prisma Client
+generate:
+  - generator: javascript-client
+    output: ../src/generated/prisma-client</pre>
+<p>该文件执行以下操作:</p>
+<ul>
+<li>为您的客户端标识HTTP端点(注意，当我们运行<code>deploy</code>命令时，这将由CLI填写)</li>
+<li>定义<code>datamodel</code>文件的位置</li>
+<li>定义应用程序语言</li>
+<li>定义(生成的)Prisma客户端的位置</li>
+</ul>
+<p>现在我们已经准备好实际构建客户端，让我们使用以下命令在全球范围内安装Prisma CLI:</p>
+<pre>yarn global add prisma</pre>
+<p>一旦完成，我们将需要生成Prisma客户端代码。Prisma CLI中的任何命令都以<code>prisma</code>为前缀，并会让您回答有关数据库类型、位置等信息的提示。</p>
+<p>在您的终端中，转到项目的根目录并运行以下命令:</p>
+<pre>prisma deploy</pre>
+<p>在您的终端中，选择“演示服务器+ MySQL数据库”，使Prisma能够在云端为您构建一个演示(这是免费的)。您的终端应该类似于以下内容:</p>
+<p><img data-attachment-id="7632" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/graphqlterminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png" data-orig-size="730,548" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlterminal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png" decoding="async" class="aligncenter wp-image-7632 size-full jetpack-lazy-image" src="../Images/a217d86a0f93001097ead8b76cc0a6e8.png" alt="graphql terminal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal-300x225.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7632" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/graphqlterminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png" data-orig-size="730,548" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphqlterminal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal-300x225.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png" decoding="async" loading="lazy" class="aligncenter wp-image-7632 size-full" src="../Images/a217d86a0f93001097ead8b76cc0a6e8.png" alt="graphql terminal" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal-300x225.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/graphqlterminal.png"/></noscript>
+<p>现在，基础设施已经部署到云中，您可以通过运行以下命令(在项目的根目录下):<br/> <code>prisma generate</code>来生成Prisma客户端，供您的GraphQL API使用。</p>
+<p>现在，Prisma客户端已经设置好，您的Prisma服务器也已经部署好了。</p>
+<p>为了与我们的Prisma客户端一起工作，我们需要安装带有<code>yarn add prisma-client-lib</code>的<code>prisma-client-lib</code>包</p>
+<p>一旦安装了客户端库，您就可以通过运行下面的代码(在<a href="https://github.com/andrewevans0102/starwars-graphql" target="_blank" rel="noopener noreferrer">示例项目</a>中保存为<code>prisma_client.js</code>)来测试在您的数据库实例上创建一个记录:</p>
+<pre>const { prisma } = require("./generated/prisma-client");
+
+async function main() {
+  // Create a new character
+  const newCharacter = await prisma.createCharacter({
+    name: "Luke Skywalker",
+    species: "Human",
+    affiliation: "REBEL_ALLIANCE",
+    weapon: "lightsaber"
+  });
+  console.log(
+    `Created new character: ${newCharacter.name} (ID: ${newCharacter.id})`
+  );
+
+  const allCharacters = await prisma.characters();
+  console.log(allCharacters);
+}
+
+main().catch(e =&gt; console.error(e));</pre>
+<p>一旦你运行了这段代码，如果你去<a href="https://app.prisma.io/" target="_blank" rel="noopener noreferrer">https://app.prisma.io/</a>，你也可以在Prisma控制台中查看它。</p>
+<p>运行<code>prisma_client.js</code>应该会产生如下结果:</p>
+<p><img data-attachment-id="7635" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaclientjs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaclientjs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png" decoding="async" class="aligncenter wp-image-7635 size-full jetpack-lazy-image" src="../Images/94681ef88c46de8a9dfa39c54f05b127.png" alt="prisma client" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7635" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaclientjs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaclientjs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png" decoding="async" loading="lazy" class="aligncenter wp-image-7635 size-full" src="../Images/94681ef88c46de8a9dfa39c54f05b127.png" alt="prisma client" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaclientjs.png"/></noscript>
+<p>然后，如果你在<a href="https://app.prisma.io/" rel="nofollow">https://app.prisma.io/</a>打开浏览器，你可以直接看到我们刚刚处理的数据:</p>
+<p><img data-attachment-id="7637" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/serverstatus/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png" data-orig-size="730,193" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="serverstatus" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png" decoding="async" class="aligncenter wp-image-7637 size-full jetpack-lazy-image" src="../Images/8f6bebb701e4c96181a795fb2a18861d.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus-300x79.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7637" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/serverstatus/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png" data-orig-size="730,193" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="serverstatus" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus-300x79.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png" decoding="async" loading="lazy" class="aligncenter wp-image-7637 size-full" src="../Images/8f6bebb701e4c96181a795fb2a18861d.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus-300x79.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/serverstatus.png"/></noscript>
+<p><img data-attachment-id="7638" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaadmin/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png" data-orig-size="730,231" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaadmin" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin-300x95.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png" decoding="async" class="aligncenter wp-image-7638 size-full jetpack-lazy-image" src="../Images/86dd6a8d3b74ad997b5f65172646c2ff.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin-300x95.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7638" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaadmin/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png" data-orig-size="730,231" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaadmin" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin-300x95.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png" decoding="async" loading="lazy" class="aligncenter wp-image-7638 size-full" src="../Images/86dd6a8d3b74ad997b5f65172646c2ff.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin-300x95.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaadmin.png"/></noscript>
+<p>祝贺您获得客户端设置！🎉</p>
+<h2>连接到Prisma客户端</h2>
+<p>所以最后一步是将我们的GraphQL服务器连接到我们生成的客户端。<code>prisma_client.js</code>文件是一个独立的文件，运行它是为了直接向数据库添加值。我们想使用我们之前创建的<strong>查询</strong>和<strong>变异</strong>来直接与我们的数据库交互。</p>
+<p>首先，在<code>src/index.js</code>打开我们的服务器文件，并添加一行来拉进Prisma客户机。<br/>T1】</p>
+<p>然后在服务器文件的底部，让我们用下面的代码重新定义我们的服务器实例:</p>
+<pre>// Server
+const server = new GraphQLServer({
+  typeDefs,
+  resolvers,
+  context: { prisma }
+});
+server.start(() =&gt; console.log(`Server is running on http://localhost:4000`));</pre>
+<p>如果你注意到这里我们正在定义一个<code>context</code>对象，它本质上是我们的Prisma客户端。我们以前没有这个，因为我们只是在内存中运行它。在这里将<code>context</code>定义为我们的Prisma客户机，使得所有的请求都能够使用同一个连接到我们的Prisma服务器并支持数据库。关于GraphQL中的<code>context</code>对象的更多信息，请<a href="https://graphql-modules.com/docs/introduction/context" target="_blank" rel="noopener noreferrer">参考这里的文档</a>。</p>
+<p>最后，让我们将<code>src/index.js</code>文件中的解析器修改如下:</p>
+<pre>// // local storage of characters, this will be moved later
+// const characters = [
+//   {
+//     name: "Han Solo",
+//     species: "Human",
+//     affiliation: "REBEL_ALLIANCE",
+//     weapon: "blaster rifle"
+//   },
+//   {
+//     name: "Chewbacca",
+//     species: "Wookie",
+//     affiliation: "REBEL_ALLIANCE",
+//     weapon: "bowcaster"
+//   }
+// ];
+
+// resolving queries
+const resolvers = {
+  Query: {
+    characters: (root, args, context, info) =&gt; {
+      return context.prisma.characters();
+    }
+  },
+  Mutation: {
+    post: (root, args, context) =&gt; {
+      return context.prisma.createCharacter({
+        name: args.name,
+        species: args.species,
+        affiliation: args.affiliation,
+        weapon: args.weapon
+      });
+    }
+  }
+};</pre>
+<p>这是在做什么？这修改了查询和变异，指向Prisma客户机和服务器，而不是我们的本地数组。此外，注释掉我们的字符数组，因为我们现在不需要它们。</p>
+<p>现在一切都设置好了，让我们继续用<code>node src/index.js</code>重启我们的服务器，然后在<a href="https://localhost:4000" rel="nofollow"> https://localhost:4000 </a>打开GraphQL游乐场。</p>
+<p>运行以下变异，将一个值写入我们的数据库:</p>
+<pre>mutation {
+  post(
+    name: "Leia Organa"
+    species: "Human",
+    affiliation: REBEL_ALLIANCE,
+    weapon: "blastor pistol"
+  ) {
+    name
+  }
+}</pre>
+<p>您应该看到以下内容:</p>
+<p><img data-attachment-id="7646" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/leiaquery/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="leiaquery" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png" decoding="async" class="aligncenter wp-image-7646 size-full jetpack-lazy-image" src="../Images/6f7082e1dbb38c1bd89f9c87ef89f2e6.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery-300x131.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7646" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/leiaquery/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="leiaquery" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery-300x131.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png" decoding="async" loading="lazy" class="aligncenter wp-image-7646 size-full" src="../Images/6f7082e1dbb38c1bd89f9c87ef89f2e6.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery-300x131.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/leiaquery.png"/></noscript>
+<p>然后运行查询，查看Leia是否在我们的数据库中:</p>
+<p><img data-attachment-id="7648" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/updatedleiaquery/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png" data-orig-size="730,336" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="updatedleiaquery" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png" decoding="async" class="aligncenter wp-image-7648 size-full jetpack-lazy-image" src="../Images/c2d3485f3b1e49a65fdc6bfea188951f.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery-300x138.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7648" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/updatedleiaquery/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png" data-orig-size="730,336" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="updatedleiaquery" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery-300x138.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png" decoding="async" loading="lazy" class="aligncenter wp-image-7648 size-full" src="../Images/c2d3485f3b1e49a65fdc6bfea188951f.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery-300x138.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/updatedleiaquery.png"/></noscript>
+<p>注意:我在测试过程中添加了一些字符，所以你可能会得到稍微不同的结果。重要的是莱娅在名单上。</p>
+<p>您可以打开Prisma客户端站点，查看数据库中的记录:</p>
+<p><img data-attachment-id="7651" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaupdate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png" data-orig-size="730,326" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaupdate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png" decoding="async" class="aligncenter wp-image-7651 size-full jetpack-lazy-image" src="../Images/45299c1d2efbeb4b03436886e50f0a2b.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="7651" data-permalink="https://blog.logrocket.com/intro-to-graphql-with-prisma/prismaupdate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png" data-orig-size="730,326" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="prismaupdate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png" decoding="async" loading="lazy" class="aligncenter wp-image-7651 size-full" src="../Images/45299c1d2efbeb4b03436886e50f0a2b.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/prismaupdate.png"/></noscript>
+<p>您现在已经将我们的GraphQL服务器连接到数据库了！</p>
+<p>注意:此时，您还可以重构应用程序。通常较大的应用程序都有存放一个<code>resolvers</code>文件和一个<code>definitions</code>文件的地方(而不是在一个地方定义它们)。这里我们的API非常简单，所以我让文件保持原样。</p>
+<h2>结论</h2>
+<p>因此，在这篇文章中，我们学习了一些关于GraphQL的基础知识，以及如何使用强大的工具Prisma。我们构建了一个查询和一个GraphQL服务器的变体。我们还了解了GraphQL游乐场。我希望这篇文章有助于开始使用GraphQL，并帮助您接触开发。</p>
+<p>GraphQL是一项真正强大的技术，它使应用程序既高效又易于使用。Prisma也是一个非常有用的工具，它极大地简化了构建GraphQL应用程序。</p>
+<p>该项目的下一步是考虑实际部署您的GraphQL服务器实例，并构建一个可以调用您的API的前端客户端。</p>
+<p>Prisma还有很多我们在这里没有谈到的特性。我强烈推荐<a href="https://www.prisma.io/" target="_blank" rel="noopener noreferrer">去他们的网站</a>看看他们的例子。</p>
+<p>欢迎发表评论，在Twitter上关注我，地址:<a href="https://twitter.com/AndrewEvans0102" target="_blank" rel="noopener noreferrer"> @AndrewEvans0102 </a>！</p>
+<p> </p>
+<p> </p>
+<p> </p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

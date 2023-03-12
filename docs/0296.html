@@ -1,0 +1,125 @@
+<html>
+<head>
+<title>How to migrate from HOCs to Hooks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何从HOCs迁移到Hooks - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-migrate-from-hocs-to-hooks-d0f7675fd600/#0001-01-01">https://blog.logrocket.com/how-to-migrate-from-hocs-to-hooks-d0f7675fd600/#0001-01-01</a></blockquote><div><article class="article-post">
+<p id="eef1" class="graf graf--p graf-after--figure">未来就在眼前，你正在享受用钩子编写React代码的每一秒钟。你们都喜欢“使用这个”和“使用那个”,并且正在利用这个新的React特性实现跨领域的关注。</p>
+<p id="7a93" class="graf graf--p graf-after--p">然后，不知从哪里冒出来，你的经理告诉你要修复一些现有代码中的一个bug。你知道，你在2018年12月写的那篇遗产废话？你意识到你必须用生命周期和<code>this</code>来接触类组件。你昨天写的钩子可以在一秒钟内修复这个bug，但是由于类组件不支持钩子，你只能用“老方法”了。你该怎么办？</p>
+<p id="0a4c" class="graf graf--p graf-after--p">这篇文章将向你展示两种处理这些情况的技巧——从你的钩子创建hoc，以及从你的hoc创建钩子。</p>
+<p>等等，什么是特设？</p>
+<p>一个HOC——或者一个更高阶的组件——是一个接受一个组件的函数，并返回一个组件，该组件使用一些额外的属性或功能来呈现所传递的组件。<a class="markup--anchor markup--blockquote-anchor" href="https://reactjs.org/docs/higher-order-components.html" target="_blank" rel="noopener noreferrer" data-href="https://reactjs.org/docs/higher-order-components.html"> React docs </a>在更详细地解释它们方面做得很好。</p>
+<h3 id="fac4" class="graf graf--h3 graf-after--figure">用你的钩子创造hoc</h3>
+<p id="ae75" class="graf graf--p graf-after--h3">为什么你会想把你的花哨、光滑的钩子做成笨重、陈旧的钩子呢？听起来我们在倒退，对吗？不完全是。我们正在提供一个迁移路径，让我们<strong class="markup--strong markup--p-strong">在类组件</strong>中使用钩子逻辑。这样，我们可以开始在旧组件中使用<em class="markup--em markup--p-em">新</em>代码，而无需重写潜在的复杂逻辑。</p>
+<p id="59ad" class="graf graf--p graf-after--p">实现一个提供钩子API的HOC是非常简单的。</p>
+<pre id="7377" class="graf graf--pre graf-after--p">const withMyHook = Comp =&gt; () =&gt; {
+  const hookData = useMyHook();
+  return &lt;Comp ...{hookData} {...props} /&gt;;
+}</pre>
+<p id="b6cf" class="graf graf--p graf-after--pre">在上面显示的代码中，我们创建了一个函数，它接收一个组件作为参数，并返回一个新的函数组件。这个函数组件调用我们的钩子，并将任何返回值传递给被传递的组件。</p>
+<p id="7c54" class="graf graf--p graf-after--p">如果您的钩子实现需要静态数据，您可以将它作为一个参数传入:</p>
+<pre id="5e05" class="graf graf--pre graf-after--p">const withMyHook = hookArgs =&gt; Comp =&gt; () =&gt; {
+  const hookData = useMyHook(hookArgs);
+  return &lt;Comp {...hookData} {...props} /&gt;;
+}</pre>
+<p id="8a92" class="graf graf--p graf-after--pre">这里，我们将静态数据传递给我们的HOC，它返回另一个HOC。这就是所谓的currying，基本上就是函数返回函数。你会这样使用它:</p>
+<pre id="a78d" class="graf graf--pre graf-after--p">const MyDecoratedComponent = withMyHook({ 
+  some: ‘value’ 
+})(MyComponent);</pre>
+<p id="b5a8" class="graf graf--p graf-after--pre">如果你的钩子需要基于道具的数据，你可以考虑使用渲染道具模式:</p>
+<pre id="0eb3" class="graf graf--pre graf-after--p">const MyHook = (props) =&gt; {
+ const hookData = useMyHook(props.relevantData);
+ return props.children(hookData);
+}</pre>
+<p id="82c9" class="graf graf--p graf-after--pre">您的实现可能会有所不同，但是您可以将不同的实现放入存储钩子的模块中，并将特设版本或渲染属性版本导出为命名导出。</p>
+<p id="1a41" class="graf graf--p graf-after--p">您可以像使用任何HOC一样使用这些HOC——用它包装您想要增强的组件。</p>
+<pre id="b885" class="graf graf--pre graf-after--p">class MyComponent extends React.Component {
+ …
+};
+const MyEnhancedComponent = withMyHook(MyComponent);</pre>
+<h3 id="e53e" class="graf graf--h3 graf-after--pre">从你的HOCs创造钩子</h3>
+<p id="ee15" class="graf graf--p graf-after--h3">如果你在使用任何非平凡的应用程序，你的代码库很可能包含一些hoc和渲染道具组件。随着您继续重构您的应用程序，您可能想要从这些中迁移出来，并像钩子一样重新创建您现有的共享逻辑。</p>
+<p id="4c48" class="graf graf--p graf-after--p">重写hoc和渲染基于道具的组件到钩子的最大挑战是范式的改变。以前，你考虑的是生命周期方法——现在你必须考虑渲染和道具如何变化。</p>
+<p id="b096" class="graf graf--p graf-after--p">永远伟大的多纳文制作了这张漂亮的图表，试图将两种范式联系在一起:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/e772f8a589cc81a8992b87e77d2f3cd2.png" data-src="https://cdn-images-1.medium.com/max/1600/0*5eIDAPIy4ZSloU13.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*5eIDAPIy4ZSloU13.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*5eIDAPIy4ZSloU13.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/e772f8a589cc81a8992b87e77d2f3cd2.png" data-src="https://cdn-images-1.medium.com/max/1600/0*5eIDAPIy4ZSloU13.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*5eIDAPIy4ZSloU13.png"/></noscript>
+<figure id="70d9" class="graf graf--figure graf-after--p"><figcaption class="imageCaption">Flow chart courtesy of Donavon. Code available at <a class="markup--anchor markup--figure-anchor" href="https://github.com/donavon/hook-flow" target="_blank" rel="noopener noreferrer" data-href="https://github.com/donavon/hook-flow">https://github.com/donavon/hook-flow</a></figcaption></figure>
+<p id="b48e" class="graf graf--p graf-after--figure">这里没有任何通用的模式可循，相反，我将展示一个例子。最后，你会对自己的重写有一些想法。</p>
+<h4 id="c27e" class="graf graf--h4 graf-after--p">withScreenSize =&gt; useScreenSize</h4>
+<p id="e999" class="graf graf--p graf-after--h4">是一个为我们的组件提供当前屏幕尺寸的工具。它是这样实现的:</p>
+<pre id="7131" class="graf graf--pre graf-after--p">import React from ‘react’;
+import debounce from ‘debounce’;
+const withScreenSize = Comp =&gt; {
+  return class extends React.Component {
+    state = { width: null, height: null };
+    updateScreenSize = debounce(() =&gt; {
+      this.setState({ 
+        width: window.screen.width, 
+        height: window.screen.height 
+      }); 
+    }, 17);
+    componentDidMount() {
+      window.addEventListener(‘resize’, this.updateScreenSize);
+    }
+    componentWillUnmount() {
+      window.removeEventListener(‘resize’, this.updateScreenSize);
+    }
+    render() {
+      return &lt;Comp {...this.props} screenSize={this.state} /&gt;
+    }
+  };
+}</pre>
+<p id="f6e8" class="graf graf--p graf-after--pre">我们可以用这样的钩子来实现它:</p>
+<pre>import React from ‘react’;
+import debounce from ‘debounce’;
+const useScreenSize = () =&gt; {
+  const [screenSize, setScreenSize] = React.useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+  const updateScreenSize = debounce(() =&gt; {
+    setScreenSize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+  }, 17);
+  React.useEffect(() =&gt; {
+    window.addEventListener(‘resize’, updateScreenSize);
+    return () =&gt; {
+      window.removeEventListener(‘resize’, updateScreenSize);
+    };
+  }, []);
+ return screenSize;
+};</pre>
+<p id="0be9" class="graf graf--p graf-after--pre">我们通过<code>useState</code>钩子存储宽度和高度，并在安装组件时将其初始化为窗口尺寸。然后，我们通过使用上面的<code>useState</code>调用中的setter来重新实现<code>updateScreenSize</code>方法。最后，我们通过使用<code>useEffect</code>钩子来应用resize监听器。注意，我们传递的是一个空的依赖数组——这意味着它只会运行一次。</p>
+<p id="98a7" class="graf graf--p graf-after--p">请记住，如果您想继续支持类组件，您可以编写一个包装器HOC:</p>
+<pre id="5088" class="graf graf--pre graf-after--p">const withScreenSize = Comp =&gt; props =&gt; {
+ const screenSize = useScreenSize();
+ return &lt;Comp {…props} screenSize={screenSize} /&gt;;
+};</pre>
+<h3 id="4ed2" class="graf graf--h3 graf-after--pre">已经开始赶时髦了！</h3>
+<p id="6ac9" class="graf graf--p graf-after--h3">钩子已经存在了，它们将大大简化你的代码库。然而，为了从现有模式中迁移出来，有时您必须做出妥协。</p>
+<p id="6c6d" class="graf graf--p graf-after--p">本文展示了如何围绕现有的hoc和渲染道具组件编写包装器，以及如何开始将现有的hoc重构为钩子。</p>
+<p id="7711" class="graf graf--p graf-after--p">在从hoc迁移时，您遇到了哪些挑战？</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

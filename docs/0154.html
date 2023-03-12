@@ -1,0 +1,307 @@
+<html>
+<head>
+<title>How to test React Hooks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何测试React钩子</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/test-react-hooks/#0001-01-01">https://blog.logrocket.com/test-react-hooks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按</em> </strong>:这篇文章最后一次更新是在2022年6月30日，目的是纠正之前版本中的不一致之处，并包含更多关于测试React挂钩的最新信息。</p>
+<p>React的16.8.0版本发布意味着<a href="https://blog.logrocket.com/react-hooks-context-redux-state-management/" target="_blank" rel="noopener"> React钩子</a>特性的稳定发布。React Hooks于2018年推出，并获得了React生态系统的好评。它本质上是一种创建具有状态等特性的组件的方法，而不需要类组件。</p>
+<p>前端测试的重要性怎么强调都不为过，因为每个团队和公司都采用测试驱动的开发来给他们的软件注入信心。本文的目标是提供一个实用的指南，指导你如何使用React测试库、Jest和Enzyme等工具来测试React钩子。</p>
+<h3>内容</h3>
+
+<h2 id="what-are-react-hooks">什么是React钩子？</h2>
+<p>挂钩特性是一个受欢迎的改变，因为它解决了React开发人员多年来面临的许多问题。其中一个问题是React不支持<code>class</code>组件之间的可重用状态逻辑。这有时会导致巨大的组件、构造函数中重复的逻辑以及<a href="https://blog.logrocket.com/using-react-useeffect-hook-lifecycle-methods/" target="_blank" rel="noopener">生命周期方法</a>。</p>
+<p>不可避免地，这迫使我们使用一些复杂的模式，如渲染道具和高阶组件，这可能导致复杂的代码库。</p>
+<p>钩子旨在通过使您能够编写可重用的组件来访问状态、生命周期方法和引用，从而解决所有这些问题。</p>
+<h2 id="build-react-app-using-react-hooks">如何使用React挂钩构建React应用程序</h2>
+<p>在我们继续看如何为React钩子编写测试之前，让我们看看如何使用钩子构建一个React应用程序。我们将建立一个应用程序，显示2018年F1比赛和每年的获胜者。</p>
+<p>在CodeSandbox可以看到整个应用程序并与之交互。</p>
+<p/>
+<p>在上面的应用中，我们使用了<code>useState</code>和<code>useEffect</code>钩子。如果您导航到<code>index.js</code>文件，在<code>App</code>函数中，您会看到一个使用了<code>useState</code>的实例:</p>
+<pre class="language-javascript hljs">// Set the list of races to an empty array
+let [races, setRaces] = useState([]);
+// Set the winner for a particular year
+let [winner, setWinner] = useState();
+useState returns a pair of values, that is the current state value and a function that lets you update it. It can be initialized with any type of value (string, array e.t.c) as opposed to state in classes where it had to be an object.
+</pre>
+<p>这里使用的另一个钩子是<code>useEffect</code>钩子。<code>useEffect</code>钩子增加了从一个函数组件执行副作用的能力；它本质上允许您执行通常在<code>componentDidMount</code>、<code>componentDidUpdate</code>和<code>componentWillUnmount</code>生命周期中执行的操作:</p>
+<pre class="language-javascript hljs">// On initial render of component, fetch data from API.
+useEffect(() =&gt; {
+  fetch(`https://ergast.com/api/f1/2018/results/1.json`)
+    .then(response =&gt; response.json())
+    .then(data =&gt; {
+      setRaces(data.MRData.RaceTable.Races);
+    });
+  fetch(`https://ergast.com/api/f1/2018/driverStandings.json`)
+    .then(response =&gt; response.json())
+    .then(data =&gt; {
+      let raceWinner = data.MRData.StandingsTable.StandingsLists[0].DriverStandings[0].Driver.familyName + " " + data.MRData.StandingsTable.StandingsLists[0].DriverStandings[0].Driver.givenName;
+      setWinner(raceWinner);
+    });
+}, []);
+</pre>
+<p>在应用程序中，我们使用<code>useEffect</code>钩子进行API调用并获取F1比赛数据，然后使用<code>setRaces</code>和<code>setWinner</code>函数将它们各自的值设置为状态。</p>
+<p>这只是一个如何结合使用钩子来构建应用程序的例子。我们使用<code>useEffect</code>钩子从某个源获取数据，使用<code>useState</code>设置进入状态的数据。</p>
+<h2 id="test-react-hooks">如何测试React钩子</h2>
+<h2 id="testing-react-hooks-jest-enzyme">用Jest和酶测试React钩子</h2>
+<p><a href="https://jestjs.io/" target="_blank" rel="noopener"> Jest </a>和<a href="https://airbnb.io/enzyme/" target="_blank" rel="noopener">酵素</a>是用来测试React apps的工具。Jest是用于测试JavaScript应用程序的JavaScript测试框架，Enzyme是React的JavaScript测试实用程序，它使断言、操作和遍历React组件的输出变得更加容易。</p>
+<p>让我们看看如何用它们来测试React钩子。</p>
+<p>首先，让我们使用Create React App创建一个项目，如下所示:</p>
+<pre class="language-shell hljs">npx create-react-app my-app
+cd my-app
+</pre>
+<p>接下来，我们将安装酶测试库和React适配器，如下所示:</p>
+<pre class="language-shell hljs">npm i --save-dev enzyme enzyme-adapter-react-16
+</pre>
+<p>现在，在<code>src</code>文件夹中创建一个名为<code>setupTests.js</code>的文件。添加以下代码片段来配置Enzyme的适配器:</p>
+<pre class="language-javascript hljs">import Enzyme from "enzyme";
+import Adapter from "enzyme-adapter-react-16";
+Enzyme.configure({ adapter: new Adapter() });
+</pre>
+<p>在我们的测试执行之前，<code>setupTests.js</code>文件中的代码被执行。</p>
+<h3>用酶测试<code>useState</code>挂钩</h3>
+<p>为了测试<code>useState</code>钩子，让我们用下面的代码更新<code>app.js</code>文件:</p>
+<pre class="language-javascript hljs">import React from "react";
+const App= () =&gt; {
+  const [name, setName] = React.useState("");
+
+  return (
+      &lt;form&gt;
+        &lt;div className="row"&gt;
+          &lt;div className="col-md-6"&gt;
+            &lt;input
+              type="text"
+              placeholder="Enter your name"
+              className="input"
+              onChange={(e) =&gt; {
+                setName(e.target.value);
+              }}
+            /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div className="row"&gt;
+          &lt;div className="col-md-6"&gt;
+            &lt;button
+              type="submit"
+              className="btn btn-primary"
+            &gt;
+              Add Name
+            &lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/form&gt;
+  );
+};
+export default App;
+</pre>
+<p>这里我们有一个基本的输入字段和一个按钮元素。注意我们是如何使用<code>React.useState()</code>而不是<code>useState()</code>的。我们需要这个来支持模拟酶测试中的<code>useState</code>钩:</p>
+<pre class="language-javascript hljs">import React from "react";
+import { shallow } from "enzyme";
+import App from "./App";
+
+const setState = jest.fn();
+const useStateSpy = jest.spyOn(React, "useState");
+useStateSpy.mockImplementation((initialState) =&gt; [initialState, setState]);
+const wrapper = shallow(&lt;App /&gt;);
+</pre>
+<p>这里，我们已经成功模拟了<code>useState</code>钩子，我们可以继续测试输入变化的状态更新，如下所示:</p>
+<pre class="language-javascript hljs">it("should update state on input change", () =&gt; {
+  const newInputValue = "React is Awesome";
+  wrapper
+    .find(".input")
+    .simulate("change", { target: { value: newInputValue } });
+  expect(setState).toHaveBeenCalledWith(newInputValue);
+});
+</pre>
+<p>Enzyme支持React挂钩，尽管由于React的浅层渲染器中的上游问题,<code>.shallow()</code>中有一些缺点。使用React浅层渲染器，<code>useEffect()</code>和<code>useLayoutEffect()</code>不会被调用。</p>
+<h2 id="testing-react-hooks-react-testing-library">用React测试库测试React挂钩</h2>
+<p><a href="https://github.com/testing-library/react-testing-library" target="_blank" rel="noopener"> React测试库</a>是一个测试React组件的轻量级解决方案。它在<code>react-dom</code>和<code>react-dom/test-utils</code>上扩展，以提供照明实用功能。它鼓励您编写与React组件的使用非常相似的测试。</p>
+<p>React Testing Library的主要目标是通过以用户使用组件的方式测试组件来增强开发人员对测试的信心。它已经安装在CRA，并且是React的默认测试库。</p>
+<p>让我们看一个使用React测试库为钩子编写测试的例子。</p>
+<p/>
+<p>在上面的应用程序中，使用了三种类型的钩子，<code>useState</code>、<code>useEffect</code>和<code>useRef</code>，我们将为它们编写测试。</p>
+<p>对于<code>useRef</code>钩子实现，我们本质上是使用<code>useRef</code>创建一个<code>ref</code>实例，并将其设置为一个输入字段，这意味着现在可以通过ref访问输入的值。</p>
+<p><code>useEffect</code>钩子的实现本质上是将<code>name</code>状态的值设置为<code>localStorage</code>。</p>
+<p>让我们继续为上面的所有实现编写测试。我们将为以下内容编写测试:</p>
+<ul>
+<li>初始<code>count</code>状态为零</li>
+<li><code>increment</code>和<code>decrement</code>按钮工作</li>
+<li>通过输入字段提交名称会改变<code>name</code>状态的值</li>
+<li><code>name</code>状态保存在<code>localStorage</code>中</li>
+</ul>
+<p>导航到<code>__tests__</code>文件夹，查看包含测试套件和下面代码导入行的<code>hooktest.js</code>文件:</p>
+<pre class="language-javascript hljs">// hooktest.js
+import { render, fireEvent, getByTestId} from "react-testing-library";
+</pre>
+<p>将有助于渲染我们的组件。它呈现在一个附加到<code>document.body</code>的容器中。<code>getByTestId</code>通过<code>data-TestId</code>获取一个DOM元素。<code>fireEvent</code>用来“开除”DOM事件。它在文档上附加了一个事件处理程序，并通过事件委托处理一些DOM事件，例如，单击一个按钮。</p>
+<p>接下来，在<code>hooktest.js</code>文件中添加下面的测试套件:</p>
+<pre class="language-javascript hljs">// hooktest.js
+
+it("App loads with initial state of 0", () =&gt; {
+  const { container } = render(&lt;App /&gt;);
+  const countValue = getByTestId(container, "countvalue");
+  expect(countValue.textContent).toBe("0");
+});
+</pre>
+<p>该测试通过首先用<code>getByTestId</code>助手获取元素来检查初始计数状态是否设置为零。然后使用<code>expect()</code>和<code>toBe()</code>功能检查内容是否为零。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>接下来，我们将编写测试来查看递增和递减按钮是否有效:</p>
+<pre class="language-javascript hljs">// hooktest.js
+
+it("Increment and decrement buttons work", () =&gt; {
+  const { container } = render(&lt;App /&gt;);
+  const countValue = getByTestId(container, "countvalue");
+  const increment = getByTestId(container, "incrementButton");
+  const decrement = getByTestId(container, "decrementButton");
+  expect(countValue.textContent).toBe("0");
+  fireEvent.click(increment);
+  expect(countValue.textContent).toBe("1");
+  fireEvent.click(decrement);
+  expect(countValue.textContent).toBe("0");
+});
+</pre>
+<p>在上面的测试中，我们检查了如果点击了<code>onButton</code>，状态被设置为1，当点击了<code>offButton</code>时，状态被设置为零。</p>
+<p>下一步，我们将编写一个测试来断言通过输入字段提交一个名字是否真的改变了<code>name</code>状态的值，并且它被成功地保存到了<code>localStorage</code>:</p>
+<pre class="language-javascript hljs">// hooktest.js
+
+it("Submitting a name via the input field changes the name state value", () =&gt; {
+  const { container, rerender } = render(&lt;App /&gt;);
+  const nameValue = getByTestId(container, "namevalue");
+  const inputName = getByTestId(container, "inputName");
+  const submitButton = getByTestId(container, "submitRefButton");
+  const newName = "Ben";
+  fireEvent.change(inputName, { target: { value: newName } });
+  fireEvent.click(submitButton);
+  expect(nameValue.textContent).toEqual(newName);
+  rerender(&lt;App /&gt;);
+  expect(window.localStorage.getItem("name")).toBe(newName);
+});
+</pre>
+<p>在上面的测试断言中，<code>fireEvent.change</code>方法用于在<code>input</code>字段中输入一个值，然后单击提交按钮。</p>
+<p>然后测试检查按钮被点击后ref的值是否等于<code>newName</code>。最后，使用<code>rerender</code>方法，模拟应用程序的重新加载，并检查之前设置的名称是否存储在<code>localStorage</code>中。</p>
+<h2 id="testing-async-hook-functions">测试异步挂钩函数</h2>
+<p>为了实现异步钩子的测试，我们可以使用React钩子测试库中的<code>waitForNextUpdate</code>函数。</p>
+<p>异步方法返回承诺，所以一定要用<code>await</code>或<code>.then</code>来调用它们。React Hooks测试库提供了许多用于测试异步钩子的异步方法，包括:</p>
+<ul>
+<li><code>waitFor</code></li>
+<li><code>waitForValueToChange</code></li>
+<li><code>waitForNextUpdate</code></li>
+</ul>
+<p>我们将要测试的异步钩子接受一个API URL作为参数，用Axios发出一个异步请求，并返回一个响应对象。</p>
+<p>在<code>src</code>文件夹中创建一个<code>useFetchData.js</code>文件，并添加以下内容:</p>
+<pre class="language-javascript hljs">import React from 'react';
+import axios from 'axios';
+
+export default (endpoint) =&gt; {
+  const [data, setData] = React.useState({
+    state: "",
+    error: '',
+    data: [],
+  });
+
+  const fetchData = () =&gt; {
+    setData({
+      state: "LOADING",
+      error: '',
+      data: [],
+    });
+    axios(endpoint)
+      .then((resp) =&gt; resp.json())
+      .then((respData) =&gt; {
+        setData({
+          ...data,
+          state: "SUCCESS",
+          data: respData,
+        });
+      })
+      .catch((err) =&gt;
+        setData({
+          ...data,
+          state: "ERROR",
+          error: 'Fetch failed',
+        })
+      );
+  };
+
+  React.useEffect(() =&gt; {
+    fetchData();
+  }, []);
+
+  return data;
+};
+</pre>
+<p>现在，让我们测试我们的异步钩子。</p>
+<p>使用以下命令安装React挂钩的测试库:</p>
+<pre class="language-shell hljs">Yarn add @testing-library/react-hooks
+</pre>
+<p>现在，在<code>src</code>文件夹中创建一个<code>useFetchData.test.js</code>文件，并添加以下内容:</p>
+<pre class="language-javascript hljs">import React from 'react';
+import { renderHook } from '@testing-library/react-hooks';
+import useFetchData from './useFetchData.js';
+import axios from 'axios';
+
+jest.mock('axios');
+
+const useApiMockData = [{ id: 1,
+name: "Leanne Graham", }, { id: 2,
+name: "Ervin Howell" }];
+</pre>
+<p>这里，我们使用一个<code>jest.mock</code>方法模拟Axios来测试异步动作。此外，我们还模拟了测试的典型响应数据。</p>
+<p>接下来，我们将为成功的API请求和失败的API请求编写一个测试:</p>
+<pre class="language-javascript hljs">describe('useFetchData Hook', () =&gt; {
+  it('initial and success state', async () =&gt; {
+    axios.get.mockResolvedValue(useApiMockData);
+    const { result, waitForNextUpdate } = renderHook(() =&gt;
+      useFetchData('lorem')
+    );
+    expect(result.current).toMatchObject({
+      data: [],
+      error: '',
+      state: 'LOADING',
+    });
+
+    await waitForNextUpdate();
+
+    expect(result.current).toMatchObject({
+      data: useApiMockData,
+      error: '',
+      state: 'SUCCESS',
+    });
+  });
+
+  it('error state', async () =&gt; {
+    const errorMessage = 'Network Error';
+    axios.get.mockImplementationOnce(() =&gt;
+      Promise.reject(new Error(errorMessage))
+    );
+
+    const { result, waitForNextUpdate } = renderHook(() =&gt;
+      useFetchData('lorem')
+    );
+
+    await waitForNextUpdate();
+
+    expect(result.current).toMatchObject({
+      data: [],
+      error: 'Fetch failed',
+      state: 'ERROR',
+    });
+  });
+});
+</pre>
+<p>注意<code>waitForNextUpdate()</code>。它模拟一个异步更新的状态更新，并返回一个承诺，该承诺在钩子下次呈现时解决。</p>
+<h2>结论</h2>
+<p>在本文中，我们看到了如何使用react-testing-library为React挂钩和React组件编写测试。我们还学习了如何使用React钩子的简短入门。想了解更多？看看这篇关于如何避免React钩子常见错误的文章。如果你有任何问题或意见，可以在下面分享。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

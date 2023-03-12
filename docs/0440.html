@@ -1,0 +1,191 @@
+<html>
+<head>
+<title>How JavaScript works: Optimizing the V8 compiler for efficiency - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>JavaScript如何工作:优化V8编译器以提高效率</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-javascript-works-optimizing-the-v8-compiler-for-efficiency/#0001-01-01">https://blog.logrocket.com/how-javascript-works-optimizing-the-v8-compiler-for-efficiency/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>理解Javascript如何工作是编写高效Javascript的关键。</p>
+<p>忘记微不足道的毫秒级改进:误用对象属性会导致简单的一行程序速度降低7倍。</p>
+<p>鉴于Javascript在软件栈的所有级别中无处不在(a la <a href="https://en.wikipedia.org/wiki/MEAN_(software_bundle)" target="_blank" rel="noopener noreferrer">的意思是</a>或替代物<a href="https://reactjs.org/" target="_blank" rel="noopener noreferrer"> 1 </a>、<a href="https://www.apollographql.com/" target="_blank" rel="noopener noreferrer"> 2 </a>、<a href="https://www.meteor.com/" target="_blank" rel="noopener noreferrer"> 3)，我</a>认为严重的速度下降会困扰你的基础设施的任何级别(如果不是所有级别的话)<span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwyti6z78zz83zs1z80zlz76z4z86z1jrsz81zf8wvrz88zx2z65zz75zz71zz70z"> — </span>不仅仅是你网站的菜单动画。</p>
+<p>有许多方法可以编写更高效的Javascript，但在本文中，我们将重点关注J <a href="https://blog.logrocket.com/7-optimization-techniques-in-react/" target="_blank" rel="noopener noreferrer"> avascript优化方法</a>，它们对编译器友好，这意味着源代码使编译器优化变得简单而有效。</p>
+<p>我们将把讨论范围缩小到V8<span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwyti6z78zz83zs1z80zlz76z4z86z1jrsz81zf8wvrz88zx2z65zz75zz71zz70z">——支持<a href="https://electronjs.org/" target="_blank" rel="noopener noreferrer">电子</a>、<a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer"> Node.js、</a>和<a href="https://www.google.com/chrome/" target="_blank" rel="noopener noreferrer">谷歌Chrome </a>的Javascript </span>引擎。为了理解编译器友好的优化，我们首先需要讨论Javascript是如何编译的。</p>
+<p>V8中的Javascript执行分为三个阶段:</p>
+<ul>
+<li><strong>源到语法树:</strong>解析器从源生成抽象语法树(<a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree" target="_blank" rel="noopener noreferrer">AST</a>T4】</li>
+<li><strong>语法树到字节码:</strong> V8的解释器<strong> <a href="https://v8.dev/docs/ignition" target="_blank" rel="noopener noreferrer">点火</a> </strong> <span>从语法树生成字节码。注意，这个字节码步骤在2017  <span>之前是</span> <a href="https://docs.google.com/presentation/d/1chhN90uB8yPaIhx_h2M3lPyxPgdPmkADqSNAoXYQiVE/edit#slide=id.g18d89eb289_1_362" target="_blank" rel="noopener noreferrer">不存在的。此处</a> <span>描述的是2017款前V8</span><a href="https://blog.sessionstack.com/how-javascript-works-inside-the-v8-engine-5-tips-on-how-to-write-optimized-code-ac089e62b12e" target="_blank" rel="noopener noreferrer">。</a></span></li>
+<li><strong>字节码到机器码:</strong> V8的编译器<a href="https://v8.dev/docs/turbofan" target="_blank" rel="noopener noreferrer"> <strong>涡扇</strong> </a> <span>从字节码生成图形，用高度优化的机器码替换字节码的部分</span></li>
+</ul>
+<p>第一阶段超出了本文的范围，但是第二和第三阶段对编写优化的Javascript有直接的影响。</p>
+<p>我们将讨论这些优化方法，以及您的代码如何利用(或<a href="https://github.com/davidmarkclements/v8-perf" target="_blank" rel="noopener noreferrer">误用)</a>这些优化。通过理解Javascript执行的基础，您不仅会理解这些性能建议，还会了解如何发现自己的一些建议。</p>
+<p>实际上，第二阶段和第三阶段紧密相连。这两个阶段都在准时制(JIT)范式下运行。为了理解JIT的重要性，我们将考察以前将源代码翻译成机器码的方法。</p>
+<h3>准时制(JIT)范例</h3>
+<p>为了执行任何程序，计算机必须将源代码翻译成机器可以运行的机器语言。</p>
+<p>有两种方法来完成这种翻译。</p>
+<p>第一个选项包括使用一个<strong>解释器</strong>。解释器有效地逐行翻译和执行。</p>
+<p>第二种方法是使用一个<strong>编译器</strong>。编译器在执行之前立即将所有源代码翻译成机器语言。鉴于下面描述的优点和缺点，每种方法都有它的位置。</p>
+<h3>解释器的利弊</h3>
+<p>解释器使用<strong>读取-评估-打印循环</strong> (REPL)进行操作——这种方法具有许多有利的特性:</p>
+<ul>
+<li>易于实施和理解</li>
+<li>即时反馈</li>
+<li>更易修改的编程环境</li>
+</ul>
+<p>然而，这些好处是以缓慢的执行为代价的，这是由于(eval的开销，而不是运行机器码，以及(2)无法优化程序的各个部分。</p>
+<p>更正式地说，当处理不同的代码段时，解释器不能识别重复的工作。如果您通过解释器运行同一行代码100次，解释器将翻译并执行同一行代码100次——不必要的重复翻译99次。</p>
+<p>总之，解释器简单，启动快，但执行慢。</p>
+<h3>编译器的利与弊</h3>
+<p>相比之下，编译器在执行之前会一次翻译所有的源代码。</p>
+<p>随着复杂性的增加，编译器可以进行全局优化(例如，为重复的代码行共享机器代码)。这为编译器提供了优于解释器的唯一优势——更快的执行时间。</p>
+<p>本质上，编译器很复杂，启动起来很慢，但执行起来很快。</p>
+<h3>即时编译</h3>
+<p>一个<a href="https://en.wikipedia.org/wiki/Just-in-time_compilation" target="_blank" rel="noopener noreferrer">即时编译器</a>试图结合解释器和编译器的最佳部分，使翻译和执行都很快。</p>
+<p>基本思想是尽可能避免重译。首先，分析器只是通过解释器运行代码。在执行过程中，分析器跟踪运行几次的热代码段和运行很多次的热代码段。</p>
+<p>JIT将热代码段发送给基线编译器，尽可能重用编译后的代码。</p>
+<p>JIT还将热代码段发送给优化编译器。该编译器使用解释器收集的信息来(a)做出假设和(b)基于这些假设进行优化(例如，对象属性总是以特定的顺序出现)。</p>
+<p>然而，如果这些假设无效，优化编译器会执行<strong>去优化</strong>，这意味着它会丢弃优化后的代码。</p>
+<p>优化和去优化周期是昂贵的，并且产生了下面详细描述的一类Javascript优化方法。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>JIT还引入了与存储优化的机器码和分析器的执行信息相关的内存开销。虽然这不能通过优化的Javascript来改善，但是这种内存消耗激发了Ignition，V8解释器。</p>
+<h3>V8编译</h3>
+<p>V8的点火和涡轮风扇执行以下功能:</p>
+<ul>
+<li>点火将AST翻译成字节码。然后执行字节码序列，并通过内联缓存收集反馈。这种反馈被(a)点火本身用于随后的解释和(b)涡轮风扇发动机用于推测性的优化。</li>
+<li>基于反馈，涡扇通过将字节码翻译成特定于架构的机器代码来推测性地优化字节码。</li>
+</ul>
+<h3>点火</h3>
+<p>JIT编译器会消耗大量内存。Ignition通过实现三个目标(<a href="https://docs.google.com/presentation/d/1HgDDXBYqCJNasBKBDf9szap1j4q4wnSHhOYpaNy5mHU/edit#slide=id.g18d89eb289_1_91" target="_blank" rel="noopener noreferrer">幻灯片)</a>来解决这个问题:减少内存使用、减少启动时间和降低复杂性。</p>
+<p>这三个目标都是通过将AST编译成字节码并在程序执行期间收集反馈来实现的。</p>
+<ul>
+<li>这个字节码被用作事实的来源，消除了编译期间重新解析Javascript的需要。这意味着有了字节码，涡扇的去优化不再需要原始源代码。</li>
+<li>作为基于程序执行反馈的优化示例，**内联缓存* *允许V8优化对具有相同类型参数的函数的重复调用。具体来说，内联缓存存储函数的输入类型。类型越少，需要的类型检查就越少。减少类型检查的次数可以显著提高性能。</li>
+</ul>
+<p>AST和字节码都暴露给了涡轮风扇优化编译器。</p>
+<h3>涡轮风扇发动机</h3>
+<p>随着2008年的发布，V8引擎最初直接将源代码编译成机器码，跳过了中间字节码表示。发布时，根据谷歌伦敦主题演讲(麦克罗伊，2016年10月)，V8比竞争对手快10倍。</p>
+<p>然而，今天的涡扇发动机接受Ignition的中间字节码，速度比2008年快10倍。同一主题演讲介绍了V8编译器过去的迭代及其失败之处:</p>
+<ul>
+<li>2008年–全代码</li>
+<li>2010年–曲轴<ul>
+<li>使用类型反馈(<a href="https://docs.google.com/presentation/d/1HgDDXBYqCJNasBKBDf9szap1j4q4wnSHhOYpaNy5mHU/edit#slide=id.g17d335048f_1_3094" target="_blank" rel="noopener noreferrer">幻灯片</a>)和去优化(<a href="https://docs.google.com/presentation/d/1HgDDXBYqCJNasBKBDf9szap1j4q4wnSHhOYpaNy5mHU/edit#slide=id.g17d335048f_1_3210" target="_blank" rel="noopener noreferrer">幻灯片</a>)优化JIT编译器</li>
+<li>缺点:无法扩展到现代Javascript，严重依赖于去优化，有限的静态类型分析，与Codegen紧密耦合，高移植开销</li>
+</ul>
+</li>
+<li>2015年–涡轮风扇<ul>
+<li>用类型和范围分析优化JIT编译器，节点的海洋</li>
+</ul>
+</li>
+</ul>
+<p>根据单独的<a href="https://docs.google.com/presentation/d/1sOEF4MlF7LeO7uq-uThJSulJlTh--wgLeaVibsbb3tc/edit#slide=id.g5499b9c42_069" target="_blank" rel="noopener noreferrer">Google Munich technical talk(Titzer，2016年5月</a>)，涡扇发动机针对峰值性能、静态类型信息使用、编译器前端、中间和后端的分离以及可测试性进行了优化。振臂一呼的关键贡献，叫做一个<strong>海</strong>(或<strong>汤</strong>)的节点。</p>
+<p>有了节点的海洋，节点代表计算，边代表依赖。</p>
+<p>与<a href="https://en.wikipedia.org/wiki/Control-flow_graph" target="_blank" rel="noopener noreferrer">控制流图(CFG) </a>不同，节点的海洋放宽了大多数操作的评估顺序。像CFG一样，有状态操作的控制边和效果边在需要的地方约束执行顺序。</p>
+<p>Titzer进一步将这个定义细化为节点的集合，其中控制流子图被进一步放宽。这提供了许多优势，例如，这避免了冗余代码的消除。</p>
+<p>通过自下而上或自上而下的图转换，图缩减被应用于这一堆节点。</p>
+<p>涡扇管道遵循4个步骤将字节码翻译成机器码。请注意，以下管道中的优化是基于Ignition收集的反馈执行的:</p>
+<ul>
+<li>将程序表示为Javascript操作符(例如JSAdd)</li>
+<li>将程序表示为中间操作符(VM级操作符；不可知的数字表示(例如NumberAdd)</li>
+<li>将程序表示为机器操作符(对应于机器指令，例如Int32Add)</li>
+<li>使用顺序约束安排执行顺序。创建一个传统的CFG。</li>
+</ul>
+<p>涡扇发动机的在线JIT式编译和优化完成了V8从源代码到机器码的翻译。</p>
+<h3>如何优化你的Javascript</h3>
+<p>TurboFan的优化通过减轻不良Javascript的影响来提高Javascript的净性能。然而，理解这些优化可以提供进一步的加速。</p>
+<p>这里有7个在V8中利用优化来提高性能的技巧。前四个重点是减少去优化。</p>
+<p><strong>提示1:在构造函数中声明对象属性</strong></p>
+<p>更改对象属性会产生新的隐藏类。以下面这个来自<a href="https://www.youtube.com/watch?v=UJPdhx5zTaw&amp;feature=youtu.be&amp;t=12m18s" target="_blank" rel="noopener noreferrer"> Google I/O 2012 </a>的例子为例。</p>
+<pre>class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+var p1 = new Point(11, 22);  // hidden class Point created
+var p2 = new Point(33, 44);
+
+p1.z = 55;  // another hidden class Point created</pre>
+<p>如你所见，<code>p1</code>和<code>p2</code>现在有不同的隐藏类。这挫败了涡扇发动机的优化尝试:具体来说，任何接受<code>Point</code>对象的方法现在都不再优化。</p>
+<p>所有这些函数都用两个隐藏类进行了重新优化。对物体形状的任何修改都是如此。</p>
+<p><strong>提示2:保持对象属性排序不变</strong></p>
+<p>改变对象属性的顺序会产生新的隐藏类，因为顺序包含在对象形状中。</p>
+<pre>const a1 = { a: 1 };  # hidden class a1 created
+a1.b = 3;
+
+const a2 = { b: 3 };  # different hidden class a2 created
+a2.a = 1;</pre>
+<p>在上面，<code>a1</code>和<code>a2</code>现在也有不同的隐藏类。固定顺序允许编译器重用相同的隐藏类，因为添加的字段(包括顺序)用于生成隐藏类的ID。</p>
+<p><strong>提示3:修复函数参数类型</strong></p>
+<p>函数根据特定参数位置的值类型更改对象形状。如果这种类型发生变化，函数将被取消优化并重新优化。</p>
+<p>在看到四种不同的对象形状后，函数变为超对称，因此涡扇(TurboFan)不会尝试优化函数。</p>
+<p>以下面的例子为例。</p>
+<pre>function add(x, y) {
+  return x + y
+}
+
+add(1, 2);  # monomorphic
+add("a", "b");  # polymorphic
+add(true, false);
+add([], []);
+add({}, {});  # megamorphic</pre>
+<p>L9以后涡扇不再优化<code>add</code>。</p>
+<p><strong>提示4:在脚本范围内声明类</strong></p>
+<p>不要在函数范围内定义类。举下面的例子，说明这个病理情况:</p>
+<pre>function createPoint(x, y) {
+  class Point {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+  return new Point(x, y);
+}
+
+function length(point) {
+  ...
+}</pre>
+<p>每次调用函数<code>createPoint</code>，都会创建一个新的<code>Point</code>原型。</p>
+<p>每个新的原型对应一个新的对象形状，因此<code>length</code>函数可以看到每个新点对应一个新的对象形状。</p>
+<p>像以前一样，在看到4个不同的物体形状后，函数变得巨型化，涡扇发动机不试图优化<code>length</code>。</p>
+<p>通过将<code>class Point</code>放在脚本范围内，我们可以避免每次调用<code>createPoint</code>时创建新的对象形状。</p>
+<p>下一个技巧是V8引擎的一个怪癖。</p>
+<p><strong>提示5:使用<code>for ... in</code> </strong></p>
+<p>这是V8发动机的一个怪癖，这个特征包含在最初的曲轴中，后来<a href="https://benediktmeurer.de/2017/09/07/restoring-for-in-peak-performance/" target="_blank" rel="noopener noreferrer">将</a>移植到点火和涡轮风扇上。</p>
+<p><code>for…in</code>循环比函数迭代、带箭头函数的函数迭代和for循环中的<code>Object.keys</code>快4-6倍。</p>
+<p>由于现代V8的变化，以下是对不再相关的前神话的两个反驳。</p>
+<p><strong>提示6:无关字符不影响性能</strong></p>
+<p>曲轴以前使用函数的字节数来决定是否内联一个函数。然而，涡扇发动机是建立在AST之上的，它使用AST节点的数量来确定功能大小。</p>
+<p>因此，诸如空白、注释、变量名长度和函数签名等不相关的字符不会影响函数的性能。</p>
+<p><strong>提示7:尝试/捕捉/最终不是毁灭性的</strong></p>
+<p>以前，Try块容易出现代价高昂的优化-去优化周期。然而，今天的涡扇发动机在从一个<code>try</code>模块中调用一个函数时不再表现出显著的性能提升。</p>
+<div class="inline-plug cro19">
+<h2>测量生产环境中的JavaScript和应用程序性能</h2>
+<p>虽然优化JavaScript是第一步，但监控应用程序的整体性能是关键。如果您有兴趣了解生产应用程序中的性能问题，请尝试LogRocket 。<a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"><img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a></p>
+<p>LogRocket 就像是网络应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告性能问题以快速了解根本原因，而不是猜测问题发生的原因。</p>
+<p>LogRocket让你的应用程序记录带有标题+正文的请求/响应，以及关于用户的上下文信息，以全面了解问题。它还记录页面上的HTML和CSS，甚至可以重建最复杂的单页面应用程序的像素级完美视频。</p>
+<p>优先考虑性能–<a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p>
+</div>
+<h3>结论</h3>
+<p>总之，优化方法通常集中于减少去优化和避免不可优化的巨型函数。</p>
+<p>了解了V8引擎框架之后，我们还可以推导出上面没有列出的其他优化方法，并尽可能多地重用这些方法来利用内联。现在，您已经了解了Javascript编译及其对日常Javascript使用的影响。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

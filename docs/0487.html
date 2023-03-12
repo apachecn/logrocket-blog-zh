@@ -1,0 +1,187 @@
+<html>
+<head>
+<title>How to make provide/inject reactive - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何制作提供/注入反应式博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-make-provide-inject-reactive/#0001-01-01">https://blog.logrocket.com/how-to-make-provide-inject-reactive/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>按照设计，Vue的<code>provide</code>和<code>inject</code>特性是<a href="https://vuejs.org/v2/api/#provide-inject" target="_blank" rel="noopener noreferrer">非反应式</a>，即使很多人(包括我自己！)希望他们是。</p>
+<p>不过这对我们来说不是什么大问题，因为有一种方法可以解决这个问题:</p>
+<p><strong>如果使用<code>data()</code>函数或<code>Vue.observable</code>创建一个反应对象，当使用<code>provide</code>和<code>inject</code>传递时，它仍然是反应的。</strong></p>
+<p><span>如果你使用的是数据函数:</span></p>
+<pre>export default {
+  provide() {
+    return {
+    reactive: this.reactive
+    };
+  },
+
+  data() {
+    return {
+    reactive: {
+        value: "Hello there"
+    }
+    };
+  }
+};
+</pre>
+<p>现在，当<code>reactive</code>被注入到另一个组件中时，它将像任何其他道具一样工作，对<code>reactive</code>的更改将触发Vue应用程序的更新！</p>
+<h2>TL；速度三角形定位法(dead reckoning)</h2>
+<p>在本文中，我们将讨论:</p>
+<ul>
+<li>为什么<code>data()</code>函数是解决这个问题的好方法</li>
+<li>使对象反应的最简单方法，<strong>即使在Vue之外</strong></li>
+<li>一个由Vue核心团队成员创建的库，为您处理这一切</li>
+<li>帮助您确定何时使用反应式提供/注入的最佳时机的问题</li>
+<li>为什么要小心<strong>避免双向数据绑定</strong></li>
+</ul>
+<h2>但是首先，给你一个警告</h2>
+<p>这应该<em>只有</em>在特殊情况下使用。这种技术不应该用来代替道具和事件。如果你所需要的只是一个传递数据的基本方法，道具和事件就很棒，很简单，其他每个阅读你代码的人都会明白发生了什么。</p>
+<p>那么你应该什么时候使用它呢？</p>
+<p>我们稍后会谈到这一点，但首先，让我们看看我们可以使provide和inject反应的三种不同方式。</p>
+<h2>使用data()函数</h2>
+<p>第一种技术是通过在我们的<code>data()</code>函数中初始化对象来使其具有反应性:</p>
+<pre>export default {
+  provide() {
+    return {
+    reactive: this.reactive
+    };
+  },
+
+  data() {
+    return {
+    reactive: {
+        value: "Hello there"
+    }
+    };
+  }
+};
+</pre>
+<p>任何在这里初始化的对象都会被Vue激活。一旦它是反应性的，无论它在哪里被使用，它都是反应性的。</p>
+<p>您甚至可以将对象传递给Vue应用程序外部的一些随机JavaScript，对reactive对象的任何更改都将触发Vue应用程序内部的更新。</p>
+<p>还有第二种方法可以让我们的对象具有反应性，这对于Vue来说是相当新的。</p>
+<h2>使用Vue.observable</h2>
+<p><a href="https://github.com/vuejs/vue/releases/tag/v2.6.0" target="_blank" rel="noopener noreferrer"> Vue 2.6 </a>引入了<code>observable</code>功能，让我们<a href="https://vuejs.org/v2/api/#Vue-observable" target="_blank" rel="noopener noreferrer">创建自己的</a>反应对象:</p>
+<pre>import Vue from 'vue';
+const state = Vue.observable({ message: "Hello!" });
+</pre>
+<p>事实上，这与Vue在内部使用的<code>data()</code>函数是同一个函数，但在这里它被暴露给我们，以便我们可以在任何我们想要的地方使用它。</p>
+<p>在Vue 3中，这个函数将被重命名为<code>reactive</code>，增加了<a href="https://github.com/vuejs/rfcs/pull/78" target="_blank" rel="noopener noreferrer">组合API </a>。</p>
+<p>让我们重写前面的例子来使用<code>Vue.observable</code>:</p>
+<pre>import Vue from 'vue';
+
+const reactive = Vue.observable({ value: 'Hello there' });
+
+export default {
+  provide() {
+    return {
+    reactive: reactive,
+    };
+  },
+};
+</pre>
+<p>由于我们不再依赖于<code>data</code>函数，这个函数给了我们更多的灵活性来创建我们的反应对象。</p>
+<p>然而，在大多数情况下，您将使用前面的方法，因为您提供的状态通常已经由<code>data()</code>函数初始化。但是这是一个很好的工具，可以添加到您的工具箱中，以防您发现<code>data()</code>函数并不完全满足您的需要。</p>
+<p>我们要介绍的最后一个方法不是Vue的原生特性，而是由Vue核心团队成员Thorsten Lünborg创建的mixin。</p>
+<h2>最彻底的混凝剂</h2>
+<p>作为Vue核心团队的一员，Lünborg创建了<code>vue-reactive-provide</code> mixin，你可以在<a href="https://github.com/LinusBorg/vue-reactive-provide" target="_blank" rel="noopener noreferrer"> Github </a>上找到它。</p>
+<p>如果你不喜欢其他选项，这是一个让provide/inject反应的超级简单的方法，有两种主要的方法可以使用它。</p>
+<h2>组件选项</h2>
+<p>如果你想让它感觉类似于原生的<code>provide</code>，你只需要把它作为一个插件安装:</p>
+<pre>import Vue from 'vue';
+import ReactiveProvide from 'vue-reactive-provide';
+
+Vue.use(ReactiveProvide);
+</pre>
+<p>如果您使用的是Vue CLI，您可以将它添加到您的<code>main.js</code>文件中。</p>
+<p>然后在您想要提供值的组件中，您应该使用<code>reactiveProvide</code>来代替:</p>
+<pre>export default {
+  reactiveProvide: {
+    name: 'injectedName',
+    include: ['reactive'],
+  }
+
+  data() {
+    return {
+    reactive: 'hello',
+    };
+  },
+};
+</pre>
+<p>你需要给你的反应对象一个<code>name</code>,这样我们就知道该给孩子注入什么值。然后，您可以使用<code>include</code>数组包含任意数量的字段。</p>
+<p>要将这个反应对象注入到一个组件中，你可以像平常一样注入它，使用你之前设置的<code>name</code>值:</p>
+<pre>export default {
+  inject: ['injectedName']
+};
+</pre>
+<h2>米欣</h2>
+<p>将它作为一个mixin使用几乎是同样的过程，但是你不需要首先将它注册为一个插件:</p>
+<pre>import { ReactiveProvideMixin } from 'vue-reactive-provide'
+
+export default {
+  mixins: [
+    ReactiveProvideMixin({
+    name: 'injectedName',
+    include: ['reactive'],
+    })
+  ],
+
+  data() {
+    return {
+    reactive: 'hello',
+    };
+  },
+};
+</pre>
+<p>我们使用<code>ReactiveProvideMixin</code>函数来动态创建一个mixin。mixin将以一种反应的方式为我们提供包含的价值。</p>
+<p>为了注入值，我们使用与前面完全一样的方法:</p>
+<pre>export default {
+  inject: ['injectedName']
+};</pre>
+<h2>何时使用反应式供应/注入</h2>
+<p>一般来说，你应该尽量避免使用props/inject，而是使用props和events来传递数据。这将使您在大多数情况下到达您需要去的地方，并且避免增加不必要的复杂性，使您的代码易于理解。</p>
+<p>但是，在决定是否应该使用此功能时，您可以问自己一些具体的问题:</p>
+<ol>
+<li><strong>是否需要避免支柱钻孔？</strong> —通过一层又一层的组件传递道具可能会很乏味，尤其是当那些中间组件实际上并不使用道具的时候。这也可以通过<a href="https://vuex.vuejs.org/" target="_blank" rel="noopener noreferrer"> Vuex </a>来解决，但是你有时候想要一个更简单更轻便的解决方案</li>
+<li>组件是否紧密耦合？ —如果您有一组总是一起使用的组件，那么可以依靠provide/inject来传递一些数据。否则，最好坚持使用道具和事件，这是大多数其他组件将使用的</li>
+<li><strong>Vuex是否矫枉过正？Vuex是一个很好的工具，但是如果你处理的是一个简单的状态，那么Vuex就太过了，并且引入了很多开销。如果组件集需要可重用，那么用Vuex耦合它也会引入不必要的复杂性</strong></li>
+<li>数据是否包含在几个组件中？ —如果正在传递的数据仅由几个组件使用，那么这种解决方案是有意义的。但是如果这里使用的数据在其他地方被使用，使用Vuex将它放在树的更高位置<em>或</em>可能是更好的解决方案</li>
+</ol>
+<p>你的用例不需要通过所有这些规则的<em>,但是它应该至少符合其中的一两个。</em></p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>例如，让我们假设你正在开发一个状态非常简单的应用程序。Vuex太过了，所以你决定不使用它。</p>
+<p>每个页面都将用户的信息加载到一个<code>user</code>对象中，该对象在整个应用程序的所有地方都可以使用。显示用户的姓名、电子邮件地址和其他类似信息并不局限于应用程序中的特定部分。</p>
+<p>为了避免将这些数据作为道具通过<em>我们应用程序中的每一个组件</em>，我们在顶层组件<code>provide</code>它，因此任何需要它的组件都可以<code>inject</code>这个<code>user</code>对象并直接访问它。</p>
+<p>现在，这似乎违反了我们的第四条规则，但它击中了第一条和第三条的要害。所以这是一个很好的解决方案。</p>
+<p>在我们结束之前，在使用这种技术时，还有一件事您应该确保避免。</p>
+<h2>避免双向数据绑定</h2>
+<p>当您像这样使用反应式注入时，一个常见的错误是将其视为双向绑定，其中值可以由提供它的组件以及注入它的组件来更改。</p>
+<p>但这是一个可怕的想法？应该只允许提供该值的组件修改它。</p>
+<p>这有两个主要原因:</p>
+<ol>
+<li>Vue使用单向绑定系统，数据沿着树向下流动。在应用程序的一个地方使用不同的数据流模型会使它不一致，并且会引起很多混乱</li>
+<li>将所有的突变保存在一个组件中使得将来的更新、重构和追踪bug变得更加容易</li>
+</ol>
+<h2>结论</h2>
+<p>正如我们所看到的，使provide和inject反应是可能的，并且不需要太多的努力。有三种不同的方法可以做到这一点，所以你将能够找到适合你的项目。</p>
+<p>这种技术非常有用，但是正如我提到的，它也会使您的代码变得不必要的复杂。如果对你有用的话，最好坚持常规的道具和活动。</p>
+<p>如果道具和事件不能很好地工作，我们通过几个不同的问题，你可以问自己，以确定这种技术是否适合你的用例。</p>
+<p>最后，我们讨论了什么是双向数据绑定以及为什么应该避免它。</p>
+<p> </p>
+<p> </p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

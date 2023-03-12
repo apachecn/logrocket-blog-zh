@@ -1,0 +1,118 @@
+<html>
+<head>
+<title>Node worker threads with shared array buffers and Rust WebAssembly - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>具有共享数组缓冲区和Rust WebAssembly的节点工作线程</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/node-worker-threads-shared-array-buffers-rust-webassembly/#0001-01-01">https://blog.logrocket.com/node-worker-threads-shared-array-buffers-rust-webassembly/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>WebAssembly使Rust能够作为JavaScript代码的一部分运行，这提高了性能和稳定性。然而，并不是所有的Rust应用程序都可以在WebAssembly下运行，因为它最初被设计为在浏览器内部运行，并与基于浏览器的JS连接。这引入了安全问题和潜在的不良行为，这就是为什么大多数功能被阻止，包括Rust线程和多处理。它只是一种纯语言，有普通的<code>stdlib</code>和<code>web_sys</code>，是在Rust中使用WebAssembly功能的主要库。</p>
+<p/>
+<p>与基于浏览器的JavaScript不同，Node.js拥有各种操作系统级别的功能。但可悲的是，没有专门为Node.js功能设计的WebAssembly版本。为了解决这个问题，您可以创建一个基于Rust的WebAssembly项目，并在Node.js和Rust之间调用函数，当您的项目需要大量计算操作来创建安全点/函数时。</p>
+<p>WebAssembly最初被设计为JavaScript中的一个原子组件，并与基于事件的消息进行通信，就像WebWorker现在的工作方式一样。后来的实现消除了这种差距，今天的WebAssembly就像一个编译好的库，可以访问低级别的API。</p>
+<h3>使用WebAssembly线程化</h3>
+<p>在Node.js中使用基于Rust的WebAssembly的目的是将一些计算繁重的部分从Node.js卸载到Rust，这对于需要算法或内存优化的任务来说运行速度要快得多。Rust编译器足够聪明，可以优化它的基本函数，这使得它运行得更快。然而，单线程Node.js和基于Rust的WebAssembly的组合(也可以在没有线程的情况下运行)不会为您节省太多时间或资源。</p>
+<p>想法是<a href="https://blog.logrocket.com/a-complete-guide-to-threads-in-node-js-4fa3898fe74f/" target="_blank" rel="noopener noreferrer">使用Node.js模块<code>worker_threads</code> </a>来加速一个新的Rust WebAssembly计算，而不需要在主线程中等待同步操作。让我们演示如何从JavaScript WebAssembly包装器启动Node.js工作线程，如下所示:</p>
+<pre>const {Worker} = require('worker_threads');
+
+...
+const worker = new Worker('wasm-wrapper.js', {...someDataIfWeNeed});
+worker.on('message', resolve);
+worker.on('error', reject);
+worker.on('exit', (code) =&gt; {
+  if (code !== 0) {
+        console.log(`Worker stopped with exit code ${code}`);
+    }
+});
+…
+</pre>
+<p><code>wasm-wrapper.js</code>不是实际的Wasm文件；<code>worker_thread</code>只旋转JavaScript文件，这些文件是可解析的，包含主要的执行过程。Wasm文件本身只是一个库，它导出的函数可以从JavaScript访问，这就是为什么我们需要JS包装函数。</p>
+<h3>如何在Rust中进行真正的WebAssembly集成</h3>
+<p>在Rust参与WebAssembly之前，由于缺乏编译工具，很难将一个项目编译成Wasm文件。Rust社区让进入WebAssembly变得异常简单。</p>
+<p>首先，安装<a href="https://rust-lang.org" target="_blank" rel="noopener noreferrer">货/锈</a>和<code><a href="https://rustwasm.github.io/wasm-pack/installer/" target="_blank" rel="noopener noreferrer">wasm-pack</a></code>。一旦基本安装设置完成，您就可以开始编码了。</p>
+<pre>mod utils;
+
+use wasm_bindgen::prelude::*;
+
+// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
+// allocator.
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[wasm_bindgen]
+pub fn greet() -&gt; String {
+    String::from("Hello World!")
+}
+</pre>
+<p>这是一句基本的“你好，世界！”用于生锈的web组件。通过用<code>wasm-pack</code>编译它，我们得到一个完整的JS包装器和Wasm文件。</p>
+<pre>~# wasm-pack build --target=nodejs
+
+# Output files
+pkg/&lt;project_name&gt;_bg.wasm
+    &lt;project_name&gt;.js
+</pre>
+<p>我们不打算直接使用Wasm文件，因为它已经用JS文件中的helper函数包装起来了。</p>
+<pre>const {greet} = require('./pkg/&lt;project_name&gt;.js');
+console.log(greet());
+
+// This will print "Hello World!"
+</pre>
+<p>这个基本示例显示了使用Node.js集成WebAssembly是多么容易。</p>
+<h3>WebAssembly和工作线程</h3>
+<p>我们正处于可以在Node.js中调用WebAssembly函数的阶段。同样，实际的Node.js工作线程只是一个js文件，需要作为一个单独的线程来执行。</p>
+<p>首先，让我们创建两个JavaScript文件，如下所示:</p>
+<pre>// main.js - the main executional file to start program from
+const { Worker } = require('worker_threads');
+const worker = new Worker('./worker.js');
+worker.once('message', (message) =&gt; {
+  console.log(message);
+});
+
+// worker.js - worker file to be called from main.js
+const { parentPort } = require('worker_threads');
+const {greet} = require('./pkg/&lt;project_name&gt;.js');
+parentPort.once('message', (message) =&gt; {
+  parentPort.postMessage(greet());
+});
+</pre>
+<p>我们的问候消息将从主线程打印，但实际的WebAssembly是从工作线程执行的。使用这个基本原理，我们可以将可操作的Wasm代码作为一个单独的线程来执行和同步，并等待来自它的消息。</p>
+<p>一些公司正在使用WebAssembly跨多个工作线程进行繁重的计算性3D渲染。这有助于保持JavaScripts的主事件循环无阻塞，同时跨多个CPU内核进行扩展。</p>
+<p>想在Wasm和JS之间共享一个变量怎么办？这在理论上比在实践中要复杂一些，因为Rust变量借用和可变引用通常会完成它们的工作。然而，不可能从JS到Rust使用一个直接的变量，因为实际的通信通道经过共享的普通内存，这只是一个缓冲区。它采用SharedBuffer类型，有助于在不同类型的JavaScript和Rust数据模型之间传输数据。</p>
+<h3>从JS到Wasm的共享数组缓冲区</h3>
+<p>Rust Wasm实现只支持几种类型的数组。最常见的是<code>&amp;[u8]</code>字节数组，这是一种基于字节的普通数据表示。正如您在计算机科学基础课程中所了解的，所有数据都是由字节组成的。因此，您可以通过Wasm和JS传递实际的字节数组，它表示以某种格式编码的复杂对象。</p>
+<p>例如，让我们修改Rust函数，将可变数组作为参数来处理。</p>
+<pre>...
+#[wasm_bindgen]
+pub fn greet(input: &amp;mut [u8]) -&gt; Vec&lt;u8&gt; {
+    input[0] = 10; // just changing some value here
+    Vec::from(input)
+}
+…
+</pre>
+<p>Rust代码正在等待从JS内存中接收一个指向数组缓冲区的可变指针，因为它在同一个进程中，所以内存指针可以相互访问。因为它是数组的实际指针，而不是副本，所以我们可以改变数组中的值，这些改变将反映在原始的JS内存中。</p>
+<pre>const {greet} = require('./pkg/noders');
+
+const arr = new Uint8Array(11);
+
+console.log(greet(arr)); // [10, 0, 0...]
+
+console.log(arr);  // [10, 0, 0...]
+</pre>
+<p>这个基本原理使您能够处理Wasm编译的对象和JavaScript之间的普通数据数组。当然，您有可能为WebAssembly构建一个完整的共享类型系统，因为一切都可以表示为一个普通的字节数组。还记得在C语言中，你不得不用指针作为实际结构来制作<code>memcpy(...)</code>吗？这可能是一个类似的场景，但还没有具体的用例。通常，一个普通的字节数组消息就可以了。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3>结论</h3>
+<p>WebAssembly将接管一些繁重的任务，我们围绕它构建的工具越多，我们就会越认真地对待它——特别是如果我们现在有能力在JS和Wasm之间共享内存的话。结合Node.js工作线程，我们有能力在许多CPU内核甚至GPU上扩展JavaScript代码，因为我们可以通过Rust WebAssembly访问GPU。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

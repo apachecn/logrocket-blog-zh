@@ -1,0 +1,189 @@
+<html>
+<head>
+<title>How to create a 2D multiplayer game with Vue.js and Socket.io - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用Vue.js和Socket.io创建2D多人游戏- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-create-a-2d-multiplayer-game-with-vue-js-and-socket-io-174ef2818e65/#0001-01-01">https://blog.logrocket.com/how-to-create-a-2d-multiplayer-game-with-vue-js-and-socket-io-174ef2818e65/#0001-01-01</a></blockquote><div><article class="article-post">
+<p class="graf graf--p">点击此处查看摘要:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/JEYEpledOxs?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p class="graf graf--p">当涉及到多个客户端和一个服务器之间的实时通信时，RESTful和GraphQL APIs通常不是最好的方法，因为必须不断地轮询它们以了解数据的变化。相反，首选的方法是使用套接字，无论是web套接字还是其他。</p>
+<p class="graf graf--p">因为套接字对于实时数据非常有用，所以它们对于在线多人游戏非常有益。玩家可以在他们的游戏中进行交互，数据被发送到服务器，服务器将数据广播给游戏中的其他玩家。这就是我们要举的例子。</p>
+<p class="graf graf--p">在本教程中，我们将使用Vue.js探索基于web浏览器的游戏，但我们将从多人的角度通过<a class="markup--anchor markup--p-anchor" href="https://socket.io/" target="_blank" rel="noopener noreferrer" data-href="https://socket.io/"> Socket.io </a>包括套接字。</p>
+<p class="graf graf--p">为了了解我们想要实现的目标，请看下面的动画图像:</p>
+<figure class="graf graf--figure"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/d111331d29ab5df6ad88be929c7d200f.png" data-image-id="1*wc2FGcCgJFfOFbaE_VI7LQ.gif" data-width="1200" data-height="628" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*wc2FGcCgJFfOFbaE_VI7LQ.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*wc2FGcCgJFfOFbaE_VI7LQ.gif"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/d111331d29ab5df6ad88be929c7d200f.png" data-image-id="1*wc2FGcCgJFfOFbaE_VI7LQ.gif" data-width="1200" data-height="628" data-original-src="https://storage.googleapis.com/blog-images-backup/1*wc2FGcCgJFfOFbaE_VI7LQ.gif"/></noscript></figure>
+<p class="graf graf--p">首先，你会注意到在游戏方面有一个诱饵和开关。是的，这是我们将要探索的游戏的基础，但我们不会制作一个真正的游戏。相反，您会注意到我们打开了两个web浏览器窗口，我们对其中一个窗口所做的任何更改都会反映在另一个窗口中。</p>
+<p class="graf graf--p">总而言之，正在发生的事情是，按钮向服务器发送一个消息，我们要在某个方向上移动画布矩形。不是客户端改变盒子的位置，而是服务器用新的盒子位置来响应，所以所有的客户端都是同步的，没有人伪造位置来欺骗。</p>
+<figure class="graf graf--figure"><a class="graf-imageAnchor" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer" data-href="https://logrocket.com/signup/" data-action="image-link" data-action-observe-only="true"><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-image-id="1*GPjaPKNNUYHU8EsA3Z0JGA.png" data-width="3212" data-height="750" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-image-id="1*GPjaPKNNUYHU8EsA3Z0JGA.png" data-width="3212" data-height="750" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/></noscript></a></figure>
+<h3 class="graf graf--h3"><strong class="markup--strong markup--h3-strong">如何用Node.js和简单的JavaScript创建游戏服务器</strong></h3>
+<p class="graf graf--p">虽然Vue.js是本教程的重点，但所有繁重的工作都由我们的服务器来完成，它将使用Node.js来创建。</p>
+<p class="graf graf--p">假设您已经安装了的<a class="markup--anchor markup--p-anchor" href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer" data-href="https://nodejs.org/en/"> Node.js，创建一个新的目录来表示您的服务器，并执行以下命令来创建一个新项目:</a></p>
+<pre class="graf graf--pre">npm init --y
+npm install express socket.io --save
+touch app.js</pre>
+<p class="graf graf--p">以上命令将创建一个<strong class="markup--strong markup--p-strong"> package.json </strong>文件，并在其中安装我们的两个项目依赖项。上述命令还将为我们所有的服务器端逻辑创建一个<strong class="markup--strong markup--p-strong"> app.js </strong>文件。如果你的操作系统不支持touch命令，继续创建<strong class="markup--strong markup--p-strong"> app.js </strong>文件，不过这是对你最有意义的。</p>
+<p class="graf graf--p">首先，打开<strong class="markup--strong markup--p-strong"> app.js </strong>文件，添加以下样本JavaScript代码:</p>
+<pre class="graf graf--pre">const Express = require("express")();
+const Http = require("http").Server(Express);
+const Socketio = require("socket.io")(Http);
+
+var position = {
+    x: 200,
+    y: 200
+};
+
+Http.listen(3000, () =&gt; {
+    console.log("Listening at :3000...");
+});</pre>
+<p class="graf graf--p">在上面的代码中，我们导入并初始化了之前安装的每个包。我们还在端口<a class="markup--anchor markup--p-anchor" href="http://localhost:3000" target="_blank" rel="noopener noreferrer" data-href="http://localhost:3000"> 3000 </a>上启动我们的服务器。因为在这个例子中我们不会使用数据库，所以只要服务器使用<code>position</code>变量运行，对游戏中数据的任何更改都将持续。</p>
+<p class="graf graf--p">这个伪游戏只有一个相关的数据，即<code>x</code>和<code>y</code>位置数据。</p>
+<p class="graf graf--p">现在，我们可以开始向服务器添加更具定义性的逻辑了:</p>
+<pre class="graf graf--pre">Socketio.on("connection", socket =&gt; {
+    socket.emit("position", position);
+    socket.on("move", data =&gt; {
+        switch(data) {
+            case "left":
+                position.x -= 5;
+                Socketio.emit("position", position);
+                break;
+            case "right":
+                position.x += 5;
+                Socketio.emit("position", position);
+                break;
+            case "up":
+                position.y -= 5;
+                Socketio.emit("position", position);
+                break;
+            case "down":
+                position.y += 5;
+                Socketio.emit("position", position);
+                break;
+        }
+    });
+});</pre>
+<p class="graf graf--p">在我们的<code>connection</code>监听器中，我们正在监听新的客户端连接。当客户端连接时，存储的正方形位置被发出，这样客户端就可以更新画布。虽然职位的副本将保存在客户端本地，但我们永远不会依赖客户端来提供职位。</p>
+<p class="graf graf--p">为任何特定的客户机建立套接字连接后，就会创建一个侦听器。当客户端发送标题为<code>move</code>的消息时，与该消息一起发送的数据用于确定位置应如何改变。在位置数据改变之后，它被发送回客户端。</p>
+<p class="graf graf--p">您会注意到我们的消息有一个<code>position</code>标题和一个<code>move</code>标题。只要你在客户端和服务器端保持一致，你想怎么叫都行。在我们的例子中，<code>move</code>表示从客户端发送的移动对象的消息，而<code>position</code>表示包含实际位置的消息。</p>
+<p class="graf graf--p">你可能还会注意到<code>emit</code>和<code>Socketio</code>都被用在了<code>socket</code>上。在<code>socket</code>的情况下，消息仅被发送到一个特定的客户端，而使用<code>Socketio</code>发送的消息被广播到所有连接的客户端。</p>
+<p class="graf graf--p">现在，我们可以启动Node.js服务器，开始开发Vue.js应用程序。</p>
+<h3 class="graf graf--h3"><strong class="markup--strong markup--h3-strong">用Vue.js和Socket.io开发客户端前端</strong></h3>
+<p class="graf graf--p">我们创建了我们的服务器，但我们没有任何东西来呈现我们的游戏或位置的变化。</p>
+<p class="graf graf--p">假设您已经安装了<a class="markup--anchor markup--p-anchor" href="https://cli.vuejs.org/" target="_blank" rel="noopener noreferrer" data-href="https://cli.vuejs.org/"> Vue CLI </a>，在Node.js项目目录之外执行以下命令:</p>
+<pre class="graf graf--pre">vue create client</pre>
+<p class="graf graf--p">出现提示时，选择使用默认值。在Vue.js项目目录中导航，执行以下命令再次安装Socket.io:</p>
+<pre class="graf graf--pre">npm install socket.io --save</pre>
+<p class="graf graf--p">记住，我们正在处理两个不同的项目，都使用Socket.io，因此需要安装Socket.io两次。</p>
+<p class="graf graf--p">在Vue.js项目中创建一个<strong class="markup--strong markup--p-strong">src/components/block game . vue</strong>文件来表示我们的游戏组件。该文件应该包含以下样板代码:</p>
+<pre class="graf graf--pre">&lt;template&gt;
+    &lt;div&gt;
+        &lt;canvas ref="game" width="640" height="480" style="border: 1px solid black;"&gt;&lt;/canvas&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import io from "socket.io-client";
+    export default {
+        name: 'BlockGame',
+        data() {
+            return {
+                socket: {},
+                context: {},
+                position: {
+                    x: 0,
+                    y: 0
+                }
+            }
+        },
+        created() { },
+        mounted() {
+            this.context = this.$refs.game.getContext("2d");
+        },
+        methods: { }
+    }
+&lt;/script&gt;
+
+&lt;style scoped&gt;&lt;/style&gt;</pre>
+<p class="graf graf--p">在上面的代码中，我们为游戏引用的<code>game</code>提供了一个HTML画布。我们不能在Vue.js中直接访问DOM，所以我们必须使用适当的引用。</p>
+<p class="graf graf--p">在<code>&lt;script&gt;</code>标签中，我们导入了Socket.io客户端，并且定义了一些在组件中使用的变量。在HTML视图有了<code>mounted</code>之后，我们可以利用mounted方法来获取对我们的HTML canvas对象的引用。</p>
+<p class="graf graf--p">这就是我们开始进入套接字的地方。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p class="graf graf--p">在装载视图之前，我们希望建立一个到之前创建的Socket.io服务器的连接。我们可以在<code>created</code>方法中这样做:</p>
+<pre class="graf graf--pre">created() {
+    this.socket = io("<a class="markup--anchor markup--pre-anchor" href="http://localhost:3000" target="_blank" rel="nofollow noopener noreferrer" data-href="http://localhost:3000">http://localhost:3000</a>");
+},</pre>
+<p class="graf graf--p">一旦我们连接到我们的服务器，我们可以开始监听服务器广播的位置变化，这样我们就可以渲染它们。因为这将是渲染，我们需要确保视图准备好了。因此，我们必须监听<code>mounted</code>方法中的变化，如下所示:</p>
+<pre class="graf graf--pre">mounted() {
+    this.context = this.$refs.game.getContext("2d");
+    this.socket.on("position", data =&gt; {
+        this.position = data;
+        this.context.clearRect(0, 0, this.$refs.game.width, this.$refs.game.height);
+        this.context.fillStyle = "#FFFFFF";
+        this.context.fillRect(0, 0, this.$refs.game.width, this.$refs.game.width);
+        this.context.fillStyle = "#000000";
+        this.context.fillRect(this.position.x, this.position.y, 20, 20);
+    });
+},</pre>
+<p class="graf graf--p">在上面的代码中，我们有一个用于<code>position</code>消息的监听器。记住，我们的服务器正在发送标记为<code>position</code>的消息，所以我们需要准备好接收它们。</p>
+<p class="graf graf--p">当我们收到位置信息时，我们清除画布，呈现我们选择的背景，然后根据侦听器中返回的坐标信息绘制一个矩形。每次服务器说我们的位置变了都会这样。</p>
+<p class="graf graf--p">那么我们该如何改变自己的立场呢？让我们为这项工作建立一个方法:</p>
+<pre class="graf graf--pre">methods: {
+    move(direction) { this.socket.emit("move", direction); },
+}</pre>
+<p class="graf graf--p">上面的<code>move</code>方法期望一个方向。这个方向被发送到服务器。记住，服务器正在监听标记为<code>move</code>的消息。在调用了<code>move</code>方法后，我们实际上并没有移动矩形。实际上，我们只有在得到服务器关于新位置的响应后才会移动。</p>
+<p class="graf graf--p">让我们创建几个利用这个新的<code>move</code>方法的按钮:</p>
+<pre class="graf graf--pre">&lt;template&gt;
+    &lt;div&gt;
+        &lt;canvas ref="game" width="640" height="480" style="border: 1px solid black;"&gt;&lt;/canvas&gt;
+        &lt;p&gt;
+            &lt;button v-on:click="move('right')"&gt;Right&lt;/button&gt;
+            &lt;button v-on:click="move('left')"&gt;Left&lt;/button&gt;
+            &lt;button v-on:click="move('up')"&gt;Up&lt;/button&gt;
+            &lt;button v-on:click="move('down')"&gt;Down&lt;/button&gt;
+        &lt;/p&gt;
+    &lt;/div&gt;
+&lt;/template&gt;</pre>
+<p class="graf graf--p">在<code>&lt;template&gt;</code>标签中，我们有四个按钮，每个按钮都向<code>move</code>方法传递一个方向。我们正在做的事情没有什么新奇的事情发生。</p>
+<p class="graf graf--p">到目前为止，我们有一个区块游戏组件，但是它没有与我们的应用程序挂钩。为此，打开项目的<strong class="markup--strong markup--p-strong"> src/App.vue </strong>文件，并包含以下内容:</p>
+<pre class="graf graf--pre">&lt;template&gt;
+    &lt;div id="app"&gt;
+        &lt;BlockGame /&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import BlockGame from './components/BlockGame.vue'
+
+export default {
+        name: 'app',
+        components: {
+            BlockGame
+        }
+    }
+&lt;/script&gt;
+
+&lt;style&gt;
+    body {
+        background-color: #ddd;
+    }
+&lt;/style&gt;</pre>
+<p class="graf graf--p">我们的<code>BlockGame</code>组件是相当独立的，所以只需导入它，然后在<code>&lt;template&gt;</code>块中使用它就足够了。</p>
+<p class="graf graf--p">假设服务器当前正在运行，这可以通过现在运行Vue.js客户机来测试。</p>
+<h3 class="graf graf--h3"><strong class="markup--strong markup--h3-strong">结论</strong></h3>
+<p class="graf graf--p">您刚刚看到了如何使用Vue.js和<a class="markup--anchor markup--p-anchor" href="https://socket.io/" target="_blank" rel="noopener noreferrer" data-href="https://socket.io/"> Socket.io </a>来构建一个简单的游戏。这个游戏很简单，因为没有竞技角度。我们用Node.js创建了一个游戏服务器，用Vue.js创建了一个客户端。服务器向每个客户端发送位置信息，客户端使用该位置信息在屏幕上呈现一个2D对象。</p>
+<p class="graf graf--p">如果你想看一个关于Socket.io的基本聊天示例，我在几年前用Angular创建了一个例子，标题是<a class="markup--anchor markup--p-anchor" href="https://www.thepolyglotdeveloper.com/2016/01/create-a-real-time-chat-application-with-the-cean-stack-and-socket-io/" target="_blank" rel="noopener noreferrer" data-href="https://www.thepolyglotdeveloper.com/2016/01/create-a-real-time-chat-application-with-the-cean-stack-and-socket-io/">用CEAN堆栈和Socket.io </a>创建一个实时聊天应用。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

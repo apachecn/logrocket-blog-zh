@@ -1,0 +1,432 @@
+<html>
+<head>
+<title>Pro Node.js tips - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Pro Node.js技巧- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/pro-node-js-tips-378a1f86a896/#0001-01-01">https://blog.logrocket.com/pro-node-js-tips-378a1f86a896/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>从一门新的编程语言开始可能是一项艰巨的任务。以Node.js为例，即使你来自前端后台，使用JavaScript，也可能很难。</p>
+<p>从Node.js开始，需要学习整个npm生态系统，习惯JavaScript的怪癖，了解并爱上异步逻辑。当你是新人时，这些都需要时间，如果你不小心的话，会让你离疯狂更近一步。</p>
+<p>在本文中，我将向您提供一些“新手”技巧，以减轻Node.js的一些痛苦。</p>
+<h3>序列化JavaScript对象</h3>
+<p>让我们从一个简单但非常受欢迎的技巧开始:如何在Node.js中序列化JavaScript对象(或者换句话说，如何将JSON转换成可以通过网络发送给另一个进程的东西)。</p>
+<p>基本上，序列化的意思是把一个实体变成你可以传输的东西。这主要适用于对象，因为它们可能很难在服务之间转移，对象具有非常特定的属性，如方法、继承的行为和到其他复杂对象的链接(仅举几个主要问题)。</p>
+<p>幸运的是，JSON元素消除了我刚才提到的大部分困难，因为它们是一种特殊的对象:</p>
+<ul>
+<li>您不能将JSON对象相互关联，或者换句话说，JSON中没有继承</li>
+<li>JSON规范在设计时就考虑到了数据传输，因此它非常适合序列化</li>
+<li>JSON的属性可以有任何值，除了“Function ”,所以默认情况下方法是不碍事的</li>
+</ul>
+<p>同样重要的是要注意，JSON只是一个标准，它不是JavaScript脚本的属性。你可能不得不用C#之类的语言来处理这个问题(尽管它与JavaScript非常不同)。有一些库允许您使用几乎每一种主要语言的JSON文件，但是它们之间的主要区别是，现在您正在使用Node.js(因此也是JavaScript)，您不必将它们翻译成您的语言中的“适当结构”。在Node.js中，您可以简单地加载它并开始操作它。这是我最喜欢在Node.js中使用JSON文件的一点。</p>
+<p>现在让我们看看Node.js中这些实体的序列化有哪些选项。</p>
+<figure><a href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"><img decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-height="750" data-width="3212" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/94b3e0f84b30cb0d321f60471481ab64.png" data-height="750" data-width="3212" data-original-src="https://storage.googleapis.com/blog-images-backup/1*GPjaPKNNUYHU8EsA3Z0JGA.png"/></noscript></a></figure>
+<h3>使用JSON.stringify来序列化对象</h3>
+<p>Node.js将为您提供对JSON对象的访问。有了它，您可以轻松地解析和序列化您可能需要的任何JSON。</p>
+<p>本质上，<em> stringify </em>方法将把你的对象(因为你在JavaScript中，一切都可以被认为是JSON)转换成它的字符串版本。</p>
+<p>但是有一个警告:<em> stringify </em>将忽略一些属性，因为您试图将复杂的对象转换成一种语言不可知的格式(我知道JSON代表JavaScript对象表示法，但话说回来，它意味着可以在任何想要支持它的语言上工作，所以对您可以序列化到其中的内容有一些限制)。</p>
+<p>具体来说，<em> stringify </em>方法将忽略:</p>
+<ul>
+<li>值为<em>未定义</em>的属性</li>
+<li>以函数为值的属性(也称为方法)</li>
+</ul>
+<p>下面是一个如何在代码中使用该方法的快速示例，请注意，我们不需要任何特殊的东西就可以使用它:</p>
+<figure>
+<pre><code>let testObj = {
+  name: "Fernando",
+  age: 35,
+  speak: function() {
+    console.log("Hello world!")
+  },
+  address: undefined
+}
+let serializedObj = JSON.stringify(testObj)
+testObj.speak()
+console.log(serializedObj)
+console.log(typeof serializedObj)</code></pre>
+</figure>
+<p>通过执行上述代码，您将获得以下输出:</p>
+<pre>Hello world!
+{“name”:”Fernando”,”age”:35}
+string</pre>
+<p>换句话说，正如我提到的，两个属性由于它们的内容而被忽略，我添加了最后一行以向您显示序列化版本的实际类型是字符串，即使在将它写出到stdout(标准输出/您的终端窗口)时看起来不像。</p>
+<h3>复杂物体的toJSON方法</h3>
+<p>如果你来自另一种更面向对象的语言，比如JAVA或者C#(仅举两个例子)你现在就会错过<em> toString </em>方法。在这些语言中，每当您尝试序列化一个对象时都会调用该方法，并允许您自定义该操作产生的字符串。</p>
+<p>就JavaScript而言，当您使用<em> stringify </em>方法时，您可以使用特殊的<em> toJSON </em>方法来定制对象的JSON表示。只要记住，如果你定义了那个方法，你必须返回一些东西，否则，序列化你的对象的输出将是<em>未定义的。</em></p>
+<p>让我们看另一个例子:</p>
+<figure>
+<pre><code>let testObj = {
+  name: "Fernando",
+  age: 35,
+  speak: function() {
+    console.log("Hello world!")
+  },
+  toJSON: function() {
+    console.log("toJSON called")
+  },
+  address: undefined
+}
+let testObj2 = {
+  name: "Fernando",
+  age: 35,
+  speak: function() {
+    console.log("Hello world!")
+  },
+  toJSON: function() {
+    console.log("toJSON called")
+    return '{ "name": "' + this.name + '", "age": ' + this.age + ' }'
+  },
+  address: undefined
+}
+let serializedObj = JSON.stringify(testObj)
+let serializedObj2 = JSON.stringify(testObj2)
+testObj.speak()
+console.log(serializedObj)
+console.log(typeof serializedObj)
+console.log(" - - - - - - - - - - - - - ")
+console.log(serializedObj2)
+console.log(typeof serializedObj2)</code></pre>
+</figure>
+<p>现在，当您执行这段代码时，您会得到以下输出:</p>
+<pre>toJSON called
+toJSON called
+Hello world!
+undefined
+undefined
+— — — — — — — — — — — — —
+“{ ”name”: ”Fernando”, ”age”: 35 }”
+string</pre>
+<p>注意那两行<em>未定义的</em>行——它们指的是第一个对象，这个对象的<em> toJSON </em>方法被定义了，但是没有返回值。不过，最后两行表示序列化过程的输出。我想在这里强调的最后一点是，这一次，我们必须手动忽略方法和未定义的属性。但是，如果我们想要显示它们，我们需要在JSON标准中为它们找到一个正确有效的映射。</p>
+<h3>高级模块(以防你需要额外的果汁)</h3>
+<p>对于您通常的JSON序列化需求，<em> stringify </em>方法应该足够了。然而，在一些不常见的情况下，这不是真的。我想到的两个特定场景是:希望足够安全地序列化方法以便反序列化它们，以及在目的地使用它们。另一个古老的<em> stringify </em>方法不起作用的例子是当你处理JSON中的大量数据时(我指的是Gb大小的JSON)。</p>
+<p>您可能会遇到上述两种解决方案都不起作用的其他情况，这只是在您的流程中添加正确的逻辑或为其找到正确的模块的问题(如果问题足够常见，可能已经有一个npm模块来处理它)。</p>
+<p>如果你想实现方法序列化，你可能想看看<a href="https://www.npmjs.com/package/node-serialize" target="_blank" rel="noopener noreferrer"> <em>节点序列化</em> </a>，它让你很容易做到这一点。然而，请注意，通过网络发送要在目的地执行的代码是一个很大的安全风险，因为攻击者可以<a href="https://github.com/luin/serialize/issues/4" target="_blank" rel="noopener noreferrer">提供自执行功能</a>，并导致恶意代码的意外执行。</p>
+<p>让我向您展示如何使用这个模块来序列化和执行一个方法:</p>
+<figure>
+<pre><code>const serialize = require("node-serialize")
+var obj = {
+  name: 'Bob',
+  say: function() {
+    return 'hi ' + this.name; 
+  }
+};
+
+var objS = serialize.serialize(obj);
+console.log(typeof objS === 'string');
+console.log(objS)
+console.log(serialize.unserialize(objS).say() === 'hi Bob')</code></pre>
+</figure>
+<p>这样的输出应该是:</p>
+<pre>true
+{“name”:”Bob”,”say”:”_$$ND_FUNC$$_function() {n return ‘hi ‘ + this.name;n }”}
+true</pre>
+<p>剧本写的三行告诉我们三件事:</p>
+<ol>
+<li>事实上，我们将对象序列化为字符串</li>
+<li>此函数的序列化方式。基本上，它被翻译成一个字符串，稍后<em> eval </em>可以对其求值并转换成正确的语句集。这是安全问题的主要原因(<em> eval </em>并不真正安全)</li>
+<li>当然，除了调用<em> unserialize </em>之外，您不需要做任何特殊的事情来执行序列化方法</li>
+</ol>
+<p>最后，如果你正在处理的是一个非常大的JSON，你不能仅仅用<em> JSON.stringify，</em>来解析或序列化，那么你可能想看看<a href="https://www.npmjs.com/package/JSONStream" target="_blank" rel="noopener noreferrer"> JSONStream </a>模块。</p>
+<p>有了这个，您可以使用流来处理序列化过程，也就是说，您可以打开一个流并逐渐向其中写入项目。因此，它不是将千兆字节大小的内存结构转换成一个巨大的字符串(这可能需要太多的内存，会压垮您的脚本)，而是允许您逐项写入一个文件(当然是字符串格式)。</p>
+<p>下面是一个如何使用这个库和流机制的基本示例:</p>
+<figure>
+<pre><code>var fileSystem = require( "fs" );
+var JSONStream = require( "JSONStream" );
+var books = [
+  {name: "The Philosopher's Stone", year: 1997},
+  {name: "The Chamber of Secrets", year: 1998},
+  {name: "The Prisoner of Azkaban", year: 1999},
+  {name: "The Goblet of Fire", year:2000},
+  {name: "The Order of the Phoenix", year:2003},
+  {name: "The Half-Blood Prince", year:2005},
+  {name: "The Deathly Hallows", year:2007}
+];
+
+var transformStream = JSONStream.stringify();
+var outputStream = fileSystem.createWriteStream( __dirname + "/hpdata.json" );
+
+transformStream.pipe( outputStream );
+
+books.forEach( transformStream.write );
+  transformStream.end();
+  outputStream.on(
+    "finish",
+    function handleFinish() {
+      console.log( "JSONStream serialization complete!" );
+    }
+  );
+ outputStream.on(
+  "finish",
+  function handleFinish() {
+    var transformStream = JSONStream.parse( "*" );
+    var inputStream = fileSystem.createReadStream( __dirname + "/data.json" );
+    inputStream
+      .pipe( transformStream )
+      .on(
+        "data",
+        function handleRecord( data ) {
+          console.log( "Record (event):" , data );
+        }
+        )
+      .on(
+        "end",
+        function handleEnd() {
+          console.log( "JSONStream parsing complete!" );
+        }
+      );
+   }
+);</code></pre>
+</figure>
+<p>实际的编写只需要一行(<em>books . foreach(transform stream . write)；</em>)，剩下的只是流设置和事件配置。</p>
+<p>该脚本的输出如下:</p>
+<pre>JSONStream serialization complete!
+Record (event): { name: ‘The Philosopher’s Stone’, year: 1997 }
+Record (event): { name: ‘The Chamber of Secrets’, year: 1998 }
+Record (event): { name: ‘The Prisoner of Azkaban’, year: 1999 }
+Record (event): { name: ‘The Goblet of Fire’, year: 2000 }
+Record (event): { name: ‘The Order of the Phoenix’, year: 2003 }
+Record (event): { name: ‘The Half-Blood Prince’, year: 2005 }
+Record (event): { name: ‘The Deathly Hallows’, year: 2007 }
+JSONStream parsing complete!</pre>
+<p>最终，处理这些任务的方式取决于您，这些模块只是隐藏了Node.js提供的本机工具，如果您想避免依赖第三方库，您最终可以自己使用这些工具。</p>
+<h3>读取Node.js脚本的命令行参数</h3>
+<p>由于Node.js提供了无数的好处，它往往被认为是一种专门用于开发微服务的语言。但是需要注意的是，每次执行代码时，您只是从终端运行一个脚本。好吧，要么是你，要么是你设置的自动化过程，但是无论哪种情况，无论你键入什么来执行它，最终都会有东西运行这样的命令:</p>
+<pre><code>$ node yourscript.js</code></pre>
+<p>就是这么简单，当发生这种情况时，您脚本能够接收参数，就像任何其他命令行工具一样(见鬼，就像<em> node </em>命令，它接收您脚本的文件名作为参数)。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>这不仅仅与你开发命令行工具有关，你可以在启动一组微服务的主脚本上接受命令行参数，或者仅仅是你的主API文件。您在Node中做的任何事情都可以从中受益，您可以接收配置覆盖，甚至根据您接收到的属性有不同的行为。</p>
+<p>最棒的是，读取这些参数非常简单，这里有一个快速示例代码可以说明这一点:</p>
+<figure>
+<pre><code>process.argv.forEach( (val, index) =&gt; {
+  console.log(index + ': ' + val);
+});</code></pre>
+</figure>
+<p>就是这样！将它复制到您的测试文件中并执行它。这里有一个例子:</p>
+<pre><code>$ node cliparams.js test test2 test 3</code></pre>
+<p>它的输出是:</p>
+<pre>0: /path/to/node.js/bin/node
+1: /path/to/your/script/cliparams.js
+2: test
+3: test2
+4: test
+5: 3</pre>
+<p>请注意我们是如何向脚本传递三(3)个参数的，但是我们看到的是五(5)个参数。这是因为第一个参数是正在执行的解释器(在本例中是我的节点解释器)，第二个参数是正在执行的脚本的完整路径，从这里开始，您将看到您传递的实际参数。</p>
+<p>这是标准行为，因此您可以再添加一行来规范化列表并删除(通常)不必要的参数:</p>
+<figure>
+<pre><code>let args = process.argv.slice(2);
+args.forEach( (val, index) =&gt; {
+  console.log(index + ': ' + val);
+});</code></pre>
+</figure>
+<p>输出如下:</p>
+<pre>1: test
+2: test2
+3: test
+4: 3</pre>
+<p>此外，请注意，很明显，但默认情况下，空格字符是用于理解参数何时开始和何时结束的分隔符。如果我们希望我们的值也有空格，那么您只需用双引号将值括起来，就像这样:</p>
+<pre><code>$ node cliparams.js “test test2 test 3”</code></pre>
+<p>现在，同一个脚本的输出将是:</p>
+<pre>0: /path/to/your/bin/node
+1: /path/to/your/script/cliparams.js
+2: test test2 test 3</pre>
+<p>如您所见，在您的脚本中捕获CLI参数非常容易，并且是一个非常强大的工具，可以添加到您的工具箱中。</p>
+<h3>查找当前脚本的文件路径</h3>
+<p>这是一个快速的方法，但是非常有趣和有用。通常，脚本语言为开发人员提供了一些捕捉当前执行脚本路径的方法。在处理相对路径时，它可以派上用场，因为根据您试图实现的目标，开发环境中的条件可能不一样，比如生产环境。这可能会导致真正的问题。因此，你应该使用一个完整的有效路径，从那里开始，移动到你想去的任何地方。</p>
+<p>通过这一步，你可以确保你确切地知道你站在哪里，然后从那里，你可以移动到你可能需要移动的任何地方。</p>
+<p>获取该信息有两种方法，要么获取完整路径，包括脚本的文件名，要么只获取文件所在文件夹的路径，而不获取文件名。</p>
+<p>获取这些信息的方法是使用名为<em> __dirname </em>和<em> __filename，</em>的全局变量，其中第一个变量包含文件夹的路径，第二个变量，正如您可能已经猜到的，也包含使用它的脚本的实际文件名。</p>
+<p>这些只是全局变量，所以为了使用它们，你只需要这样做:</p>
+<pre>console.log(__dirname)
+console.log(__filename)</pre>
+<p>注意这些变量可以被你修改，所以确保你不要修改，否则，你会失去引用。此外，这些变量在节点的REPL中是不可访问的，所以如果您试图使用REPL来验证这一点，您将无法做到。</p>
+<h3>迭代一个对象的属性，就像你迭代数组元素一样</h3>
+<p>这是我过去不得不查找几次的东西，因为我倾向于使用JavaScript中的对象作为地图(这来自于我们在语言中访问实际地图之前)。能够做这样的事情有点令人沮丧:</p>
+<pre><code>yourArray.forEach( iteratorFn )</code></pre>
+<p>但不是，像这样:</p>
+<pre><code>yourMap.forEach( iteratorFn )</code></pre>
+<p>或者甚至:</p>
+<pre><code>yourMap.keys().forEach( iteratorFn )</code></pre>
+<p>这是因为变量yourMap实际上包含了一个JSON，就是这样。所以，在这里唱反调一下，没有方法可以解决我们的问题是有道理的。</p>
+<p>然而，有几个快速的解决方法:被形象地称为“object”的全局对象给我们提供了对<em> keys </em>方法的访问，该方法实际上做了我们想要做的事情，它返回了我们的对象的属性列表。我们还可以使用for循环的变体，它可以根据我们的需要迭代对象的属性。</p>
+<p>下面是一个简单的代码示例来说明我的意思:</p>
+<figure>
+<pre><code>class Obj {
+  constructor() {
+    this.a = 1
+    this.b = 1
+    this.c = 1
+  }
+  method(st){
+  }
+}
+
+let obj = new Obj()
+
+for(m in obj) {
+  console.log(m)
+}
+console.log(Object.keys(obj))</code></pre>
+</figure>
+<p>输出如下:</p>
+<pre>a
+b
+c
+[ ‘a’, ‘b’, ‘c’ ]</pre>
+<p>请注意这两个选项都忽略了方法名，但是如果我们将对象定义为一个简单的JSON，如下所示:</p>
+<figure>
+<pre><code>let obj = { 
+  a: 1,
+  b: 2,
+  test: function() { return 0}
+}
+for(m in obj) {
+  console.log(m)
+}
+console.log(Object.keys(obj))
+</code></pre>
+</figure>
+<p>这一次的输出是:</p>
+<pre>a
+b
+c
+test
+[ ‘a’, ‘b’, ‘c’, ‘test’ ]</pre>
+<p>这一次，方法被返回，这可能是也可能不是您正在寻找的。因此，在使用之前，一定要检查属性内容的类型。我的意思是，做这样的事情:</p>
+<pre><code>or(m in obj) {
+console.log(typeof obj[m]) //should print number, number, function
+}</code></pre>
+<h3>将Nginx设置为Node.js服务器的反向代理</h3>
+<p>假设使用Node.js，您通常会构建自己的web服务器，而不是使用已经构建好的服务器(就像您使用PHP或JAVA一样)。在将web应用程序部署到远程服务器时，尤其是在生产环境中部署时，可能会有一些限制。</p>
+<p>具体来说，web服务器需要侦听特定的端口，以便接收标准的web流量，例如80代表正常的HTTP流量，443代表安全流量(即HTTPS)。问题？如果你的用户没有足够的权限，你不能简单地启动一个监听这些端口的程序。</p>
+<p>这里有一个简单的例子来说明我的意思，如果您试图在没有足够权限的情况下运行它，下面的代码将会出错(通常，除非您是系统的root或管理员，否则您将不能这样做)。</p>
+<p>下面是我在Linux机器上得到的错误(Windows可能会抛出一个稍微不同的错误，但要点应该是相同的):</p>
+<figure><img decoding="async" src="../Images/5743796621fb0286be4d2665fab25935.png" data-height="374" data-width="908" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*KN9Ky0dj7KcWj2nH?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*KN9Ky0dj7KcWj2nH"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/5743796621fb0286be4d2665fab25935.png" data-height="374" data-width="908" data-original-src="https://storage.googleapis.com/blog-images-backup/0*KN9Ky0dj7KcWj2nH"/></noscript></figure>
+<p>为了解决这个问题，您通常希望设置另一个web服务器，或者特别是一个反向代理，它将处理传入的流量，并在内部将其重定向到您的应用程序的端口。实际上，您仍然会在一个非标准的端口上监听，但是外界永远不会知道。</p>
+<p>由于Nginx使用异步I/O来处理请求，因此作为web服务器，甚至作为反向代理，nginx都是一个很好的选择。它允许在不增加资源消耗的情况下扩展到数万个请求(不像其他服务器，比如Apache WebServer，它为每个新请求生成一个新进程)。</p>
+<p>对于这篇特别的文章，我不会讨论如何安装Nginx本身，如果你也在研究这个问题，你可能想看看其他文章，然后再回到这里。</p>
+<p>至于实际的配置，您只需要编辑位于<em>/etc/nginx/conf . d/sysmon . conf</em>的配置文件，并添加以下代码:</p>
+<pre><code>server {
+listen 80;
+server_name www.example.com;
+location / {
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header Host $http_host;
+proxy_pass http://127.0.0.1:5000;
+}
+}</code></pre>
+<p>之后，您只需重启服务器，就大功告成了。上述代码所做的基本上是确保web服务器在端口80上监听，接收对www.example.com上的URL的请求，无论它接收到什么，它都重定向到您在T2的proxy_pass属性上配置的IP，这基本上应该是您启动Node.js服务器的IP和端口。</p>
+<p>一个快速提示，如果您想用一个假的URL(比如<a href="http://www.example.com" target="_blank" rel="noopener noreferrer">www.example.com</a>)来测试这个，您可以将下面一行添加到您的<em> /etc/hosts </em>文件中:</p>
+<pre><code>127.0.0.1 www.example.com</code></pre>
+<p>当该行保留在文件中时，当使用该URL时，您将总是被重定向到您的本地主机。</p>
+<h3>遍历异步函数列表并返回结果(不使用额外的库)</h3>
+<p>当处理异步代码时，您可能会试图寻找一些外部库来帮助您减轻必须跟踪它们的行为的痛苦。如果你的代码严重依赖它们，没人会责怪你。但是，如果您只是在这里或那里添加一些调用，那么添加整个库及其对几行代码的依赖可能会被认为是多余的。</p>
+<p>一个特殊的情况是处理一组需要在循环中执行的异步调用。用一个简单的<em> for </em>循环，如何收集所有这些调用的输出并确保代码的正确执行呢？这种结构并不意味着处理异步调用(考虑到Node.js当时的主要卖点实际上是对异步I/O的支持，这是一种讽刺)。</p>
+<p>这实际上并不难，真的，你只需要看看其他人添加的语法糖，如<a href="https://github.com/caolan/async" target="_blank" rel="noopener noreferrer"> Async.js </a>并考虑异步调用是如何工作的。</p>
+<p>本质上，您要做的是构建一个函数，它将充当循环的<em>，接收要进行的调用列表，并在所有事情都完成后执行一个回调函数(或者最终，一旦其中一个出错)。</em></p>
+<p>例如，下面的代码会解决这个问题:</p>
+<figure>
+<pre><code>function asyncLoop(list, callback) {
+    let results = []
+    list.forEach( fn =&gt; {
+      fn( (err, result) =&gt; {
+      if(err) return callback(err)  
+    results.push(result)
+  if(results.length == list.length) { 
+      callback(null, results)
+  }     
+  })
+})  
+}</code></pre>
+</figure>
+<p>当第一个异步调用返回错误时，我们的<em> asyncLoop </em>函数也会这样做。否则，它会收集所有的结果，直到所有的调用都结束。一旦发生这种情况，我们调用最后的回调来继续逻辑流。</p>
+<p>您可以使用上面的代码，如下所示:</p>
+<figure>
+<pre><code>const req = require("request")
+let calls = [
+function (cb) {
+  req.get('http://www.google.com', cb)
+},
+function (cb) {
+  req.get('http://www.yahoo.com', cb)
+},
+function (cb) {
+  req.get('http://www.msdn.com', cb)
+}
+]
+
+asyncLoop(calls, (err, results) =&gt; {
+  if(err) { 
+    return console.log("There was a problem executing one of the calls: ", err)
+  }
+  console.log("There are ", results.length, "sets of results")
+})</code></pre>
+</figure>
+<p>基本上，您循环通过三个不同的HTTP调用并收集它们的结果，而不必为此使用任何外部库(除了用<em> request </em>来简化请求代码)。</p>
+<h3>类固醇控制台</h3>
+<p>我想介绍的最后一个技巧很简单，但是非常方便，尤其是在调试或者将错误信息记录到日志文件中的时候。</p>
+<p><em>控制台</em>对象可能是Node.js中最常用的对象之一(如果不是最常用的),因为它非常简单和有用，但是我们，尤其是刚开始使用这种语言时，倾向于只使用<em>日志</em>方法，这很好，但是有太多很少用到的东西，让我解释一下。</p>
+<h3>标准输出和误差</h3>
+<p>通常，您的终端有两个不同的流可以写入。你，作为一个用户，将会看到两者都写在你的屏幕上，但是使用正确的命令行魔术，你可以重定向到任何你想要的地方。但是你如何选择给他们中的任何一个写信呢？</p>
+<p><em> log </em>方法写入<strong> stdout，</strong>和<em> error </em>方法是您将用来写入<strong> stderr </strong>(或者标准错误，如果您愿意的话)的方法。</p>
+<pre><code>console.error("Test error")</code></pre>
+<pre><code>console.log("Test standard out")</code></pre>
+<p>如果执行该代码，它将只在屏幕上打印两个字符串，彼此没有区别，但是如果您像这样执行脚本:</p>
+<pre><code>$ node script.js 1&gt; out.log 2&gt; err.log</code></pre>
+<p>现在，那是一个不同的故事，现在你把每个流的输出重定向到一个不同的文件。</p>
+<h3>打印堆栈跟踪</h3>
+<p>记录日志时要做的另一件有用的事情是打印堆栈跟踪，这将让您了解错误发生时发生了什么。在其他语言中，这样做非常简单。在Node.js中也很简单，只是不是每个人都知道。</p>
+<pre><code>function triggerTrace() {
+   console.trace(“Error log”)
+}
+triggerTrace()</code></pre>
+<p>通过执行这段代码，您将得到类似如下的输出:</p>
+<pre>Trace: Error log
+at triggerTrace (/path/to/your/project/node-tips/console-tips.js:7:10)
+at Object.&lt;anonymous&gt; (/path/to/your/project/node-tips/console-tips.js:10:1)
+at Module._compile (internal/modules/cjs/loader.js:702:30)
+at Object.Module._extensions..js (internal/modules/cjs/loader.js:713:10)
+at Module.load (internal/modules/cjs/loader.js:612:32)
+at tryModuleLoad (internal/modules/cjs/loader.js:551:12)
+at Function.Module._load (internal/modules/cjs/loader.js:543:3)
+at Function.Module.runMain (internal/modules/cjs/loader.js:744:10)
+at startup (internal/bootstrap/node.js:240:19)
+at bootstrapNodeJSCore (internal/bootstrap/node.js:564:3)</pre>
+<p>请注意，您是如何获得触发跟踪的函数名、行号和文件名的。你不会用一个简单的<em> console.log. </em>得到这个</p>
+<h3>记录函数调用花费的时间</h3>
+<p>这在分析您自己的代码时非常有用。如果您想了解一个函数调用(或者任何一段代码)需要多长时间，您通常会这样做:</p>
+<figure>
+<pre><code>let start = (new Date()).getTime()
+setTimeout(function() {
+  let end = (new Date()).getTime()  
+  console.log(end - start )
+}, 1000)</code></pre>
+</figure>
+<p>这样，您将看到类似1002的输出(顺便注意，这也证明了当超时过期时，setTimeout并不执行代码<strong> <em>确切地说是</em> </strong>)，而是试图尽快执行)。</p>
+<p>现在，代替这样做，你也可以使用<em>控制台</em>对象来创建一个定时器，而不必担心变量、减法或任何其他你可能想要/需要添加的额外代码。</p>
+<p>就像这样:</p>
+<figure>
+<pre><code>console.time("timer")
+setTimeout(function() {
+  console.timeEnd("timer")
+}, 1000)</code></pre>
+</figure>
+<p>您可以看到我们是如何做同样的事情的，但是代码更少(也更干净)。事实上，您可以使用其他名称，并保持几个计时器同时工作。</p>
+<p>额外的好处是，在这种情况下，输出的格式更好:</p>
+<pre>timer: 1002.814ms</pre>
+<h3>结论</h3>
+<p>这就是Node.js新手的一组技巧，我希望它们有用，即使你不是技术新手，你也能学到一些东西。</p>
+<p>如果你有任何我遗漏的建议，想分享或随意扩展我添加的建议，请在下面留下你的评论。</p>
+<p>直到下一个！</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,286 @@
+<html>
+<head>
+<title>Understanding and implementing rate limiting in Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Node.js - LogRocket博客中理解和实现速率限制</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rate-limiting-node-js/#0001-01-01">https://blog.logrocket.com/rate-limiting-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本文于2022年6月22日更新，以与Node.js的最新版本保持一致，并包括更多关于速率限制的最新信息。</em></p>
+<h2>介绍</h2>
+<p>速率限制是一个非常强大的功能，可以保护后端API免受恶意攻击，并处理来自用户的不需要的请求流。总的来说，它允许我们控制服务器处理用户请求的速度。</p>
+<p>在本文中，我们将研究实现速率限制的不同方法，以及每种方法的优缺点。我们还将通过在Node.js中实现一个选定的方法来变得实用。</p>
+<p>为了有效地阅读本文，您应该具备以下条件:</p>
+<ul>
+<li>服务器如何处理请求的工作知识</li>
+<li>了解如何在节点中构建REST APIs</li>
+<li>在节点中使用中间件的经验</li>
+</ul>
+<p>如果你缺少这些中的一些或全部，不要感到害怕。我们将确保尽可能地把事情分解，以便你能容易地理解我们最终探索的每一个概念。</p>
+<h2>内容</h2>
+
+<h2 id="what-rate-limiting">什么是速率限制？</h2>
+<p>速率限制是一种用于控制网络内传入或传出流量的技术。在这种情况下，网络是指客户端(例如，web浏览器)和我们的服务器(例如，API)之间的通信线路。</p>
+<p>因此，这是一种允许我们基于一些指定的约束来处理用户请求的技术，例如:</p>
+<ul>
+<li>有更好的数据流</li>
+<li>降低了攻击的风险，即提高了安全性</li>
+<li>服务器永远不会过载</li>
+<li>用户只能做开发人员允许的事情</li>
+</ul>
+<p>例如，我们可能希望将未订阅用户对公共API的请求数量限制为每月1，000个。一旦用户超过这个数量，我们可以忽略这个请求并抛出一个错误，指出用户已经超过了他们的限制。</p>
+<p>请记住，为了实施速率限制，必须有一个明确定义的约束(限制)，它可以基于以下任何一项:</p>
+<ul>
+<li>用户:约束是特定于用户的，并使用唯一的用户标识符来实现</li>
+<li>位置:约束基于地理位置，并基于发出请求的位置来实现</li>
+<li>IP地址:该约束基于发起请求的设备的IP地址</li>
+</ul>
+<p>现在让我们考虑各种速率限制算法以及它们的优缺点。</p>
+<h2 id="examining-rate-limiting-algorithms">检查速率限制算法</h2>
+<p>与大多数工程问题一样，有不同的算法来实现速率限制，每种算法都有其优点和缺点。我们现在将检查五种众所周知的技术，并确定它们何时最有效，以及我们何时应该寻找另一种解决方案。</p>
+<h3>固定窗口计数器</h3>
+<p>这可能是实现速率限制的最明显的方法。在这种方法中，跟踪用户在每个窗口中发出的请求数量。</p>
+<p>在这种情况下，窗口指的是所考虑的时间空间。也就是说，如果我希望我的API允许每分钟十个请求，我们有一个60秒的窗口。因此，从<code>00:00:00</code>开始，一个窗口将从<code>00:00:00</code>到<code>00:01:00</code>。</p>
+<p>因此，对于用户在一分钟内发出的第一个请求，使用HashMap或Redis等优化的键值存储，我们可以根据计数存储用户的ID(现在是<code>1</code>，因为这是第一个请求)。请参见下面的格式:</p>
+<p><img data-attachment-id="120772" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/a-users-request-count-alongside-their-id/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png" data-orig-size="730,222" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A User’s Request Count Alongside Their ID" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID-300x91.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png" decoding="async" class="size-full wp-image-120772 aligncenter jetpack-lazy-image" src="../Images/a686eadf63db35b4c5cfb54b45c40cf0.png" alt="A User's Request Count Alongside Their ID" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID-300x91.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120772" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/a-users-request-count-alongside-their-id/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png" data-orig-size="730,222" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A User’s Request Count Alongside Their ID" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID-300x91.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png" decoding="async" loading="lazy" class="size-full wp-image-120772 aligncenter" src="../Images/a686eadf63db35b4c5cfb54b45c40cf0.png" alt="A User's Request Count Alongside Their ID" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID-300x91.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/A-Users-Request-Count-Alongside-Their-ID.png"/></noscript>
+<p>对于同一窗口内的后续请求，我们会检查用户是否未超出限制(即计数不大于10)。如果用户没有这样做，我们将计数递增1；否则，请求将被丢弃并触发错误。</p>
+<p>在窗口结束时，我们将每个用户的记录重置为计数<code>0</code>，并对当前窗口重复该过程。</p>
+<h4>赞成者</h4>
+<p>这种方法相对容易实现</p>
+<h4>坏处</h4>
+<p>首先，这种方法并不完全准确，因为对所有用户强加一个通用的窗口开始时间是不公平的；实际上，用户的窗口应该从他们第一次请求时开始计数。</p>
+<p>第二，当窗口快结束时，例如在第55秒时，流量突然增加，服务器每分钟的工作量比计划的要多得多。例如，我们可能有来自55秒到60秒之间的用户的十个请求，以及来自0秒到5秒之间的下一个窗口中的同一用户的另外十个请求。因此，服务器在十秒钟内为这个用户处理了20个请求。</p>
+<p>最后，n个特别大的窗口周期(例如，每小时50个请求，或3600秒)，如果用户在头十分钟(600秒)内达到限制，他们可能会等待很长时间。这意味着用户发出50个请求需要10分钟，而发出51个请求需要1个小时。这可能会导致API在新窗口打开后立即运行。</p>
+<h3>滑动原木</h3>
+<p>滑动日志算法跟踪用户发出的每个请求的时间戳。这里的请求可以使用HashMap或Redis来记录。在这两种情况下，可以根据时间对请求进行排序，以便改进操作。</p>
+<p>记录请求的过程如下所示:</p>
+<ul>
+<li>检索最近窗口(60秒)中记录的所有请求，并检查请求数量是否超过允许的限制</li>
+<li>如果请求数量少于限制，则记录请求并进行处理</li>
+<li>如果请求的数量等于限制，则放弃请求</li>
+</ul>
+<h4>赞成者</h4>
+<ul>
+<li>这种方法更准确，因为它根据用户的活动计算每个用户的最后一个窗口，而不是为所有用户强加一个固定的窗口</li>
+<li>因为没有固定的窗口，所以它不受接近窗口末尾的请求激增的影响</li>
+</ul>
+<h4>坏处</h4>
+<ul>
+<li>它不是内存高效的，因为我们最终为每个请求存储一个新的条目</li>
+<li>计算起来也非常昂贵，因为每个请求都会触发对以前保存的请求的计算，以检索最后一分钟的日志，然后获得计数</li>
+</ul>
+<h3>滑动窗口计数器</h3>
+<p>这种方法试图优化固定窗口计数器和滑动日志技术的一些低效率。在这种技术中，用户的请求按时间戳分组，我们为每个组保留一个计数器，而不是记录每个请求。</p>
+<p>它跟踪每个用户的请求数，同时按固定的时间窗口(通常是限制窗口大小的一小部分)对它们进行分组。它是这样工作的:</p>
+<p>当收到用户的请求时，我们检查用户的记录是否已经存在，以及该时间戳是否已经有一个条目。如果两种情况都成立，我们只需增加时间戳的计数器。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在确定用户是否已经超出其限制时，我们检索在最后一个窗口中创建的所有组，然后对它们的计数器求和。如果总和等于限制，则用户已经达到他们的限制，并且传入的请求被丢弃。否则，插入或更新时间戳，并处理请求。</p>
+<p>另外，可以将时间戳组设置为在窗口时间耗尽后过期，以控制内存消耗的速率。</p>
+<h4>赞成者</h4>
+<p>这种方法节省了更多的内存，因为我们不是为每个请求创建一个新的条目，而是按时间戳对请求进行分组并递增计数器。</p>
+<h4>坏处</h4>
+<p>该算法仅在回看窗口时间不严格时有效。</p>
+<h3>令牌桶</h3>
+<p>在令牌桶算法中，我们简单地保存一个指示用户还剩多少令牌的计数器和一个显示上次更新时间的时间戳。这个概念源于分组交换计算机网络和电信网络，其中有一个固定容量的桶来保存以固定速率(窗口间隔)添加的令牌。</p>
+<p>当测试分组的一致性时，检查桶以查看它是否包含所需的足够数量的令牌。如果是，则适当数量的令牌被移除，并且该分组通过传输；否则，按不同方式处理。</p>
+<p>在我们的例子中，当收到第一个请求时，我们记录时间戳，然后为用户创建一个新的令牌桶:</p>
+<p><img data-attachment-id="120774" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/timestamped-request-with-token-bucket/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Timestamped Request With Token Bucket" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png" decoding="async" class="size-full wp-image-120774 aligncenter jetpack-lazy-image" src="../Images/b9e2a29acd0910ef1f34cf5a8de9f38a.png" alt="Timestamped Request With Token Bucket" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket-300x98.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120774" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/timestamped-request-with-token-bucket/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Timestamped Request With Token Bucket" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png" decoding="async" loading="lazy" class="size-full wp-image-120774 aligncenter" src="../Images/b9e2a29acd0910ef1f34cf5a8de9f38a.png" alt="Timestamped Request With Token Bucket" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket-300x98.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Timestamped-Request-With-Token-Bucket.png"/></noscript>
+<p>在随后的请求中，我们测试自最后一个时间戳创建以来窗口是否已经过去。如果没有，我们检查桶是否仍然包含那个特定窗口的令牌。如果是，我们将通过<code>1</code>减少令牌，并继续处理请求；否则，请求将被丢弃，并触发一个错误。</p>
+<p>在自上一个时间戳以来窗口已经过去的情况下，我们将时间戳更新为当前请求的时间戳，并将令牌的数量重置为允许的限制。</p>
+<h4>赞成者</h4>
+<ul>
+<li>这是一种准确的方法，因为窗口在用户之间不是固定的，因此是基于用户的活动来确定的</li>
+<li>内存消耗最小，因为每个用户只有一个条目，用于管理他们随时间的活动(时间戳和可用令牌)</li>
+</ul>
+<h4>坏处</h4>
+<p>令牌桶算法没有可能影响其使用的缺点。此外，如果桶变满了，令牌就会被丢弃，这对于节省内存来说仍然是一件好事。</p>
+<h3>漏桶</h3>
+<p>漏桶算法利用队列，以先进先出(FIFO)的方式接受和处理请求。队列大小受到限制。例如，如果限制是每分钟十个请求，那么队列一次只能容纳十个请求。</p>
+<p>当请求排队时，它们以相对恒定的速率被处理。这意味着，即使服务器遇到突发流量，传出响应仍以相同的速率发出。</p>
+<p>一旦队列填满，服务器将丢弃更多的传入请求，直到为更多的请求释放空间。</p>
+<h4>赞成者</h4>
+<p>这种技术可以平滑流量，从而防止服务器过载。</p>
+<h4>缺点</h4>
+<p>流量整形可能会导致用户感觉整体速度变慢，因为请求被抑制，影响了应用程序的UX。</p>
+<h2 id="how-to-implement-rate-limiting-node-js">如何在Node.js中实现速率限制</h2>
+<p>既然我们已经从理论的角度探讨了速率限制，现在是我们开始实践的时候了。下面，我们已经确定了需要速率限制算法来实现预期结果的某些场景。花点时间浏览它们，在每种情况下，试着确定你倾向于使用什么算法，为什么。</p>
+<ol>
+<li>一家金融科技公司试图实现每位用户每日交易价值不超过5000美元。</li>
+<li>对公共图书API实施检查，以确保每个用户每天(24小时)只能执行100个API请求。</li>
+</ol>
+<p>在本教程中，我们将在Node.js中实现场景二。然而，现在我们需要决定哪种算法最适合我们的用例。</p>
+<blockquote><p>如果你准备好迎接挑战，可以在这里随意下载<a href="https://github.com/worldclassdev/node-rate-limiter/tree/boilerplate" target="_blank" rel="noopener">教程样板文件</a>，并尝试自己实现任何算法。</p></blockquote>
+<h2 id="which-rate-limiting-algorithm-best">哪种限速算法最好？</h2>
+<p>对于我们的用例，我们坚持使用哪种算法？如上所述，固定窗口计数器和滑动日志是实现速率限制的最低效的方式。这给我们留下了滑动窗口计数器、漏桶和令牌桶。</p>
+<p>漏桶算法最适用于速率限制和流量整形的情况。</p>
+<blockquote><p>流量整形(也称为数据包整形)是一种带宽管理技术，它延迟某些类型的网络数据包的流量，以确保高优先级应用程序的网络性能。在这种情况下，它描述了管理服务器资源的能力，以便以一定的速率处理和响应请求，而不管它接收的流量大小。</p></blockquote>
+<p>由于在这种情况下这不是一个主要问题，所以我们只能使用滑动窗口计数器和令牌桶算法。这两种方法都可以，但是在本文中，我们将使用滑动窗口计数器。</p>
+<p>我们将使用该算法跟踪每个用户每天(24小时)的请求数，同时按固定的一小时窗口对他们进行分组。现在，让我们开始吧！</p>
+<h2 id="sample-rate-limiting-project-node-js">Node.js中的采样速率限制项目</h2>
+<p>首先，<a href="https://github.com/worldclassdev/node-rate-limiter/tree/boilerplate" target="_blank" rel="noopener">在您的计算机上克隆这个库</a>，在您的终端上导航到项目目录，并使用下面的命令安装项目的依赖项:</p>
+<pre class="language-shell hljs">npm i
+</pre>
+<p>样板代码包含一个简单的API，允许我们使用对<code>/books</code>端点的<code>GET</code>请求来检索图书列表。因此，我们将使用一个中间件层来实现速率限制，该层将对每个用户实施限制。</p>
+<p>API的所有代码都在<code>src</code>目录中。在这种情况下，没有用户身份验证，因此我们将使用用户的IP地址来识别用户。这可作为每个请求的请求对象的属性，即<code>req.ip</code>。</p>
+<p>最后，将<code>.env.example</code>文件重命名为<code>.env</code>，因为它包含了项目的环境变量。现在，您可以通过运行以下命令来启动服务器:</p>
+<pre class="language-shell hljs">npm run dev
+</pre>
+<p>敬代码！</p>
+<h2 id="implementing-rate-limiter">实现速率限制器</h2>
+<p>我们将以两种方式实现我们的滑动窗口计数器速率限制器算法。首先，我们将使用一个第三方库，<a href="https://www.npmjs.com/package/express-rate-limit" target="_blank" rel="noopener"> Express Rate Limit </a>，另一方面，我们将做一个自定义实现。</p>
+<h3 id="using-third-party-library">使用第三方库</h3>
+<p>快速速率限制是一个npm包，通常用作节点的基本速率限制中间件。要使用这个插件，我们必须先安装它。</p>
+<p>从终端的项目目录中运行下面的命令来完成此操作:</p>
+<pre class="language-shell hljs">npm i express-rate-limit --save
+</pre>
+<p>接下来，转到项目中的<code>middlewares</code>文件夹，创建一个名为<code>rateLimiter.js</code>的文件。这是我们将为我们的API编写速率限制中间件的地方。</p>
+<p>将以下代码复制并粘贴到该文件中:</p>
+<pre class="language-js hljs">// src/middlewares/rateLimiter.js
+
+import rateLimit from 'express-rate-limit';
+
+export const rateLimiterUsingThirdParty = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hrs in milliseconds
+  max: 100,
+  message: 'You have exceeded the 100 requests in 24 hrs limit!', 
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+</pre>
+<p>在上面的代码片段中，我们将npm包导入到项目中。使用这个包，我们创建了一个中间件，它根据我们传入的选项执行速率限制，这些选项包括:</p>
+<ul>
+<li><code>windowMs</code>，窗口大小(在我们的例子中是24小时)，以毫秒为单位</li>
+<li><code>max</code>，代表每个用户每个窗口允许的请求数</li>
+<li><code>message</code>，指定用户超出允许限制时收到的响应消息</li>
+<li><code>standardHeaders</code>，它指定是否应该将适当的报头添加到响应中，以显示强制限制(<code>X-RateLimit-Limit</code>)、当前使用(<code>X-RateLimit-Remaining</code>)以及达到限制时重试前等待的时间(<code>Retry-After</code>)</li>
+</ul>
+<p>现在我们已经创建了中间件，我们需要配置我们的应用程序在处理请求时使用这个中间件。</p>
+<p>首先，通过更新<code>middlewares</code>文件夹中的<code>index.js</code>文件，从我们的中间件模块中导出中间件，如下所示:</p>
+<pre class="language-js hljs">// src/middlewares/index.js
+
+export { default as errorHandler } from './errorHandler';
+export { rateLimiterUsingThirdParty } from './rateLimiter';
+</pre>
+<p>接下来，导入<code>rateLimiterUsingThirdParty</code>中间件，并将其应用于所有应用程序路线:</p>
+<pre class="language-js hljs">// src/index.js
+// ...Some code here
+
+import { rateLimiterUsingThirdParty } from './middlewares';
+
+// ...Some code here
+
+app.use(rateLimiterUsingThirdParty);
+
+// ...Some more code goes here
+</pre>
+<p>瞧啊。我们完了。请注意，我们不必手动为每个用户指定标识符。如果你仔细阅读这个软件包的文档，如npm 上的<a href="https://www.npmjs.com/package/express-rate-limit" target="_blank" rel="noopener">，你会注意到这个软件包默认使用<code>req.ip</code>通过用户的IP地址来识别用户。</a></p>
+<p>很简单，对吧？现在让我们尝试一个稍微复杂一点的方法。</p>
+<h3 id="using-custom-implementation-redis-moment">使用自定义实现(Redis和Moment)</h3>
+<p>对于这个实现，我们将利用<a href="https://redis.io/" target="_blank" rel="noopener"> Redis </a>来跟踪每个用户的请求计数和使用其IP地址的时间戳。如果您的机器上没有安装<a href="https://blog.logrocket.com/using-redis-pub-sub-node-js/" target="_blank" rel="noopener"> Redis </a>，请按照<a href="https://redis.io/download" target="_blank" rel="noopener">这里的说明</a>进行安装。</p>
+<p>使用下面的命令，安装下面的包，这些包允许我们连接到Redis并在我们的应用程序中轻松地操作时间:</p>
+<pre class="language-shell hljs">npm i redis moment --save
+</pre>
+<p>接下来，更新您的<code>rateLimiter.js</code>，文件如下所示。下面的代码是一个中间件，它使用Redis为我们的API处理速率限制。</p>
+<p>复制粘贴到<code>rateLimiter.js</code>里面:</p>
+<pre class="language-js hljs">import moment from 'moment';
+import redis from 'redis';
+
+const redisClient = redis.createClient();
+redisClient.on('error', (err) =&gt; console.log('Redis Client Error', err));
+
+const WINDOW_SIZE_IN_HOURS = 24;
+const MAX_WINDOW_REQUEST_COUNT = 100;
+const WINDOW_LOG_INTERVAL_IN_HOURS = 1;
+
+export const customRedisRateLimiter = async (req, res, next) =&gt; {
+  await redisClient.connect();
+  try {
+    // check that redis client exists
+    if (!redisClient) {
+      throw new Error('Redis client does not exist!');
+      process.exit(1);
+    }
+    // fetch records of current user using IP address, returns null when no record is found
+    const record = await redisClient.get(req.ip);
+    const currentRequestTime = moment();
+    console.log(record);
+    //  if no record is found , create a new record for user and store to redis
+    if (record == null) {
+      let newRecord = [];
+      let requestLog = {
+        requestTimeStamp: currentRequestTime.unix(),
+        requestCount: 1,
+      };
+      newRecord.push(requestLog);
+      await redisClient.set(req.ip, JSON.stringify(newRecord));
+      next();
+    }
+    // if record is found, parse it's value and calculate number of requests users has made within the last window
+    let data = JSON.parse(record);
+    let windowStartTimestamp = moment().subtract(WINDOW_SIZE_IN_HOURS, 'hours').unix();
+    let requestsWithinWindow = data.filter((entry) =&gt; {
+      return entry.requestTimeStamp &gt; windowStartTimestamp;
+    });
+    console.log('requestsWithinWindow', requestsWithinWindow);
+    let totalWindowRequestsCount = requestsWithinWindow.reduce((accumulator, entry) =&gt; {
+      return accumulator + entry.requestCount;
+    }, 0);
+    // if number of requests made is greater than or equal to the desired maximum, return error
+    if (totalWindowRequestsCount &gt;= MAX_WINDOW_REQUEST_COUNT) {
+      res.status(429).jsend.error(`You have exceeded the ${MAX_WINDOW_REQUEST_COUNT} requests in ${WINDOW_SIZE_IN_HOURS} hrs limit!`);
+    } else {
+      // if number of requests made is less than allowed maximum, log new entry
+      let lastRequestLog = data[data.length - 1];
+      let potentialCurrentWindowIntervalStartTimeStamp = currentRequestTime.subtract(WINDOW_LOG_INTERVAL_IN_HOURS, 'hours').unix();
+      //  if interval has not passed since last request log, increment counter
+      if (lastRequestLog.requestTimeStamp &gt; potentialCurrentWindowIntervalStartTimeStamp) {
+        lastRequestLog.requestCount++;
+        data[data.length - 1] = lastRequestLog;
+      } else {
+        //  if interval has passed, log new entry for current user and timestamp
+        data.push({
+          requestTimeStamp: currentRequestTime.unix(),
+          requestCount: 1,
+        });
+      }
+      await redisClient.set(req.ip, JSON.stringify(data));
+      next();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+</pre>
+<p>这里发生了很多事情，所以让我们一步步来。</p>
+<p>首先，我们从npm安装并导入Redis和<a href="https://momentjs.com/docs/" target="_blank" rel="noopener"> Moment.js </a>并初始化所有有用的常量。我们使用Redis作为内存存储来跟踪用户活动，而Moment帮助我们精确地解析、验证、操作和显示JavaScript中的日期和时间。</p>
+<p>接下来，我们创建一个中间件<code>customRedisRateLimiter</code>，我们将在其中实现速率限制逻辑。在中间件函数的<code>try</code>块中，我们检查Redis客户机是否存在，如果不存在就抛出一个错误。</p>
+<p>使用用户的IP地址<code>req.ip</code>，我们从Redis获取用户的记录。如果返回<code>null</code>,这表明还没有为有问题的用户创建记录。因此，我们为这个用户创建一个新记录，并通过在Redis客户机上调用<code>set()</code>方法将其存储到Redis中。</p>
+<p>如果找到记录，则返回值。因此，我们将该值解析为JSON，并继续计算用户是否有资格获得响应。为了确定这一点，我们通过检索时间戳在最近24小时内的所有日志来计算用户在最后一个窗口中发出的请求的累计总数，并对其对应的<code>requestCount</code>求和。</p>
+<p>如果上一个窗口(即<code>totalWindowRequestsCount</code>)中的请求数等于允许的最大值，我们将向用户发送一条构造的错误消息，指示用户已经超过了限制。</p>
+<p>然而，如果<code>totalWindowRequestsCount</code>小于允许的限制，则请求有资格得到响应。因此，我们执行一些检查，看看自上次创建日志以来是否已经过了一个小时。如果已经过了一个小时，我们为当前时间戳创建一个新的日志。否则，我们在最后一个时间戳上增加<code>requestCount</code>,并在Redis上存储(更新)用户记录。</p>
+<p>确保将中间件导出并应用到我们的Express应用程序，就像我们在第三方库实现中所做的那样。</p>
+<p>咻！就是这样。这是否符合预期？让我们看看！</p>
+<h2 id="testing">测试</h2>
+<p>当您测试来自<a href="https://www.postman.com/downloads/" target="_blank" rel="noopener"> Postman </a>的API时，您会得到以下响应:</p>
+<pre class="language-shell hljs">localhost:8080/books
+</pre>
+<p><img data-attachment-id="120778" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/testing-our-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Testing Our API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png" decoding="async" class="size-full wp-image-120778 aligncenter jetpack-lazy-image" src="../Images/f2703dde70f4afb5016f37312e65efc9.png" alt="Testing Our API" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120778" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/testing-our-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png" data-orig-size="730,619" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Testing Our API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png" decoding="async" loading="lazy" class="size-full wp-image-120778 aligncenter" src="../Images/f2703dde70f4afb5016f37312e65efc9.png" alt="Testing Our API" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-API.png"/></noscript>
+<p>当您超过允许的限制(即每小时100个请求)时，服务器会返回以下消息:</p>
+<p><img data-attachment-id="120780" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/testing-our-error-message-that-a-user-has-exceeded-the-max-number-of-requests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png" data-orig-size="730,617" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Testing Our Error Message That A User Has Exceeded The Max Number Of Requests" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png" decoding="async" class="size-full wp-image-120780 aligncenter jetpack-lazy-image" src="../Images/dcc0c96d6fcaae18938a283a394222f6.png" alt="Testing Our Error Message That A User Has Exceeded The Max Number Of Requests" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="120780" data-permalink="https://blog.logrocket.com/rate-limiting-node-js/attachment/testing-our-error-message-that-a-user-has-exceeded-the-max-number-of-requests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png" data-orig-size="730,617" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Testing Our Error Message That A User Has Exceeded The Max Number Of Requests" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png" decoding="async" loading="lazy" class="size-full wp-image-120780 aligncenter" src="../Images/dcc0c96d6fcaae18938a283a394222f6.png" alt="Testing Our Error Message That A User Has Exceeded The Max Number Of Requests" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Testing-Our-Error-Message-That-A-User-Has-Exceeded-The-Max-Number-Of-Requests.png"/></noscript>
+<p>我们成功了！🎊</p>
+<h2>结论</h2>
+<p>在本文中，我们成功地探索了速率限制的概念——它是什么，它是如何工作的，实现它的各种方法，以及它适用的实际场景。</p>
+<p>我们还在Node.js中完成了自己的实现，首先使用一个简单的第三方库为我们处理所有繁重的工作，然后使用Redis定制实现。我希望你喜欢和我一起做这个。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

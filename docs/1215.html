@@ -1,0 +1,214 @@
+<html>
+<head>
+<title>Using Vue Composition API in React functional components - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在React功能组件中使用Vue组合API</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/vue-composition-api-in-react-functional-components/#0001-01-01">https://blog.logrocket.com/vue-composition-api-in-react-functional-components/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>自16.8版首次发布以来，React Hooks的受欢迎程度已经飙升。这是有充分理由的——将组件编写和组合成函数的能力给了你难以置信的能力和灵活性。加上出色的类型脚本支持，钩子如此吸引人也就不足为奇了。</p>
+<p>然后是<a href="https://v3.vuejs.org/guide/composition-api-introduction.html"> Vue Composition API </a>，拥有漂亮的反应系统和改进的静态类型支持。现在确实是做前端工程师的好时机，但决策瘫痪可能是一场真正的斗争。我是放弃写Vue和port去反应钩子，还是反过来？</p>
+<p>等等！如果你不必做出选择呢？如果可以在React组件中使用Vue组合API会怎么样？来了<code><a href="https://github.com/antfu/reactivue">reactivue</a></code>让你能够做到这一点。</p>
+<h2>什么是<code>reactivue</code>？</h2>
+<p><code>reactivue</code> <a href="https://github.com/antfu/reactivue/blob/master/README.md">将自己</a>描述为一个框架中React的最佳元素和Vue.js的最佳元素。简而言之，您可以在React中编写Vue片段——兼顾两个世界。</p>
+<blockquote><p><strong>注意</strong> : <code>reactivue</code>目前仍处于试验阶段，未来可能会有一些突破性的变化。暂时不要在生产中使用，但是可以随意试用。</p></blockquote>
+<h2>入门指南</h2>
+<p>本文假设您对Vue与组合API的反应以及功能组件与钩子的反应有相当的理解。无论如何，你不需要成为一名专家，但是对这些概念的基本熟悉是必要的。我们不会深入讨论它们如何工作的细节，而是它们如何在<code>reactivue</code>的帮助下协同工作。</p>
+<p>事不宜迟，我们来安装<code>reactivue</code>。安装很简单——只需添加带有Yarn或npm的包，如下所示:</p>
+<pre>npm i reactivue
+ // or
+yarn add reactivue</pre>
+<h2>使用</h2>
+<p>让我们构建一个简单的颜色选择器来看看这一过程。为了让事情变得简单明了，我们将不再做样式设计，只需要理解设置是如何工作的。有趣的部分是可视化<code>reactivue</code>如何集成Vue组合API和React函数，使它们无缝地协同工作。</p>
+<p>我们的颜色选择器只是从HTML颜色输入中选择一种颜色，并根据选择的颜色更新div的背景颜色。作为一项任务，您可以扩展它来设置各种样式，或者添加复杂的条件逻辑来更好地理解概念。下面是代码，后面是深潜。</p>
+<pre>import * as React from "react";
+import { useState, ChangeEvent } from "react";
+import { defineComponent, ref, computed, onUnmounted, onMounted } from "reactivue";
+
+interface Props {
+  color: string;
+  height: number;
+  width: number;
+}
+
+const MyColor = defineComponent(
+  // setup function in Vue
+  ({ color, width, height }: Props) =&gt; {
+    const background = ref(color);
+    const boxWidth = ref(width);
+    const boxHeight = ref(height);
+    const boxStyle: any = computed(() =&gt; {
+      return {
+        width: `${boxWidth.value}px`,
+        height: `${boxHeight.value}px`,
+        backgroundColor: background.value
+      };
+    });
+
+    onMounted(() =&gt; console.log("Hello World"));
+    onUnmounted(() =&gt; console.log("Goodbye World"));
+
+    return { background, boxWidth, boxStyle, boxHeight };
+  },
+  // functional component in React
+  ({ background, boxWidth, boxStyle }) =&gt; {
+    // you are now in react territory. You can use all hooks and methods.
+    const [newStyle, setNewStyle] = useState(boxStyle);
+    const onChangeColor = ({
+      target: { value }
+    }: ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+      setNewStyle({
+        ...boxStyle,
+        backgroundColor: value
+      });
+    };
+    return (
+      &lt;div&gt;
+        &lt;input
+          type="color"
+          onChange={(e) =&gt; onChangeColor(e)}
+          style={{ marginBottom: "20px", width: "300px" }}
+        /&gt;
+
+        &lt;div style={newStyle}&gt;&lt;/div&gt;
+      &lt;/div&gt;
+    );
+  }
+);
+
+// use it as you normally would
+render(&lt;MyColor color="red" width={300} height={200} &gt;, el)</pre>
+<p>下面是一个工作示例:</p>
+<p>这很容易做到。我们已经从<code>reactivue</code>导入了React和设置所需的方法。</p>
+<p>在这里，您可以创建一个所谓的<strong>工厂</strong>组件，它从<code>@vue/reactivity</code>导入反应性API。从这个意义上说，下面的几行是等价的:</p>
+<p><code>defineComponent</code>函数公开了Vue的生命周期挂钩。我们创建一个<code>Props</code>对象，它将被传递给React组件。使用组合API，我们能够用<code>ref</code>设置内部状态，并创建一个计算属性来更新React组件内部的样式。</p>
+<pre>// both line are equivalent.
+import { ref, reactive, computed } from 'reactivue'
+import { ref, reactive, computed } from '@vue/reactivity</pre>
+<p>关于组合API是如何工作的，我就不赘述了。我们需要理解的是，<code>background</code>、<code>boxWidth</code>、<code>boxHeight</code>和<code>boxStyle</code>都是反应性的，并被传递给React组件，在那里它们可以像在任何React组件中一样被使用和转换。</p>
+<p>在我们的例子中，我们使用React的<code>useState</code>钩子设置一个<code>newStyle</code>状态。我们接受背景道具，并在React组件中用新状态更新它。</p>
+<p>在这里，您已经可以看到我们如何从Vue传递一个状态，并在React中更改它。然后，通过Vue的反应性(从<code>number</code>到<code>px</code>)和在React中重新计算，这将设置一个新的样式。</p>
+<p>这一开始可能会令人困惑，但它出奇的简单。试验代码，尝试跟踪不同样式的变化，或者添加一些其他的计算属性。</p>
+<p>钩住</p>
+<h3>你也可以把它当钩子用。</h3>
+<p><code>defineComponent</code>工厂实际上是<code>useSetup</code>的语法糖。下面的代码类似于上面使用组件工厂的代码。</p>
+<p>主要区别在于，在React中，从Vue访问状态是作为一个普通的状态对象。您可以简单地从状态中析构您需要的东西，并在React功能组件中使用它。</p>
+<pre>import * as React from "react";
+import { useState, ChangeEvent } from "react";
+import { useSetup, ref, computed } from "reactivue";
+
+function MyColor(Props: Props) {
+  const state = useSetup(
+    ({ color, width, height }: Props) =&gt; {
+      // shortened for brevity; same as above example
+      const boxStyle: any = computed(() =&gt; {
+        return {
+          width: `${boxWidth.value}px`,
+          height: `${boxHeight.value}px`,
+          backgroundColor: background.value
+        };
+      });
+      return { background, boxWidth, boxStyle, boxHeight };
+    },
+    Props // pass React props to it
+  );
+
+  // state is a plain object just like React state
+  const { boxStyle } = state;
+
+  const [newStyle, setNewStyle] = useState(boxStyle);
+  const onChangeColor = ()=&gt; { //shortened for brevity}
+
+
+  return (&lt;div&gt;  /**/ &lt;/div);
+}</pre>
+<p>钩子工厂</p>
+<h3>React钩子的另一个重要概念是组合和重用组合逻辑，也称为定制钩子。你可以用<code>reactivue</code>里的钩子工厂来实现这个。</h3>
+<p>假设您想编写一个自定义钩子来计算给定数字数组的平均值，并按输入值递增数组中的数字。我们来写一个<code>useCalculation</code>钩子。</p>
+<p>那么这段逻辑就可以复用如下；</p>
+<pre>import { createSetup, ref, computed, onUnmounted, onMounted } from "reactivue";
+
+export interface Props {
+  numbers: Array&lt;number&gt;;
+}
+
+// create a custom hook that can be reused
+export const useCalculation = createSetup((props: Props) =&gt; {
+  const numbers = ref(props.numbers);
+  const average = computed(
+    () =&gt; numbers.value.reduce((a, b) =&gt; a + b) / numbers.value.length
+  );
+  const increment = (by: number) =&gt; {
+    return numbers.value.map((num) =&gt; {
+      return num + by;
+    });
+  };
+
+  onMounted(() =&gt; console.log("Hello World"));
+  onUnmounted(() =&gt; console.log("Goodbye World"));
+
+  return { numbers, average, increment };
+});
+
+export default useCalculation;</pre>
+<p>下面是一个工作演示:</p>
+<pre>import * as React from "react";
+import { ChangeEvent, useState } from "react";
+
+import { Props, useCalculation } from "./useCalculation";
+
+export const App = (props: Props) =&gt; {
+  const [myNumbers, setMyNumbers] = useState(props.numbers);
+  const { increment, average } = useCalculation({
+    numbers: myNumbers
+  });
+
+  const onChange = ({
+    target: { value }
+  }: ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+    setMyNumbers(increment(parseInt(value,10)));
+  };
+  return (
+    &lt;div&gt;
+      &lt;input type="number" onChange={(e) =&gt; onChange(e)} /&gt;
+      &lt;ul&gt;
+        {" "}
+        {myNumbers.map((num, index) =&gt; {
+          return &lt;li key={index}&gt;{num}&lt;/li&gt;;
+        })}
+      &lt;/ul&gt;
+      &lt;br /&gt;
+      &lt;div&gt;The Average is of numbers = {average} &lt;/div&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>额外的API</p>
+<p>生活过程</p>
+<h2>实现Vue的基本生命周期挂钩，然后将它们与React的生命周期挂钩绑定。对于一些没有React等价物的生命周期，它们将在应该被调用的时候被调用(例如，<code>onMounted</code>将在<code>onCreated</code>之后被调用)。</h2>
+<h3>更多来自LogRocket的精彩文章:</h3>
+<p>它们可以像你在Vue中一样被使用。</p><div class="code-block code-block-54">
+<hr/>
+<h3><code>defineComponent()</code>–接受将返回反应功能组件的设置函数和渲染函数</h3>
+
+<hr/></div>
+<p><code>useSetup()</code>–解析组合API的设置</p>
+<ul>
+<li>将你的逻辑打包成可重用的定制钩子的工厂</li>
+<li>结论</li>
+<li>在这里，我们探索了将两个强大工具中的概念混合并匹配成一个工具的有趣可能性。尽管这在很大程度上仍然是实验性的，但我们可以看到我们将享受的巨大好处Vue及其反应系统的简单性以及React的最佳部分。</li>
+</ul>
+<h2>我们看了如何在Vue中设置反应数据和计算属性，以及如何通过道具或状态对象在React中使用它们。我们通过易于理解的例子和小应用程序来了解这种可能性。您可以通过派生示例并构建出色的项目来更进一步。这将是最好的<strong> <em>反应</em> </strong>离子从我的<strong> <em> Vue </em> </strong>😃。</h2>
+<p>像用户一样体验您的Vue应用</p>
+<p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>. </h2><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p><p>The LogRocket Vuex plugin logs Vuex mutations to the LogRocket console, giving you context around what led to an error, and what state the application was in when an issue occurred.</p><p>Modernize how you debug your Vue apps - <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

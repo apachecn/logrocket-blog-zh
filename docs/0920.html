@@ -1,0 +1,146 @@
+<html>
+<head>
+<title>How to deploy Deno applications to production - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何将Deno应用程序部署到生产日志</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/#0001-01-01">https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>先决条件</h2>
+<ul>
+<li><a href="https://www.docker.com" target="_blank" rel="noopener noreferrer"> Docker </a>安装在你的服务器和本地机器上</li>
+<li>一个Ubuntu服务器，你可以从<a href="https://Digitalocean.com" target="_blank" rel="noopener noreferrer"> DigitalOcean </a>得到一个</li>
+<li>对<a href="https://git-scm.com" target="_blank" rel="noopener noreferrer"> git </a>的基本了解</li>
+<li>对命令行界面的基本了解</li>
+</ul>
+<p>在这一步中，您将创建一个简单的Deno应用程序来显示hello world <span>。与NodeJS不同，您不需要运行</span> <code>npm init</code> <span>来创建新的应用程序。您可以简单地创建一个TypeScript文件并开始编码。</span></p>
+<p>首先，在本地机器上创建一个名为<code>deno-deploy</code>的新目录，运行:</p>
+<pre>mkdir deno-deploy</pre>
+<p>通过运行以下命令将目录更改为<code>deno-deploy</code>:</p>
+<pre>cd deno-deploy</pre>
+<p>通过运行以下命令，在<code>deno-deploy</code>目录下创建一个名为<code>server.ts</code>的新文件:</p>
+<pre>touch server.ts</pre>
+<blockquote><p>注意:或者，你可以使用你最喜欢的编辑器来创建这个文件。</p></blockquote>
+<p>用您喜欢的编辑器打开<code>server.ts</code>,粘贴并保存以下代码片段:</p>
+<pre>import { serve } from "https://deno.land/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ccbfb8a88cfce2f9ffe2fc">[email protected]</a>/http/server.ts";
+
+const server = serve({ port: 8000 });
+
+console.log("Now serving on port 8000 🔥");
+
+for await (const req of server) {
+    req.respond({ body: "Hello World"});
+}
+</pre>
+<p>上面的代码片段将创建一个Deno服务器，并在端口<code>8000</code>上提供内容<code>Hello World</code>。</p>
+<h2>创建Docker配置</h2>
+<h3>创建Dockerfile文件</h3>
+<p>在这一步中，您将为Deno应用程序设置Docker配置。首先，您将通过终端运行以下命令创建一个名为<code>Dockerfile</code>的新文件:</p>
+<pre>touch Dockerfile</pre>
+<p>用您喜欢的文本编辑器打开<code>Dockerfile</code>,然后粘贴并保存以下代码片段:</p>
+<pre>FROM hayd/deno:latest
+
+EXPOSE 8000
+
+WORKDIR /app
+
+ADD . /app
+
+RUN deno cache server.ts
+
+CMD ["run", "--allow-net", "server.ts"]
+
+</pre>
+<p>让我们分解一下<code>Dockerfile</code>中的这些行在执行时会做什么:</p>
+<h3>来自hayd/deno:最新</h3>
+<p>从Docker hub获取最新版本的<code>hayd/deno</code>图像。</p>
+<h3>暴露8000</h3>
+<p>构建时在我们的容器上公开端口<code>8000</code>。</p>
+<h3>WORKDIR /app</h3>
+<p>在我们的容器中创建工作目录<code>/app</code>。</p>
+<h3>补充。/应用程序</h3>
+<p>将根目录的内容复制到Docker容器中的<code>/app</code>目录。</p>
+<h3>运行deno cache server.ts</h3>
+<p>编译<code>server.ts</code>,这样它就不需要在每次启动时都被编译。</p>
+<h3>CMD ["run "，"–allow-net "，" server.ts"]</h3>
+<p>这将运行<code>server.ts</code>文件并启用网络。</p>
+<h3>创建dock-compose . yml</h3>
+<p>在这一步中，您将创建一个<code>docker-compose.yml</code>文件，该文件将用于将所有内容拼凑在一起并为我们的应用程序服务。要创建一个<code>docker-compose.yml</code>文件，运行:</p>
+<pre>touch docker-compose.yml</pre>
+<p>用您喜欢的文本编辑器打开<code>docker-compose.yml</code>,然后粘贴并保存以下代码片段:</p>
+<pre>version: '3'
+
+services:
+  web:
+    build: .
+    container_name: deno-deploy
+    ports:
+      - "8000:8000"
+</pre>
+<p>让我们来分解一下<code>docker-compose.yml</code>中的这些行在执行时会做什么。<code>version: '3'</code>指定文件中包含的<code>YAML</code>的版本:</p>
+<pre>web:
+    build: .
+    container_name: deno-deploy
+    ports:
+      - "8000:8000"</pre>
+<p>这个部分包含了<code>web</code>服务。</p>
+<h3><code>build: .</code></h3>
+<p>这表明我们想要构建的<code>Dockerfile</code>在当前目录中。</p>
+<h3><code>container_name: deno-deploy</code></h3>
+<p>这将确保构建中的容器名称是<code>deno-deploy</code>。</p>
+<h3><code>ports: - "8000:8000"</code></h3>
+<p>将把容器端口<code>8000</code>映射到主机服务器端口<code>8000</code>。</p>
+<h2>构建并运行容器</h2>
+<p>要在本地构建Docker容器，请运行:</p>
+<pre>docker-compose up</pre>
+<p><img data-attachment-id="19932" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/dockercompose/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png" data-orig-size="730,553" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dockercompose" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png" decoding="async" class="aligncenter size-full wp-image-19932 jetpack-lazy-image" src="../Images/25a7a3a8bba775ce1fab3bd9f3a8d6a8.png" alt="docker compose in terminal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose-300x227.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19932" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/dockercompose/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png" data-orig-size="730,553" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="dockercompose" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19932" src="../Images/25a7a3a8bba775ce1fab3bd9f3a8d6a8.png" alt="docker compose in terminal" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose-300x227.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/dockercompose.png"/></noscript>
+<p>您可以通过首选的网络浏览器在<code><a href="http://localhost:8000" rel="nofollow">http://localhost:8000</a></code>上访问您的应用程序。</p>
+<p><img data-attachment-id="19934" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/helloworld-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="helloworld" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png" decoding="async" class="aligncenter size-full wp-image-19934 jetpack-lazy-image" src="../Images/2fdd01ecd90fc21770ccbdec1f74dd47.png" alt="weblocal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld-300x227.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19934" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/helloworld-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="helloworld" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19934" src="../Images/2fdd01ecd90fc21770ccbdec1f74dd47.png" alt="weblocal" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld-300x227.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld.png"/></noscript>
+<h2>部署到生产环境</h2>
+<h3>推送至GitHub</h3>
+<p>Docker使在任何地方快速部署应用程序变得容易。首先，你需要让你的代码在git版本控制上可用，GitHub是一个很好的提供者。<a href="https://github.com/new" target="_blank" rel="noopener noreferrer">创建一个名为<code>deno-deploy</code>的新存储库</a>。<br/> <img data-attachment-id="19936" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/github/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="github" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png" decoding="async" class="aligncenter size-full wp-image-19936 jetpack-lazy-image" src="../Images/f6c6629069ca340ccfc43d8f6dc1358d.png" alt="github" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/github-300x227.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19936" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/github/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="github" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19936" src="../Images/f6c6629069ca340ccfc43d8f6dc1358d.png" alt="github" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/github-300x227.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github.png"/></noscript>
+<p><img data-attachment-id="19937" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/github1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="github1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png" decoding="async" class="aligncenter size-full wp-image-19937 jetpack-lazy-image" src="../Images/84aca81f597d9b6c86f1fce00c5a9020.png" alt="github 1" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/github1-300x227.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19937" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/github1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="github1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19937" src="../Images/84aca81f597d9b6c86f1fce00c5a9020.png" alt="github 1" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/github1-300x227.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/github1.png"/></noscript>
+<p>打开终端，同时仍在<code>deno-deploy</code>目录中。运行:</p>
+<pre>git init</pre>
+<p>这将启动一个新的git存储库。接下来，通过运行以下命令转移所有文件:</p>
+<pre>git add .</pre>
+<p>使用提交消息<code>"deno deploy"</code>提交暂存文件:</p>
+<pre>git commit -m "deno deploy"</pre>
+<p>通过运行以下命令推送至主分支:</p>
+<pre>git push -u origin master</pre>
+<p>这将把代码库和Docker配置一起推送到Github库的主分支。</p>
+<h2>在服务器上部署</h2>
+<p>在这一步中，您将使您的源代码在服务器上可用，并且可以通过互联网访问它。<br/> SSH进入您的服务器:</p>
+<pre>ssh {SERVER_USER}@{SERVER_IP}</pre>
+<ul>
+<li><code>SERVER_USER</code>是服务器的用户</li>
+</ul>
+<ul>
+<li><code>SERVER_IP</code>是服务器的IP地址</li>
+</ul>
+<p>克隆存储库:</p>
+<pre>git clone https://github.com/{GITHUB_USERNAME}/deno-deploy.git</pre>
+<blockquote><p>注意:<code>GITHUB_USERNAME</code>是您实际的GitHub用户名</p></blockquote>
+<p><span>将目录更改为克隆的存储库:</span></p>
+<pre>cd deno-deploy</pre>
+<p>执行<code>docker-compose</code>命令:</p>
+<pre>docker-compose up -d</pre>
+<p>与您在本地机器上执行<code>docker-compose</code>的方式不同，这里有一个<code>-d</code>标志，它使您的docker容器能够以分离模式运行。简单来说，它允许你的docker容器在后台运行。<br/>T3】</p><noscript><img data-lazy-fallback="1" data-attachment-id="19940" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/detached/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/detached.png" data-orig-size="730,580" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="detached" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/detached-300x238.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/detached.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19940" src="../Images/9b994f1542018a82ed4b9444501c1717.png" alt="detached" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/detached.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/detached-300x238.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/detached.png"/></noscript>
+<p>您将能够在<code><a href="http://" rel="nofollow">http://</a>{SERVER_IP}:8000</code>访问您的应用程序。我这种情况，可以去参观<code><a href="http://104.248.172.220:8000">http://104.248.172.220:8000</a></code>。</p>
+<p><img data-attachment-id="19942" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/helloworld1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="helloworld1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png" decoding="async" class="aligncenter size-full wp-image-19942 jetpack-lazy-image" src="../Images/b8905722e5a7ddcc413ca67f84359ea1.png" alt="production" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1-300x227.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="19942" data-permalink="https://blog.logrocket.com/how-to-deploy-deno-applications-to-production/helloworld1/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png" data-orig-size="730,552" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="helloworld1" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1-300x227.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-19942" src="../Images/b8905722e5a7ddcc413ca67f84359ea1.png" alt="production" srcset="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1-300x227.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/helloworld1.png"/></noscript>
+<h2>结论</h2>
+<p>在本文中，我们学习了如何创建一个简单的Deno web服务器，如何为Deno web服务器创建Docker配置，如何将您的代码推送到GitHub，以及如何使您的Deno应用程序在互联网上可用。编码快乐！</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

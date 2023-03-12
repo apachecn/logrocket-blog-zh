@@ -1,0 +1,331 @@
+<html>
+<head>
+<title>Building web apps with Rust using the Rocket framework - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Rocket框架用Rust构建web应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rust-web-apps-using-rocket-framework/#0001-01-01">https://blog.logrocket.com/rust-web-apps-using-rocket-framework/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>Rust正逐渐成为许多开发人员的首选语言，他们希望更快地构建高效可靠的应用程序，同时仍然保持灵活性和底层控制。有了像<a href="https://rocket.rs/"> Rocket </a>这样的web框架，web开发人员可以使用Rust构建快速安全的web应用程序。</p>
+<p/>
+<p>在本文中，我们将通过构建一个简单的web应用程序来介绍Rust for web。虽然这将是一个使用Rocket框架构建类型安全、快速、可靠的web应用程序的分步指南，但本文还假设您对Rust有基本的了解。如果你没有，Rust编程语言 这本书是让你熟悉这种语言的绝佳资源。</p>
+<h2>Rocket web框架入门</h2>
+<p>在我们开始之前，让我们通过在我们的终端上运行以下命令来确认我们已经在我们的机器上安装了rustup:</p>
+<pre>rustup --version</pre>
+<p>如果上述命令导致错误，点击<a href="https://rustup.rs/">这里</a>查看rustup安装说明。Rustup安装在我们的本地计算机上设置Rust和Cargo，Rust的包管理器。</p>
+<h2>设置我们的应用程序</h2>
+<p>安装rustup后，我们可以使用Cargo创建一个新的Rust项目。让我们在终端上运行以下命令:</p>
+<pre>cargo new rocket-web --bin</pre>
+<p>这将创建一个名为rocket-web的新Rust应用程序。<code>--bin</code>标志告诉Cargo生成一个基于二进制的项目。</p>
+<p>接下来，我们将从终端导航到新的项目目录，并将Rust nightly配置为我们的项目工具链:</p>
+<pre>cd rocket-web
+rustup override set nightly</pre>
+<p>Rocket使用Rust的不稳定特性，比如它的语法扩展。这就是为什么我们将Rust的夜间版本设置为我们的项目工具链。让我们导航到根目录中的<code>./cargo.toml</code>文件，并添加<code>rocket</code>作为依赖项:</p>
+<pre>[dependencies]
+rocket = "0.4.5"</pre>
+<p>要在我们的项目中使用Rocket，让我们将它导入到<code>./src/main.rs</code>文件中:</p>
+<pre>#[macro_use] extern crate rocket;</pre>
+<p>这将从<code>rocket</code>箱中导入宏。或者，我们可以使用下面的行:</p>
+<pre><em>use rocket::*;</em></pre>
+<p>接下来，我们将使用<code>#![feature()]</code>标志为我们的火箭项目启用不稳定的<code><em>decl_macro</em></code>特性。在为我们的web应用程序创建路线时，我们将需要它。就在<code>use rocket::*</code>声明之前，让我们加上这一行:</p>
+<pre>#![feature(decl_macro)]</pre>
+<h2>创造了我们的第一条火箭路线</h2>
+<p>现在我们已经设置好了，我们可以开始创建我们的第一条火箭路线。让我们从<code>rocket::response::content</code>宏中导入<code>Json</code>类型。当我们的路由被调用时，我们将用它来发送响应。在第4行的<code>Json</code>导入之后，我们的<code>main.rs</code>文件应该是这样的:</p>
+<pre>#![feature(decl_macro)]
+#[macro_use] extern crate rocket;
+
+use rocket::response::content::Json;
+
+fn main() {
+    println!("Hello, world!");
+}</pre>
+<p>接下来，让我们将下面的代码块粘贴到<code>main</code>函数之前，以创建我们的第一条路线:</p>
+<pre>#[get("/hello")]
+fn hello() -&gt; Json&lt;&amp;'static str&gt; {
+  Json("{
+    'status': 'success',
+    'message': 'Hello API!'
+  }")
+}</pre>
+<p>在上面的代码块中，我们首先使用属性<code>#get("/hello")]</code>告诉Rocket，我们的函数需要一个对<code>/hello</code>路线的<code>GET</code>请求。接下来，我们将函数命名为<code>hello()</code>，并使用<code>&lt;&amp;'static str&gt;</code>参数将其返回类型指定为<code>Json</code>。</p>
+<p>这意味着当一个<code>GET</code>请求被发送到我们的<code>/hello</code>路由时，它将返回一个带有主体<code>'status': 'success'</code>和<code>'message': 'Hello API!'</code>的JSON响应，这是我们在第4–6行添加的。</p>
+<p>为了测试我们的新路由，让我们删除<code>main()</code>函数中的<code>println!</code>语句，并将以下代码粘贴到其中:</p>
+<pre>rocket::ignite()
+  .mount("/api", routes![hello])
+  .launch();</pre>
+<p>这使用来自<code>rocket</code>箱的<code>ignite()</code>方法创建一个新的Rocket实例，然后用<code>mount()</code>方法和基本路径<code>/api</code>挂载我们的<code>hello</code>路径。最后，我们使用<code>launch()</code>方法启动应用服务器并监听请求。</p>
+<p>我们现在可以在终端上运行<code>cargo build</code>来编译我们的Rocket应用程序。对此我们应该得到类似的回应:</p>
+<pre>cargo build
+    Finished dev [unoptimized + debuginfo] target(s) in 0.25s</pre>
+<p>接下来，让我们运行命令<code>cargo run</code>启动我们的应用程序。对此我们应该得到类似的回应:</p>
+<pre>cargo run
+    Finished dev [unoptimized + debuginfo] target(s) in 0.24s      
+     Running `target\debug\rust_rocket.exe`
+�👾 Configured for development
+    =&gt; address: localhost
+    =&gt; port: 8000
+    =&gt; log: normal
+    =&gt; workers: 8
+    =&gt; secret key: generated
+    =&gt; limits: forms = 32KiB
+    =&gt; keep-alive: 5s
+    =&gt; tls: disabled
+🚀   Mounting /api:
+    =&gt; GET /api/hello (hello)
+��� Rocket has launched from http://localhost:8000</pre>
+<p>最后，我们可以通过在浏览器或API客户端上导航到<code><a href="http://localhost:8000/api/hello" rel="nofollow">http://localhost:8000/api/hello</a></code>来测试我们的应用程序和路由。我们应该会收到以下响应:</p>
+<pre>{
+    'status': 'success',
+    'message': 'Hello API!'
+}</pre>
+<h2>用Rocket处理POST请求</h2>
+<p>我们已经成功发布了我们的第一个火箭API，但这仅仅是个开始。除了返回JSON响应，Rocket还允许我们返回其他类型，如<code>String</code>、<code>Status</code>和<code>Template</code>。火箭文档在解释不同的返回和响应类型方面做得很好。</p>
+<p>我们将很快看到如何使用Rocket来呈现HTML，但在此之前，让我们看看在Rocket中创建一条<code>POST</code>路线是什么样的。我们将使用我们的<code>POST</code>路由向一个虚拟数据库添加图书信息。</p>
+<p>Rocket支持MySQL、Postgres、SQLite、Redis和MongoDB等数据库。你可以在这里阅读更多关于数据库选项<a href="https://rocket.rs/v0.4/guide/state/#databases">的信息。在这个演示中，我们将使用一个向量来创建虚拟数据库。</a></p>
+<p>首先，让我们定义当用户向我们的book route发送请求时，我们期望从用户那里得到什么类型的信息。为此，我们将使用一个名为<code>Book</code>的结构。就在我们创建的<code>hello()</code>路由之前，让我们定义我们的新结构:</p>
+<pre>struct Book {
+  title: String,
+  author: String,
+  isbn: String
+}</pre>
+<p>接下来，让我们用下面几行代码创建我们的<code>POST</code>路线:</p>
+<pre>#[post("/book", data = "&lt;book_form&gt;")]
+fn new_book(book_form: Book) -&gt; String {
+}</pre>
+<p>这一次，我们添加了Rocket在监视请求时应该期望的数据类型，作为route属性<code>#[post()]</code>的第二个参数。我们继续在我们的<code>new_book()</code>函数参数中为<code>book_form</code>提供类型，并将我们的函数返回类型定义为<code>String</code>。如果我们尝试编译它，我们应该会得到类似下面的错误消息:</p>
+<pre>the trait bound `Book: rocket::data::FromDataSimple` is not satisfied</pre>
+<p>为了解决这个问题，让我们将下面一行添加到文件顶部的导入语句中，以导入<code>Form</code>类型:</p>
+<pre>use rocket::request::Form;</pre>
+<p>接下来，我们将把<code>#[derive(FromForm)]</code>属性添加到我们的<code>Book</code>结构中。我们的结构声明现在应该如下所示:</p>
+<pre>#[derive(FromForm)]
+struct Book {
+  title: String,
+  author: String,
+  isbn: String
+}</pre>
+<p>现在，我们可以通过将我们作为<code>new_book()</code>函数参数提供的<code>book_form</code>类型与我们刚刚导入的<code>Form</code>类型包装在一起来实现<code>[FromData]</code>特征:</p>
+<pre>#[post("/book", data = "&lt;book_form&gt;")]
+fn new_book(book_form: Form&lt;Book&gt;) -&gt; String {
+}</pre>
+<p>接下来，我们将告诉我们的路由无论何时被调用都要做什么。就在我们的<code>new_book()</code>函数中，让我们粘贴以下代码:</p>
+<pre>let book: Book = book_form.into_inner();
+let <em>mut</em> dummy_db: Vec&lt;Book&gt; = Vec::new();
+dummy_db.push(book);
+format!("Book added successfully: {<strong>:</strong>?}", dummy_db)</pre>
+<p>在上面的块中，我们使用<code>book_form.into_inner()</code>方法从我们的用户那里获得请求体，然后我们将我们的虚拟数据库定义为一个类型为<code>Book</code>的向量，并使用<code>dummy_db.push(book)</code>表达式将我们从用户那里收到的数据推送到它那里。</p>
+<p>最后，我们返回了字符串<code>"Book added successfully: {<strong>:</strong>?}", dummy_db)</code>。我们为此使用了<code>format!</code>方法，因为我们将向量<code>dummy_db</code>添加到了字符串响应中。让我们也在我们的<code>Book</code>结构属性中添加<code>Debug</code>标志来实现这一点:</p>
+<pre>#[derive(FromForm, Debug)]
+struct Book {
+  ...
+}</pre>
+<p>接下来，我们将把新的<code>POST</code>路线添加到我们的<code>main()</code>函数中的<code>/api</code>路径中:</p>
+<pre>rocket::ignite()
+  .mount("/api", routes![hello])
+  .launch();</pre>
+<p>现在，我们可以使用<code>cargo build</code>重新构建我们的应用程序，并使用<code>cargo run</code>运行它来测试我们的<code>POST</code>路线。我们可以使用<code>cargo-watch</code>来编译和运行我们的应用程序，这样我们就不必每次修改应用程序时都重新构建。让我们通过在终端上运行以下命令来安装和使用<code>cargo-watch</code>:</p>
+<pre>cargo install cargo-watch
+cargo watch -x run</pre>
+<h2>用火箭处理404条路线</h2>
+<p>让我们为不存在的路由创建一个处理404响应的新路由。我们将我们的路由命名为<code>not_found</code>,每当用户请求一条不存在的路由时就调用它。让我们将下面的代码块粘贴到<code>main</code>函数之前:</p>
+<pre>#[catch(404)]
+fn not_found(req: &amp;Request) -&gt; String {
+    format!("Oh no! We couldn't find the requested path '{}'", req.uri())
+}</pre>
+<p>在上面的代码块中，我们首先使用<code>#[catch(404)]</code>属性告诉Rocket在调用这个路由时返回404错误。然后我们定义了我们的<code>not_found()</code>函数，为它提供了一个类型为<code>Request</code>的<code>req</code>参数，并为它的返回类型指定了<code>String</code>。最后，我们返回了错误消息，并使用<code>req.uri()</code>方法包含了请求的路径。</p>
+<p>在我们继续之前，让我们通过向我们的导入语句添加以下行来导入我们刚刚在<code>not_found</code>路由中使用的<code>Request</code>类型:</p>
+<pre>use rocket::Request;</pre>
+<p>我们的导入现在应该是这样的:</p>
+<pre>use rocket::Request;
+use rocket::response::content::Json;
+use rocket::request::Form;</pre>
+<p>接下来，让我们将<code>main()</code>函数中的<code>Rocket</code>实例修改为:</p>
+<pre>rocket::ignite()
+  .register(catchers![not_found])
+  .mount("/api", routes![hello])
+  .launch();</pre>
+<p>我们在Rocket实例中通过<code>catchers!</code>宏用我们的<code>not_found</code>路线调用了<code>register()</code>方法。为了测试我们的<code>not_found</code>路线，让我们导航到一个从我们的浏览器或API客户端不存在的路径。例如，当我们导航到<code>localhost:8000/api/nothingness</code>时，我们应该得到以下响应:</p>
+<pre>Oh no! We couldn't find the requested path '/api/nothingness'</pre>
+<h2>使用Rocket渲染HTML模板</h2>
+<p>让我们探索用Rocket渲染HTML模板。我们将开始创建一个新的属性为<code>#[get("/")]</code>的<code>GET</code>路线，就在我们之前创建的<code>hello</code>路线之前:</p>
+<pre>#[get("/")]
+fn index() -&gt; Template {
+}</pre>
+<p>我们将在应用程序的登录页面中使用这个新路径。注意，我们将函数命名为<code>index</code>，这一次，函数的返回类型是<code>Template</code>。让我们通过在导入语句中添加下面一行来导入<code>Template</code>类型:</p>
+<pre>use rocket_contrib::templates::Template;</pre>
+<p>接下来，我们将在<code>./cargo.toml</code>文件中包含以下代码，就在dependencies部分之后:</p>
+<pre>[dependencies.rocket_contrib]
+version = "0.4.5"
+features = ["handlebars_templates"]</pre>
+<p>这增加了在我们的应用程序中渲染<code>handlebars_templates</code>引擎的支持。Rocket也支持<a href="https://tera.netlify.app/docs/">万亿次模板引擎</a>。我们可以通过替换特性中的<code>handlebars_templates</code>或者像这样添加来包含:</p>
+<pre>features = ["handlebars_templates", "tera_templates"]</pre>
+<p>现在，我们可以在项目的根目录下创建<code>./templates</code>文件夹。默认情况下，Rocket会在这里查找我们的模板文件。让我们在<code>./templates</code>目录下创建一个新文件<code>home.hbs</code>，并将以下代码粘贴到其中:</p>
+<pre>&lt;head&gt;
+  &lt;style type="text/css"&gt;
+    body {
+      background: #1a6875;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .left-side {
+      max-width: 45%;
+      text-align: right;
+      position: absolute;
+      top: 15%;
+      left: 0;
+    }
+    .title {
+      color: #fff;
+      font-size: 5em;
+    }
+    .sub-title {
+      color: #fff;
+      font-size: 1.3em;
+    }
+    .right-side {
+      width: 30em;
+      height: 30em;
+      background: #d0e64c;
+      border-radius: 50%;
+      position: absolute;
+      top: 10%;
+      right: 5%;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="left-side"&gt;
+    &lt;h1 class="title"&gt;This web app was built with RUST&lt;/h1&gt;
+    &lt;p class="sub-title"&gt;Hello {{first_name}} {{last_name}}😊&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="right-side"&gt;
+    &lt;div class="round-image"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;</pre>
+<p>如果你不熟悉手柄模板语言，你可以点击这里的<a href="https://handlebarsjs.com/guide/#what-is-handlebars">查看他们的文档。它非常类似于普通的HTML代码。如果你注意到，在我们的<code>&lt;body&gt;</code>标签和<code>left-side</code> div中，我们有一个包含<code>Hello {{first_name}} {{last_name}}😊</code>的<code>sub-title</code>类的段落。我们将在呈现我们的<code>home.hbs</code>文件时提供这些变量。</a></p>
+<p>让我们回到<code>./src/main.rs</code>文件中的索引路径。在函数内部，我们将创建一个名为<code>Context</code>的结构，并使用<a href="https://serde.rs/"> Serde </a>在我们的结构上实现Serialize。我们的结构将定义模板文件需要的变量类型:</p>
+<pre>#[derive(Serialize)]
+struct Context {
+  first_name: String,
+  last_name: String
+}</pre>
+<p>我们还将导入刚刚用于我们的<code>Context</code>结构的<code>Serialize</code>类型:</p>
+<pre>use serde::Serialize;</pre>
+<p>我们的导入语句现在应该是这样的:</p>
+<pre>use rocket::Request;
+use rocket::response::content::Json;
+use rocket::request::Form;
+use rocket_contrib::templates::Template;
+use serde::Serialize;</pre>
+<p>接下来，让我们将它添加到<code>cargo.toml</code>文件中的依赖项中:</p>
+<pre>[dependencies]
+rocket = "0.4.5"
+serde = { version = "1.0", features = ["derive"] }</pre>
+<p>回到我们的<code>./src/main.rs</code>文件——在<code>index()</code>函数中，我们将声明一个名为<code>context</code>的新变量，并使用我们之前创建的<code>Context</code>类型为其提供值:</p>
+<pre>let context = Context {
+  first_name: String::from("Jane"),
+  last_name: String::from("Doe")
+};</pre>
+<p>现在我们已经添加了在<code>home.hbs</code>文件中使用的值，让我们返回包含我们刚刚创建的数据的模板:</p>
+<pre>Template::render("home", context)</pre>
+<p>完成后，我们的索引路径应该如下所示:</p>
+<pre>#[get("/")]
+fn index() -&gt; Template {
+  #[derive(Serialize)]
+  struct Context {
+    first_name: String,
+    last_name: String
+  }
+  let context = Context {
+    first_name: String::from("Ebenezer"),
+    last_name: String::from("Don")
+  };
+  Template::render("home", context)
+}</pre>
+<p>为了使我们的模板可呈现，我们需要注册它。为此，我们将在带有<code>.attach(Template::fairing())</code>的火箭实例上附加<code>Template::fairing()</code>方法，然后安装我们的<code>index</code>路径，并使用<code>"/"</code>作为其基础。完成后，我们的<code>main()</code>函数应该是这样的:</p>
+<pre>fn main() {
+  rocket::ignite()
+    .register(catchers![not_found])
+    .mount("/", routes![index])
+    .mount("/api", routes![hello, new_book])
+    .attach(Template::fairing())
+    .launch();
+}</pre>
+<p>请注意，我们将<code>index</code>与<code>hello</code>和<code>new_book</code>路线分开。因为这是我们的登陆页面，我们使用不同的<code>base</code>路径<code>"/"</code>，所以我们只需要导航到<code>localhost:8000</code>就可以看到我们的渲染模板。</p>
+<p>我们的<code>./src/main.rs</code>文件现在应该是这样的:</p>
+<pre>#![feature(decl_macro)]
+#[macro_use] extern crate rocket;
+use rocket::Request;
+use rocket::response::content::Json;
+use rocket::request::Form;
+use rocket_contrib::templates::Template;
+use serde::Serialize;
+
+#[derive(FromForm, Debug)]
+struct Book {
+  title: String,
+  author: String,
+  isbn: String
+}
+
+#[get("/")]
+fn index() -&gt; Template {
+  #[derive(Serialize)]
+  struct Context {
+    first_name: String,
+    last_name: String
+  }
+  let context = Context {
+    first_name: String::from("Jane"),
+    last_name: String::from("Doe")
+  };
+  Template::render("home", context)
+}
+
+#[get("/hello")]
+fn hello() -&gt; Json&lt;&amp;'static str&gt; {
+  Json("{
+    'status': 'success',
+    'message': 'Hello API!'
+  }")
+}
+
+#[catch(404)]
+fn not_found(req: &amp;Request) -&gt; String {
+    print!("{}", req);
+    format!("Oh no! We couldn't find the requested path '{}'", req.uri())
+}
+
+#[post("/book", data = "&lt;book_form&gt;")]
+fn new_book(book_form: Form&lt;Book&gt;) -&gt; String {
+  let book: Book = book_form.into_inner();
+  let <em>mut</em> dummy_db: Vec&lt;Book&gt; = Vec::new();
+  dummy_db.push(book);
+  format!("Book added successfully: {:?}", dummy_db)
+}
+
+fn main() {
+  rocket::ignite()
+    .register(catchers![not_found])
+    .mount("/", routes![index])
+    .mount("/api", routes![hello, new_book])
+    .attach(Template::fairing())
+    .launch();
+}</pre>
+<p>现在，当我们运行我们的应用程序并导航到<code>localhost:8000</code>时，我们应该在浏览器上看到一个与此类似的页面:</p>
+<p><img data-attachment-id="23838" data-permalink="https://blog.logrocket.com/rust-web-apps-using-rocket-framework/finished-rust-web-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png" data-orig-size="730,400" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Finished Rust web app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png" decoding="async" class="aligncenter size-full wp-image-23838 jetpack-lazy-image" src="../Images/de71f4bc11768429f351dccf8e4b640c.png" alt="Our Finished Rust Web App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app-300x164.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="23838" data-permalink="https://blog.logrocket.com/rust-web-apps-using-rocket-framework/finished-rust-web-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png" data-orig-size="730,400" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Finished Rust web app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-23838" src="../Images/de71f4bc11768429f351dccf8e4b640c.png" alt="Our Finished Rust Web App" srcset="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app-300x164.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/08/finished-rust-web-app.png"/></noscript>
+<h2>结论</h2>
+<p>在本文中，我们已经通过Rocket框架为web引入了Rust。我们讲述了Rocket的基础知识，如何设置web APIs、响应类型、错误处理以及通过Handlebars模板引擎呈现HTML。</p>
+<p>虽然Rocket非常适合构建web APIs，但它可能不是处理前端呈现的最佳选择，就像我们在本文的最后一部分所做的那样。然而，Rust通过<a href="https://yew.rs/docs/"> Yew framework </a>在这一领域大放异彩，该框架是为使用WebAssembly创建多线程前端web应用而构建的。</p>
+<p>总的来说，与其他web框架相比，Rocket使得编写web应用程序的速度相对较快，而且它只用了很少的样板代码。这是我们演示应用的GitHub repo 的<a href="https://github.com/ebenezerdon/rust_rocket">链接。</a></p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

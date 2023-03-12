@@ -1,0 +1,209 @@
+<html>
+<head>
+<title>Methods for tracking action status in Redux - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Redux - LogRocket博客中跟踪行为状态的方法</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/tracking-action-status-in-redux/#0001-01-01">https://blog.logrocket.com/tracking-action-status-in-redux/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在从事了相当多的<a href="https://blog.logrocket.com/debug-react-applications-with-the-new-react-devtools/" target="_blank" rel="noopener noreferrer"> React </a>和Redux应用程序之后，我不禁注意到，许多人很难向用户指出一个给定的动作正在发生。</p>
+<p>让我们考虑下面的例子:</p>
+<pre>class RegisterForm extends React.Component {
+ state = {
+   isLoading: false
+ }
+
+ async handleSubmit(event) {
+   event.preventDefault();
+
+   this.setState({
+     isLoading: true,
+   });
+
+   try {
+     const result = await post('localhost:8000/api/users', {
+       data: {},
+     });
+   } catch (error) {
+     // do something with the error
+   }
+
+   // do something with the result
+   this.setState({ isLoading: false });
+ }
+
+ render() {
+   return (
+     &lt;form onSubmit={this.handleSubmit.bind(this)} &gt;
+       &lt;input type="text" /&gt;
+       &lt;button type="submit"&gt;Submit&lt;/button&gt;
+       {this.state.isLoading &amp;&amp; &lt;p&gt;Spinner!&lt;/p&gt;}
+     &lt;/form&gt;
+   );
+ }
+}</pre>
+<p>这里我们有一个简化的React注册表单，当用户点击提交按钮时，它应该显示一个加载指示器——比如一个微调按钮。嗯，我们可以简单地在组件内部发出请求，并使用<code>setState</code>来跟踪它的状态，这样就很好了。</p>
+<p>然而，这种解决方案有两个问题。首先，请求及其逻辑是在组件内部定义的；如果我们想在应用程序的其他地方使用相同的功能，我们需要重复同样的代码。</p>
+<p>第二，如果我们想在组件外部显示微调器会怎么样？我们如何将那个组件的状态提升几个组件呢？</p>
+<p>这就是Redux帮助我们的地方。</p>
+<p>通过在我们的应用程序中到处都有一个不可变的全局状态，我们可以在状态中保存动作的状态，并在任何地方都可以使用它——因此，指示器可以在任何地方显示。让我们来看看Redux中常见的异步动作流。</p>
+
+<div class="podcast-container">
+<div class="podcast-embed">
+<h2>我们不只是写Redux，我们也谈论它。现在听着:</h2>
+<p>或者以后订阅</p>
+<h3>通常的异步动作流</h3>
+
+</div>
+</div>
+<h2>Redux中的动作是对象，因此是同步调度的。但是多亏了各种中间件，我们可以用异步的方式调度它们。</h2>
+<p>有许多库允许我们异步分派动作——仅举几个例子，比如<a href="https://github.com/reduxjs/redux-thunk"> redux-thunk </a>、<a href="https://github.com/redux-saga/redux-saga"> redux-saga </a>和<a href="https://github.com/redux-observable/redux-observable"> redux-observable </a>。</p>
+<p>通常的流程是这样的:首先，我们分派应该启动事情的动作(通常动作的类型以一个<code>_REQUEST</code>后缀结尾，例如<code>GET_USER_REQUEST</code>)。</p>
+<p>然后，在我们州的某个地方，我们记下该操作是未决的，就像这样:</p>
+<p>或者:</p>
+<pre>{
+  isLoading: true
+}</pre>
+<p>注意:我更喜欢pending这个名字，因为它并不意味着这个动作一定会加载一些东西。</p>
+<pre>{
+  pending: true
+}</pre>
+<blockquote><p>然后，一旦动作完成，我们将根据结果调度以下动作之一:<code>GET_USER_SUCCESS</code>或<code>GET_USER_FAILURE</code>。</p></blockquote>
+<p>这两个动作都会将<code>pending</code>值设置为<code>false</code>并保存(在状态中的某个位置)错误或结果。</p>
+<p>存储待定指标的最简单解决方案</p>
+<h2>处理动作加载状态的一种常见方法是创建以下形状的状态:</h2>
+<p>在这里我们可以看到，我们有一个用户部分，其中存储了所有与用户相关的数据。</p>
+<pre>{
+  user: {
+    isLoading: true,
+    user: {
+      ...
+    }
+    token: '...'
+  }
+}</pre>
+<p>这种解决方案只适用于最基本的应用程序，原因如下:<code>isLoading</code>到底告诉了我们什么？有许多操作可能被认为是与用户相关的，例如注册、登录和更新；使用这种解决方案，我们无法区分它们。</p>
+<p>每个动作本身</p>
+<h2>处理动作挂起状态的一个更好的方法是为每个动作创建一个单独的对象。</h2>
+<p>这里有一个例子:</p>
+<p>这样，我们可以在整个应用程序中跟踪给定动作的状态，或者在特定动作发生时识别它们。这允许我们在应用程序的多个地方显示<code>register</code>动作的状态。</p>
+<pre>{
+  user: {
+    register: {
+      pending: false,
+      error: null,
+    },
+    login: {
+      pending: false,
+      error: null,
+    },
+  }
+}</pre>
+<p>虽然这样的状态更容易管理，但是这个解决方案仍然需要为每个动作编写大量的样板代码。让我们考虑一种不同的方法，为待定指标创建一个单独的缩减器。</p>
+<p>创建单独的减速器</p>
+<h2>在Redux中，每个被调度的动作执行所有的reducer，不管给定的reducer是否应该处理它。</h2>
+<p>通过创建一个独立的reducer来保存未决状态，我们可以使用<code>SUCCESS</code>和<code>FAILURE</code>动作来保存状态其他部分的错误和结果。</p>
+<p>创建减速器</p>
+<h3>由于reducer将在每个动作上执行，我们应该过滤掉我们不感兴趣的:类型不以<code>_REQUEST</code>、<code>_SUCCESS</code>或<code>_FAILURE</code>结尾的动作。</h3>
+<p>由于我们的惯例是命名类似于<code>GET_USERS_REQUEST</code>的动作，我们可以创建一个名为<code>getActionName</code>的函数，在这个函数中，我们在<code>_</code>字符处拆分名称，删除最后一部分(<code>REQUEST</code>、<code>SUCCESS</code>或<code>FAILURE</code>，并用<code>_</code>连接其余部分。</p>
+<p>如果<code>actionType</code>不是字符串，比如常用的<code>Symbol</code>，我们返回<code>null</code>以避免错误。</p>
+<pre>function getActionName(actionType) {
+ if (typeof actionType !== 'string') {
+   return null;
+ }
+
+ return actionType
+   .split("_")
+   .slice(0, -1)
+   .join("_");
+}</pre>
+<p>这样，我们就把<code>GET_USERS_REQUEST</code>变成了<code>GET_USERS</code>，这样就有了一个名字，我们可以用它来保存状态中的挂起状态。</p>
+<p>了解LogRocket如何跟踪<br/> Redux操作&amp;状态</p>
+<div class="cro10 cine-1">
+<div class="cine-left">
+<h4><a href="https://docs.logrocket.com/reference#redux-logging"> <button class="cine-button">了解更多</button> </a></h4>
+<p>这是减速器的代码:</p>
+</div>
+</div>
+
+<p>首先，我们检查动作的类型是否以<code>_REQUEST</code>结尾。如果确实如此，我们在状态中创建一个新的条目，用动作的名称作为键，用<code>{ pending: true }</code>作为值。</p>
+<pre>const pendingReducer = (state = {}, action) =&gt; {
+ const { type } = action;
+ const actionName = getActionName(type);
+
+ if (!actionName) {
+   return {
+     ...state,
+   }
+ }
+
+ if (type.endsWith("_REQUEST")) {
+   return {
+     ...state,
+     [actionName]: {
+       pending: true
+     }
+   };
+ }
+
+ if (type.endsWith("_SUCCESS") || type.endsWith("_FAILURE")) {
+   return {
+     ...state,
+     [actionName]: {
+       pending: false
+     }
+   };
+ }
+
+ return {
+   ...state
+ };
+};</pre>
+<p>然后，如果动作的类型以<code>_SUCCESS </code>或<code>_FAILURE</code>结束，我们做同样的事情，但是这次我们将<code>{ pending: false }</code>设置为一个值。</p>
+<p>现在，如果我们需要一个用户缩减器，我们可以这样创建它:</p>
+<p>现在，我们不必担心在每个动作上设置<code>pending: true</code>，然后在成功/失败时将其设置回<code>false</code>。</p>
+<pre>const userReducer = (state = initialUserState, action) =&gt; {
+if (action.type === GET_USERS_SUCCESS) {
+  return {
+    ...state,
+    user: action.payload.user,
+  };
+}
+if (action.type === GET_USERS_FAILURE) {
+  return {
+    ...state,
+    user: null,
+  };
+}
+return { ...state };
+};</pre>
+<p>注意:我们这里没有错误处理，但是它也可以在一个单独的reducer中完成。</p>
+<blockquote><p>这里有一个现场演示供您使用:</p></blockquote>
+<p>摘要</p>
+<p>为每个动作分配自己的状态来跟踪状态是一个依赖于大量样板代码的可伸缩解决方案。通过创建一个单独的reducer来处理管理状态的逻辑，我们可以减少冗余代码的数量，但是反过来，我们失去了定义一些更准确地跟踪特定动作状态所需的附加字段的灵活性。</p>
+<h2>使用LogRocket消除传统反应错误报告的噪音</h2>
+<p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p> automatically aggregates client side errors, React error boundaries, Redux state, slow component load times, JS exceptions, frontend performance metrics, and user interactions. Then LogRocket uses machine learning to notify you of the most impactful problems affecting the most users and provides the context you need to fix it.
+
+</p><p vwo-el-id="28675661060">Focus on the React bugs that matter —
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">try LogRocket today</a>.
+</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

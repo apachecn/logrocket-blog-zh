@@ -1,0 +1,374 @@
+<html>
+<head>
+<title>Testing Node serverless applications — AWS Lambda functions - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>测试节点无服务器应用程序— AWS Lambda函数LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/testing-node-serverless-applications-aws-lambda-functions/#0001-01-01">https://blog.logrocket.com/testing-node-serverless-applications-aws-lambda-functions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>我们都知道测试对于编写可维护的、高质量的代码是至关重要的。实现它们从来都不容易，但是它是开发过程中的一个重要部分。</p>
+<p>无服务器架构的兴起带来了新的挑战。我们现在拥有了在我们无法控制的环境中运行的功能。有很多方法可以模拟云环境，但是这足够可靠吗？</p>
+<p>在本文中，我们将讨论几种简化测试无服务器应用程序的方法。我们将重点关注AWS，它是最受欢迎的云提供商之一，我们将用Node.js编写代码，因为它是无服务器应用程序最常用的语言之一。话虽如此，我们在这里讨论的一切都可以应用于其他云提供商和编程语言。</p>
+<h2 id="whatareunitintegrationandendtoendtesting">什么是单元测试、集成测试和端到端测试？</h2>
+<p>一般来说，有三种类型的测试:</p>
+<ol>
+<li><strong>单元</strong> —测试单个、孤立的逻辑块</li>
+<li><strong>集成</strong> —测试两个或多个单元之间的合同</li>
+<li><strong>端到端</strong>——运行涵盖所有内容的完整测试</li>
+</ol>
+<p>这三种测试之间有许多不同之处，包括学习曲线、所需资源和减少bug的有效性。例如，单元测试是最便宜的选择，但是你通常会得到你所付出的。另一方面，端到端测试虽然更昂贵，但通常是最有效的方法。</p>
+<p>理论上，您应该有许多许多的单元测试、几个集成测试和几个端到端测试——至少，这是标准应用程序公认的最佳实践。然而，对于无服务器应用，我们倾向于编写更多的端到端测试，避免单元和集成测试，因为执行环境不在我们的控制范围内。</p>
+<p>在我看来，有了正确的代码结构和设计，就有可能实现稳定的代码质量和高度的信心，同时保持适当比例的测试类型。为了演示，我将使用一个小而方便的Lambda函数作为例子。</p>
+<p>现在让我们深入研究代码！</p>
+<h2 id="subhead">测试无服务器应用程序</h2>
+<p>假设我们有一个实现Lambda函数的任务，它将:</p>
+<ul>
+<li>接收某些参数，比如来自SQS队列(Amazon的简单队列服务)</li>
+<li>根据这些参数从S3存储桶(亚马逊的文件存储服务)中获取一个图像</li>
+<li>缩小图像的大小，如果需要的话，将其更改为不同的格式</li>
+<li>将生成的图像上传到同一个S3桶</li>
+</ul>
+<p>这是Lambda函数的一个相当常见的用例。记住，要编写好的测试，你必须首先编写可测试的代码和函数。因此，我将向您展示实现和测试。</p>
+<p>编写无服务器函数的诀窍是检测函数与外界通信的所有地方，并将其抽象出来，这样就可以用一些廉价的单元测试来孤立地测试这些地方。我们将这些抽象称为适配器。</p>
+<p>让我们回顾一些基础知识，以帮助确定我们的项目需要哪些适配器:</p>
+<ul>
+<li>该函数以函数参数的形式接收数据/事件——我们称之为<code>EventParser</code></li>
+<li>该函数需要获取文件并上传到S3——我们称该适配器为<code>FileService</code></li>
+</ul>
+<p>在某种程度上，适配器是用于I/O的。现在，除了向外部世界发送和从外部世界接收数据之外，我们还有一些逻辑要在我们的功能中实现。核心逻辑——图像的缩小和重新格式化——将在<code>image-reducer.js</code>内部。</p>
+<p>适配器和<code>image-reducer.js</code>是逻辑隔离的，因此适合单元测试。完成后，我们需要根据我们的业务需求将它们连接起来。我们将在<code>main.js</code>文件中这样做，这适合于集成测试(稍后我们将演示)。</p>
+<p>文件夹结构如下所示:</p>
+<pre>image-reducer-service/
+  adapters/          - abstractions for sockets/file system etc. 
+    event-parser.js
+    file-service.js
+  utils/             - regular utils functions based on our needs 
+  tests/             - all of the tests
+  image-reducer.js   - core lambda logic
+  main.js            - connects adapters and core logic, good for integration test
+  index.js           - entry file for serverless app
+  serverless.yml
+  package.json
+</pre>
+<p><code>main.js</code>文件将导出一个包装函数，该函数将通过依赖注入来接收所需的每个适配器和核心逻辑函数。这样，集成测试很容易实现。</p>
+<p>这是开始时的样子:</p>
+<pre>// main.js
+exports.imageReducerService = async (event, FileService, ImageReducer) =&gt; {
+    const executionId = generateRandomId();
+    try {
+        console.log(`Started imageReducerService id: ${executionId}`);
+        /*----------------
+        Connect everything here
+        -----------------*/
+        console.log(`Finished imageReducerService id: ${executionId}`);
+    }
+    catch (error) {
+        console.error(`Thrown imageReducerService id: ${executionId}`);
+        throw error;
+    }
+};
+</pre>
+<p>这个main函数在<code>index.js</code>文件中是必需的，它包含将在AWS上运行的实际Lambda函数，并将所有内容注入到我们的main函数中。</p>
+<pre>// index.js
+const { EventParser, FileService } = require('./adapters');
+const ImageReducer = require('./image-reducer.js');
+const ImageReducerService = require('./main.js');
+
+exports.handler = (sqsMessage) =&gt;
+    ImageReducerService(EventParser.parse(sqsMessage), FileService, ImageReducer);
+</pre>
+<h2 id="implementingsmallerpiecesofcodeandunittests">单元测试</h2>
+<p>让我们为第一个适配器<code>EventParser</code>编写代码和测试。这个适配器的目的是接收一个事件并对其进行净化，以便我们的主函数总是获得一组标准的属性。这在AWS上可能特别有趣，因为Lambda函数可以连接到许多源(SQS、SNS、S3等)。)，并且每个源都有自己的事件模式。</p>
+<p><code>EventParser</code>可以用来处理其中的每一个并输出一个标准化的事件。目前，我们只通过SQS队列接收事件。它看起来是这样的:</p>
+<pre>// adapters/event-parser.js
+const Joi = require('@hapi/joi');
+
+const eventSchema = Joi.object({
+    bucket: Joi.string().required(),
+    key: Joi.string().required(),
+    format: Joi.string().valid('png', 'webp', 'jpeg').default('png')
+});
+const extractEvent = (sqsMessage) =&gt; sqsMessage.Records[0].body;
+
+exports.parse = (sqsMessage) =&gt; {
+    const eventObject = extractEvent(sqsMessage);
+    const { value: payload, error } = eventSchema.validate(eventObject);
+    if (error) {
+        throw Error(`Payload error =&gt; ${error}.`);
+    }
+    return payload;
+};
+</pre>
+<p>该函数从SQS有效负载中提取一个嵌套事件，并通过<code>Joi</code>验证库确保该事件具有所有必需的属性。对于SQS来说，有效载荷(或者至少是外部结构)总是相同的；单元测试足以确保一切正常工作。</p>
+<p>在本文中，我将<a href="https://blog.logrocket.com/writing-end-to-end-tests-for-graphql-servers-using-jest/" target="_blank" rel="noopener noreferrer">使用<code>Jest</code>库</a>编写测试。以下是对<code>EventParser</code>的测试:</p>
+<pre>const EventParser = require('../../adapters/event-parser.js');
+const createStubbedSqsMessage = (payload) =&gt; ({ Records: [{ body: payload }] });
+
+describe('EventParser.parse() ', () =&gt; {
+    test('returns parsed params if event has required params', async () =&gt; {
+        const payload = {
+            bucket: 'bucket',
+            key: 'key',
+            format: 'jpeg'
+        };
+        const stubbedSqsMessage = createStubbedSqsMessage(payload);
+        const result = EventParser.parse(stubbedSqsMessage);
+        expect(result).toBeDefined();
+        expect(result.bucket).toBe(payload.bucket);
+        expect(result.key).toBe(payload.key);
+        expect(result.format).toBe(payload.format);
+    });
+    test('throws when event object has missing required params', async () =&gt; {
+        const payload = {
+            bucket: 'bucket'
+        };
+        const stubbedSqsMessage = createStubbedSqsMessage(payload);
+        expect(() =&gt; EventParser.parse(stubbedSqsMessage)).toThrow();
+    });
+    test('throws when event has required params with incorrect type', async () =&gt; {
+        const payload = {
+            bucket: ['bucket'],
+            key: 'key'
+        };
+        const stubbedSqsMessage = createStubbedSqsMessage(payload);
+        expect(() =&gt; EventParser.parse(stubbedSqsMessage)).toThrow();
+    });
+});
+</pre>
+<p>第二个适配器<code>FileService</code>，应该具有获取和上传图像的功能。让我们使用Amazon的SDK来实现流。</p>
+<pre>// adapters/file-service.js
+const Assert = require('assert');
+const { Writable } = require('stream');
+const Aws = require('aws-sdk');
+
+exports.S3 = new Aws.S3();
+exports.fetchFileAsReadable = (bucket, key) =&gt; {
+    Assert(bucket &amp;&amp; key, '"bucket" and "key" parameters must be defined');
+    return exports.S3.getObject({ Bucket: bucket, Key: key}).createReadStream();
+}
+exports.uploadFileAsWritable = (bucket, key, writable) =&gt; {
+    Assert(bucket &amp;&amp; key, '"bucket" and "key" parameters must be defined');
+    Assert(
+      writable instanceof Writable,
+      '"writable" must be an instance of stream.Writable class'
+    );
+    return exports.S3.upload({
+        Bucket: bucket, Key: key, Body: writable, ACL: 'private'
+    }).promise();
+}
+</pre>
+<p>测试<code>Aws.S3</code>库没有任何好处，因为它维护得很好。只有当Lambda无法访问互联网时，问题才会出现——我们将在端到端测试中讨论这个问题。在这里，我们将测试无效参数和/或函数参数向SDK的正确传递。</p>
+<p>由于这种情况下的函数非常小，我们将只测试第一种情况。</p>
+<pre>const FileService = require('../../adapters/file-service.js');
+
+describe('FileService', () =&gt; {
+    describe('fetchFileAsReadable()', () =&gt; {
+        test('throws if parameters is are undefined', async () =&gt; {
+            expect(() =&gt; FileService.fetchFileAsReadable())
+                .toThrow('"bucket" and "key" parameters must be defined');
+        });
+    });
+    describe('uploadFileAsWritable()', () =&gt; {
+        it('throws if last argument is not a writable stream', async () =&gt; {
+            expect(() =&gt; FileService.uploadFileAsWritable('bucket', 'key', {}))
+                .toThrow('"writable" must be an instance of stream.Writable class');
+        });
+    });
+});
+</pre>
+<p>接下来要实现和测试的是核心的Lambda逻辑——即图像的缩减和重新格式化。我们将使用Node.js的<code>Sharp</code>库来保持简洁。</p>
+<pre>// image-reducer.js
+const Sharp = require('sharp');
+const WIDTH = 320;
+const HEIGHT = 240;
+
+exports.createTransformable = (format = 'png', width = WIDTH, height = HEIGHT) =&gt;
+    format === 'jpeg' ? Sharp().resize(width, height).jpeg() :
+    format === 'webp' ? Sharp().resize(width, height).webp() :
+    Sharp().resize(width, height).png()
+</pre>
+<p>该函数接受某些参数并创建一个转换流，该转换流可以接收可读的图像二进制数据流，并将其转换为不同格式的较小图像。使用Node的流魔法，我们可以通过创建可读和可写的流存根很容易地测试所有这些。</p>
+<pre>const Path = require('path');
+const Fs = require('fs');
+const Sharp = require('sharp');
+const ImageReducer = require('../image-reducer.js');
+
+const BIG_IMAGE_PATH = Path.join(__dirname, '/big-lambda.png');
+const SMALL_IMAGE_PATH_PNG = Path.join(__dirname, '/small-lambda.png');
+const SMALL_IMAGE_PATH_WEBP = Path.join(__dirname, '/small-lambda.webp');
+const SMALL_IMAGE_PATH_JPEF = Path.join(__dirname, '/small-lambda.jpeg');
+
+describe('ImageReducer.createTransformable()', () =&gt; {
+    describe('reducing size and transforming image in .png format', () =&gt; {
+        test('reducing image', async () =&gt; {
+            const readable = Fs.createReadStream(BIG_IMAGE_PATH);
+            const imageReductionTransformable = ImageReducer.createTransformable();
+            const writable = Fs.createWriteStream(SMALL_IMAGE_PATH_PNG);
+
+            readable.pipe(imageReductionTransformable).pipe(writable);
+            await new Promise(resolve =&gt; writable.on('finish', resolve));
+
+            const newImageMetadata = await Sharp(SMALL_IMAGE_PATH_PNG).metadata();
+            expect(newImageMetadata.format).toBe('png');
+            expect(newImageMetadata.width).toBe(320);
+            expect(newImageMetadata.height).toBe(240);
+        });
+    });
+    describe('reducing size and transforming image in .webp format', () =&gt; {
+        test('reducing image', async () =&gt; {
+            const readable = Fs.createReadStream(BIG_IMAGE_PATH);
+            const imageReductionTransformable = ImageReducer
+              .createTransformable('webp', 200, 100);
+            const writable = Fs.createWriteStream(SMALL_IMAGE_PATH_WEBP);
+
+            readable.pipe(imageReductionTransformable).pipe(writable);
+            await new Promise(resolve =&gt; writable.on('finish', resolve));
+
+            const newImageMetadata = await Sharp(SMALL_IMAGE_PATH_WEBP).metadata();
+            expect(newImageMetadata.format).toBe('webp');
+            expect(newImageMetadata.width).toBe(200);
+            expect(newImageMetadata.height).toBe(100);
+        });
+    });
+    describe('reducing size and transforming image in .jpeg format', () =&gt; {
+        test('reducing image', async () =&gt; {
+            const readable = Fs.createReadStream(BIG_IMAGE_PATH);
+            const imageReductionTransformable = ImageReducer
+              .createTransformable('jpeg', 200, 200);
+            const writable = Fs.createWriteStream(SMALL_IMAGE_PATH_JPEF);
+
+            readable.pipe(imageReductionTransformable).pipe(writable);
+            await new Promise(resolve =&gt; writable.on('finish', resolve));
+
+            const newImageMetadata = await Sharp(SMALL_IMAGE_PATH_JPEF).metadata();
+            expect(newImageMetadata.format).toBe('jpeg');
+            expect(newImageMetadata.width).toBe(200);
+            expect(newImageMetadata.height).toBe(200);
+        });
+    });
+});
+</pre>
+<h2 id="connectingeverythingandwritingintegrationtests">集成测试</h2>
+<p>集成测试的目的是测试已经过单元测试的两个或更多代码组件之间的契约和集成。由于我们没有集成上面的所有代码，现在让我们这样做。</p>
+<pre>// main.js
+const { promisify } = require('util');
+const { PassThrough, pipeline } = require('stream');
+const { generateRandomId, appendSuffix } = require('./utils');
+const pipelineAsync = promisify(pipeline);
+
+exports.imageReducerService = async (event, FileService, ImageReducer) =&gt; {
+    const executionId = generateRandomId();
+    try {
+        console.log(`Started imageReducerService id: ${executionId}`);
+
+        const { bucket, key, format } = event;
+        const readable = FileService.fetchFileAsReadable(bucket, key);
+        const imageReductionTransformable = ImageReducer.createTransformable(format);
+        const writable = new PassThrough();
+
+        const newKey = appendSuffix(key, format);
+        const pipelineProcess = pipelineAsync(
+          readable,
+          imageReductionTransformable,
+          writable
+        );
+        const uploadProcess = FileService
+          .uploadFileAsWritable(bucket, newKey, writable);
+        await Promise.all([pipelineProcess, uploadProcess]);
+
+        console.log(`Finished imageReducerService id: ${executionId}`);
+    }
+    catch (error) {
+        console.error(`Thrown imageReducerService id: ${executionId}`);
+        throw error;
+    }
+}; 
+</pre>
+<p>这段代码在事件被我们的<code>EventParser</code>净化后获取解析的事件，并基于此，在第13行以可读流的形式从S3获取一个图像。然后，它在第14行创建一个图像缩小转换流，并在第15行创建一个可写流。然后在第18行的可读、转换和可写流之间创建一个管道链。接下来，可写流在第23行开始上传到S3桶。换句话说，这些代码所做的就是以流的形式获取、调整和上传图像。</p>
+<p>因为这个Lambda函数的例子不是很大，所有的连接都在一个文件中完成，我们可以用一个测试来覆盖它。在其他情况下，可能需要将其分成几个测试。</p>
+<p>这是我们的测试:</p>
+<pre>require('dotenv').config();
+const { EventParser, FileService, ImageReducer } = require('../adapters');
+const { imageReducerService } = require('../main.js');
+const { appendSuffix } = require('../utils');
+const createFakeSqsMessage = (payload) =&gt; ({ Records: [{ body: payload }] });
+
+describe('ImageReducerService', () =&gt; {
+    test('integration', async () =&gt; {
+        const realBucket = process.env.BUCKET;
+        const existingFileKey = process.env.KEY;
+        const sqsMessage = createFakeSqsMessage({
+            bucket: realBucket,
+            key: existingFileKey
+        });
+        await imageReducerService(
+          EventParser.parse(sqsMessage),
+          FileService,
+          ImageReducer
+        );
+        // check if the new reduced image exists on the S3 bucket
+        const reducedImageMetadata = await FileService.S3
+            .headObject({
+              bucket: realBucket,
+              key: appendSuffix(existingFileKey, 'png')
+            })
+            .promise();
+        expect(reducedImageMetadata).toBeDefined();
+   });
+});
+</pre>
+<p>这个测试实际上是针对一个使用环境变量的真实S3桶。这种方法有优点也有缺点。一方面，它更现实，几乎像一个端到端的测试(如果我们不考虑有效负载实际上并不来自真实的SQS队列)。缺点是它很脆弱，因为连接总是会中断。</p>
+<p>另一种方法是使用几个插件来模拟Lambda环境——事实上，是几乎所有的AWS服务——使用docker镜像。其中之一是<a href="https://github.com/dherault/serverless-offline" target="_blank" rel="noopener noreferrer">无服务器离线</a>，它有一个庞大的扩展列表。这真的很有用，但是也有相反的代价:不太现实，不太有信心，但是更容易设置，执行起来更快。</p>
+<p>对于这个Lambda，我只选择第一条路径，因为它相当简单。对于更复杂的代码，我会重新考虑并选择第二个选项，因为我们将使用真实的云基础设施再次测试代码，作为端到端测试的一部分。</p>
+<h2 id="endtoendtest">端到端测试</h2>
+<p>如果您还记得，我们写的所有内容都集成到了一行代码中——实际上是两行，但这仅仅是因为格式的原因。看起来是这样的:</p>
+<pre>const { EventParser, FileService } = require('./adapters');
+const ImageReducer = require('./image-reducer.js');
+const ImageReducerService = require('./main.js');
+
+exports.handler = (sqsMessage) =&gt;
+    ImageReducerService(EventParser.parse(sqsMessage), FileService, ImageReducer); 
+</pre>
+<p>既然我们已经完成了所有需要进行的单元测试和集成测试，那么是时候使用真实的AWS基础设施在真实环境中测试我们的功能了。因为我们的Lambda函数从SQS队列接收事件，所以我们需要将一条消息插入到与该函数连接的队列中，并确定在该函数执行完毕后，给定的S3桶上是否存在新的图像。</p>
+<pre>require('dotenv').config();
+const Aws = require('aws-sdk');
+const { appendSuffix } = require('../utils');
+
+Aws.config.update({region: 'us-east-1'});
+const Sqs = new Aws.SQS({ apiVersion: '2012-11-05' });
+const S3 = new Aws.S3();
+
+describe('imageReducerService', () =&gt; {
+    test('end-to-end functionality', async () =&gt; {
+        const event = { bucket: process.env.BUCKET, key: process.env.KEY };
+        const params = {
+          MessageBody: JSON.strigify(event),
+          QueueUrl: process.env.SQS_QUEUE
+        };
+        await Sqs.sendMessage(params).promise();
+
+        const reducedImageMetadata = await S3
+            .headObject({
+              bucket: realBucket,
+              key: appendSuffix(existingFileKey, 'png') 
+            })
+            .promise();
+        expect(reducedImageMetadata).toBeDefined();
+    });
+});
+</pre>
+<p>这个测试包含了我们的Lambda将要使用的基础设施的每一部分，并且有助于确保一切都被正确连接。它创建了一个与实时场景完全一样的动作流。因此，它要求一切都已经在AWS上启动并运行。</p>
+<p>我们可以首先在试运行/QA环境中运行这个测试，然后在实际的生产环境中再次运行，以确保一切都是连接的。可选地，我们可以使用<a href="https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-alias.html" target="_blank" rel="noopener noreferrer"> Lambda别名</a>来自动化流程。我们将首先部署函数的新版本，然后运行端到端测试，如果一切顺利，在当前活动函数和新版本之间切换别名。</p>
+<h2 id="conclusion">结论</h2>
+<p>如果您想在一个地方查看所有内容，您可以在这个<a href="https://github.com/DarkMannn/testing-node-serverless-applications" target="_blank" rel="noopener noreferrer"> GitHub repo </a>中找到本文的完整代码。</p>
+<p>为Lambda编写测试不是一项简单的任务。对于一个可测试的Lambda函数，我们必须从实现的最开始就注意，并相应地规划设计。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

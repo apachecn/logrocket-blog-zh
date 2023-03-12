@@ -1,0 +1,179 @@
+<html>
+<head>
+<title>How to execute a function with a web worker on a different thread in Angular - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Angular - LogRocket博客中用不同线程上的web worker执行函数</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/#0001-01-01">https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>有了<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API" target="_blank" rel="noopener noreferrer"> web workers </a>，我们能够在后台线程中执行脚本，让主线程空闲下来做UI工作。默认情况下，Web Workers接受文件URL作为参数，但在我们的例子中，这是不可接受的，因为我们使用TypeScript作为主要语言，我们不想将它与JavaScript混合使用。第二个问题是脚本需要有一个固定的URL，因为我们使用Webpack来捆绑和连接文件，所以有一个非捆绑文件不是最好的模式。</p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/API/Worker" target="_blank" rel="noopener noreferrer">工人</a>类是<a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker" target="_blank" rel="noopener noreferrer">服务工人</a>和<a href="https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker" target="_blank" rel="noopener noreferrer">共享工人</a>的基础。SharedWorker类似于Worker，只是它可以从几个不同的上下文中访问，包括弹出窗口、iframes等。ServiceWorker是一种不同的动物，不是本次展览的主题。</p>
+<p>由工作线程执行的代码与在主线程上运行的代码在不同的上下文中运行。当我们在worker中运行代码时，我们不能操作DOM元素、使用窗口对象等等。workers运行的上下文被称为<a href="https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope" target="_blank" rel="noopener noreferrer">DedicatedWorkerGlobalScope</a>，并且在您可以访问的内容和通常要做的事情方面非常有限。</p>
+<p>工作人员的常见用例包括使用进行繁重处理的纯函数。因为我们不希望它们破坏我们的web应用程序的性能，所以我们应该将它们转移到一个工作线程中。</p>
+<p>工作线程可以用<code>postMessage</code>方法通过消息与主线程通信。通信可以是双向的，这意味着工作线程和主线程可以相互发送消息。</p>
+<p><img data-attachment-id="10367" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/mainandworkerthread/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png" data-orig-size="574,583" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainandworkerthread" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread-295x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png" decoding="async" class="aligncenter wp-image-10367 size-full jetpack-lazy-image" src="../Images/fc79b47a5326d9e2b87e4e343cb76686.png" alt="main thread and worker thread" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png 574w, https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread-295x300.png 295w" data-lazy-sizes="(max-width: 574px) 100vw, 574px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="10367" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/mainandworkerthread/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png" data-orig-size="574,583" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainandworkerthread" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread-295x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png" decoding="async" loading="lazy" class="aligncenter wp-image-10367 size-full" src="../Images/fc79b47a5326d9e2b87e4e343cb76686.png" alt="main thread and worker thread" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png 574w, https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread-295x300.png 295w" sizes="(max-width: 574px) 100vw, 574px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/mainandworkerthread.png"/></noscript>
+<p>主线程和工作线程都可以相互监听和发送消息。</p>
+<p><span>让我们创建一个</span> <b> InlineWorker </b> <span>类，它将接受一个函数作为参数，并在另一个线程中运行该函数，就像这样:</span></p>
+<pre>import { Observable, Subject } from 'rxjs';
+
+export class InlineWorker {
+
+  private readonly worker: Worker;
+  private onMessage = new Subject&lt;MessageEvent&gt;();
+  private onError = new Subject&lt;ErrorEvent&gt;();
+
+  constructor(func) {
+
+    const WORKER_ENABLED = !!(Worker);
+
+    if (WORKER_ENABLED) {
+      const functionBody = func.toString().replace(/^[^{]*{\s*/, '').replace(/\s*}[^}]*$/, '');
+
+      this.worker = new Worker(URL.createObjectURL(
+        new Blob([ functionBody ], { type: 'text/javascript' })
+      ));
+
+      this.worker.onmessage = (data) =&gt; {
+        this.onMessage.next(data);
+      };
+
+      this.worker.onerror = (data) =&gt; {
+        this.onError.next(data);
+      };
+
+    } else {
+      throw new Error('WebWorker is not enabled');
+    }
+  }
+
+  postMessage(data) {
+    this.worker.postMessage(data);
+  }
+
+  onmessage(): Observable&lt;MessageEvent&gt; {
+    return this.onMessage.asObservable();
+  }
+
+  onerror(): Observable&lt;ErrorEvent&gt; {
+    return this.onError.asObservable();
+  }
+
+  terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+    }
+  }
+}
+</pre>
+<p><span>上面显示的代码中最重要的部分是一个类，它将一个函数转换成一个字符串，并创建将通过构造函数传递给worker类的<code>ObjectURL</code>。</span></p>
+<pre>const functionBody = func.toString().replace(/^[^{]*{\s*/, '').replace(/\s*}[^}]*$/, '');
+this.worker = new Worker(URL.createObjectURL(
+ new Blob([ functionBody ], { type: 'text/javascript' })
+));
+</pre>
+<h2>如何使用InlineWoker类</h2>
+<p>假设我们有一个Angular函数(就像上面代码块中显示的类)，我们想在后台处理它。</p>
+<p>我们将建立一个应用程序，计算我们有多少素数在范围内。</p>
+<p>主线程将向工作线程发送限制参数，一旦线程完成其任务，它将向主线程提供结果并终止工作线程。</p>
+<p>需要注意的是，我们不能使用任何在传递给InlineWorker的回调函数之外定义的方法、变量或函数。</p>
+<p>如果我们需要传递参数(<a href="https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage" target="_blank" rel="noopener noreferrer"> postMessage函数接受任何东西作为参数</a>，我们必须用<code>postMessage</code>方法来做。</p>
+<pre>import { Component, OnInit } from '@angular/core';
+import { InlineWorker } from './inlineworker.class';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent implements OnInit {
+
+  result = 0;
+
+  ngOnInit() {
+
+    const worker = new InlineWorker(() =&gt; {
+      // START OF WORKER THREAD CODE
+      console.log('Start worker thread, wait for postMessage: ');
+
+      const calculateCountOfPrimeNumbers = (limit) =&gt; {
+
+        const isPrime = num =&gt; {
+          for (let i = 2; i &lt; num; i++) {
+            if (num % i === 0) { return false; }
+          }
+          return num &gt; 1;
+        };
+
+        let countPrimeNumbers = 0;
+
+        while (limit &gt;= 0) {
+          if (isPrime(limit)) { countPrimeNumbers += 1; }
+          limit--;
+        }
+
+        // this is from DedicatedWorkerGlobalScope ( because of that we have postMessage and onmessage methods )
+        // and it can't see methods of this class
+        // @ts-ignore
+        this.postMessage({
+          primeNumbers: countPrimeNumbers
+        });
+      };
+
+      // @ts-ignore
+      this.onmessage = (evt) =&gt; {
+        console.log('Calculation started: ' + new Date());
+        calculateCountOfPrimeNumbers(evt.data.limit);
+      };
+      // END OF WORKER THREAD CODE
+    });
+
+    worker.postMessage({ limit: 300000 });
+
+    worker.onmessage().subscribe((data) =&gt; {
+      console.log('Calculation done: ', new Date() + ' ' + data.data);
+      this.result = data.data.primeNumbers;
+      worker.terminate();
+    });
+
+    worker.onerror().subscribe((data) =&gt; {
+      console.log(data);
+    });
+  }
+}
+</pre>
+<p>如我们所见，我们将匿名函数作为参数传递给InlineWorker。传递的函数的上下文是隔离的，这意味着我们不能访问它之外的任何内容。如果我们尝试，它将是不确定的。</p>
+<p>我们的应用程序的流程如下所示:</p>
+<p><img data-attachment-id="10374" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/appcomponent/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png" data-orig-size="512,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="appcomponent" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png" decoding="async" class="aligncenter wp-image-10374 size-full jetpack-lazy-image" src="../Images/78249be3ca9fd74c5b71acd32c75dd5f.png" alt="application flow" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent-300x192.png 300w" data-lazy-sizes="(max-width: 512px) 100vw, 512px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="10374" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/appcomponent/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png" data-orig-size="512,327" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="appcomponent" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent-300x192.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png" decoding="async" loading="lazy" class="aligncenter wp-image-10374 size-full" src="../Images/78249be3ca9fd74c5b71acd32c75dd5f.png" alt="application flow" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png 512w, https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent-300x192.png 300w" sizes="(max-width: 512px) 100vw, 512px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/appcomponent.png"/></noscript>
+<p>我们必须将@ts-ignore注释放在postMessage和<code>onmessage</code>方法的前面，因为TypeScript不能从当前上下文中读取定义。在这种情况下，TypeScript就没那么有用了。</p>
+<p>回调函数中的监听器<code>onmessage</code>将监听传递给这个worker的任何消息，在我们的例子中，它将调用传递给它的参数<code>calculateCountOfPrimeNumbers</code>。</p>
+<p>函数将进行计算，并通过<code>postMessage</code>方法将结果传递给主线程上的监听器。</p>
+<p>使用:</p>
+<pre>worker.postMessage({ limit: 10000 });</pre>
+<p>我们将触发一个工作线程的执行。当我们用Angular编写这个例子时，我们将使用RXJS observables来传递和监听数据变化。</p>
+<p>在下一行，我们正在订阅来自一个工人的消息。</p>
+<pre>worker.onmessage().subscribe((data) =&gt; {
+ console.log(data.data);
+ worker.terminate();
+});
+</pre>
+<p>简单地说，我们将一个结果输出到一个控制台，然后我们终止这个worker，这样它就不能再被使用了。我们可以向一个工作线程发送多条消息并接收多个结果，我们不会像上面的例子那样被锁定为单次执行。</p>
+<p>我们订阅一个<code>onerror</code> observable很重要，因为这是查看工作线程中发生的错误的唯一方法。</p>
+<h2>演示时间</h2>
+<p>下面是工人实现的演示:<a href="https://angular-with-worker-logrocket.surge.sh/" target="_blank" rel="noopener noreferrer">https://angular-with-worker-logrocket.surge.sh/</a>(没有阻塞UI)</p>
+<p><img data-attachment-id="10379" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/demowithworker/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif" data-orig-size="730,659" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demowithworker" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker-300x271.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif" decoding="async" class="aligncenter wp-image-10379 size-full jetpack-lazy-image" src="../Images/800031fe0d47e7320cd00c76adde530e.png" alt="demo with worker implementation" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="10379" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/demowithworker/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif" data-orig-size="730,659" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demowithworker" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker-300x271.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif" decoding="async" loading="lazy" class="aligncenter wp-image-10379 size-full" src="../Images/800031fe0d47e7320cd00c76adde530e.png" alt="demo with worker implementation" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithworker.gif"/></noscript><br/>
+And here is the demo without the worker: <a href="https://angular-without-worker-logrocket.surge.sh/" target="_blank" rel="noopener noreferrer">https://angular-without-worker-logrocket.surge.sh/</a> ( UI is blocked while computation is running )
+<p><img data-attachment-id="10383" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/demowithoutworker/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif" data-orig-size="730,659" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demowithoutworker" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker-300x271.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif" decoding="async" class="aligncenter wp-image-10383 size-full jetpack-lazy-image" src="../Images/e645c137c1b932d3014f34218981444d.png" alt="demo without worker" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="10383" data-permalink="https://blog.logrocket.com/how-to-execute-a-function-with-a-web-worker-on-a-different-thread-in-angular/demowithoutworker/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif" data-orig-size="730,659" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demowithoutworker" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker-300x271.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif" decoding="async" loading="lazy" class="aligncenter wp-image-10383 size-full" src="../Images/e645c137c1b932d3014f34218981444d.png" alt="demo without worker" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/demowithoutworker.gif"/></noscript>
+<h2>结论</h2>
+<p>在这篇文章中，我们学习了如何将繁重的处理从主线程转移到后台线程，而不会阻塞主线程，并在应用程序中提供良好的用户体验。</p>
+<p>Web workers是Web API的<a href="https://developer.mozilla.org/en-US/docs/Web/API" target="_blank" rel="noopener noreferrer">部分，这意味着它们只在浏览器中可用，需要注意的是它们在所有主流浏览器</a>中都得到了<a href="https://developer.mozilla.org/en-US/docs/Web/API/Worker#Browser_compatibility" target="_blank" rel="noopener noreferrer">的良好支持。</a></p>
+<p> </p><div class="code-block code-block-19">
+<div class="blog-plug inline-plug angular-plug"><h2>像用户一样体验Angular应用程序</h2><p>调试Angular应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪生产中所有用户的角度状态和动作感兴趣，</p><a href="https://lp.logrocket.com/blg/angular-signup">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/2794ac39244976f37c4941d9a910be23.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/610d6a7-687474703a2f2f692e696d6775722e636f6d2f696147547837412e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你网站上发生的一切，包括网络请求、JavaScript错误等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket NgRx插件将角度状态和动作记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化调试Angular应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/angular-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

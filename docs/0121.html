@@ -1,0 +1,523 @@
+<html>
+<head>
+<title>Data fetching with Redux and Axios - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Redux和Axios获取数据</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/data-fetching-redux-axios/#0001-01-01">https://blog.logrocket.com/data-fetching-redux-axios/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:这篇文章于2022年8月26日更新，更新和改进了关于使用Redux和Axios提取数据的信息，并提到了一个使用React钩子提取数据的额外简单选项。</em></p>
+<p>正如许多开发人员所知，在构建健壮的应用程序时，状态管理是您必须处理的许多问题之一。它会很快变成一场噩梦，尤其是在客户端。</p>
+<p>Redux强制实施单向数据流，这使得理解事件如何改变应用程序的状态变得容易。太好了！但是如何处理副作用呢，比如网络请求，这是最常见的副作用。</p>
+<p>让我们探索Redux提供的获取和更新数据的一些解决方案，以及如何建立一个定制的中间件解决方案来解决您的特定需求和您可能遇到的任何副作用。</p>
+<p>在本文中:</p>
+
+<h2 id="what-redux">Redux是什么？</h2>
+<p>Redux是一个状态容器和伟大的工具，它解决了UI框架的一个主要问题:状态管理。有了Redux，应用程序状态可以通过名为<code>actions</code>的事件进行可预测的维护。</p>
+<p>Redux状态管理的可预测性在于，如果重放<code>actions</code>，我们每次都会到达正确的数据状态。</p>
+<p>有许多库扩展了Redux在应用程序状态管理方面的功能。但是我们如何判断哪一个适合我们的项目呢？</p>
+<p>事实是，这些解决方案中的每一个都是用不同的方法、用例以及头脑中的思维模型构建的，所以它们都有各自的优点和缺点。在这篇博客中，我不会讨论所有可能的方法，但是让我们用一个简单的应用程序来看看一些最常见的模式。</p>
+<p>为了探索客户机应用程序状态管理的不同选项，我们将使用一个简单的<a href="https://reactjs.org/" target="_blank" rel="noreferrer noopener"> React应用程序</a>。</p>
+<h2 id="simple-example-fetching-data-server">从服务器获取数据的简单示例</h2>
+<p>让我们在简单的React应用程序中使用一个假的Medium post作为示例。</p>
+<p>看看下面的应用程序截图。你不认为这很简单吗？它所包含的只是一堆文本和左边一个中等大小的拍手图标。你可以<a href="https://github.com/ohansemmanuel/fake-medium" target="_blank" rel="noreferrer noopener">抓取GitHub repo </a>让这个应用程序跟随。</p>
+<p><img data-attachment-id="129653" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img1-data-fetching-medium-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-Medium-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png" decoding="async" class="aligncenter size-full wp-image-129653 jetpack-lazy-image" src="../Images/9a3b03fb14787aadad4d8de2b9bf2a1a.png" alt="Screenshot Of Simple Example Application Containing Medium Clap Icon (Left) And Dummy Blog Text (Right)" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129653" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img1-data-fetching-medium-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-Medium-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129653" src="../Images/9a3b03fb14787aadad4d8de2b9bf2a1a.png" alt="Screenshot Of Simple Example Application Containing Medium Clap Icon (Left) And Dummy Blog Text (Right)" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img1-Data-fetching-Medium-example.png"/></noscript>
+<p>请注意，中拍手是可点击的。如果你感兴趣的话，下面是我如何构建Medium clap克隆的。</p>
+<p><img data-attachment-id="129655" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img2-data-fetching-medium-article-clickable-clap/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-Medium-article-clickable-clap" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif" decoding="async" class="aligncenter size-full wp-image-129655 jetpack-lazy-image" src="../Images/fffb74e1ddb1a95a95c841ca46918627.png" alt="User Cursor Shown Clicking Green Medium Clap Icon To Left Of Dummy Blog Text Before Gif Fades To Black And Loops" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129655" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img2-data-fetching-medium-article-clickable-clap/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-Medium-article-clickable-clap" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129655" src="../Images/fffb74e1ddb1a95a95c841ca46918627.png" alt="User Cursor Shown Clicking Green Medium Clap Icon To Left Of Dummy Blog Text Before Gif Fades To Black And Loops" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img2-Data-fetching-Medium-article-clickable-clap.gif"/></noscript>
+<p>即使对于这个简单的应用程序，您也必须从服务器获取数据。显示所需视图所需的JSON有效负载可能如下所示:</p>
+<pre class="language-json hljs">{
+  "numberOfRecommends": 1900,
+  "title": "My First Fake Medium Post",
+  "subtitle": "and why it makes no intelligible sense",
+  "paragraphs": [
+    {
+      "text": "This is supposed to be an intelligible post about something intelligible."
+    },
+    {
+      "text": "Uh, sorry there’s nothing here."
+    },
+    {
+      "text": "It’s just a fake post."
+    },
+    {
+      "text": "Love it?"
+    },
+    {
+      "text": "I bet you do!"
+    }
+  ]
+}
+</pre>
+<p>app的结构确实很简单，两大组件:<code>Article</code>和<code>Clap</code>。</p>
+<p><img data-attachment-id="129657" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img3-example-data-fetching-app-structure-clap-article/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png" data-orig-size="730,563" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example-data-fetching-app-structure-clap-article" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article-300x231.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png" decoding="async" class="aligncenter size-full wp-image-129657 jetpack-lazy-image" src="../Images/18972ff51549d351d4467046813bcdba.png" alt="Example Data Fetching App Structure Shown With Clap Labeled And Boxed In Red While Article Is Labeled And Boxed In Yellow" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article-300x231.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129657" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img3-example-data-fetching-app-structure-clap-article/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png" data-orig-size="730,563" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example-data-fetching-app-structure-clap-article" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article-300x231.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129657" src="../Images/18972ff51549d351d4467046813bcdba.png" alt="Example Data Fetching App Structure Shown With Clap Labeled And Boxed In Red While Article Is Labeled And Boxed In Yellow" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article-300x231.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img3-Example-data-fetching-app-structure-clap-article.png"/></noscript>
+<p>在<code><a href="https://github.com/ohansemmanuel/fake-medium/blob/master/src/components/Article.js" target="_blank" rel="noreferrer noopener">components/Article.js</a></code>中，文章组件是一个无状态的功能组件，接受<code>title</code>、<code>subtitle</code>和<code>paragraphs</code>道具。渲染的组件如下所示:</p>
+<pre class="language-javascript hljs">const Article = ({ title, subtitle, paragraphs }) =&gt; {
+  return (
+    &lt;StyledArticle&gt;
+      &lt;h1&gt;{title}&lt;/h1&gt;
+      &lt;h4&gt;{subtitle}&lt;/h4&gt;
+      {paragraphs.map(paragraph =&gt; &lt;p&gt;{paragraph.text}&lt;/p&gt;)}
+    &lt;/StyledArticle&gt;
+  );
+};
+</pre>
+<p>这里，<code>StyledArticle</code>是通过<a href="https://blog.logrocket.com/benefits-using-styled-components-react/" target="_blank" rel="noreferrer noopener"> CSS-in-JS解决方案</a> <code><a href="https://blog.logrocket.com/benefits-using-styled-components-react/" target="_blank" rel="noreferrer noopener">styled-components</a></code>样式化的常规<code>div</code>元素。</p>
+<p>不管你是否熟悉任何CSS-in-JS解决方案。<code>StyledArticle</code>可以通过好的ol’CSS替换为<code>div</code>样式。</p>
+<p>让我们结束那件事，不要开始争论。</p>
+<p>中clap组件在<code><a href="https://github.com/ohansemmanuel/fake-medium/blob/master/src/components/Clap.js" target="_blank" rel="noreferrer noopener">components/Clap.js</a></code>内导出。代码稍微复杂一些，超出了本文的范围。然而，你可以仔细阅读<a href="https://medium.freecodecamp.org/how-i-re-built-the-medium-clap-effect-and-what-i-got-out-of-the-experiment-991672995fdf" target="_blank" rel="noreferrer noopener">我是如何建立媒体鼓掌</a>——这是一个五分钟的阅读。</p>
+<p>当<code>Clap</code>和<code>Article</code>组件都就位后，<code>App</code>组件就组成了这两个组件，如<code><a href="https://github.com/ohansemmanuel/fake-medium/blob/master/src/containers/App.js" target="_blank" rel="noreferrer noopener">containers/App.js</a></code>所示:</p>
+<pre class="language-javascript hljs">class App extends Component {
+  state = {};
+  render() {
+    return (
+      &lt;StyledApp&gt;
+        &lt;aside&gt;
+          &lt;Clap /&gt;
+        &lt;/aside&gt;
+        &lt;main&gt;
+          &lt;Article /&gt;
+        &lt;/main&gt;
+      &lt;/StyledApp&gt;
+    );
+  }
+}
+</pre>
+<p>同样，您可以用常规的<code>div</code>替换<code>StyledApp</code>，并通过CSS对其进行样式化。</p>
+<p>现在，到了这篇文章的核心部分。</p>
+<h2 id="solutions-fetching-updating-data">获取和更新数据的各种解决方案</h2>
+<p>让我们看看在Redux应用程序中获取和更新数据的一些不同方法，并考虑它们的优缺点。</p>
+<h3 id="using-react-state-hooks">使用反应状态挂钩</h3>
+<p><a href="https://blog.logrocket.com/react-hooks-cheat-sheet-unlock-solutions-to-common-problems-af4caf699e70/" target="_blank" rel="noreferrer noopener"> React提供了钩子</a>，作为对React特性如<code>state</code>的快速访问。在这一节中，我们将特别关注<a href="https://blog.logrocket.com/a-guide-to-usestate-in-react-ecb9952e406c/" target="_blank" rel="noreferrer noopener">反应状态钩子</a>。</p>
+<p>使用钩子，我们可以构建一个可以访问状态等特性的组件，而不用编写一个类来扩展<code>React.Component</code>和引用<code>this.state</code></p>
+<p>为了使用状态挂钩，我们从React库中导入<code>useState</code>,如下所示:</p>
+<pre class="language-javascript hljs">import {useState} from 'react';
+</pre>
+<p>简单地说，<code>useState</code>提供了一种创建状态数据对象的简便方法和一个更新它的函数。</p>
+<p><code>useState</code>接受一个值——任何值类型，如<code>integer</code>、<code>string</code>、<code>boolean</code>、<code>object</code>等。—并返回包含两个项目的数组。第一项是保存值的变量。第二个是更新变量的函数。</p>
+<p>让我们看一个使用我们的<code>Clap</code>组件作为函数而不是类编写的小例子:</p>
+<pre class="language-javascript hljs">// src/components/Clap.js
+
+import {useState} from 'react'
+
+function generateRandomNumber(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+function Clap() {
+  const [isClicked, setIsClicked] = useState(false)
+  const [count, setCount] = useState(0)
+  const [countTotal, setCountTotal] = useState(generateRandomNumber(500, 1000))
+
+  const handleClick = () =&gt; {
+     // set is clicked to true - this makes our button green
+     setIsClicked(true)
+     setCount(count + 1)
+     setCountTotal(countTotal + 1)
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;button id="clap" className="clap" onClick={handleClick}&gt;
+        &lt;span&gt;
+          {/*&lt;!--  SVG Created by Luis Durazo from the Noun Project  --&gt;*/}
+          &lt;svg
+            id="clap--icon"
+            
+            viewBox="-549 338 100.1 125"
+            className={`${isClicked &amp;&amp; "checked"}`}
+          &gt;
+            &lt;path d="M-471.2 366.8c1.2 1.1 1.9 2.6 2.3 4.1.4-.3.8-.5 1.2-.7 1-1.9.7-4.3-1-5.9-2-1.9-5.2-1.9-7.2.1l-.2.2c1.8.1 3.6.9 4.9 2.2zm-28.8 14c.4.9.7 1.9.8 3.1l16.5-16.9c.6-.6 1.4-1.1 2.1-1.5 1-1.9.7-4.4-.9-6-2-1.9-5.2-1.9-7.2.1l-15.5 15.9c2.3 2.2 3.1 3 4.2 5.3zm-38.9 39.7c-.1-8.9 3.2-17.2 9.4-23.6l18.6-19c.7-2 .5-4.1-.1-5.3-.8-1.8-1.3-2.3-3.6-4.5l-20.9 21.4c-10.6 10.8-11.2 27.6-2.3 39.3-.6-2.6-1-5.4-1.1-8.3z" /&gt;
+            &lt;path d="M-527.2 399.1l20.9-21.4c2.2 2.2 2.7 2.6 3.5 4.5.8 1.8 1 5.4-1.6 8l-11.8 12.2c-.5.5-.4 1.2 0 1.7.5.5 1.2.5 1.7 0l34-35c1.9-2 5.2-2.1 7.2-.1 2 1.9 2 5.2.1 7.2l-24.7 25.3c-.5.5-.4 1.2 0 1.7.5.5 1.2.5 1.7 0l28.5-29.3c2-2 5.2-2 7.1-.1 2 1.9 2 5.1.1 7.1l-28.5 29.3c-.5.5-.4 1.2 0 1.7.5.5 1.2.4 1.7 0l24.7-25.3c1.9-2 5.1-2.1 7.1-.1 2 1.9 2 5.2.1 7.2l-24.7 25.3c-.5.5-.4 1.2 0 1.7.5.5 1.2.5 1.7 0l14.6-15c2-2 5.2-2 7.2-.1 2 2 2.1 5.2.1 7.2l-27.6 28.4c-11.6 11.9-30.6 12.2-42.5.6-12-11.7-12.2-30.8-.6-42.7m18.1-48.4l-.7 4.9-2.2-4.4m7.6.9l-3.7 3.4 1.2-4.8m5.5 4.7l-4.8 1.6 3.1-3.9" /&gt;
+          &lt;/svg&gt;
+        &lt;/span&gt;
+        &lt;span id="clap--count" className="clap--count"&gt;
+          +{count}
+        &lt;/span&gt;
+        &lt;span id="clap--count-total" className="clap--count-total"&gt;
+          {countTotal}
+        &lt;/span&gt;
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>正如我们在上面的例子中看到的，我们使用状态钩子初始化了所有的数据— <code>isClicked</code>、<code>count</code>和<code>countTotal</code>。同样，在我们的<code>handleClick</code>事件中，我们使用适当的函数更新了状态数据。</p>
+<p>现在我们来介绍另一个<a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#useeffect" target="_blank" rel="noreferrer noopener">的React钩子叫做</a> <code><a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#useeffect" target="_blank" rel="noreferrer noopener">useEffect</a></code>。这个钩子可以和<code>useState</code>钩子一起使用来加载从请求中获取的状态数据。这里有一个例子:</p>
+<pre class="language-javascript hljs">import {useState, useEffect} from 'react'
+import axios from 'axios'
+
+function Example() {
+  const [post, updatePost] = useState({title: ''})
+
+  useEffect(() =&gt; {
+     axios.get("https://api.myjson.com/bins/19dtxc")
+        .then(({ data }) =&gt; {
+            updatePost(data)
+        })
+  })
+
+  return (
+    &lt;div&gt;
+       &lt;p&gt;{post.title}&lt;/p&gt;
+       ...
+    &lt;/div&gt;
+  )
+}
+</pre>
+<p>当我们的数据是自包含的并且受单个组件影响时，对API调用使用React钩子可以很好地工作。当几个组件共享数据时，我们就不能再依赖钩子了。</p>
+<p>现在让我们探索一些Redux库来实现更复杂的数据更改。最受欢迎的选项可以说是<code>redux-thunk</code>和<code>redux-saga</code>。</p>
+<p>准备好了吗？</p>
+<h3 id="using-redux-thunk-redux-promise">使用<code>redux-thunk</code>和<code>redux-promise</code></h3>
+<p>需要记住的一件重要事情是，每个第三方库都有其学习曲线和潜在的可伸缩性问题。但是在Redux中管理副作用的所有社区库中，像<code>redux-thunk</code>和<code>redux-promise</code>这样的是最容易上手的。</p>
+<p>前提很简单。<code>thunk</code>是一段做一些延迟工作的代码，或者简单地说，是用于稍后更新状态的逻辑。</p>
+<p>对于<code>redux-thunk</code>，你编写一个动作创建器，它不“创建”一个对象，而是返回一个函数。这个函数通过Redux的<code>getState</code>和<code>dispatch</code>函数传递。</p>
+<p>让我们来看看假媒体应用程序如何利用<code><a href="https://github.com/reduxjs/redux-thunk" target="_blank" rel="noreferrer noopener">redux-thunk</a></code> <a href="https://github.com/reduxjs/redux-thunk" target="_blank" rel="noreferrer noopener">库</a>。</p>
+<p>首先，安装<code>redux-thunk</code>库:</p>
+<pre class="language-bash hljs">yarn add redux-thunk
+</pre>
+<p>为了使库按预期工作，它必须作为中间件来应用。在<code><a href="https://github.com/ohansemmanuel/fake-medium/blob/master/src/store/index.js" target="_blank" rel="noreferrer noopener">store/index.js</a></code>中:</p>
+<pre class="language-javascript hljs">import { createStore, applyMiddleware } from "redux";
+import thunk from "redux-thunk";
+const store = createStore(rootReducer, applyMiddleware(thunk));
+</pre>
+<p>上面代码块中的第一行从Redux导入了<code>createStore</code>和<code>applyMiddleware</code>函数。第二行从<code>redux-thunk</code>输入<code>thunk</code>。第三行创建了<code>store</code>，但是使用了一个应用中间件。</p>
+<p>现在，我们准备发出一个实际的网络请求。</p>
+<p>我们将<a href="https://blog.logrocket.com/how-to-make-http-requests-like-a-pro-with-axios/" target="_blank" rel="noreferrer noopener">使用Axios库发出网络请求</a>，但是可以随意用您选择的另一个HTTP客户端来替换它。</p>
+<p>使用<code>redux-thunk</code>，发起网络请求实际上非常容易。您创建了一个操作创建器，它返回如下函数:</p>
+<pre class="language-javascript hljs">export function fetchArticleDetails() {
+  return function(dispatch) {
+    return axios.get("https://api.myjson.com/bins/19dtxc")
+      .then(({ data }) =&gt; {
+      dispatch(setArticleDetails(data));
+    });
+  };
+}
+</pre>
+<p>一旦安装了<code>App</code>组件，您就分派了这个动作创建器:</p>
+<pre class="language-javascript hljs">componentDidMount() {
+    this.props.fetchArticleDetails();
+ }
+</pre>
+<p>仅此而已。请务必检查<a href="https://github.com/ohansemmanuel/fake-medium/commit/589c2e1fb429659ee20131ed1d7558b03c8bf3f9" target="_blank" rel="noreferrer noopener">完整的代码差异</a>，因为我在这里只突出显示关键行。这样，文章的详细信息就被获取并显示在应用程序中，就像这样:</p>
+<p><img data-attachment-id="129659" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img4-data-fetching-api-redux-thunk/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-API-redux-thunk" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png" decoding="async" class="aligncenter size-full wp-image-129659 jetpack-lazy-image" src="../Images/b9e2afa8f45bf86a7d674c55ebff43f2.png" alt="Data Fetching Api Results Using Redux-Thunk Library" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129659" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img4-data-fetching-api-redux-thunk/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-API-redux-thunk" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129659" src="../Images/b9e2afa8f45bf86a7d674c55ebff43f2.png" alt="Data Fetching Api Results Using Redux-Thunk Library" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img4-Data-fetching-API-redux-thunk.png"/></noscript>
+<p>这种方法到底有什么问题？</p>
+<p>如果你正在构建一个非常小的应用程序，<code>redux-thunk</code>解决了这个问题，这可能是最容易相处的。</p>
+<p>为了改进对<code>redux-thunk</code>的使用，我们可以为HTTP请求创建一个类或对象，实现我们选择的客户端。这样，很容易交换库并创建一个实例来减少基本URL和头的重复，以及处理基本的网络错误。</p>
+<p>一个好主意是让我们的动作创建者尽可能无状态。使它们成为简单的函数会使它们更容易调试和测试。</p>
+<h3 id="using-redux-saga-redux-observable">使用<code>redux-saga</code>和<code>redux-observable</code></h3>
+<p>这些Redux库比<code>redux-thunk</code>或<code>redux-promise</code>稍微复杂一些。</p>
+<p><code>redux-saga</code>和<code>redux-observable</code>无疑可以更好地扩展，但是它们需要一个学习曲线。<a href="https://blog.logrocket.com/rxjs-react-hooks-for-state-management/" target="_blank" rel="noreferrer noopener">像RxJS </a>和<a href="https://blog.logrocket.com/understanding-redux-saga-action-creators-sagas/" target="_blank" rel="noreferrer noopener"> Redux Saga </a>这样的概念是必须学习的，这取决于团队中工作的工程师有多少经验，这可能是一个挑战。</p>
+<p>所以，如果<code>redux-thunk</code>和<code>redux-promise</code>对你的项目来说太简单了，而<code>redux-saga</code>和<code>redux-observable</code>会引入一层你想从你的团队中抽象出来的复杂性，你会转向哪里？</p>
+<p>自定义中间件！</p>
+<p>像<code>redux-thunk</code>、<code>redux-promise</code>和<code>redux-saga</code>这样的大多数解决方案都使用了一个中间件。为什么你不能创造你的呢？</p>
+<p>你刚才是不是说，“为什么要重新发明轮子？”</p>
+<h2 id="custom-middleware-perfect-solution">定制中间件是完美的解决方案吗？</h2>
+<p>虽然重新发明轮子最初听起来确实是件坏事，但还是给它一个机会吧。</p>
+<p>无论如何，许多公司已经建立了定制的解决方案来满足他们的需求。事实上，很多开源项目就是这样开始的。</p>
+<p>那么，您对这种定制解决方案有什么期望？</p>
+<ul>
+<li>集中式解决方案；即在一个模块中</li>
+<li>可以处理各种HTTP方法，包括<code>GET</code>、<code>POST</code>、<code>DELETE</code>和<code>PUT</code></li>
+<li>可以处理设置自定义标题</li>
+<li>支持自定义错误处理；例如发送到某个外部日志服务，或者用于处理授权错误</li>
+<li>允许<code>onSuccess</code>和<code>onFailure</code>回调</li>
+<li>支持处理装载状态的标签</li>
+</ul>
+<p>同样，根据您的具体需求，您可能有一个更大的列表。</p>
+<p>现在，让我向您介绍一个合适的起点——一个您可以根据自己的特定用例进行调整的起点。</p>
+<p>Redux API中间件总是这样开始的:</p>
+<pre class="language-javascript hljs">const apiMiddleware = ({dispatch}) =&gt; next =&gt; action =&gt; {
+  next (action)
+}
+</pre>
+<p>你可以在Github 上找到定制Redux API中间件的完整<a href="https://github.com/ohansemmanuel/fake-medium/blob/master/src/middleware/api.js" target="_blank" rel="noreferrer noopener">代码。一开始可能看起来很多，但我会很快解释每一行。</a></p>
+<p>给你:</p>
+<pre class="language-javascript hljs">import axios from "axios";
+import { API } from "../actions/types";
+import { accessDenied, apiError, apiStart, apiEnd } from "../actions/api";
+
+
+const apiMiddleware = ({ dispatch }) =&gt; next =&gt; action =&gt; {
+  next(action);
+
+  if (action.type !== API) return;
+
+  const {
+    url,
+    method,
+    data,
+    accessToken,
+    onSuccess,
+    onFailure,
+    label,
+    headers
+  } = action.payload;
+
+  const dataOrParams = ["GET", "DELETE"].includes(method) ? "params" : "data";
+
+
+  // axios default configs
+  axios.defaults.baseURL = process.env.REACT_APP_BASE_URL || "";
+  axios.defaults.headers.common["Content-Type"]="application/json";
+  axios.defaults.headers.common["Authorization"] = `Bearer${token}`;
+
+
+  if (label) {
+    dispatch(apiStart(label));
+  }
+
+  axios
+    .request({
+      url,
+      method,
+      headers,
+      [dataOrParams]: data
+    })
+    .then(({ data }) =&gt; {
+      dispatch(onSuccess(data));
+    })
+    .catch(error =&gt; {
+      dispatch(apiError(error));
+      dispatch(onFailure(error));
+
+      if (error.response &amp;&amp; error.response.status === 403) {
+        dispatch(accessDenied(window.location.pathname));
+      }
+    })
+   .finally(() =&gt; {
+      if (label) {
+        dispatch(apiEnd(label));
+      }
+   });
+};
+
+export default apiMiddleware;
+</pre>
+<p>仅用100行代码(同样，您可以从GitHub 获取这些代码),您就拥有了一个定制的Redux API中间件解决方案，其流程很容易理解。</p>
+<p>我答应解释每一行，所以首先，这里有一个中间件如何工作的概述:</p>
+<p><img data-attachment-id="129662" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img5-how-data-fetching-works-redux-apps-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png" data-orig-size="730,773" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="How-data-fetching-works-Redux-apps-API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API-283x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png" decoding="async" class="aligncenter size-full wp-image-129662 jetpack-lazy-image" src="../Images/7385254c673023cc46e11057feb8a850.png" alt="Infographic Showing Overview Of How Middleware Works With Six Steps Of Data Fetching Redux Apps Api" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API-283x300.png 283w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129662" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img5-how-data-fetching-works-redux-apps-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png" data-orig-size="730,773" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="How-data-fetching-works-Redux-apps-API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API-283x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129662" src="../Images/7385254c673023cc46e11057feb8a850.png" alt="Infographic Showing Overview Of How Middleware Works With Six Steps Of Data Fetching Redux Apps Api" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API-283x300.png 283w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img5-How-data-fetching-works-Redux-apps-API.png"/></noscript>
+<p>首先，你做了一些重要的导入，你很快就会看到它们的用法。</p>
+<h3 id="set-up-middleware">设置中间件</h3>
+<p>这是Redux API中间件所需的典型设置:</p>
+<pre class="language-javascript hljs">const apiMiddleware = ({ dispatch }) =&gt; next =&gt; action =&gt; {}
+</pre>
+<p>好了，第一步完成了。轻松点。</p>
+<h3 id="dismiss-irrelevant-action-types">消除不相关的操作类型</h3>
+<p>我们的下一步是驳回不相关的行动类型。参见下面的代码:</p>
+<pre class="language-javascript hljs">if (action.type !== API) return;
+</pre>
+<p>上述条件对于防止除类型<code>API</code>之外的任何动作触发网络请求非常重要。</p>
+
+<p>为了发出成功的请求，需要从动作负载中提取一些重要的变量:</p>
+<pre class="language-javascript hljs">const {
+    url,
+    method,
+    data,
+    onSuccess,
+    onFailure,
+    label,
+  } = action.payload;
+</pre>
+<p>以下是每个变量所代表或涉及的内容:</p>
+<ul>
+<li><code>url</code>:被击中的<code>endpoint</code></li>
+<li><code>method</code>:请求的HTTP方法</li>
+<li><code>data</code>在<code>GET</code>或<code>DELETE</code>请求的情况下，发送到服务器或查询参数的任何数据</li>
+<li><code>onSuccess</code>和<code>onFailure</code>:表示您希望在请求成功或失败时分派的任何动作创建者</li>
+<li><code>label</code>:请求的字符串表示</li>
+</ul>
+<p>您将很快在一个实际例子中看到这些内容。</p>
+<h3 id="handle-http-method">处理任何HTTP方法</h3>
+<pre class="language-javascript hljs">const dataOrParams = ["GET", "DELETE"].includes(method) ? "params" : "data";
+</pre>
+<p>因为这个解决方案使用了<code>axios</code>——我认为大多数<code>HTTP</code>客户端都是这样工作的——<code>GET</code>和<code>DELETE</code>方法使用了<code>params</code>,而其他方法可能需要向服务器发送一些<code>data</code>。</p>
+<p>因此，变量<code>dataOrParams</code>将保存任何相关的值— <code>params</code>或<code>data</code> —这取决于请求的方法。</p>
+<p>如果你有一些网络开发的经验，这应该不会奇怪。</p>
+<h3 id="handle-globals">处理全局</h3>
+<pre class="language-javascript hljs">// axios default configs
+  axios.defaults.baseURL = process.env.REACT_APP_BASE_URL || "";
+  axios.defaults.headers.common["Content-Type"]="application/json";
+  axios.defaults.headers.common["Authorization"] = `Bearer${token}`;
+</pre>
+<p>大多数像样的应用程序都有一些授权层、一个<code>baseUrl</code>和一些默认头。从技术上讲，每个API客户端很可能对每个请求都有一些默认值。</p>
+<p>这是通过在Axios对象上设置一些属性来实现的。我相信你选择的任何客户都可以做到这一点。</p>
+<h3 id="handle-loading-states">处理装载状态</h3>
+<pre class="language-javascript hljs">if (label) {
+    dispatch(apiStart(label));
+}
+</pre>
+<p>标签只是一个字符串，用于标识某个网络请求动作。就像一个动作的类型。<br/>如果一个<code>label</code>存在，中间件将分派一个<code>apiStart</code>动作创建器。</p>
+<p>下面是动作创建者的样子:</p>
+<pre class="language-javascript hljs">export const apiStart = label =&gt; ({
+  type: API_START,
+  payload: label
+});
+</pre>
+<p>动作类型为<code>API_START</code>。</p>
+<p>现在，在您的reducers中，您可以处理这个动作类型来知道请求何时开始。我将很快展示一个例子。</p>
+<p>此外，在网络请求成功或失败时，还将分派一个<code>API_END</code>动作。这非常适合处理加载状态，因为您确切地知道请求开始和结束的时间。</p>
+<p>我将再次展示一个例子。</p>
+<h3 id="make-network-request-handle-errors-invoke-callbacks">发出实际的网络请求，处理错误，并调用回调</h3>
+<pre class="language-javascript hljs">axios
+    .request({
+      url: `${BASE_URL}${url}`,
+      method,
+      headers,
+      [dataOrParams]: data
+    })
+    .then(({ data }) =&gt; {
+      dispatch(onSuccess(data));
+    })
+    .catch(error =&gt; {
+      dispatch(apiError(error));
+      dispatch(onFailure(error));
+
+     if (error.response &amp;&amp; error.response.status === 403) {
+        dispatch(accessDenied(window.location.pathname));
+      }
+    })
+    .finally(() =&gt; { if (label) { dispatch(apiEnd(label)); } });
+</pre>
+<p>上面的代码没有看起来那么复杂。</p>
+<p><code>axios.request</code>负责发出网络请求，并传入一个对象配置。这些是您之前从action有效负载中提取的变量。</p>
+<p>当请求成功时，如<code>then</code>块所示，分派一个<code>apiEnd</code>动作创建器。</p>
+<p>看起来像下面这样:</p>
+<pre class="language-javascript hljs">export const apiEnd = label =&gt; ({
+  type: API_END,
+  payload: label
+});
+</pre>
+<p>在您的reducer中，您可以监听这个消息，并在请求结束时终止任何加载状态。完成之后，调度<code>onSuccess</code>回调。</p>
+<p>在网络请求成功后，<code>onSuccess</code>回调函数返回您想要调度的任何动作。几乎总是有在成功的网络请求之后分派动作的情况，例如，将获取的数据保存到Redux存储。</p>
+<p>如果出现错误，如<code>catch</code>块中所示，也触发<code>apiEnd</code>动作创建器，调度一个带有失败错误的<code>apiError</code>动作创建器:</p>
+<pre class="language-javascript hljs">export const apiError = error =&gt; ({
+  type: API_ERROR,
+  error
+});
+</pre>
+<p>您可能有另一个中间件来监听这个动作类型，并确保错误到达您的外部日志服务。</p>
+<p>您还调度了一个<code>onFailure</code>回调，以防您需要向用户显示一些视觉反馈。这也适用于toast通知。</p>
+<p>最后，我展示了一个处理认证错误的例子:</p>
+<pre class="language-javascript hljs">if (error.response &amp;&amp; error.response.status === 403) {
+     dispatch(accessDenied(window.location.pathname));
+  }
+</pre>
+<p>在这个例子中，我分派了一个<code>accessDenied</code>动作创建器，它接收用户所在的位置。然后我可以在另一个中间件中处理这个<code>accessDenied</code>动作。</p>
+<p>你真的不需要在另一个中间件中处理这些。它们可以在同一个代码块中完成。然而，为了仔细抽象，将这些关注点分开对您的项目来说可能更有意义。</p>
+<p>就是这样！</p>
+<h2 id="custom-middleware-action">运行中的定制中间件</h2>
+<p>我现在将重构这个假的中型应用程序，以使用这个定制的中间件。唯一要做的改变是包含这个中间件，然后编辑<code>fetchArticleDetails</code>动作以返回一个普通对象。</p>
+<p>包括中间件:</p>
+<pre class="language-javascript hljs">import apiMiddleware from "../middleware/api";
+const store = createStore(rootReducer, applyMiddleware(apiMiddleware));
+</pre>
+<p>编辑<code>fetchArticleDetails</code>动作:</p>
+<pre class="language-javascript hljs">export function fetchArticleDetails() {
+  return {
+    type: API,
+    payload: {
+      url: "https://api.myjson.com/bins/19dtxc",
+      method: "GET",
+      data: null,
+      onSuccess: setArticleDetails,
+      onFailure: () =&gt; {
+        console.log("Error occured loading articles");
+      },
+      label: FETCH_ARTICLE_DETAILS
+    }
+ };
+}
+
+function setArticleDetails(data) {
+  return {
+    type: SET_ARTICLE_DETAILS,
+    payload: data
+  };
+}
+</pre>
+<p>注意来自<code>fetchArticleDetails</code>的有效载荷是如何包含中间件所需的所有信息的。</p>
+<p>但是，有一个小问题:一旦你超越了一个动作创建者，每次都编写有效载荷对象就变得很痛苦。当一些值是<code>null</code>或者有一些默认值时，这可能特别令人沮丧。</p>
+<p>为方便起见，您可以将动作对象的创建抽象为一个名为<code>apiAction</code>的新动作创建者:</p>
+<pre class="language-javascript hljs">function apiAction({
+  url = "",
+  method = "GET",
+  data = null,
+  onSuccess = () =&gt; {},
+  onFailure = () =&gt; {},
+  label = ""
+}) {
+  return {
+    type: API,
+    payload: {
+      url,
+      method,
+      data,
+      onSuccess,
+      onFailure,
+      label
+    }
+  };
+}
+</pre>
+<p>使用ES6默认参数，注意<code>apiAction</code>已经设置了一些合理的默认值。<br/>现在，在<code>fetchArticleDetails</code>你可以这样做:</p>
+<pre class="language-javascript hljs">function fetchArticleDetails() {
+  return apiAction({
+    url: "https://api.myjson.com/bins/19dtxc",
+    onSuccess: setArticleDetails,
+    onFailure:() =&gt; {console.log("Error occured loading articles")},
+    label: FETCH_ARTICLE_DETAILS
+  });
+}
+</pre>
+<p>对于某些ES6，这甚至会更简单:</p>
+<pre class="language-javascript hljs">const fetchArticleDetails = () =&gt; apiAction({
+   url: "https://api.myjson.com/bins/19dtxc",
+   onSuccess: setArticleDetails,
+   onFailure: () =&gt; {console.log("Error occured loading articles")},
+   label: FETCH_ARTICLE_DETAILS
+});
+</pre>
+<p>简单得多——结果是一样的，一个工作的应用程序！</p>
+<p><img data-attachment-id="129664" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img6-data-fetching-application-example-api-es6/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-application-example-API-ES6" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif" decoding="async" class="aligncenter size-full wp-image-129664 jetpack-lazy-image" src="../Images/f6e1d0c379f738d73673631d634ebbf9.png" alt="Result Of Data Fetching Application Api With Much Simpler Es6 Approach" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129664" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img6-data-fetching-application-example-api-es6/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Data-fetching-application-example-API-ES6" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129664" src="../Images/f6e1d0c379f738d73673631d634ebbf9.png" alt="Result Of Data Fetching Application Api With Much Simpler Es6 Approach" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img6-Data-fetching-application-example-API-ES6.gif"/></noscript>
+<p>为了了解标签如何对加载状态有用，我将继续处理reducer中的<code>API_START</code>和<code>API_END</code>动作类型。</p>
+<pre class="language-javascript hljs">case API_START:
+  if (action.payload === FETCH_ARTICLE_DETAILS) {
+     return {
+        ...state,
+        isLoadingData: true
+     };
+}
+
+case API_END:
+   if (action.payload === FETCH_ARTICLE_DETAILS) {
+      return {
+        ...state,
+        isLoadingData: false
+      };
+ }
+</pre>
+<p>现在，我基于动作类型<code>API_START</code>和<code>API_END</code>在状态对象中设置一个<code>isLoadingData</code>标志。基于此，我可以在<code>App</code>组件中设置一个加载状态。</p>
+<p>结果如下:</p>
+<p><img data-attachment-id="129666" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img7-medium-api-start-isloadingdata-flag/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Medium-API-start-isLoadingData-flag" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif" decoding="async" class="aligncenter size-full wp-image-129666 jetpack-lazy-image" src="../Images/a6eb28c9cd10de7ae43bba224a95bcdc.png" alt="Result Of Medium Api Start With Isloadingdata Flag Showing Loading State Before Dummy Blog Text Appears And Gif Fades To Black" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="129666" data-permalink="https://blog.logrocket.com/data-fetching-redux-axios/attachment/img7-medium-api-start-isloadingdata-flag/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif" data-orig-size="730,407" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Medium-API-start-isLoadingData-flag" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag-300x167.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-129666" src="../Images/a6eb28c9cd10de7ae43bba224a95bcdc.png" alt="Result Of Medium Api Start With Isloadingdata Flag Showing Loading State Before Dummy Blog Text Appears And Gif Fades To Black" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/img7-Medium-API-start-isLoadingData-flag.gif"/></noscript>
+<p>成功了！</p>
+<p>请记住，我在这里分享的定制中间件只是作为您的应用程序的一个良好起点。评估以确保这适合你的具体情况。根据您的具体使用情况，您可能需要进行一些调整。</p>
+<p>值得一提的是，我已经在相当大的项目中以此为起点，并不后悔这个决定。</p>
+<h2 id="conclusion">结论</h2>
+<p>我强烈建议您在做出任何承诺之前，在Redux应用程序中尝试各种可用的网络请求选项。可悲的是，在为一个成熟的应用程序选择了策略之后，重构就变得很困难了。</p>
+<p>最终，这是您的团队、您的应用程序、您的时间，最终，您可以自己做出选择。</p>
+<p>不要忘记查看GitHub 上的<a href="https://github.com/ohansemmanuel/fake-medium" target="_blank" rel="noreferrer noopener">代码库，感谢</a><a href="https://leanpub.com/redux-book" target="_blank" rel="noreferrer noopener"> LeanPub的Redux Book </a>，它启发了本文。</p>
+<p>回头见！</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

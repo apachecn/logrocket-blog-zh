@@ -1,0 +1,131 @@
+<html>
+<head>
+<title>Using Redis in Deno - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Deno - LogRocket博客中使用Redis</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-redis-in-deno/#0001-01-01">https://blog.logrocket.com/using-redis-in-deno/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>缓存是一个临时的数据存储区，信息保存在这里供以后使用。实现缓存系统有助于提高Deno应用程序的速度，因为它获取资源的时间更少。</p>
+<p>在本教程中，我们将探索缓存数据的概念，并向您展示如何使用Deno集成Redis特性。</p>
+<h2 id="whatisdeno">什么是德诺？</h2>
+<p><a href="https://blog.logrocket.com/deno-1-0-what-you-need-to-know/" target="_blank" rel="noopener noreferrer"> Deno </a>是一个现代的、安全的JavaScript和<a href="https://blog.logrocket.com/whats-new-in-typescript-4-0/" target="_blank" rel="noopener noreferrer"> TypeScript </a>运行时，使用V8引擎。Deno内置了对TypeScript的支持，这意味着您不需要编写额外的webpack配置来在您的应用程序中设置TypeScript。</p>
+<p>Deno默认采用安全性，这意味着它不允许文件、网络和环境访问，除非您明确允许。</p>
+<h2 id="whatisredis">什么是里兹？</h2>
+<p>Redis是一个速度极快的内存数据结构项目，用于实现具有可选持久性的分布式内存键值数据库。Redis可以用作缓存系统，也可以用作消息拦截器。</p>
+<p>就像数据库一样，Redis支持数据结构，比如字符串、散列、列表、集合、带有范围查询的排序集合和流。基本上，Redis使用RAM存储数据，速度非常快。但是，如果重新启动服务器，这些值将会丢失，除非启用Redis持久性，该持久性以指定的时间间隔执行数据集的时间点快照。</p>
+<h2>如何将Redis与Deno一起使用</h2>
+<p>在开始编写<a href="https://deno.land/" target="_blank" rel="noopener noreferrer"> Deno </a>代码之前，必须在本地机器上安装Redis。</p>
+<p>要在Mac上安装<a href="https://redis.io/" target="_blank" rel="noopener noreferrer"> Redis </a>，您可以通过运行以下命令来使用Homebrew:</p>
+<pre>brew install redis
+</pre>
+<p>安装Redis后，将其作为一项服务在本地计算机上运行:</p>
+<pre>brew services start redis
+</pre>
+<p>如果要停止Redis服务，请运行:</p>
+<pre>brew services stop redis
+</pre>
+<p>重新启动，运行:</p>
+<pre>brew services restart redis
+</pre>
+<p>要确认Redis在我们的本地机器上正确运行，请运行:</p>
+<pre>redis-cli ping
+</pre>
+<p>如果这个命令在终端上返回<code>PONG</code>，那么您就可以开始了。</p>
+<p>下一步是确认Deno是否正确安装在您的本地机器上。打开您的终端，键入以下内容:</p>
+<pre>deno --version
+</pre>
+<p>如果这显示了<code>deno</code>、<code>V8</code>和TypeScript的版本，那么就可以开始了。否则，您可以使用自制软件安装它:</p>
+<pre>brew install deno
+</pre>
+<p>现在，您可以为您的项目创建一个目录。我们将在我们的<code>redis.ts</code>文件中测试Redis特性。</p>
+<h2 id="creatingaredisconnection">创建Redis连接</h2>
+<p>每当您想在项目中使用Redis时，第一步是创建一个Redis连接。默认情况下，Redis运行在端口<code>6379</code>上。</p>
+<p>要创建连接，请将以下内容添加到您的<code>redis.ts</code>文件中:</p>
+<pre>import { connect } from "https://denopkg.com/keroxp/deno-redis/mod.ts";
+const redis = await connect({
+  hostname: "127.0.0.1",
+  port: 6379
+});
+console.log(await redis.ping())
+</pre>
+<p>使用<code>connect</code>方法通过指定的端口连接到Redis CLI。要测试Redis连接，使用<code>redis.ping()</code>方法，该方法返回一个您必须等待的承诺。</p>
+<p>要运行应用程序，您必须首先传递<code>--allow-net</code>标志以允许网络特权。运行<code>deno run--allow-net redis.ts</code>启动应用程序。这将在你的控制台上记录<code>PONG</code>，这表明连接是成功的。</p>
+<h2 id="settingkeyvaluepairs">设置键值对</h2>
+<p>您可以使用<code>set</code>和<code>get</code>方法在Redis中存储和检索数据。<code>set</code>方法接受两个参数:<code>name</code>和要存储的值。</p>
+<pre>await redis.set('name', 'Wisdom Ekpot');
+let name = await redis.get('name')
+console.log(name)
+</pre>
+<p>你应该总是使用<code>redis</code>方法，因为它总是返回一个承诺。</p>
+<h2 id="storingdata">存储数据</h2>
+<p>您可以使用提供的方法在Redis中存储数据，比如<code>hmset</code>。</p>
+<p><code>hmset</code>用于设置一个字段的值，该字段被指定为hash的存储关键字。此方法会覆盖任何现有字段。如果该键不存在，则会创建一个新的键来保存哈希。</p>
+<p>您可以编写一个简单的函数添加到Redis中:</p>
+<pre>let add = async(key:string,name:string,email:string) =&gt; {
+    let addPerson = await redis.hmset(key, {
+        'name': name,
+        'email': email
+    })
+    return addPerson
+}
+console.log(await add('key1','Wisdom Ekpot','<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3f48564c5b50525a544f504b7f58525e5653115c5052">[email protected]</a>'))
+</pre>
+<p>这将使用键<code>key1</code>向Redis添加一个新项目，并在控制台上返回<code>OK</code>。</p>
+<h2 id="getdatausingthekey">使用密钥获取数据</h2>
+<p><code>hgetall</code>返回特定键的散列的所有字段和值。</p>
+<p>您可以使用以下键获取存储在Redis中的数据:</p>
+<pre>let getParticular = async (id:string) =&gt; {
+   return await redis.hgetall(id);
+}
+console.log(await getParticular('key1'))
+</pre>
+<h2 id="deletingitemwithkey">删除带有密钥的项目</h2>
+<p>您可以使用<code>del</code>方法删除一个键，这需要将键名作为参数:</p>
+<pre>let deleteKey = async (id:string) =&gt; {
+    let deleted = await redis.del(id);
+    return deleted
+}
+
+console.log(await deleteKey('key1'))
+</pre>
+<h2 id="redisclustersandconfig">重定向群集和配置</h2>
+<p>Redis集群是一种跨多个Redis节点自动粉碎数据的机制。Redis <code>meet</code>方法在启用集群模式的情况下连接多个Redis节点。</p>
+<p>要创建一个新的集群，使用<code>redis.meet()</code>方法，该方法将<code>port</code>作为一个参数:</p>
+<pre>await redis.cluster_meet("127.0.0.1", &lt;port&gt;);
+</pre>
+<p>现在可以使用<code>redis.nodes</code>方法列出所有创建的节点:</p>
+<pre> await redis.cluster_nodes();
+</pre>
+<p>现在，这实际上不起作用，因为默认情况下集群是禁用的。您可能会遇到这个错误:<code>this instance has cluster support disabled</code>。</p>
+<p>Redis使您能够检查您的配置。您可以像这样检查集群是否已启用:</p>
+<pre>let config = await redis.config_get("cluster-enabled");
+console.log(config)
+</pre>
+<p>这将返回控制台上的<code>[ "cluster-enabled", "no" ]</code>。要启用它，使用<code>config_set</code>方法，该方法接受<code>config_name</code>和配置的值。</p>
+<p>因此，要启用集群，您可以这样做:</p>
+<pre>await redis.config_set('cluster-enabled', 'yes')
+</pre>
+<h2 id="redisrawcommand">Redis raw命令</h2>
+<p>Deno还使您能够运行原始Redis命令。所有原始命令都必须通过<code>executor</code>类。这个命令将回复作为承诺返回，所以等待请求总是一个好主意。</p>
+<pre>await redis.executor.exec("SET", "name", "Wisdom Ekpot")
+let get = await redis.executor.exec("GET", "name");
+console.log(get)
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>Redis提供了大量旨在帮助您扩展应用程序的特性。将Redis集成到Deno应用程序中可以使它变得更快，因为从缓存中调用数据非常高效。</p>
+<p>本教程中使用的源代码可以在<a href="https://github.com/Wisdom132/deno/tree/master/redis" target="_blank" rel="noopener noreferrer"> GitHub </a>上获得。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

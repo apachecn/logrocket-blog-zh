@@ -1,0 +1,122 @@
+<html>
+<head>
+<title>Understanding the Rust borrow checker - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解Rust借用检查器- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/introducing-the-rust-borrow-checker/#0001-01-01">https://blog.logrocket.com/introducing-the-rust-borrow-checker/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>你已经听说了很多，你已经接受了大肆宣传，这一天终于到来了。你该开始写铁锈了！</p>
+<p/>
+<p>所以你坐下来，手放在键盘上，心因期待而眩晕，写几行代码。您运行<code>cargo run</code>命令，兴奋地想看看程序是否如预期那样工作。你听说过Rust是一种编译后就能工作的语言。编译器启动，你跟踪输出，然后，突然:</p>
+<pre>error[E0382]: borrow of moved value
+</pre>
+<p>啊哦。看起来你遇到了可怕的借货员！嘟，嘟，嘟！</p>
+<h2 id="theborrowchecker">什么是借书检查器？</h2>
+<p>借用检查器是Rust语言的一个基本工具，也是Rust生锈的原因之一。它帮助你(或强迫你)管理所有权。正如“<a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener noreferrer">Rust编程语言</a>的第四章所说，“所有权是Rust最独特的特性，它使Rust能够在不需要垃圾收集器的情况下保证内存安全。”</p>
+<p>所有权、借出检查器和垃圾收集器:这里有很多东西要解开，所以让我们把它分解一下。在本指南中，我们将看看借用检查器为我们做了什么(以及它阻止我们做什么)，它给了我们什么保证，以及它与其他形式的内存管理相比如何。</p>
+<p>我假设您有一些用Python、JavaScript和C#等高级语言编写代码的经验，但不一定熟悉计算机内存的工作原理。</p>
+<h2 id="garbagecollectionvsmanualmemoryallocationvstheborrowchecker">垃圾收集与手动内存分配和借用检查器</h2>
+<p>我们先来讨论一下内存和内存管理。在大多数流行的编程语言中，你不需要考虑变量存储在哪里。您只需声明它们，语言运行时会通过垃圾收集器处理其余的事情。这就抽象出了计算机内存的实际工作方式，使得工作起来更加容易和统一。这是好事。</p>
+<p>然而，我们需要剥离一个层来显示它与借用检查器的比较。我们将从查看堆栈和堆开始。</p>
+<h3 id="thestackandtheheap">堆栈和堆</h3>
+<p>你的程序可以访问两种存储值的内存:堆栈和堆。这些在很多方面都有所不同，但对我们来说，最重要的区别是存储在堆栈上的数据必须有一个已知的固定大小。堆上的数据可以是任意大小。</p>
+<p>我说的尺寸是什么意思？大小是指存储数据需要多少字节。从广义上讲，某些数据类型，如布尔值、字符和整数，有固定的大小。这些很容易放在堆栈上。另一方面，字符串、列表和其他集合等数据类型可以是任意大小。因此，它们不能存储在堆栈上。我们必须使用堆。</p>
+<p>因为任意大小的数据都可以存储在堆中，所以计算机需要找到一块足够大的内存来容纳我们想要存储的任何东西。这很耗时，而且程序不能像堆栈那样直接访问数据。相反，它留下了一个指向数据存储位置的指针。</p>
+<p>指针就像它在tin上写的那样:它指向堆上的某个内存地址，在那里可以找到您正在寻找的数据。网上有很多指针教程，哪一个适合你取决于你的背景。作为快速入门，Jason C. McDonald的这篇文章很好地解释了C指针。</p>
+<p>有这两个不同的记忆库有什么意义？由于堆栈的工作方式，堆栈上的数据访问非常快速和容易，但要求数据符合某些标准。堆速度较慢，但用途更广，因此在无法使用堆栈时非常有用。</p>
+<h3 id="garbagecollection">碎片帐集</h3>
+<p>在垃圾收集语言中，你不需要担心什么在栈上，什么在堆上。进入堆栈的数据一旦超出范围就会被丢弃。一旦不再需要，垃圾收集器就会处理堆上的数据。</p>
+<p>另一方面，在C之类的语言中，你需要自己管理内存。在高级语言中，您可能只是简单地初始化一个列表，而在c中，您需要在堆上手动分配内存。当您分配了内存后，您还应该在完成后释放内存，以避免内存泄漏。但是要小心:内存应该只释放一次。</p>
+<p>这种手动分配和释放的过程容易出错。事实上，一名微软代表透露，微软70%的漏洞和利用都与内存有关。那么，为什么要使用手动内存管理呢？因为它允许更多的控制，并提供比垃圾收集更好的性能特征。程序不需要停下手头的工作，在清理之前花时间找出需要清理的内容。</p>
+<p>Rust的所有权模式感觉介于两者之间。通过跟踪数据在整个程序中的使用位置，并遵循一组规则，借用检查器能够确定数据需要在哪里初始化，以及需要在哪里释放(或删除，用Rust术语来说)。这就像它自动为您插入内存分配和释放，为您提供垃圾收集器的便利以及手动管理的速度和效率。</p>
+<p>在实践中，这意味着在传递变量时，您可以做三件事之一。您可以移动数据本身并在此过程中放弃所有权，创建数据的副本并传递它，或者传递对数据的引用并保留所有权，让接收者暂时借用它。最合适的方法完全取决于具体情况。</p>
+<h2 id="otherborrowcheckersuperpowersparalyzedorparallelized">其他借位检查器超能力:瘫痪还是并行？</h2>
+<p>除了为程序员处理内存分配和释放之外，借用检查器还通过它的一组共享规则来防止数据竞争(尽管不是一般的竞争条件)。</p>
+<p>这些相同的借用规则还可以帮助您处理并发和并行代码，而不必担心内存安全，从而实现Rust的<a href="https://doc.rust-lang.org/book/ch16-00-concurrency.html" target="_blank" rel="noopener noreferrer">无所畏惧的并发性</a>。</p>
+<h2 id="drawbacks">缺点</h2>
+<p>就像生活中所有美好的事物一样，Rust的所有权体系也有它的缺点。事实上，如果没有一些缺点，这篇文章可能不会存在。</p>
+<p>借用检查器很难理解和使用——以至于Rust社区的新成员很容易陷入与借用检查器的斗争中。我个人在这场斗争中损失了很多时间。</p>
+<p>例如，共享数据可能会突然成为一个问题，尤其是当您需要同时改变它的时候。某些在其他语言中非常容易从头创建的数据结构在Rust中很难正确创建。一个很好的例子是，看看《用太多的链表学习Rust》这本书。它介绍了实现链表Rust的多种方法，并详细说明了作者在实现过程中遇到的所有问题。它既有知识性，又很有娱乐性，非常值得一读。</p>
+<p>一旦你开始使用借贷检查器，事情就开始好转了。我挺喜欢<a href="https://www.reddit.com/r/rust/comments/5ny09j/tips_to_not_fight_the_borrow_checker/dcf7t46/" target="_blank" rel="noopener noreferrer"> Reddit用户dnkndnts的解释</a>:</p>
+<blockquote><p>[借款检查器]通过几个简单的规则运行。如果你不理解或者至少对这些规则有一些直觉，那么它就像使用拼写检查器来帮助你用你甚至不知道的语言写作一样有用:它只会拒绝你所说的一切。</p>
+<p>一旦你知道了借书检查器所基于的规则，你会发现它很有用，而不是像拼写检查器一样令人讨厌。</p></blockquote>
+<p>这些规则是什么？关于存储在堆上的变量，需要记住两个最重要的因素:</p>
+<ol>
+<li>当将一个变量(而不是对该变量的引用)传递给另一个函数时，您就放弃了所有权。另一个函数现在是这个变量的所有者，你不能再使用它了</li>
+<li>当传递对一个变量的引用(借出)时，你可以有任意多的不可变借位，也可以有一个可变借位。一旦你开始可变地借款，就只能有一个</li>
+</ol>
+<h2 id="inpractice">在实践中</h2>
+<p>现在您已经对借款检查器是什么以及它是如何工作的有了一些了解，让我们看看它在实践中是如何影响我们的。我们将使用<code>Vec&lt;T&gt;</code>类型，这是Rust版本的可增长列表(类似于Python的列表或JavaScript的数组)。因为它没有固定的大小，所以需要堆分配。</p>
+<p>这个例子可能是人为的，但它展示了基本原理。我们将创建一个向量，调用一个只接受它作为参数的函数，然后尝试看看里面有什么。</p>
+<p>注意:此代码示例无法编译。</p>
+<pre>fn hold_my_vec&lt;T&gt;(_: Vec&lt;T&gt;) {}
+
+fn main() {
+    let v = vec![2, 3, 5, 7, 11, 13, 17];
+    hold_my_vec(v);
+    let element = v.get(3);
+
+    println!("I got this element from the vector: {:?}", element);
+}
+</pre>
+<p>当试图运行它时，您会得到下面的编译器错误。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>error[E0382]: borrow of moved value: `v`
+--&gt; src/main.rs:6:19
+          |
+        4 |     let v = vec![2, 3, 5, 7, 11, 13, 17];
+          |         - move occurs because `v` has type `std::vec::Vec&lt;i32&gt;`, which does not implement the `Copy` trait
+        5 |     hold_my_vec(v);
+          |                 - value moved here
+        6 |     let element = v.get(3);
+          |                   ^ value borrowed here after move
+</pre>
+<p>上面的消息告诉我们<code>Vec&lt;i32&gt;</code>没有实现<a href="https://doc.rust-lang.org/std/marker/trait.Copy.html" target="_blank" rel="noopener noreferrer">的<code>Copy</code>特征</a>，因此必须被移动(或借用)。<code>Copy</code>特征只能由可以放入堆栈的数据类型实现，因为<code>Vec</code>必须放入堆栈，所以它不能实现<code>Copy</code>。我们需要找到另一种解决方法。</p>
+<h2 id="attackoftheclones">克隆人的进攻</h2>
+<p>即使一个<code>Vec</code>不能实现<code>Copy</code>特征，它也可以(并且确实)实现<a href="https://doc.rust-lang.org/core/clone/trait.Clone.html" target="_blank" rel="noopener noreferrer">的<code>Clone</code>特征</a>。在Rust中，克隆是复制数据的另一种方式。但是，虽然复制只能在基于堆栈的值上进行，并且总是非常便宜，但是克隆也可以在基于堆的值上工作，并且可能非常昂贵。</p>
+<p>所以如果函数获得了值的所有权，为什么我们不给它一个向量的克隆呢？这会让它开心的，对吧？事实上，下面的代码工作得很好。</p>
+<pre>fn hold_my_vec&lt;T&gt;(_: Vec&lt;T&gt;) {}
+
+fn main() {
+    let v = vec![2, 3, 5, 7, 11, 13, 17];
+    hold_my_vec(v.clone());
+    let element = v.get(3);
+
+    println!("I got this element from the vector: {:?}", element);
+}
+</pre>
+<p>然而，我们现在已经做了很多额外的工作，却一无所获。<code>hold_my_vec</code>函数甚至不使用vector做任何事情；它只是拥有它的所有权。在这种情况下，我们的向量(<code>v</code>)相当小，所以克隆它没什么大不了的。在刚开始工作的开发阶段，这可能是最快最容易看到结果的方法。</p>
+<p>然而，有一种更好、更习惯的方法可以做到这一点。让我们看一看。</p>
+<h2 id="references">参考</h2>
+<p>如前所述，我们可以把变量借给其他函数，而不是把变量交给其他函数。为此，我们需要更改<code>hold_my_vec</code>的签名，通过将传入参数的类型从<code>Vec&lt;T&gt;</code>更改为<code>&amp;Vec&lt;T&gt;</code>来接受引用。</p>
+<p>我们还需要改变调用函数的方式，让Rust知道我们只是给了函数一个引用——一个借用的值。这样，我们让函数借用向量一点点，但确保在继续程序之前，我们把它取回来。</p>
+<pre>fn hold_my_vec&lt;T&gt;(_: &amp;Vec&lt;T&gt;) {}
+
+fn main() {
+    let v = vec![2, 3, 5, 7, 11, 13, 17];
+    hold_my_vec(&amp;v);
+    let element = v.get(3);
+
+    println!("I got this element from the vector: {:?}", element);
+}
+</pre>
+<h2 id="summary">摘要</h2>
+<p>这只是借用检查器的一个非常简单的概述，它做什么，为什么做。为了使本教程尽可能容易理解，许多更好的细节都被省略了。</p>
+<p>通常，随着程序的增长，您会发现更复杂的问题，需要更多的思考和摆弄所有权和借款。你甚至可能不得不重新思考你是如何构建你的程序的，以使它能与Rust的借书检查器一起工作。</p>
+<p>这肯定是一个学习曲线，但如果你坚持下来，并努力达到顶峰，你肯定会学到一两件关于记忆的事情。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

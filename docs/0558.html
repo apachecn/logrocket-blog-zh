@@ -1,0 +1,361 @@
+<html>
+<head>
+<title>Take control of unexpected data at runtime with TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用TypeScript - LogRocket博客控制运行时的意外数据</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-typescript-to-stop-unexpected-data-from-breaking-your-app/#0001-01-01">https://blog.logrocket.com/using-typescript-to-stop-unexpected-data-from-breaking-your-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本文中，我们将探索如何使用TypeScript类型定义来获得更好的运行时安全性保证。我们将展示如何使用<a href="https://github.com/pelotom/runtypes" target="_blank" rel="noopener noreferrer"> runtypes </a>和<a href="https://gcanti.github.io/io-ts/" target="_blank" rel="noopener noreferrer"> io-ts </a>库，并解释它们最初为什么存在。</p>
+<p>TypeScript编译器是一个强大的朋友。它将帮助您理解您正在处理哪种类型的数据——函数参数、返回类型、常量、库定义等等。您可以用最少的配置避免令人惊讶的值并找到常见的错误。编译器将使您不必通过测试或在UI中手动验证一切，从而节省时间。如今，库趋向于有体面的类型定义，并且许多是用TypeScript编写的。使用附加标志，您可以提高代码的(类型)质量:</p>
+<ul>
+<li><code>strict</code>(推荐–包括<code>noImplicitThis</code>、<code>noImplicitAny</code>、强制类型)</li>
+<li><code>noEmitOnError</code>(应检查所有发出的代码)</li>
+<li><code>noImplicitReturns</code></li>
+<li><code>noFallthroughCasesInSwitch</code></li>
+</ul>
+<p>有了严格的配置和大量的输入，你的应用程序能编译并且仍然崩溃吗？是的，它可以！</p>
+<h2 id="runtimesafety">运行时安全</h2>
+<p>TypeScript提供编译时安全性。如果在代码中错误地引用了一个熟悉的值，就会出现编译错误。属性名中的拼写错误？编译错误。运行时安全呢？运行时异常是JavaScript的一个特性，因此也是Typescript的一个特性。例如，<code>JSON.parse</code>如果遇到非JSON数据就会抛出异常。如果<code>foo</code>不存在，<code>foo.bar()</code>抛出一个<code>ReferenceError</code>。这些可以用<code>try {…} catch (e) {…}</code>来捕捉，或者作为拒绝承诺来处理。这很好，但我们可以做得更好。</p>
+<p>通常，当抛出意外异常时，罪魁祸首是流入和流出应用程序的数据。假设您可以近乎完美地定义一个TypeScript应用程序如何处理符合已知<code>interface</code>的数据，这是怎么发生的呢？声明一个接口就像声明“这是我的数据的样子；请强制执行。”好吧，你可以撒谎——或者只是错了。</p>
+<p>我将通过三个不同的例子展示如何在运行时处理意外数据。</p>
+<h2 id="exploringtheunknown">探索未知</h2>
+<p>我得出结论，现有的静态站点生成器都不行，所以我决定自己构建一个。经过一番努力，我想到了这个:</p>
+<pre>import fs from 'fs'
+
+interface Config {
+  siteName: string
+  siteUrl: string
+  contentPath: string
+}
+
+try {
+  const configFile = fs.readFileSync('./config.json', 'utf-8')
+  const config: Config = JSON.parse(configFile)
+
+  console.info(`🚧 Generating "${config.siteName}"`)
+
+  const pages = fs.readdirSync(config.contentPath)
+  // do something with the pages ...
+
+  console.info('✅ Done')
+} catch (e) {
+  console.error('Something went wrong!', e)
+}
+</pre>
+<p>作为一名经验丰富的开发人员，我对<code>fs</code>和<code>JSON.parse</code>抛出的异常保持警惕。我的应用程序编译。但是当我运行它的时候，我看到了这个:</p>
+<pre>$ node site_generator.js
+
+🚧 Generating "undefined"
+...
+</pre>
+<p>看起来我的配置文件中有一个打印错误。它拼写为“站点名”，而不是“站点名”这是一个简单的例子，说明进入你的应用程序的所有数据在技术上是未知的。幸运的是，有一种方法可以在运行时处理未知数据。我把<a href="https://github.com/pelotom/runtypes" target="_blank" rel="noopener noreferrer"> <code>runtypes</code> </a>库引入我的app。</p>
+<pre>import fs from 'fs'
+import { String, Record, Static } from 'runtypes'
+
+const Config = Record({
+  siteName: String,
+  siteUrl: String,
+  contentPath: String
+})
+
+// this is equivalent to the "Config" interface from before
+type Config = Static&lt;typeof Config&gt;
+
+try {
+  const configFile = fs.readFileSync('./config.json', 'utf-8')
+  const config: Config = JSON.parse(configFile)
+
+  // The important bit
+  Config.check(config)
+
+  console.info(`🚧 Generating "${config.siteName}"`)
+
+  const pages = fs.readdirSync(config.contentPath)
+  // do something with the pages ...
+
+  console.info('✅ Done')
+} catch (e) {
+  console.error('Something went wrong!', e)
+}
+</pre>
+<p>应用程序看起来几乎一样。不同之处在于，我已经使用<code>runtypes</code>提供的类型声明了<code>Config</code>。术语<a href="https://en.wikipedia.org/wiki/Record_(computer_science)" target="_blank" rel="noopener noreferrer">记录</a>和相关术语字段类似于人们所说的对象和属性，但是因为JavaScript中的对象可以是任何东西，(<code>window</code>、<code>Array</code>等等)。)，区分是有用的。将记录想象成电子表格中的行——它们“只是”数据。<code>runtypes</code>从记录中构建的运行时对象有像<code>check</code>和<code>guard</code>这样的方法来验证一些数据是否与我声明的实际类型定义<em> <em/> </em>(第11行)兼容。</p>
+<p>您可能以前使用过一些表单验证库来做类似的事情。在一种形式中，我们验证值。这里，我们验证结构(“字段”及其值)。您可以添加<a href="https://github.com/pelotom/runtypes#constraint-checking" target="_blank" rel="noopener noreferrer">额外的验证约束</a>来缩小有效值的范围。这对于在API处理程序中验证传入的有效负载非常有用。</p>
+<p>这可能看起来很难接受。在我解释这一切的含义之前，让我们用相同的错误配置文件运行新版本(你可以在<a href="https://codesandbox.io/s/ts-runtime-safety-node-70dx2" target="_blank" rel="noopener noreferrer"> CodeSandbox </a>中尝试)。</p>
+<pre>$ node site_generator_safe.js
+
+Something went wrong! ValidationError: Expected string, but was undefined
+    at new ValidationError (./node_modules/runtypes/lib/errors.js:19:28)
+    at Object.check (./node_modules/runtypes/lib/runtype.js:23:15)
+    &lt; some stack frames omitted &gt;
+    at Function.Module.runMain (internal/modules/cjs/loader.js:1047:10)
+    at internal/main/run_main_module.js:17:11 {
+  key: 'siteName',
+  name: 'ValidationError'
+}
+</pre>
+<p>未定义的值被识别。应用程序在有机会使用错误的配置之前就停止了。正如你可能想象的那样，一个稍微高级一点的应用程序会从尽早放弃中受益，而不是在漫长的过程中半途而废。稍微不正确的配置可能会对脚本造成严重破坏，例如，按月向客户收费。</p>
+<p>在上面的结果中，我的应用程序在检查错误配置时抛出了一个带有<code>ValidationError</code>的异常。这就是<code>check</code>方法的工作方式:它将意想不到的数据带入您可以通过捕捉它来管理的领域。有一种方法可以在不使用异常的情况下处理坏数据——我们很快就会谈到这一点。首先，我们来谈谈web APIs的可靠性。</p>
+<h2 id="whatifanapilies">一个API撒谎怎么办？</h2>
+<p>没有外部数据，很少有web或移动应用程序是有用的。2019年，大多数应用程序从基于云的<a href="https://blog.logrocket.com/graphql-vs-rest-what-you-didnt-know/" target="_blank" rel="noopener noreferrer"> REST或graph QL</a>API获取数据。这些API通常是有版本的，并且有希望附带某种文档，说明您可以预期接收(或者应该发送)什么类型的数据。文档可以是交互式的— <a href="https://swagger.io" target="_blank" rel="noopener noreferrer"> Swagger </a>是一个很好的工具。</p>
+<p>来自可疑设计的错误，比如从JSON APIs返回带有OK (200)状态的HTML格式的错误响应，可以在JSON解析阶段被捕获。如果您足够幸运，在后端和前端都有可靠的TypeScript代码，那么您可以共享类型定义，最好的情况是，保证双方真正理解彼此。现实是，你经常希望另一边的开发人员知道他们在做什么。深思熟虑的开发人员使用集成测试、版本控制和冻结模式来为他们的API提供保证。在编写类型定义时，您可能仍然会出错。</p>
+<p>在测试和QA期间，您所依赖的API的变化和任何奇怪的行为都可以用<code>runtypes</code>捕捉到。您可以使用运行时类型检查，在您这边构建集成测试，只验证API响应是否与您的假设一致(或者相反)。在生产中运行的应用程序可能没有合理的方法来从类型错误中恢复。您仍然可以得到描述性的错误消息或崩溃报告。也可以避免无限(重启)循环。</p>
+<p>我将向您展示这在实践中是如何工作的。</p>
+<h2 id="fetchmeatypesaferecordwillyou">给我拿一张打字安全的唱片来，好吗？</h2>
+<p>事实证明，静态站点生成器是一项太大的任务，所以我打算构建一个待办事项应用程序。让我们从使用<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API" target="_blank" rel="noopener noreferrer">获取</a>从API检索数据开始。我们将看到让<code>runtypes</code>验证传入的数据也会带来其他好处。</p>
+<pre>import { String, Number, Boolean, Record, Static } from 'runtypes'
+
+const Todo = Record({
+  userId: Number,
+  id: Number,
+  title: String,
+  completed: Boolean
+})
+
+type Todo = Static&lt;typeof Todo&gt;
+
+function getTodo(id: number) {
+  fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    .then(response =&gt; response.json())
+    .then(todo =&gt; Todo.check(todo))
+    // todo is now verified to be a Todo and you can safely access the attributes
+    .then(todo =&gt; console.log(`Todo: #${todo.id}: ${todo.title}`))
+    .catch(e =&gt; console.error(e))
+}
+</pre>
+<p><code>getTodo</code>函数获取一些数据，解析JSON响应，然后在不同的步骤中对结果进行类型检查。类型检查中的任何错误，以及连接和JSON解析相关的错误，都将在<code>.catch</code>处理程序中被捕获。检查完类型后，您可以在没有显式类型注释的情况下处理<code>Todo</code>的内容。这将在TypeScript无法推断本质上未知的数据类型的情况下清理代码。</p>
+<p>如果我向Todo记录添加一个名为“priority”的新字段，类型为<code>Number</code>(API中没有)，调用<code>getTodo</code>会导致<code>ValidationError: Expected number, but was undefined</code>。如果我不需要应用程序中的所有字段，我可以指定比API提供的更少的字段。</p>
+<p>支持API响应中可以是<code>null</code>的字段。他们长这样:<code>priority: Number.Or(Null)</code>。注意Null中的大写N。这是由<code>runtypes</code>定义的。</p>
+<p>待办事项应用程序使用的是基于承诺的流程。如果我使用了<code>async / await</code>，<code>getTodo</code>应该是这样的:</p>
+<pre>async function getTodo(id: number) {
+  try {
+    const response = await fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    const data = await response.json()
+    const todo = Todo.check(data)
+
+    console.log(`Todo: #${todo.id}: ${todo.title}`)
+  } catch (e) {
+    console.error(e)
+  }
+}
+</pre>
+<p>由您决定哪种格式更适合您的用例。<code>runtimes</code>不限制应用程序设计的选项。事实上，现在是讨论如何完全避免与类型检查相关的异常的好时机。</p>
+<h2 id="errorsasdata">作为数据的错误</h2>
+<p>我个人并不支持运行时异常的想法。我更喜欢使用一种语言或库，它能让我有机会将失败作为数据来处理，而不是像<a href="https://softwareengineering.stackexchange.com/questions/189222/are-exceptions-as-control-flow-considered-a-serious-antipattern-if-so-why" target="_blank" rel="noopener noreferrer"> GOTO一样的控制流</a>。失败作为数据是什么样子的？许多人都熟悉回调参数<code>(err, data)</code>的NodeJS约定，回调参数有时被用作函数返回值。</p>
+<pre>const [err, data] = myFunction("foo", "bar")
+</pre>
+<p>这种格式可以防止异常，但仍然很麻烦。你必须检查<code>err</code>或<code>data</code>的存在(想法是其中一个总是<code>null</code>，不保证)。这种设计可以被认为具有布尔逻辑——一个动作导致err或data。更复杂的方法是使用联合类型。</p>
+<pre>type Success&lt;T&gt; = {
+  success: true
+  value: T
+}
+
+type Failure = {
+  success: false
+  message: string
+  key?: string
+}
+
+type Result&lt;T&gt; = Success&lt;T&gt; | Failure
+</pre>
+<p>上面的片段来自<code>runtypes</code>源代码(我已经删除了导出语句和注释)。一个成功的操作被显示为一个带有相关联的<code>value</code>的记录。失败(错误)用<code>message</code>描述错误。这个想法不是<code>runtypes</code>独有的；它存在于许多编程语言中，如Rust、Elm、Haskell和Swift。它也类似于期权/Maybe的两重性。让我们看看使用这个想法如何改变<code>getTodo</code>函数。</p>
+<pre>function getTodo(id: number): Promise&lt;Result&lt;Todo&gt;&gt; {
+  return fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    .then(response =&gt; response.json())
+    .then(Todo.validate)
+}
+
+getTodo(1)
+  .then(result =&gt; {
+    if (result.success) {
+      console.log(`Todo: #${result.value.id}: ${result.value.title}`)
+    } else {
+      // result is Failure
+      console.error(result.message)
+    }
+  })
+  // the request or JSON parsing can still fail
+  .catch(e =&gt; console.error(e))
+</pre>
+<p>对于那些熟悉TypeScript中泛型的人来说，函数返回类型是有意义的。如果在别人看来很怪异，不要惊慌！它只是不同类型数据中的特定类型数据。如果您愿意，可以使用函数的承诺链中的<code>result</code>,但是我已经选择将逻辑移出函数。这样，<code>Todo</code> s可以被获取和验证，您可以对结果做任何您想做的事情。</p>
+<p>关于上面的<code>.catch</code>处理程序，如果<code>fetch</code>与<code>Result</code>一起开箱即用，就有可能用我们的验证逻辑来链接它。您可以构建一个包装器来捕捉异常并返回一个<code>Result</code>。这超出了本文的范围。一些语言的标准库中内置了一个类似结果的类型，任何可能失败的东西都会使用它，这使得事情比默认情况下在TS/JS生态系统中更加安全和方便。</p>
+<p>如果你已经走了这么远，太棒了！现在你有了一个新工具，可以极大地提高应用程序的质量。你可以在<a href="https://codesandbox.io/s/merhk?fontsize=14&amp;hidenavigation=1&amp;theme=dark" target="_blank" rel="noopener noreferrer"> CodeSandbox </a>里玩这个版本。如果我还能引起你的注意，我有东西要展示。</p>
+<h2 id="noalarmsandnosurprisesplease">请不要报警，也不要惊喜</h2>
+<p>想想这个命题:如果你的应用程序可以编译，它就可以工作。如果你可以依靠它，你只需要修复任何编译错误，你就会有一个完全可预测的应用程序。然后你只需要确保你的算法是有效的，并且你没有忘记渲染一些结果。这使你工作时没有通常的焦虑和怀疑。</p>
+<p><a href="https://elm-lang.org" target="_blank" rel="noopener noreferrer"> Elm编程语言</a>以承诺零运行时异常而闻名。这是一个重大的承诺。考虑第三方库:可以说，你怎么能确定别人创作的代码是完全安全的呢？只有当编程语言的作者仔细选择每个人都遵守的有限操作集时，这才有可能。好奇Elm是如何做到这一点的？所有库都是纯Elm，从一个中央包注册中心检索，该注册中心执行以下操作:</p>
+<ul>
+<li>语义版本——如果语义版本错误，库将不会编译。</li>
+<li>安全性——库是用Elm编写的，所以每个人的代码都同样安全，不会出现异常。</li>
+<li>库函数中的任何最终的<code>Result</code>都将由你来处理——库不会引起混乱。如果您愿意，您也可以忽略库中的任何错误</li>
+</ul>
+<p>Elm有自己的运行时，它要求您编码/解码(验证)流入和流出应用程序的所有数据。作为一门纯粹的函数式语言，app和libs中的所有函数只处理作为其参数提供的值，并且只能返回对<a href="https://jrsinclair.com/articles/2018/how-to-deal-with-dirty-side-effects-in-your-pure-functional-javascript/" target="_blank" rel="noopener noreferrer">副作用</a>的描述，而不能触发它们。每个函数都必须有一个有意义的返回值。</p>
+<p>我是榆树的忠实粉丝。每当我选择使用TypeScript(或者不能使用Elm)的时候，我都尽量把Elm的远大目标记在心里。虽然Elm不像TypeScript那样受欢迎，但它非常有影响力。这就是为什么你会在JavaScript生态系统中找到直接模仿Elm特性的库。最流行的可能是Redux，它是Elm状态管理的近似。让我给你介绍一下<a href="https://gcanti.github.io/io-ts/" target="_blank" rel="noopener noreferrer"> io-ts </a>，这是一种FP/榆树风味的<code>runtypes</code>替代品。</p>
+<h2 id="eitherwaynoruntimeexceptions">无论哪种方式，都没有运行时异常</h2>
+<p>看看另一个版本的获取示例。</p>
+<pre>import * as t from 'io-ts'
+import { Either, isRight } from 'fp-ts/lib/Either'
+
+const Todo = t.type({
+  userId: t.number,
+  id: t.number,
+  title: t.string,
+  completed: t.boolean
+})
+
+type Todo = t.TypeOf&lt;typeof Todo&gt;
+
+function getTodo(id: number): Promise&lt;Either&lt;t.Errors, Todo&gt;&gt; {
+  return fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    .then(response =&gt; response.json())
+    .then(Todo.decode)
+}
+
+getTodo(1)
+  .then(result =&gt; {
+    // Success
+    if (isRight(result)) {
+      console.log(`Todo: #${result.right.id}: ${result.right.title}`)
+    // Failure
+    } else {
+      console.error(result.left)
+    }
+  })
+  .catch(e =&gt; console.error(e))
+</pre>
+<p>乍一看，这个例子的结构类似于<code>runtypes</code>例子的<code>Result</code>版本。相同的保证，没有类型相关的异常。甚至我定义Todo记录的方式也与以前的工作非常相似。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>注意到<code>fp-ts</code>导入了吗？它是函数式编程世界中常见数据类型的集合。<code>io-ts</code>在此基础上构建。有一个共享核心类型的库的<a href="https://gcanti.github.io/fp-ts/introduction/ecosystem" target="_blank" rel="noopener noreferrer">生态系统。如果你花时间去理解像</a><a href="https://gcanti.github.io/fp-ts/modules/Task.ts" target="_blank" rel="noopener noreferrer"> Task </a>这样的与人们通常使用的TypeScript (Promises)相关的概念，你可以在熟悉的语言环境中学习高级函数式编程。要真正沉浸在函数式编程中，我建议您至少尝试一下Elm。</p>
+<p>类似<code>Result</code>的<code>Either</code>型分为左右两侧。按照惯例，左边表示错误，右边表示有效值。如果这个命名约定似乎很难记住，我不怪你；我自己更喜欢<code>Result</code>的命名。你可以通过对自己说“好像我有<code>Right</code>数据”来提醒自己类型定义如下。</p>
+<pre>interface Left&lt;E&gt; {
+  readonly _tag: 'Left'
+  readonly left: E
+}
+
+interface Right&lt;A&gt; {
+  readonly _tag: 'Right'
+  readonly right: A
+}
+
+type Either&lt;E, A&gt; = Left&lt;E&gt; | Right&lt;A&gt;
+</pre>
+<p><code>runtypes</code>’<code>Result</code>有一些好处。左侧的<code>E</code>值允许除字符串之外的其他错误表示——还记得<code>message</code> s吗？用字符串而不是布尔作为标签使得它与其他<a href="https://mariusschulz.com/blog/tagged-union-types-in-typescript" target="_blank" rel="noopener noreferrer">标签的联合</a>更加兼容(字符串允许在一个联合中有两个以上的可能值)。</p>
+<p>到目前为止，使用<code>io-ts</code>优于<code>runtypes</code>的唯一实际好处似乎与命名和兼容性有关。如果我们后退一步，将经过验证的数据作为运营链的一部分，其他优势就会变得显而易见。忘掉待办事项应用程序吧——下一个例子有实际的业务逻辑。</p>
+<p>我想打印一张购物摘要的收据，如下所示:</p>
+<pre>Receipt
+========
+Date: 2019-12-01T12:21:28.478Z
+Total: 12.80€
+Tax: 3.07€
+</pre>
+<p>一旦我熟悉了<code>fp-ts</code>的数据类型和它们的操作，应用程序就自然而然地出现了。</p>
+<pre>import * as t from 'io-ts'
+import { map, fold } from 'fp-ts/lib/Either'
+import { fold as foldMonoid, monoidSum } from 'fp-ts/lib/Monoid'
+import { map as mapArray } from 'fp-ts/lib/Array'
+import { pipe } from 'fp-ts/lib/pipeable'
+
+const Purchase = t.type({
+  vat: t.number,
+  items: t.array(
+    t.type({
+      name: t.string,
+      amount: t.number,
+      priceEur: t.number
+    })
+  )
+})
+
+const Receipt = t.type({
+  date: t.string,
+  totalEur: t.number,
+  taxEur: t.number
+})
+
+type Purchase = t.TypeOf&lt;typeof Purchase&gt;
+type Receipt = t.TypeOf&lt;typeof Receipt&gt;
+
+const data: unknown = {
+  vat: 24,
+  items: [
+    { name: 'banana', amount: 3, priceEur: 0.7 },
+    { name: 'coffee', amount: 1, priceEur: 3.5 },
+    { name: 'beer', amount: 6, priceEur: 1.2 }
+  ]
+}
+
+function purchaseToReceipt(purchase: Purchase): Receipt {
+  const total = pipe(
+    purchase.items,
+    mapArray(item =&gt; item.amount * item.priceEur),
+    foldMonoid(monoidSum)
+  )
+
+  return {
+    date: new Date().toISOString(),
+    totalEur: total,
+    taxEur: (purchase.vat / 100) * total
+  }
+}
+
+function formatReceipt(receipt: Receipt): string {
+  return `
+Receipt
+========
+Date: ${receipt.date}
+Total: ${receipt.totalEur.toFixed(2)}€
+Tax: ${receipt.taxEur.toFixed(2)}€
+          `
+}
+
+function formatErrors(errors: t.Errors): string {
+  return `Invalid data: ${JSON.stringify(errors)}`
+}
+
+const summary: string = pipe(
+  Purchase.decode(data),
+  // "map" only changes the "Right" value and keeps Left intact
+  map(purchaseToReceipt),
+  // Apply a certain function to left and right values (if present)
+  fold(formatErrors, formatReceipt)
+)
+
+console.log(summary)
+</pre>
+<p>使用功能方法有什么好处？看到我建的<code>pipe</code>线了吗？只要一个操作的返回值是下一个操作的有效参数，这些操作就构成。由于像<code>Either</code>这样的类型的值在结构上是相同的，它们可以使用通用函数进行转换。有两个转换管道:</p>
+<ol>
+<li>计算商品价格的总和(<code>purchaseToReceipt</code>)</li>
+<li>将未知的<code>data</code>转换成摘要字符串</li>
+</ol>
+<p>你可能很熟悉如何用类似于<code>items.filter(fn)</code>的操作来转换好的ol' <code>Array</code>。这些是绑定到数组实例的操作。在这里，您可以使用任何地方的值，并根据自己的喜好组合它们。</p>
+<p>我只是触及了你能对<code>fp-ts</code>家族做些什么的皮毛。如果这是你喜欢的东西，那么继续使用(仅仅)这些新概念来构建你自己的应用程序。你也可以试试<a href="https://codesandbox.io/s/dw1me?fontsize=14&amp;hidenavigation=1&amp;theme=dark" target="_blank" rel="noopener noreferrer"> CodeSandbox </a>中的例子。现在让我们总结一下我们在这次旅行中所做的事情。</p>
+<div class="inline-plug cro20">
+<h2>插件:识别并消除生产中的运行时错误</h2>
+<p>跟踪产品TypeScript异常或错误的原因既耗时又令人沮丧。如果您对监控错误并了解它们如何影响用户感兴趣，请尝试LogRocket 。<a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer"><img data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="46" data-permalink="https://blog.logrocket.com/vuex-showdown-mutations-vs-actions/1d0cd-1s_rmyo6nbrasp-xtvbaxfg/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-orig-size="730,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LogRocket dashboard free trial banner" data-image-description="&lt;p&gt;LogRocket is working on the perfect frontend bug report. Try it free today.&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg-e1565635879164.png" decoding="async" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a><a href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a></p>
+<p>LogRocket 就像是网络应用的DVR，记录下你网站上发生的每一件事。LogRocket使您能够聚合和报告错误，以查看它们发生的频率以及它们影响了多少用户群。您可以轻松地重放发生错误的特定用户会话，以查看导致错误的用户操作。</p>
+<p>LogRocket让你的应用程序记录带有标题+正文的请求/响应，以及关于用户的上下文信息，以全面了解问题。它还记录页面上的HTML和CSS，甚至可以重建最复杂的单页面应用程序的像素级完美视频。</p>
+<p>增强您的JavaScript错误监控能力–––<a class="signup" href="https://logrocket.com/signup/" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p>
+</div>
+<h2 id="conclusion">结论</h2>
+<p>我们从讨论运行时异常和构建一个工作正常但不可靠的静态站点生成器开始。我们向生成器添加了<code>runtypes</code>定义，并在配置关闭时让它提前停止。</p>
+<p>然后，我们进入前台，试图获取一些待办事项。我们注意到运行时类型检查有助于识别我们的期望和API响应之间的差异。我们的应用程序仍然会抛出异常，所以我们尝试了一种不同的方式来使用错误作为数据。</p>
+<p>然后，我们将<code>runtypes</code>与<code>io-ts</code>进行比较，看看这个<code>Result</code>的东西是否有什么好的(名字为<code>Either</code>)。一旦看起来有一个很好的理由使用这种双面模式，我们就探索如果我们沉浸在<code>fp-ts</code>生态系统中，事情会是什么样子。函数式编程有机会在收据生成脚本中展示其优势。我们以一种清晰的方式对其他运算的结果应用运算。</p>
+<p>您应该使用这些不同风格的运行时类型检查中的哪一种？这取决于您正在构建什么样的应用程序。一个简单的自顶向下的脚本可能是好的，如果它只是在一个异常抛出时崩溃。长时间运行的应用程序，如移动应用程序，可能会从异常恢复中受益，或者更好的是，将错误作为数据处理。捕捉异常和处理错误让您可以自由选择是需要用户交互还是应该重试刚刚失败的事情。一些次要的事情甚至可以被有控制地忽略。无论如何，你最终可能会得到一个更可靠的应用。</p>
+<p>我专注于验证完全外部的数据。应用程序也从用户输入中创建数据。基于类型脚本的表单库，如<a href="https://jaredpalmer.com/formik" target="_blank" rel="noopener noreferrer"> Formik </a>理解你的界面。它可以帮助您处理不可靠的用户输入可能导致的错误。这不同于API调用，因为应用程序决定如何收集数据。您可以使用<a href="https://github.com/pelotom/runtypes#constraint-checking" target="_blank" rel="noopener noreferrer">约束</a>或<a href="https://github.com/gcanti/io-ts#the-idea" target="_blank" rel="noopener noreferrer">编码器</a>将<code>runtypes</code>和<code>io-ts</code>用于表单验证。使用表单库使用的任何东西可能更符合人体工程学。福米克用<a href="https://github.com/jquense/yup" target="_blank" rel="noopener noreferrer">没错</a>。</p>
+<p>除了输入和输出，应用程序通常还有UI的内部状态。您可以使用状态机来验证应用程序的逻辑。状态机定义受控的运行时状态转换，并记录您的意图。它们也会引发副作用。见:<a href="https://github.com/davidkpiano/xstate" target="_blank" rel="noopener noreferrer"> XState </a>，用打字稿写的。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

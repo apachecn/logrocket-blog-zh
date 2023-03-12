@@ -1,0 +1,139 @@
+<html>
+<head>
+<title>Cropping images in the browser with Vue.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Vue.js - LogRocket Blog在浏览器中裁剪图像</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/cropping-images-in-the-browser-with-vue-js/#0001-01-01">https://blog.logrocket.com/cropping-images-in-the-browser-with-vue-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>你有没有创建过一个web应用程序，它需要从用户那里接受图像，后来发现用户倾向于提供各种形状和大小的图像，打破了你的网站主题？在网络上处理图像很容易成为一件痛苦的事情——当然，除非你使用了正确的工具。</p>
+<p>在本教程中，我们将探讨如何在浏览器中使用JavaScript库来操作图像，以便存储在服务器上并在web应用程序中使用。我们将使用<a href="https://vuejs.org/" target="_blank" rel="noopener noreferrer"> Vue.js </a>来代替普通的JavaScript。</p>
+<p>为了了解我们想要实现的目标，请看上面的图片。左边是我们的原始图像，右边是新图像的预览。我们可以移动裁剪框并调整其大小，预览图像也会随之改变。如果用户愿意，他们可以下载预览图像。</p>
+<p>繁重的工作由一个名为<a href="https://fengyuanchen.github.io/cropperjs/" target="_blank" rel="noopener noreferrer"> Cropper.js </a>的库来完成。</p>
+<h2>使用图像裁剪依赖项创建新的Vue.js项目</h2>
+<p>本例成功的第一步是创建一个新项目并安装必要的依赖项。假设您已经安装并配置了<a href="https://fengyuanchen.github.io/cropperjs/" target="_blank" rel="noopener noreferrer"> Vue CLI </a>。</p>
+<p>从命令行执行以下操作:</p>
+<pre>vue create cropper-project</pre>
+<p>出现提示时，选择默认选项。这将是一个简单的项目，所以没有必要担心路由和所有那些好的Vue.js的东西。</p>
+<p>导航到您的新项目并执行以下操作:</p>
+<pre>npm install cropperjs --save</pre>
+<p>上面的命令会将Cropper.js安装到我们的项目中。我们可以很容易地为此使用CDN，但是因为我们使用的是利用webpack的框架，所以npm途径最有意义。</p>
+<p>当我们的依赖项被安装后，我们还需要做一件事。因为我们使用npm，所以不包括CSS信息——只包括JavaScript信息。我们需要在本地或通过CDN包含CSS信息。我们将使用CDN。</p>
+<p>打开项目的<code>public/index.html</code>文件，并包含以下HTML标记:</p>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+    &lt;head&gt;
+        &lt;meta charset="utf-8"&gt;
+        &lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+        &lt;meta name="viewport" content="width=device-width,initial-scale=1.0"&gt;
+        &lt;link rel="icon" href="&lt;%= BASE_URL %&gt;favicon.ico"&gt;
+        &lt;title&gt;image-cropping&lt;/title&gt;
+        &lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.1/cropper.min.css"&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;noscript&gt;
+            &lt;strong&gt;We're sorry but image-cropping doesn't work properly without JavaScript enabled. Please enable it to continue.&lt;/strong&gt;
+        &lt;/noscript&gt;
+        &lt;div id="app"&gt;&lt;/div&gt;
+        &lt;!-- built files will be auto injected --&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>注意，在<code>&lt;head&gt;</code>标签中，我们包含了<code>cropper.min.css</code>文件。还是那句话，只要你得到了CSS信息，你如何得到它并不重要。没有CSS信息，我们就不会有漂亮的图片裁剪框。</p>
+<h2>在Vue.js项目中使用JavaScript裁剪图像</h2>
+<p>此时，项目应该差不多配置好了，可以在web上裁剪图像了。为了保持项目的整洁，我们将创建一个新的Vue.js组件来处理所有的图像操作。</p>
+<p>在您的项目中创建一个<code>src/components/ImageCropper.vue</code>文件，并包含以下样板代码:</p>
+<pre>&lt;template&gt;
+    &lt;div&gt;
+        &lt;div class="img-container"&gt;
+            &lt;img ref="image" :src="src" crossorigin&gt;
+        &lt;/div&gt;
+        &lt;img :src="destination" class="img-preview"&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import Cropper from "cropperjs";
+    export default {
+        name: "ImageCropper",
+        data() {
+            return {
+                cropper: {},
+                destination: {},
+                image: {}
+            }
+        },
+        props: {
+            src: String
+        },
+        mounted() { }
+    }
+&lt;/script&gt;
+
+&lt;style scoped&gt;
+    .img-container {
+        width: 640px;
+        height: 480px;
+        float: left;
+    }
+    .img-preview {
+        width: 200px;
+        height: 200px;
+        float: left;
+        margin-left: 10px;
+    }
+&lt;/style&gt;</pre>
+<p><code>&lt;style&gt;</code>标签信息对于本例来说不太重要；它只是清理了页面，并没有从库中得到任何真正的效果。</p>
+<p>注意出现在<code>&lt;template&gt;</code>块中的<code>src</code>和<code>destination</code>变量。这些变量代表用户通过<code>props</code>对象定义的源图像，以及已经被操作的目标图像。我们将能够通过<code>ref</code>变量直接访问源图像，这类似于在DOM对象上使用<code>querySelector</code>。</p>
+<p>虽然我们已经为我们的图像奠定了基础，但实际上我们还没有对它们做任何事情。我们将在视图初始化后触发的<code>mounted</code>方法中配置裁剪工具和事件。</p>
+<p><code>mounted</code>方法可能看起来像这样:</p>
+<pre>mounted() {
+    this.image = this.$refs.image;
+    this.cropper = new Cropper(this.image, {
+        zoomable: false,
+        scalable: false,
+        aspectRatio: 1,
+        crop: () =&gt; {
+            const canvas = this.cropper.getCroppedCanvas();
+            this.destination = canvas.toDataURL("image/png");
+        }
+    });
+}</pre>
+<p>当该方法被调用时，我们获得对我们的图像的引用，在<code>&lt;template&gt;</code>块中找到。然后，我们在初始化裁剪实用程序时使用该图像，同时定义一些配置，这些配置都不是强制性的。</p>
+<p>方法是魔法发生的地方。每当我们的图像发生问题时，就会调用这个<code>crop</code>方法。当执行<code>crop</code>方法时，我们应该得到裁剪、缩放等。信息，并根据它创建一个新的图像——也就是目标图像。</p>
+<p>此时，我们已经创建了组件，但是还没有使用它。</p>
+<p>打开项目的<code>src/App.vue</code>文件，包括以下内容:</p>
+<pre>&lt;template&gt;
+    &lt;div id="app"&gt;
+        &lt;ImageCropper src="/logo.png" /&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import ImageCropper from "./components/ImageCropper.vue"
+    export default {
+        name: "app",
+        components: {
+            ImageCropper
+        }
+    }
+&lt;/script&gt;
+
+&lt;style&gt;&lt;/style&gt;</pre>
+<p>注意，我们已经导入了<code>ImageCropper</code>组件，并在<code>&lt;template&gt;</code>块中使用它。记住，<code>src</code>属性是JavaScript中的<code>props</code>之一。在我的例子中，有一个<code>public/logo.png</code>文件，但是你可以随意修改它。在更真实的场景中，您可能会使用用户计划上传的图像。</p>
+<p>如果你想学习如何上传文件，比如裁剪过的图像，你可以看看我之前的教程“通过Vue.js Web应用程序上传文件到远程Web服务”</p>
+<h2>结论</h2>
+<p>您刚刚看到了如何在Vue.js web应用程序中使用Cropper.js库操作图像。如果你需要接受来自用户的图片作为他们个人资料的一部分，这是很有用的，因为你想要一致的大小，这样你的主题就不会中断。</p>
+<p>使用图像裁剪库与在普通JavaScript中使用它没有太大区别，但是需要做一些事情来与Vue.js中的HTML组件进行交互。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+<hr/>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

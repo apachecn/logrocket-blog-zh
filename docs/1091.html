@@ -1,0 +1,220 @@
+<html>
+<head>
+<title>Building cross-platform apps with Capacitor and Vue.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Capacitor和Vue构建跨平台应用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-cross-platform-apps-with-capacitor-and-vue-js/#0001-01-01">https://blog.logrocket.com/building-cross-platform-apps-with-capacitor-and-vue-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>作为web开发人员，我们经常赞美web，谈论它是一个多么伟大的平台。但事实证明，在引人注目的功能方面，网络仍然是有限的。例如，如果您想要访问设备的文件系统、推送通知或蓝牙功能，您很可能需要一个本地应用程序来配合您的web应用程序。</p>
+<p>令人欣慰的是，web开发人员可以使用他们的web应用程序并添加原生目标，而无需做任何更改。</p>
+<p>介绍:电容。</p>
+<h2>它是如何工作的</h2>
+<p>电容器可以被认为是本机应用程序的一个<a href="https://github.com/sindresorhus/ponyfill" target="_blank" rel="noopener noreferrer"> ponyfill </a>以及web应用程序的一个运行时。Capacitor提供了一个API，允许开发者通过JavaScript调用原生API，并通过iOS应用商店和Google Play部署他们的web应用。</p>
+<p>例如，如果我们想在一个应用程序中安排一个本地通知，使用Capacitor只需调用<code>LocalNotifications.schedule</code>并传递一组通知。</p>
+<pre>import { Plugins } from '@capacitor/core';
+const { LocalNotifications } = Plugins;
+
+LocalNotifications.schedule({
+  notifications: [
+    {
+      title: "On sale",
+      body: "Widgets are 10% off. Act fast!",
+      id: 1,
+      schedule: { at: new Date(Date.now() + 1000 * 5) },
+      sound: null,
+      attachments: null,
+      actionTypeId: "",
+      extra: null
+    }
+  ]
+});</pre>
+<p>这是可能的，因为Capacitor位于浏览器、原生iOS和原生Android的各种API之间。当我们调用一个电容器API时，我们实际上是在调用代理API。</p>
+<p>因此，当我们在iOS上调用本地通知示例时，我们实际上会调用本地通知API并在那里处理事情。在web上，我们也可以调用通知API，那么为什么不直接使用现有的API呢？</p>
+<p>如果我们把例子从通知改为后台任务，这在web上没有对等物，好处就变得非常明显了。通过提供自己的API，Capacitor让您可以安全地调用API，并在特性不可用时提供优雅的回退。比应用程序中出现巨大错误要好得多。</p>
+<h2>与Vue应用程序集成</h2>
+<p>由于电容器本身主要集中在设备功能上，我们仍然需要构建一个应用程序。在这种情况下，我们将构建一个小的Vue应用程序，并将库Vuetify用于我们的组件。我假设你知道如何创建一个Vue项目，以及如何对它进行Vue化，但是TL；博士是:</p>
+<pre>npm i -g @vue/cli
+vue create my-project
+cd my-project
+vue add vuetify</pre>
+<p>减去这里那里的几个提示，就这样了。</p>
+<p>创建好项目后，我们还要安装电容器核心及其CLI，以用于我们的项目:</p>
+<pre>npm install @capacitor/core @capacitor/cli</pre>
+<p>我们一会儿会用到这些，所以让我们看看我们的组件。在我们的应用程序中，我们应该有一个指向Home.vue组件的Home route。</p>
+<p>让我们开始为此搭建框架:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    &lt;h1&gt;Geolocation&lt;/h1&gt;
+    &lt;p&gt;Your location is:&lt;/p&gt;
+    &lt;p&gt;
+      Latitude: &lt;span v-if="loc"&gt;{{ loc.coords.latitude }}&lt;/span&gt;
+    &lt;/p&gt;
+    &lt;p&gt;
+      Longitude: &lt;span v-if="loc"&gt;{{ loc.coords.longitude }}&lt;/span&gt;
+    &lt;/p&gt;
+    &lt;v-btn block elevation="2" @click="getCurrentPosition"&gt;Get Current Location&lt;/v-btn&gt;
+    &lt;v-btn block elevation="2" @click="scheduleNotification"&gt;Local Notifications&lt;/v-btn&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import Vue from "vue";
+export default Vue.extend({
+  name: "Home",
+  data: function() {
+    return { loc: null };
+  },
+  methods: {
+    getCurrentPosition: function() { },
+    scheduleNotification: async function() { },
+  }
+});
+&lt;/script&gt;</pre>
+<p>有了这些，我们就可以开始构建获取当前位置和安排通知的逻辑了。让我们先从地理定位部分开始。</p>
+<h3>地理定位</h3>
+<p>首先，我们需要从<code>@capacitor/core</code>导入插件对象。这将允许我们通过电容器调用各种设备功能:</p>
+<pre>import Vue from "vue";
+import { Plugins } from "@capacitor/core";
+
+export default Vue.extend({
+  name: "Home",
+  data: function() {
+    return { loc: null };
+  },
+  methods: {
+    getCurrentPosition: function() { },
+    scheduleNotification: async function() { },
+  }
+});</pre>
+<p>在我们的<code>getCurrentPosition</code>函数中，我们可以获得地理位置对象，并开始调用其上的各种函数。这里我们将调用<code>getCurrentPosition</code>函数，它将返回一个承诺。</p>
+<pre>getCurrentPosition: function() {
+  const { Geolocation } = Plugins;
+  Geolocation.getCurrentPosition().then(
+    loc =&gt; (this.loc = loc),
+    e =&gt; console.log("there was an error", e)
+  );
+},</pre>
+<p>一旦检索到位置数据，我们就可以将loc绑定设置为位置数据。</p>
+<p>当在浏览器中测试时，在Chrome或Firefox中测试，因为如果连接不安全，Safari将阻止对地理位置的访问。Chrome和Firefox也将阻止不安全的访问，但给予本地主机域特殊的访问权限。</p>
+<p>就是这样！</p>
+<p>地理位置数据现在可以显示在我们的应用程序中。让我们转到通过本地通知API的通知。</p>
+<h3>本地通知</h3>
+<p>本地通知经常与推送通知混淆，但两者有很大不同。推送通知来自一个中心枢纽，要么是谷歌，要么是苹果，以及它们的各种服务。顾名思义，本地通知是应用程序本身的本地通知。</p>
+<p>与地理位置示例一样，我们首先想要访问<code>LocalNotifications</code>对象:</p>
+<pre>scheduleNotification: async function() {
+  const { LocalNotifications } = Plugins;
+},</pre>
+<p>通知稍微复杂一点，需要你先获得许可才能显示它们。</p>
+<p>因此，我们将在这里使用async/await并请求许可:</p>
+<pre>scheduleNotification: async function() {
+  const { LocalNotifications } = Plugins;
+  const canSend = await LocalNotifications.requestPermission();
+  if (canSend) {  }
+},</pre>
+<p>现在，如果我们可以发送通知，我们可以在if语句中这样做。如果用户点击拒绝，那么我们的功能就结束了。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在“if”语句中，我们可以像这样安排一个通知:</p>
+<pre>if (canSend) {
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        title: "On sale",
+        body: "Widgets are 10% off. Act fast!",
+        id: 1,
+        schedule: { at: new Date(Date.now() + 1000 * 5) },
+        actionTypeId: "",
+        extra: null
+      }
+    ]
+  });
+}</pre>
+<p>我们实际上可以在这里安排多个通知，但是我们的演示只需要一个。我们可以为我们的通知设置更多的条目，所以我鼓励你看一看这里的文档<a href="https://capacitorjs.com/docs/apis/local-notifications" target="_blank" rel="noopener noreferrer"/>。</p>
+<p>总之，我们的函数应该是这样的:</p>
+<pre>scheduleNotification: async function() {
+  const { LocalNotifications } = Plugins;
+  const canSend = await LocalNotifications.requestPermission();
+  if (canSend) {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: "On sale",
+          body: "Widgets are 10% off. Act fast!",
+          id: 1,
+          schedule: { at: new Date(Date.now() + 1000 * 5) },
+          actionTypeId: "",
+          extra: null
+        }
+      ]
+    });
+  }
+},</pre>
+<p>总之，我们的组件逻辑如下所示:</p>
+<pre>import Vue from "vue";
+import { Plugins } from "@capacitor/core";
+
+export default Vue.extend({
+  name: "Home",
+  data: function(): { loc: GeolocationPosition | null } {
+    return { loc: null };
+  },
+  methods: {
+    scheduleNotification: async function() {
+      const { LocalNotifications } = Plugins;
+      const canSend = await LocalNotifications.requestPermission();
+      if (canSend) {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title: "On sale",
+              body: "Widgets are 10% off. Act fast!",
+              id: 1,
+              schedule: { at: new Date(Date.now() + 1000 * 5) },
+              actionTypeId: "",
+              extra: null
+            }
+          ]
+        });
+      }
+    },
+    getCurrentPosition: function() {
+      const { Geolocation } = Plugins;
+      Geolocation.getCurrentPosition().then(
+        loc =&gt; (this.loc = loc),
+        e =&gt; console.log("there was an error", e)
+      );
+    }
+  }
+});</pre>
+<h2>部署</h2>
+<p>添加了我们的功能后，让我们构建我们的应用程序，并开始添加原生平台。</p>
+<pre>npm run build</pre>
+<p>要添加本地平台，我们首先需要通过调用电容器CLI在项目中启用电容器:</p>
+<pre>npx cap init MyVueApp --webDir=dist</pre>
+<p>所有这些都是让电容器知道我们的应用程序名称应该是什么，以及网络资产位于何处。</p>
+<p>完成后，我们可以将iOS或Android部署目标添加到我们的项目中:</p>
+<pre>npx cap add ios
+*# or*
+npx cap add android</pre>
+<p>这两个操作都要求您在计算机上安装本地SDK。对于iOS，这意味着安装Xcode和Cocoapods，对于Android，你需要安装Android Studio。</p>
+<p>一旦添加了本地平台，剩下要做的就是在模拟器或真实设备上运行应用程序:</p>
+<p><img data-attachment-id="23774" data-permalink="https://blog.logrocket.com/building-cross-platform-apps-with-capacitor-and-vue-js/developer-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png" data-orig-size="730,411" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="developer-console" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png" decoding="async" class="aligncenter wp-image-23774 size-full jetpack-lazy-image" src="../Images/aa1b3a3513823c7efb54ce05ad2ce1b6.png" alt="Developer-console.png" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console-300x169.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="23774" data-permalink="https://blog.logrocket.com/building-cross-platform-apps-with-capacitor-and-vue-js/developer-console/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png" data-orig-size="730,411" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="developer-console" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png" decoding="async" loading="lazy" class="aligncenter wp-image-23774 size-full" src="../Images/aa1b3a3513823c7efb54ce05ad2ce1b6.png" alt="Developer-console.png" srcset="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console-300x169.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/08/developer-console.png"/></noscript>
+<h3>结论</h3>
+<p>凭借其最简单的CLI和以Web为中心的方法，Capacitor是一款真正的嵌入式工具，可用于将您的应用部署到native。</p>
+<p>这里我们看了Vue，但是电容器本身是框架无关的，可以与Angular、React、Preact一起使用，或者根本没有框架。</p>
+<p>如果你有兴趣了解更多关于电容器的知识，一定要查看<a href="https://capacitorjs.com/docs" target="_blank" rel="noopener noreferrer">电容器文档</a>以及各种可用的<a href="https://capacitorjs.com/docs/apis" target="_blank" rel="noopener noreferrer">插件/API</a>的文档。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

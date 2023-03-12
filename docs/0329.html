@@ -1,0 +1,396 @@
+<html>
+<head>
+<title>Understanding Vue middleware pipelines - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解Vue中间件管道- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/vue-middleware-pipelines/#0001-01-01">https://blog.logrocket.com/vue-middleware-pipelines/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>一般来说，在建造温泉时，需要保护某些路线。例如，假设我们有一个只能由经过身份验证的用户访问的仪表板路由，我们可以利用一个身份验证中间件来确保只有经过身份验证的用户才能访问仪表板路由。</p>
+<p>在本教程中，我们将看到如何使用<a href="https://router.vuejs.org/" target="_blank" rel="noopener noreferrer"> Vue-Router </a>为Vue应用程序实现中间件管道。</p>
+<h2>什么是中间件管道？</h2>
+<p>中间件管道是一堆彼此并行运行的不同中间件。</p>
+<p>使用介绍性段落中的假设案例研究，假设我们在<code>/dashboard/movies</code>有另一个路由，我们只希望订阅用户可以访问。我们已经知道，要访问仪表板路由，您需要进行身份验证。那么，我们如何着手保护<code>/dashboard/movies</code>路由，以确保只有经过认证和订阅的用户才能访问该路由呢？通过使用中间件管道，我们可以将几个中间件链接在一起，并确保它们并行运行。</p>
+<h2><strong>入门</strong></h2>
+<p>首先，我们将使用<a href="https://cli.vuejs.org/" target="_blank" rel="noopener noreferrer"> Vue CLI </a>快速搭建一个新的Vue项目。</p>
+<pre>vue create vue-middleware-pipeline</pre>
+<h2>安装依赖项</h2>
+<p>创建并安装项目目录后，导航到新创建的目录，并从终端运行以下命令:</p>
+<pre>npm i vue-router vuex</pre>
+<p><a href="https://github.com/vuejs/vue-router/" target="_blank" rel="noopener noreferrer"> Vue-router </a> —是Vue.js的官方路由器</p>
+<p>Vuex是Vue的一个状态管理库</p>
+<h2 id="6aef" class="graf graf--h3 graf-after--p">创建组件</h2>
+<p>我们的应用程序将有三个组件。</p>
+<p><strong>登录</strong> —该组件将显示给尚未通过身份验证的用户。</p>
+<p><strong>仪表板</strong> —该组件将显示给已登录的用户。</p>
+<p><strong> Movies </strong> —我们将向已登录并拥有有效订阅的用户显示此组件。</p>
+<p>让我们创建这些组件。导航到<code>src/components</code>目录并创建以下文件:<code>Dashboard.vue</code> <code>Login.vue</code>和<code>Movies.vue</code></p>
+<p>用以下代码编辑<code>Login.vue</code>文件:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    &lt;p&gt;This is the Login component&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/template&gt;</pre>
+<p>用以下代码编辑<code>Dashboard.vue</code>文件:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    &lt;p&gt;This is the Dashboard component for authenticated users&lt;/p&gt;
+    &lt;router-view/&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+</pre>
+<p>最后，将以下代码添加到<code>Movies.vue</code>文件中:</p>
+<pre>&lt;template&gt;
+  &lt;div&gt;
+    &lt;p&gt;This is the Movies component for authenticated and subscribed users&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/template&gt;</pre>
+<h2 id="7528" class="graf graf--h3 graf-after--figure">创建商店</h2>
+<p>对于<code>Vuex</code>，存储只是一个保存应用程序状态的容器。这将允许我们确定用户是否经过身份验证，以及检查用户是否订阅。<br/>在src文件夹中，创建一个<code>store.js</code>文件，并将以下代码添加到该文件中:</p>
+<pre>import Vue from 'vue'
+import Vuex from 'vuex'
+
+Vue.use(Vuex)
+
+
+export default new Vuex.Store({
+    state: {
+        user: {
+            loggedIn: false,
+            isSubscribed: false
+        }
+    },
+
+    getters: {
+        auth(state) {
+            return state.user
+        }
+    }
+})</pre>
+<p>存储在其状态中包含一个<code>user</code>对象。<code>user</code>对象包含一个<code>loggedIn</code>和<code>isSubscribed</code>属性，帮助我们确定用户是否登录并拥有一个活动订阅。我们还在商店内部定义了一个返回<code>user</code>对象的<code>getter</code>。</p>
+<h2 id="f652" class="graf graf--h3 graf-after--p">定义我们的路线</h2>
+<p>在创建我们的路由之前，让我们定义它们并关联将被附加到这些路由的相应中间件。</p>
+<p>除了认证用户，其他人都可以访问。当经过身份验证的用户访问此路由时，他们应该被重定向到仪表板路由。这个路由将有一个<code>guest</code>中间件与之相连。</p>
+<p><code>/dashboard</code>只有经过认证的用户才能访问。未经验证的用户在访问此路由时应该被重定向到<code>/login</code>路由。我们将把一个<code>auth</code>中间件与这条路线关联起来。</p>
+<p><code>/dashboard/movies</code>将只能由经过认证和订阅的用户访问。这条路线将受到一个<code>isSubscribed</code>和<code>auth</code>中间件的保护。</p>
+<h2 id="918c" class="graf graf--h4 graf-after--p">创建路线</h2>
+<p>接下来，在<code>src</code>目录中创建一个<code>router</code>文件夹，然后在该文件夹中创建一个<code>router.js</code>文件。使用以下代码编辑该文件:</p>
+<pre>import Vue from 'vue'
+import Router from 'vue-router'
+import store from '../store'
+
+import Login from '../components/Login'
+import Dashboard from '../components/Dashboard'
+import Movies from '../components/Movies'
+
+
+Vue.use(Router)
+
+const router = new Router({
+    mode: 'history',
+    base: process.env.BASE_URL,
+    routes: [
+        {
+            path: '/login',
+            name: 'login',
+            component: Login
+        },
+
+        {
+            path: '/dashboard',
+            name: 'dashboard',
+            component: Dashboard,
+            children: [{
+                path: '/dashboard/movies',
+                name: 'dashboard.movies',
+                component: Movies
+            }
+        ],
+        }
+    ]
+})
+
+
+export default router</pre>
+<p>这里，我们创建了一个新的<code>router</code>实例，同时传入了几个配置选项以及一个接受我们之前定义的所有路由的<code>routes</code>属性。目前，值得注意的是这些路线都没有受到保护。我们会尽快解决这个问题。<br/>接下来，让我们将路由器和我们的商店注入Vue实例。用下面的代码编辑<code>src/main.js</code>文件:</p>
+<pre>import Vue from 'vue'
+import App from './App.vue'
+import router from './router/router'
+import store from './store'
+
+Vue.config.productionTip = false
+
+
+new Vue({
+  router,
+  store,
+  render: h =&gt; h(App),
+}).$mount('#app')</pre>
+<h2>创建中间件</h2>
+<p>在<code>src/router</code>目录下，创建一个<code>middleware</code>文件夹，然后在该文件夹下创建<code>guest.js</code>、<code>auth.js</code>和<code>IsSubscribed.js</code>文件。将以下代码添加到<code>guest.js</code>文件中:</p>
+<pre>export default function guest ({ next, store }){
+    if(store.getters.auth.loggedIn){
+        return next({
+           name: 'dashboard'
+        })
+    }
+   
+    return next()
+   }</pre>
+<p><code>guest</code>中间件检查用户是否被认证。如果通过认证，它们将被重定向到<code>dashboard</code>路由。</p>
+<p id="dde9" class="graf graf--p graf-after--p">接下来，用以下代码编辑<code>auth.js</code>文件:</p>
+<pre>export default function auth ({ next, store }){
+ if(!store.getters.auth.loggedIn){
+     return next({
+        name: 'login'
+     })
+ }
+
+ return next()
+}</pre>
+<p>在<code>auth</code>中间件中，使用<code>store</code>我们检查用户当前是否是<code>authenticated</code>。根据用户是否登录，我们要么继续请求，要么将他们重定向到登录页面。</p>
+<p>用以下代码编辑<code>isSubscribed.js</code>文件:</p>
+<pre>export default function isSubscribed ({ next, store }){
+    if(!store.getters.auth.isSubscribed){
+        return next({
+           name: 'dashboard'
+        })
+    }
+   
+    return next()
+   }</pre>
+<p><code>isSubscribed</code>中间件类似于<code>auth</code>中间件。使用我们的<code>store</code>,我们检查用户是否被订阅。如果用户已订阅，他们可以访问预定路线，否则将被重定向回仪表板页面。</p>
+<h2 id="1022" class="graf graf--h4 graf-after--p">保护路线</h2>
+<p>现在我们已经创建了所有的中间件，让我们利用它们来保护我们的路线。用以下代码编辑<code>src/router/router.js</code>文件:</p>
+<pre>import Vue from 'vue'
+import Router from 'vue-router'
+import store from '../store'
+
+import Login from '../components/Login'
+import Dashboard from '../components/Dashboard'
+import Movies from '../components/Movies'
+
+import guest from './middleware/guest'
+import auth from './middleware/auth'
+import isSubscribed from './middleware/isSubscribed'
+
+
+Vue.use(Router)
+
+const router = new Router({
+    mode: 'history',
+    base: process.env.BASE_URL,
+    routes: [{
+            path: '/login',
+            name: 'login',
+            component: Login,
+            meta: {
+                middleware: [
+                    guest
+                ]
+            }
+        },
+
+        {
+            path: '/dashboard',
+            name: 'dashboard',
+            component: Dashboard,
+            meta: {
+                middleware: [
+                    auth
+                ]
+            },
+            children: [{
+                path: '/dashboard/movies',
+                name: 'dashboard.movies',
+                component: Movies,
+                meta: {
+                    middleware: [
+                        auth,
+                        isSubscribed
+                    ]
+                }
+            }],
+        }
+    ]
+})
+
+
+export default router</pre>
+<p>这里，我们导入了所有的中间件，然后为每个路由定义了一个包含中间件数组的元字段。中间件阵列包含我们希望与特定路由相关联的所有中间件。</p>
+<h2 id="4c10" class="graf graf--h4 graf-after--p">Vue路由器导航防护装置</h2>
+<p>Vue路由器提供的<a href="https://router.vuejs.org/guide/advanced/navigation-guards.html#global-before-guards" target="_blank" rel="noopener noreferrer">导航卫士</a>是我们能够首先使用中间件来保护我们的路由的唯一原因。这些导航保护装置主要用于通过改变航线方向或取消航线来保护航线。</p>
+<p>其中之一是全局before guard，它通常是在触发路由之前调用的钩子。为了在guard之前注册一个全局变量，我们在<code>router</code>实例上定义了一个<code>beforeEach</code>方法。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>const router = new Router({ ... })
+router.beforeEach((to, from, next) =&gt; {
+ //necessary logic to resolve the hook
+})</pre>
+<p id="88d6" class="graf graf--p graf-after--figure"><code>beforeEach</code>方法接收三个参数:</p>
+<p id="0a0c" class="graf graf--p graf-after--p">这是我们打算进入的路线。</p>
+<p id="8500" class="graf graf--p graf-after--p">这是我们目前的路线。</p>
+<p id="9bcd" class="graf graf--p graf-after--p"><code>next:</code>这是被调用来解决钩子的<code>function</code>。</p>
+<h2 id="d750" class="graf graf--h4 graf-after--p">运行中间件</h2>
+<p>使用<code>beforeEach</code>钩子，我们可以运行我们的中间件。</p>
+<pre>const router = new Router({ ...})
+
+router.beforeEach((to, from, next) =&gt; {
+    if (!to.meta.middleware) {
+        return next()
+    }
+    const middleware = to.meta.middleware
+
+    const context = {
+        to,
+        from,
+        next,
+        store
+    }
+    return middleware[0]({
+        ...context
+    })
+})</pre>
+<p>我们首先检查正在处理的当前路由是否有一个包含<code>middleware</code>属性的元字段。如果找到了<code>middleware</code>属性，我们将它赋给一个<code>const</code>变量。接下来，我们定义一个<code>context</code>对象，它包含了我们需要传递给每个中间件的所有东西。然后我们调用中间件数组中的第一个中间件作为函数，同时传入<code>context</code>对象。</p>
+<p>尝试访问<code>/dashboard</code>路线，您应该会被重定向到<code>login</code>路线。这是因为我们的<code>/src/store.js</code>中的<code>store.state.user.loggedIn</code>属性被设置为<code>false</code>。将<code>store.state.user.loggedIn</code>属性更改为true，现在您应该可以访问<code>/dashboard</code>路线了。</p>
+<p>我们的中间件现在正在工作，但并不完全是我们想要的方式。我们的目标是实现一个管道，在这个管道中，我们可以针对一个特定的路由运行多个中间件。</p>
+<pre>return middleware[0]({ …context})</pre>
+<p>注意上面代码块中的这一行代码，我们只调用了从中间件数组<code>meta</code>字段中传递的第一个中间件。那么我们如何确保数组中包含的其他中间件(如果有的话)也被调用呢？这就是我们的管道派上用场的地方。</p>
+<h2>创建管道</h2>
+<p>导航到<code>src/router</code>目录，然后创建一个<code>middlewarePipeline.js</code>文件。将以下代码添加到文件中:</p>
+<pre>function middlewarePipeline (context, middleware, index) {
+    const nextMiddleware = middleware[index]
+
+    if(!nextMiddleware){
+        return context.next 
+    }
+
+    return () =&gt; {
+        const nextPipeline = middlewarePipeline(
+            context, middleware, index + 1
+        )
+
+        nextMiddleware({ ...context, next: nextPipeline })
+
+    }
+}
+
+export default middlewarePipeline</pre>
+<p><code>middlewarePipeline</code>接受三个参数:</p>
+<p><code>context:</code>这是我们之前创建的<code>context</code>对象，这样它就可以被传递给栈中的每一个中间件。</p>
+<p><code>middleware:</code>这是<code>route</code>的<code>meta</code>字段中定义的<code>middleware</code>数组本身。</p>
+<p><code>index:</code>这是在<code>middleware</code>数组中运行的当前中间件的<code>index</code>。</p>
+<pre>const nextMiddleware = middleware[index]
+if(!nextMiddleware){
+return context.next
+}</pre>
+<p>这里，我们只是在<code>index</code>取出传递给<code>middlewarePipeline</code>函数的中间件。如果在那个<code>index</code>没有找到<code>middleware</code>，则返回默认的<code>next</code>回调。</p>
+<pre>return () =&gt; {
+const nextPipeline = middlewarePipeline(
+context, middleware, index + 1
+)
+nextMiddleware({ ...context, next: nextPipeline })
+}</pre>
+<p>我们调用<code>nextMiddleware</code>来运行，同时传入<code>context</code>和<code>nextPipeline</code>T3。值得注意的是，<code>middlewarePipeline</code>函数是一个递归函数，它会调用自身来获取下一个要在堆栈中运行的中间件，同时将<code>index</code>递增1。</p>
+<h2 id="1e3f" class="graf graf--h3 graf-after--p">将这一切结合在一起</h2>
+<p>让我们利用我们的<code>middlewarePipeline</code>。用以下代码编辑<code>src/router/router.js</code>文件:</p>
+<pre>import Vue from 'vue'
+import Router from 'vue-router'
+import store from '../store'
+
+import Login from '../components/Login'
+import Dashboard from '../components/Dashboard'
+import Movies from '../components/Movies'
+
+import guest from './middleware/guest'
+import auth from './middleware/auth'
+import isSubscribed from './middleware/isSubscribed'
+import middlewarePipeline from './middlewarePipeline'
+
+
+Vue.use(Router)
+
+const router = new Router({
+    mode: 'history',
+    base: process.env.BASE_URL,
+    routes: [{
+            path: '/login',
+            name: 'login',
+            component: Login,
+            meta: {
+                middleware: [
+                    guest
+                ]
+            }
+        },
+
+        {
+            path: '/dashboard',
+            name: 'dashboard',
+            component: Dashboard,
+            meta: {
+                middleware: [
+                    auth
+                ]
+            },
+            children: [{
+                path: '/dashboard/movies',
+                name: 'dashboard.movies',
+                component: Movies,
+                meta: {
+                    middleware: [
+                        auth,
+                        isSubscribed
+                    ]
+                }
+            }],
+        }
+    ]
+})
+
+router.beforeEach((to, from, next) =&gt; {
+    if (!to.meta.middleware) {
+        return next()
+    }
+    const middleware = to.meta.middleware
+
+    const context = {
+        to,
+        from,
+        next,
+        store
+    }
+
+
+    return middleware[0]({
+        ...context,
+        next: middlewarePipeline(context, middleware, 1)
+    })
+
+})
+
+export default router</pre>
+<p>这里，我们利用<code>middlewarePipeline</code>来运行堆栈中包含的后续中间件。</p>
+<pre>return middleware[0]({
+...context,
+next: middlewarePipeline(context, middleware, 1)
+})</pre>
+<p>在第一个中间件被调用后，使用<code>middlewarePipeline</code>函数，栈中包含的后续中间件也被调用，直到不再有任何中间件可用。</p>
+<p>如果您访问<code>/dashboard/movies</code>路线，您应该被重定向到<code>/dashboard</code>路线。这是因为<code>user</code>目前是<code>authenticated</code>，但没有有效的订阅。将<code>store</code>中的<code>store.state.user.isSubscribed</code>属性设置为<code>true</code>。你现在应该可以进入<code>/dashboard/movies</code>路线了。</p>
+<h2 id="9ea4" class="graf graf--h3 graf-after--p">结论</h2>
+<p id="a1fe" class="graf graf--p graf-after--h3">中间件是保护应用程序中不同路由的好方法。这是一个非常简单的实现，说明了如何利用多个中间件来保护Vue应用程序中的单个路由。你可以在这里找到Github回购<a href="https://github.com/Dotunj/vue-middleware-pipelines" target="_blank" rel="noopener noreferrer">的链接。</a></p>
+<p> </p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

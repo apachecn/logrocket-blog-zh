@@ -1,0 +1,236 @@
+<html>
+<head>
+<title>Go generics: Past designs and present release features - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Go generics:过去的设计和现在的发布特性</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/go-generics-past-designs-present-release-features/#0001-01-01">https://blog.logrocket.com/go-generics-past-designs-present-release-features/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本帖于2022年6月10日更新，包含了Go v1.18版本中关于仿制药的信息。</em></p>
+<p>泛型编程在其他编程语言中也被称为参数多态性。这是通过编写支持多种类型参数的“公共函数”来减少函数重复的一种方式。</p>
+<p>在这种情况下，类型参数可以被去掉，或者更好的是被隔离，函数仍然可以运行，不管我们传递的类型参数是什么。</p>
+<p>作为Go编程语言的一个特性，泛型并没有包含在最初的发布版本(Go1.x)中，也没有包含在语言的设计中。</p>
+<p>然而，在Go社区中通过提案草案和设计文档进行了大量的辩论之后——以及核心团队和贡献者的辛勤工作——对泛型的支持现在已经在今年早些时候的<a href="https://tip.golang.org/doc/go1.18" target="_blank" rel="noreferrer noopener"> Go v1.18版本</a>中被添加到语言核心中。</p>
+<p>记住这一点，在这篇文章中，我们将讨论:</p>
+
+
+
+<p>在我们开始之前，读者必须了解Go编程语言的基础。具体来说，读者要了解Go类型系统，包括类型断言和类型推断，以及<a href="https://blog.logrocket.com/exploring-structs-and-interfaces-in-go/" target="_blank" rel="noreferrer noopener">接口及其在Go程序</a>中的用法。</p>
+<h2 id="what-go-generics">什么是Go泛型？</h2>
+<p>每一种静态类型语言都有某种形式的泛型。泛型为我们提供了一种在Go代码中表达类型约束的新方法。Go中泛型的总体目的是避免样板代码或逻辑重复。</p>
+<p>Go的作者不得不在像Go这样为网络系统软件设计的编程语言中权衡泛型的利弊。结果，他们最初选择了退出<a href="https://blog.logrocket.com/concurrency-patterns-golang-waitgroups-goroutines/" target="_blank" rel="noreferrer noopener">特性，比如并发</a>，可伸缩构建，等等。</p>
+<p>向Go中添加泛型的目的是为了能够编写能够在任意类型或值上工作或操作的库或函数。因此，该语言应该能够显式地记录类型参数的约束。</p>
+<p>Go中对泛型的另一个常见要求是编写编译时类型安全容器的能力。</p>
+<p>总之，我们的目标是支持编写Go库，通过允许类型参数的参数多态来抽象掉不必要的类型细节。</p>
+<h3 id="problem-case-before-generics-go">问题案例:在Go中的泛型之前</h3>
+<p>Go的一个显著特点是它的接口方法，这也是针对代码重用的。具体来说，接口使得编写算法的抽象实现成为可能。</p>
+<p>通过使用空的接口类型，Go已经支持了一种形式的泛型编程。例如，我们可以通过使用带有类型断言和类型开关的空接口类型来编写一个适用于不同片类型的函数。</p>
+<p>空接口类型让我们通过类型开关和类型断言来捕获不同的类型。我们可以编写使用这些接口类型的函数，这些函数将适用于我们作为参数传递的任何类型。</p>
+<p>但是这种方法不支持代码重用。对于接口，我们必须为我们想要支持的每种类型编写开关用例。然后，我们必须利用类型断言和case语句，根据我们想要支持的类型进行检查。</p>
+<p>例如，要反转任何元素类型的切片，我们可以传递一个空接口作为参数，并利用类型断言，我们可以在调用函数时获得作为参数传递的类型。</p>
+<p>让我们看看下面一个非泛型函数的快速示例:</p>
+<pre class="language-go hljs">func Sum(args …int) int {
+  var sum int
+  for i := 0; i &lt; len(args); i++ {
+    sum += args[i]
+  }
+  return sum
+}
+</pre>
+<p>如果我们打算为一个<strong> int32 </strong>或一个<strong> int64 </strong>数据类型实现同样的特性，会发生什么呢？见下文:</p>
+<pre class="language-go hljs">func SumInt64(args ...int64) int64 {
+        var sum int64
+        for i := 0; i &lt; len(args); i++ {
+                sum += args[i]
+        }
+        return sum
+}
+</pre>
+<p>我们需要实现单独的函数来处理每种数据类型。随着泛型的发布，这已经不再需要了。</p>
+<h3 id="brief-history-go-generics-draft-proposal-design">Go泛型简史:从提案草案到设计</h3>
+<p>根据2019年的一篇官方Go博客文章<a href="https://blog.golang.org/why-generics" target="_blank" rel="noreferrer noopener">，泛型支持一直是该语言中需要解决的首要问题之一。</a></p>
+<p>Go generics 的<a href="https://go.googlesource.com/proposal/+/master/design/go2draft-generics-overview.md#draft-design" target="_blank" rel="noreferrer noopener">初始设计草案，在过去的几年中经过了几次改进和更新，引入了<code>contracts</code>。<code>contracts</code>的目的是验证一个函数的一组类型参数，以及在这些类型上可以调用什么方法。</a></p>
+<p>设计草案引入了命名契约的概念，契约就像一个函数体，说明了类型必须支持的操作。</p>
+<p>总之，目标是实现能够约束可能使用的类型。草稿中的一个示例显示了如何声明类型<code>T</code>的值必须是可比较的:</p>
+<pre class="language-go hljs">contract Equal(t T) {
+        t == t
+}
+</pre>
+<p>然后，为了要求一个契约，我们在类型参数列表后给出它的名称:</p>
+<pre class="language-go hljs">type Set(type T Equal) []T
+</pre>
+<p>最后，在函数签名中使用已定义的<code>contract</code>:</p>
+<pre class="language-go hljs">// Find returns the index of x in the set s,
+// or -1 if x is not contained in s.
+func (s Set(T)) Find(x T) int {
+        for i, v := range s {
+                if v == x {
+                        return i
+                }
+        }
+        return -1
+}
+</pre>
+<p>在上面的函数定义中，我们可以看到我们正在使用已定义的契约，它指定了类型必须是可比较的。</p>
+<p>合同设计草案概述如下:</p>
+<ul>
+<li>函数和类型可以有类型参数，这些参数是使用可选契约定义的</li>
+<li>契约描述类型参数所需的方法和允许的内置类型</li>
+<li>协定描述了类型参数允许的方法和操作</li>
+<li>当调用带有类型参数的函数时，类型推断通常允许省略类型参数</li>
+</ul>
+<p>你可以在Russ Cox的一篇文章中读到更多关于早期设计草案的内容，在这篇文章中，他广泛地讨论和实验了契约的概念。</p>
+<h3 id="why-draft-design-go-generics-changed">为什么Go泛型的设计草案改变了</h3>
+<p>契约的问题在于它的设计似乎给语言带来了更多的复杂性。</p>
+<p>根据2019年的一份<a href="https://github.com/golang/proposal/blob/master/design/go2draft-contracts.md" target="_blank" rel="noreferrer noopener">设计草案，由于类型列表只出现在契约中，而不是接口类型上，许多人很难理解这种差异。因此，Go团队完全放弃了契约的想法。</a></p>
+<p>相反，该团队简化了他们的方法，只使用接口类型，因为它也证明了契约可以表示为一组接口。</p>
+<h3 id="go-generics-today-bounded-type-parameters">今天去泛型:有界类型参数</h3>
+<p>添加泛型编程到Go 的<a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md" target="_blank" rel="noreferrer noopener">类型参数建议强调可选的类型参数或参数化类型。以下是这个被提议和接受的设计的概要:</a></p>
+<ul>
+<li>类型参数是使用约束定义的</li>
+<li>接口类型充当类型参数的约束</li>
+<li>使用接口类型，我们可以添加额外的类型来帮助限制满足给定约束的类型集。</li>
+<li>函数和类型参数可以使用运算符，但是，满足参数约束的所有类型都必须允许这样做。</li>
+<li>通过类型推断，可以在函数调用中省略类型参数。</li>
+<li>泛型实现尊重Go 1.x向后兼容的承诺</li>
+</ul>
+<p>在Go中增加泛型的语法之前，我们在Go中编写的每个函数都只能应用于特定的类型。</p>
+<p>例如，不可能编写一个简单的<code>copy</code>函数来操作任何容器类型，例如<code>map</code>。我们必须为不同的目标类型编写不同的函数，除了类型之外，它们的签名几乎相同。</p>
+<p>随着Go中泛型编程的发布，我们现在可以编写一个适用于整数和浮点类型的<code>min()</code>函数，而不必基于类型显式地编写它们。</p>
+<p>Go泛型设计基本上允许类型和函数声明具有可选的类型参数。类型参数由显式定义的结构约束来限定。</p>
+<h2 id="generic-syntax-go">Go中的一般语法</h2>
+<p>让我们探索一下Go 1.18 中泛型的一些<a href="https://blog.logrocket.com/understanding-generics-go-1-18/" target="_blank" rel="noreferrer noopener">特性。</a></p>
+<h3 id="functions-optional-type-parameters">函数可以有可选的类型参数</h3>
+<p>先说关键词<code>type</code>——也就是<code>func Add\[T any\](a, b T) T</code>。下面的示例显示了泛型编程中允许的函数类型:</p>
+<pre class="language-go hljs">func Sum[T int](args ...T) T {
+        var sum T
+        for i := 0; i &lt; len(args); i++ {
+                sum += args[i]
+        }
+        return sum
+}
+</pre>
+<p>从上面的泛型函数可以看出，<code>[T int]</code>代表了在Go中编写泛型代码的基本语法。<code>T</code>是泛型类型，<code>int</code>是对该类型的约束。约束通过指定允许的类型参数来确保类型安全。</p>
+<p>这里的挑战在于应该如何声明类型参数，因为每个标识符都必须以某种方式声明。解决方法是类型参数类似于普通的非类型函数参数，因此应该与其他参数一起列出。</p>
+<p>这些类型参数(区别于非类型参数)可以由常规参数使用，也可以在函数体中使用。</p>
+<h3 id="types-type-parameter-list">类型可以有一个类型参数列表</h3>
+<p>在函数<code>Print</code>中，标识符<code>T</code>是一个类型参数:一个当前未知的类型，但是当函数被调用时就会知道。此参数列表出现在常规参数之前。</p>
+<pre class="language-go hljs">func Print(T int | int64)(args ...T) T{
+        // same as above
+}
+</pre>
+<p>由于<code>Print</code>有一个类型参数，任何对<code>Print</code>的调用都必须提供一个类型参数。</p>
+<pre class="language-go hljs">func main() {
+        fmt.Println(Sum([]int{1, 2, 3}...))
+        fmt.Println(Sum([]int64{1, 2, 3}...))
+}
+</pre>
+<p>类型参数作为单独的参数列表传递。</p>
+<h3 id="each-type-parameter-optional-type-constraint">每个类型参数都可以有一个可选的类型约束</h3>
+<p>如果一个泛型函数没有为类型参数指定约束，就像上面的<code>Print</code>方法一样，那么任何类型参数都是允许的。</p>
+<p>泛型函数可以对该类型参数的值使用的唯一操作是那些允许对任何类型的值使用的操作。任何类型允许的操作有:</p>
+<ul>
+<li>声明这些类型的变量</li>
+<li>将相同类型的其他值赋给这些变量</li>
+<li>将这些变量传递给函数或者从函数中返回它们</li>
+<li>获取这些变量的地址</li>
+<li>将这些类型的值转换或赋给类型<code>interface{}</code>，等等</li>
+</ul>
+<p>在定义约束时，Go已经有了一个非常接近约束所需的结构:接口类型。在这个新的设计中，约束相当于接口类型。</p>
+<p>约束是函数参数必须满足的接口类型。在我们有太多约束的情况下，我们可以使用<code>any</code>关键字或将我们的类型约束抽象为接口类型。</p>
+<p>此外，编写泛型函数就像使用接口类型的值:泛型代码只能使用约束允许的操作(或任何类型都允许的操作)。</p>
+<p>下面是另一个约束示例:</p>
+<pre class="language-go hljs">type Sumable interface {
+        int | int64 | uint32
+}
+</pre>
+<p>虽然泛型函数不需要使用约束，但它们可以作为元类型列在类型参数列表中。</p>
+<pre class="language-go hljs">func Sum\[T Sumable\](args ...T) T {
+        var sum T
+        for i := 0; i &lt; len(args); i++ {
+                sum += args[i]
+        }
+         return sum
+}
+</pre>
+<h2 id="any-constraint"><code>any</code>约束</h2>
+<p><code>any</code>约束相当于一个空接口类型<strong>接口</strong> {}。这样做的问题是，一个空的<strong>接口</strong> {}没有告诉我们任何关于数据的信息，它不太安全，并且需要太多的错误处理。请参见下面没有类型断言的示例:</p>
+<pre class="language-go hljs">func Sum\[T any\](args ...T) T {
+        var sum T
+        for i := 0; i &lt; len(args); i++ {
+                sum += args[i]
+        }
+        return sum
+ }
+</pre>
+<p>注意:上面的程序编译时会出错，因为编译器不知道任何关于<code>T</code>的事情，也不知道它是否支持加法运算符。</p>
+<h2 id="custom-types-go-generics">Go泛型中的自定义类型</h2>
+<p>Go generics包括对自定义类型参数的支持:</p>
+<pre class="language-go hljs">type CustomIntType int
+func main() {
+        fmt.Println(Sum([]CustomIntType{1, 2, 3}...))
+}
+</pre>
+<p>请注意，每个类型参数可能有自己的约束。没有约束的类型参数必须具有空<code>interface{}</code>类型的约束。</p>
+<p>此外，单个约束可用于多个类型参数。但是，该约束分别应用于每个类型参数。</p>
+<h2 id="examples-functions-go-generics">使用Go泛型的函数示例</h2>
+<p>今天让我们回顾一些例子，看看如何在Go中编写一个泛型函数。</p>
+<h3 id="sorting-slice-any-type">对任何类型的切片进行排序</h3>
+<pre class="language-go hljs">// import the constraint package
+func sortSlice\[T constraints.Ordered\](s []T) {
+    sort.Slice(s, func(i, j int) bool {
+        return s[i] &lt; s[j]
+    })
+ }
+
+ stringSlice := []string{"o", "a", "b"}
+ sortSlice(stringSlice)
+
+ fmt.Println(stringSlice) //[a b o]
+
+intSlice := []int{0, 3, 2, 1, 6}
+sortSlice(intSlice)
+fmt.Println(intSlice) // [0 1 2 3 6]
+</pre>
+<p><code>Ordered</code>约束允许任何有序类型；即支持小于<code>&lt;</code>、小于等于<code>&lt;=</code>、大于等于<code>&gt;=</code>或大于<code>&gt;</code>的运算符的任何类型。</p>
+<h3 id="checking-slice-contains-value">检查切片是否包含值</h3>
+<p>正如我们在下面的例子中看到的，调用一个泛型函数看起来就像调用任何其他函数一样:</p>
+<pre class="language-go hljs">func contains\[T comparable\](elems []T, v T) bool {
+    for _, s := range elems {
+        if v == s {
+            return true
+        }
+    }
+    return false
+}
+func main() {
+    fmt.Println(contains([]string{“e”,”f”, “g”}, “f”)) // true
+    fmt.Println(contains([]int{5, 6, 7}, 8)) // false 
+}  
+</pre>
+<p>在像Python或JavaScript这样的动态类型语言中，我们可以简单地编写函数，而不必费心指定元素类型。这在Go中不起作用，因为它是静态类型的，需要我们写下切片和切片元素的确切类型。</p>
+<p>最后，泛型使得只需编写一次函数就可以随处使用变得更加容易。处理特定数据类型的函数，如<code>copy</code>或<code>string</code>数据类型，可以通用化，也可以用于<code>map</code>类型。它们甚至可以扩展到用户定义的数据类型。</p>
+<h2 id="why-need-go-generics">为什么我们需要Go泛型</h2>
+<p>泛型编程支持以泛型形式表示算法和数据结构，并分解出代码的具体元素(如类型)。</p>
+<p>Go中的泛型包含了上面的定义，也包含了一种从函数定义和数据结构中抽象出类型的编程风格。你可能知道我们也可以用Go中的<code>interfaces</code>和<code>type assertions</code>来做这件事，但是我们必须为所有类型编写相同的方法。</p>
+<p>这里的想法是能够分解出元素类型。这将允许我们编写一次函数，编写一次测试，然后将它们打包成一个包。然后，我们可以重用一个高效的、完全调试好的实现，它可以在任何时候为任何值类型工作。</p>
+<h2 id="when-use-generics-go">什么时候在Go中使用泛型</h2>
+<p>如果您正在努力实现一个需要不同数据类型的单一行为的解决方案，那么您应该使用Go泛型。这意味着您希望为所有不同的数据类型定义一组行为或方法，以便以多态的方式存储或传递。</p>
+<p>如果您在不打算进行一些数据验证或使用任何封送或反封送操作的情况下使用空接口类型，Go泛型也很有用。</p>
+<p>最后，在编写操作容器类型(如地图、切片、通道或任何其他通用数据结构)的函数时，使用Go泛型。</p>
+<h2 id="when-not-use-generics-go">Go中何时不使用泛型</h2>
+<p>在对类型参数调用方法时，不应使用Go泛型。相反，使用接口类型；例如，替换<code>io.Reader</code>和<code>io.Writer</code>接口类型</p>
+<p>此外，Go中的方法集有不同的实现，这意味着在这种情况下泛型将是错误的选择。</p>
+<p>最后，当对每种类型执行不同的操作时，不要使用Go泛型，即使是在方法集中。在这种情况下，<a href="https://blog.logrocket.com/reflection-go-use-cases-tutorial/" target="_blank" rel="noreferrer noopener">使用Go的反射API代替</a>，在JSON编解码包(<code>decode.go</code>)文件中可以找到。</p>
+<h2 id="conclusion">结论</h2>
+<p>通用数据结构和算法提供了许多优势，包括灵活性和代码可重用性，通过实用函数或编写算法，然后可以应用于不同类型的参数。</p>
+<p>泛型使Go更安全、使用更高效、功能更强大。这将允许我们将许多问题实现为适用于不同类型的函数，并使用之前调试、优化和高效的包或库，从而允许更大的可伸缩性和更容易地处理不断增长的代码库。</p>
+<p>感谢阅读。如果您有任何问题、意见或贡献，请不要犹豫，在下面的评论区联系我们，或者，您可以在<a href="https://www.twitter.com/alex_nnakwue" target="_blank" rel="noreferrer noopener"> Twitter </a>上给我发消息。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

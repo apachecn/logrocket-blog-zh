@@ -1,0 +1,264 @@
+<html>
+<head>
+<title>What’s new in Apollo Client 3 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>阿波罗客户端3的新功能-日志火箭博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/whats-new-in-apollo-client-3/#0001-01-01">https://blog.logrocket.com/whats-new-in-apollo-client-3/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>7月中旬发布的Apollo Client 3提供了一些新特性，包括包重新排列的变化和更多的缓存特性。让我们来看看如何使用Apollo Client 3的最新特性。</p>
+<h2><code>InMemoryCache</code>原料药</h2>
+<p><code>InMemoryCache</code> API具有扩展的特性。它们包括对象和字段的驱逐、垃圾收集、类型和字段配置以及分页助手。</p>
+<p>让我们通过运行以下命令安装<code>@apollo/client</code>包及其依赖项来研究这些变化:</p>
+<pre>npm i @apollo/client graphql react</pre>
+<p>我们可以通过编写以下代码将<code>InMemoryCache</code>添加到我们的Apollo客户端:</p>
+<pre>import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+
+const cache = new InMemoryCache();
+
+const client = new ApolloClient({
+  uri: "https://graphqlzero.almansi.me/api",
+  cache
+});
+
+client
+  .query({
+    query: gql`
+      {
+        user(id: 1) {
+          id
+          name
+        }
+      }
+    `
+  })
+  .then(console.log);</pre>
+<p><code>client</code>是用<code>cache</code>选项创建的，我们将其设置为<code>InMemoryCache</code>；缓存的项目将在内存中。一旦我们完成了这些，我们就可以使用Apollo Client 3附带的新的<code>InMemoryCache</code>特性。</p>
+<p>我们可以通过调用以下命令来驱逐缓存的项目:</p>
+<pre>cache.evict();</pre>
+<p>我们可以有选择地通过写入以下内容来传入缓存对象的ID:</p>
+<pre>cache.evict({ id: 'user' })</pre>
+<p>我们还可以像这样添加对象的一个<code>field</code>属性:</p>
+<pre>cache.evict({ id: 'user', fieldName: 'name'  })</pre>
+<p><code>cache.gc</code>方法让我们对缓存的项目进行垃圾收集。通过从根跟踪到所有子引用，确定该对象是可到达的。未被访问的规范化对象将被删除。</p>
+<p>要清除无法访问的缓存项，我们只需调用:</p>
+<pre>cache.gc();</pre>
+<p>垃圾收集也可以配置为保留一些项目。例如，要保留ID为<code>'user'</code>的对象，我们可以写:</p>
+<pre>cache.retain({ id: 'user' })</pre>
+<p>我们可以配置如何处理悬空引用。当一个对象从缓存中被逐出时，它可能拥有包含其他缓存对象的对象。Apollo客户机保留了这些引用，因为以后可能还会用到它们。</p>
+<p>我们可以通过使用定制的<code>read</code>函数来改变这些引用的处理方式。为此，我们将编写:</p>
+<pre>import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    Query: {
+      fields: {
+        ruler(existingRuler, { canRead, toReference }) {
+          return canRead(existingRuler)
+            ? existingRuler
+            : toReference({
+                __typename: "user",
+                name: "Apollo"
+              });
+        }
+      }
+    },
+
+    user: {
+      keyFields: ["name"],
+      fields: {
+        offspring(existingOffspring, { canRead }) {
+          return existingOffspring ? existingOffspring.filter(canRead) : [];
+        }
+      }
+    }
+  }
+});
+
+const client = new ApolloClient({
+  uri: "https://graphqlzero.almansi.me/api",
+  cache
+});
+
+client
+  .query({
+    query: gql`
+      {
+        user(id: 1) {
+          id
+          name
+        }
+      }
+    `
+  })
+  .then(console.log);</pre>
+<p>我们将缓存的标尺设置为我们自己的<code>ruler</code>函数。我们决定哪些参考文献可以阅读。</p>
+<p>如果有一个现有的缓存标尺，那么我们使用它；否则，我们得到带有<code>toReference</code>的项目。<code>offspring</code>方法返回对象，其中<code>canRead</code>返回<code>true</code>。这样，我们知道我们可以阅读这些项目。</p>
+<h2>管理本地状态</h2>
+<p>我们可以在<code>InMemoryCache</code>对象中创建自己的本地字段。</p>
+<p>例如，我们可以写:</p>
+<pre>import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    User: {
+      fields: {
+        age: {
+          read(_, { variables }) {
+            return Math.random() * 100;
+          }
+        }
+      }
+    }
+  }
+});</pre>
+<p>我们创建了一个名为<code>age</code>的本地字段。这样，我们可以在查询中包含字段，如<code>loading</code>州和<code>networkStatus</code>。<code>variables</code>从查询中得到字段。它也有缓存数据。</p>
+<p>它只是一个返回随机数的getter:</p>
+<pre>import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    User: {
+      fields: {
+        age: {
+          read(_, { variables }) {
+            return Math.random() * 100;
+          }
+        }
+      }
+    }
+  }
+});
+
+const client = new ApolloClient({
+  uri: "https://graphqlzero.almansi.me/api",
+  cache
+});
+
+client
+  .query({
+    query: gql`
+      {
+        user(id: 1) {
+          id
+          name
+          age @client
+        }
+      }
+    `
+  })
+  .then(console.log);</pre>
+<p>我们用<code>age @client</code>得到<code>age</code>字段。<code>@client</code>关键字将本地字段与从API中检索的字段区分开来。</p>
+<p>反应变量是Apollo客户端3.0以后的新特性。为了创建一个，我们使用来自<code>@apollo/client</code>包的<code>makeVar</code>方法。例如，要创建一个<code>children</code>反应变量，我们可以写:</p>
+<pre>import { makeVar } from "@apollo/client";
+
+const children = makeVar(["jane", "mary"]);</pre>
+<p>它返回一个具有反应变量的值的函数。要调用它并获取值，我们可以写:</p>
+<pre>console.log(children());</pre>
+<p>控制台日志应如下所示:</p>
+<pre>["jane", "mary"]</pre>
+<p>反应变量对于在Apollo客户端缓存之外存储本地状态非常有用。这不同于本地状态和缓存项，后者是从缓存中检索的。修改反应变量会自动触发依赖于该变量的所有活动查询的更新。</p>
+<p>我们也可以用反应变量存储局部状态。为此，我们可以写:</p>
+<pre>import { ApolloClient, InMemoryCache, gql, makeVar } from "@apollo/client";
+
+const age = makeVar(Math.random() * 100);
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    User: {
+      fields: {
+        age: {
+          read(_, { variables }) {
+            return age();
+          }
+        }
+      }
+    }
+  }
+});
+
+const client = new ApolloClient({
+  uri: "https://graphqlzero.almansi.me/api",
+  cache
+});
+
+client
+  .query({
+    query: gql`
+      {
+        user(id: 1) {
+          id
+          name
+          age @client
+        }
+      }
+    `
+  })
+  .then(console.log);</pre>
+<p>上面，我们创建了<code>age</code>反应变量，通过在<code>read</code>方法中返回它，我们将它读入本地状态。然后我们可以像查询其他州一样查询<code>age</code>。现在，每当我们的查询发生变化时，我们都会看到返回一个新的值<code>age</code>。</p>
+<p>要更新反应变量，我们只需传入一个新值，如下所示:</p>
+<pre>import { makeVar } from "@apollo/client";
+
+const age = makeVar(Math.random() * 100);
+
+console.log(age());
+
+age(Math.random() * 100);
+
+console.log(age());</pre>
+<p>我们向由<code>makeVar</code>返回的函数传递一个新值来更新该值。现在，两个控制台日志应该显示不同的值。</p>
+<h2>缓存字段策略</h2>
+<p>我们可以定义自己的缓存字段策略，这样我们就可以用不同于API中的方式读取它们。</p>
+<p>例如，我们可以写:</p>
+<pre>import { ApolloClient, InMemoryCache, gql } from "@apollo/client";
+
+const cache = new InMemoryCache({
+  typePolicies: {
+    User: {
+      fields: {
+        name: {
+          read(name) {
+            return name.toUpperCase();
+          }
+        }
+      }
+    }
+  }
+});
+
+const client = new ApolloClient({
+  uri: "https://graphqlzero.almansi.me/api",
+  cache
+});
+
+client
+  .query({
+    query: gql`
+      {
+        user(id: 1) {
+          id
+          name
+        }
+      }
+    `
+  })
+  .then(console.log);</pre>
+<p>我们为<code>User</code>类型创建了一个类型策略。<code>fields</code>有我们希望在读取时修改的字段，我们希望<code>name</code>的值是大写的。</p>
+<p>所以我们让<code>name</code>的<code>read</code>方法返回大写的名字。现在，<code>then</code>方法中的<code>console.log</code>调用应该具有包含大写字母<code>user.name</code>的<code>data</code>字段。</p>
+<p>我们可以将它用于许多其他应用程序，比如设置默认字段值、转换列表、更改字段值、分页等等。</p>
+<h2>结论</h2>
+<p>Apollo Client 3对缓存进行了许多更改，包括清除缓存数据的能力。我们还可以添加本地字段，并用缓存策略改变普通字段的检索方式。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

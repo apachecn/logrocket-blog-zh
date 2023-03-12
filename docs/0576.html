@@ -1,0 +1,171 @@
+<html>
+<head>
+<title>Handling interprocess communications in Electron applications like a pro - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>处理电子应用程序中的进程间通信，如pro - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/#0001-01-01">https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://electronjs.org/" target="_blank" rel="noopener noreferrer">电子</a>牛逼。我喜欢它，但我知道它有不同的评论。无论你发现自己处于分歧的哪一方，你都不得不承认，它通过使用web技术降低了入门门槛，从而彻底改变了桌面应用程序的构建方式。</p>
+<p>有了简单的单窗口应用程序，你就不必担心传递数据带来的复杂性。当你的软件有不止一个窗口时，你才开始担心，因为像跟踪数据是如何被移动、持久化和修改这样的事情会很快失控。在本文中，我们将研究如何在不同的窗口(称为进程)之间传递数据，以及常见的陷阱和解决方法。</p>
+<h2>先决条件</h2>
+<p>在我们进一步讨论之前，本文假设:</p>
+<ul>
+<li><a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer"> Node.js ≥ v6 </a>安装在您的机器上</li>
+<li>您的机器上安装了npm </li>
+<li>您已经对电子有了基本的了解，进而对JavaScript有了基本的了解</li>
+</ul>
+<h2>入门指南</h2>
+<p>我们将利用<code>electron-quick-start</code>模板。对于这个演示，我们将项目文件夹命名为<code>electron-process-comm</code>(您可以随意命名)。</p>
+<p>创建项目目录后，运行以下代码:</p>
+<pre>git clone https://github.com/electron/electron-quick-start &lt;your-project-folder&gt;</pre>
+<p>这将快速入门模板克隆到您的项目文件夹中。现在，将目录更改为您的项目目录和<code>npm install</code>，然后运行启动脚本:</p>
+<pre>cd &lt;your-project-folder&gt;
+npm install
+npm start</pre>
+<p>如果一切顺利，将呈现快速入门模板附带的默认HTML页面，内容可能会根据您阅读本文的时间而有所不同(由于节点、chromium和电子更新)。</p>
+<p><img data-attachment-id="11159" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/defaulthomepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png" data-orig-size="802,639" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="defaulthomepage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png" decoding="async" class="aligncenter wp-image-11159 size-full jetpack-lazy-image" src="../Images/5d7bef479e280f6a6b3bdc00d87acf44.png" alt="default homepage" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png 802w, https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-300x239.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-768x612.png 768w" data-lazy-sizes="(max-width: 802px) 100vw, 802px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11159" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/defaulthomepage/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png" data-orig-size="802,639" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="defaulthomepage" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-300x239.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png" decoding="async" loading="lazy" class="aligncenter wp-image-11159 size-full" src="../Images/5d7bef479e280f6a6b3bdc00d87acf44.png" alt="default homepage" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png 802w, https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-300x239.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage-768x612.png 768w" sizes="(max-width: 802px) 100vw, 802px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/defaulthomepage.png"/></noscript>
+<p>在我们进入所有有趣的内容之前，让我们先来看几件重要的事情。</p>
+<h2>电子过程</h2>
+<p>在这种情况下，流程基本上描述了电子应用程序如何运行，分为两个部分:</p>
+<ul>
+<li>主流程</li>
+<li>渲染器进程</li>
+</ul>
+<p>每个电子app只能有一个主进程，它运行package.json主脚本，管理其他渲染器进程(创建和管理窗口和一些API，像文件系统，只在这个进程中可用)。</p>
+<p>相比之下，渲染器进程是独立的，只关心运行它的网页。当网页实例被销毁时，相应的呈现器进程也被终止。</p>
+<p>值得注意的是，渲染器进程可以表现得像主进程一样。也就是说，访问API本来只对主进程是可访问的。然而，通常不鼓励这样做。</p>
+<h2>进程间通信</h2>
+<p>因为电子被分成两个过程，所以需要一种在它们之间进行通信的方式。Electron为此提供了一个模块，即<a href="https://medium.com/@hamzasurti/in-progress-6959b733a55a" target="_blank" rel="noopener noreferrer"> IPC模块</a>，通过它，您可以在进程之间发送和接收同步和异步消息。主进程和渲染器都有特定的模块，<a href="https://electronjs.org/docs/api/ipc-main" target="_blank" rel="noopener noreferrer"> ipcMain </a>用于主进程，<a href="https://electronjs.org/docs/api/ipc-renderer" target="_blank" rel="noopener noreferrer"> ipcRenderer </a>用于渲染器进程。为了演示这是如何工作的，我们将继续修改<code>index.html</code>文件和渲染器。</p>
+<p>您可能会选择以不同的方式组织项目的文件夹结构，但是因为这只是为了演示的目的，所以我将保持它的原样。</p>
+<h2>同步IPC消息传递</h2>
+<p>我们将从修改index.html开始。用以下内容更改<code>&lt;body&gt;</code>标签中的内容:</p>
+<pre>&lt;h2 id="mainWindowTitle"&gt;I am the main window&lt;/h2&gt;
+&lt;button id="sendSyncMsgBtn"&gt;Ping Main Process&lt;/button&gt;
+&lt;p id="syncReply"&gt;Chilling for response&lt;/p&gt;</pre>
+<p>接下来，我们定义一些样式。创建一个<code>style.css</code>文件，并将以下样式块复制到其中:</p>
+<pre>#mainWindowTitle{
+    color: rgb(54, 168, 168);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-weight: 200;
+}
+#sendSyncMsgBtn {
+    color: #fff;
+    font-family: sans-serif;
+    font-weight: bold;
+    padding: .5rem;
+    background-color: rgb(31, 173, 62);
+    box-shadow: 2px 2px 2px rgb(31, 173, 62);
+}
+#syncReply {
+    font-family: sans-serif;
+    color: #fff;
+    border: 1px solid rgb(26, 92, 75);
+    border-radius: 4px;
+    padding: .5rem;
+    background-color: rgb(26, 92, 75);
+    box-shadow: inset 0 0 2px rgb(26, 92, 75);
+}</pre>
+<p>接下来，将我们新风格的链接放在index.html的头部。此外，如果您愿意，也可以更改标题中的文字:</p>
+<pre>&lt;title&gt;Electron-Process-Comm&lt;/title&gt;
+&lt;link rel="stylesheet" href="style.css"&gt;</pre>
+<p>要查看我们更改的结果，请在项目目录中打开一个终端并运行start命令:</p>
+<pre>npm start</pre>
+<p>一旦启动，您的应用程序窗口将如下所示:</p>
+<p><img data-attachment-id="11176" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/displayedappwindow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png" data-orig-size="800,307" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="displayedappwindow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-300x115.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png" decoding="async" class="aligncenter wp-image-11176 size-full jetpack-lazy-image" src="../Images/caa700a69b8bba6af6052408ad6c0a00.png" alt="electron process comm main window" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png 800w, https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-300x115.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-768x295.png 768w" data-lazy-sizes="(max-width: 800px) 100vw, 800px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11176" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/displayedappwindow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png" data-orig-size="800,307" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="displayedappwindow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-300x115.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png" decoding="async" loading="lazy" class="aligncenter wp-image-11176 size-full" src="../Images/caa700a69b8bba6af6052408ad6c0a00.png" alt="electron process comm main window" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png 800w, https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-300x115.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow-768x295.png 768w" sizes="(max-width: 800px) 100vw, 800px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/displayedappwindow.png"/></noscript>
+<p>准备好之后，打开<code>renderer.js</code>文件，添加当我们点击按钮时将被触发的代码，包括负责接受响应的代码。首先，我们首先在渲染器进程中导入正确的IPC模块<code>ipcRenderer</code>。</p>
+<pre>const electron = require('electron')
+const ipc = electron.ipcRenderer</pre>
+<p>然后，我们获取对按钮的引用，并为其附加一个事件侦听器:</p>
+<pre>const syncMsgBtn = document.querySelector('#sendSyncMsgBtn')
+syncMsgBtn.addEventListener('click', () =&gt; {
+
+})</pre>
+<p>对于每个IPC发送，必须有一个IPC接收方法。这个调用的基本结构如下所示:</p>
+<pre>ipcRenderer.sendSync (channel, \[, arg1\][, arg2], [,...})</pre>
+<p>channel参数是用作消息标识符的字符串。伴随方法将监听的就是这个标识符。您可以选择发送额外的值作为参数，可以是任何JavaScript原语(字符串、数字、数组、对象):</p>
+<pre>syncMsgBtn.addEventListener('click', () =&gt; {
+  const reply = ipc.sendSync('sync-message', 'Sent from main Window')
+})</pre>
+<p>每当我们处理IPC事件时，一旦我们编写了发送函数，我们就切换到另一个进程并编写相应的存根函数。所以，让我们切换到<code>main.js</code>文件，这样做。主流程也需要导入IPC模块:</p>
+<pre>const {app, BrowserWindow, ipcMain} = require('electron')</pre>
+<p>我们现在可以编写我们的接收器函数，这非常简单，我们定义它应该监听哪个通道以及要执行的函数:</p>
+<pre>ipcMain.on('sync-message', (event, arg) =&gt; {
+})</pre>
+<p>回调函数有两个参数，事件对象和参数。虽然参数将包含发送函数传递的数据，但事件对象有一些特殊的函数。事件对象具有响应发送者的内置能力。这意味着不需要编写另一组侦听器和接收器来传递响应。对于同步IPC消息，方法是:</p>
+<pre>event.returnValueipcMain.on('sync-message', (event, arg) =&gt; {
+ event.returnValue = 'Message Recieved!'
+})</pre>
+<p>然后我们切换回<code>renderer.js</code>文件，在这里我们可以添加代码来处理这个返回值。我们从主进程发送的值将存储在回复中。完整的代码如下所示:</p>
+<pre>const syncMsgBtn = document.querySelector('#sendSyncMsgBtn')
+syncMsgBtn.addEventListener('click', () =&gt; {
+    const reply = ipc.sendSync('sync-message', 'Sent from main Window')
+    const message = `Synchronous message reply: ${reply}`
+    document.querySelector('#syncReply').innerHTML = message
+})</pre>
+<p>一旦你确定你已经得到了所有这些，开始启动你的应用程序并测试它。如果一切顺利，您应该会看到类似这样的内容。</p>
+<p><img data-attachment-id="11185" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/mainwindowmessagerecieved/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png" data-orig-size="801,321" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainwindowmessagerecieved" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png" decoding="async" class="aligncenter wp-image-11185 size-full jetpack-lazy-image" src="../Images/5c58ac188716de8b160b0e473c9a044f.png" alt="main window showing message was recieved" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png 801w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-300x120.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-768x308.png 768w" data-lazy-sizes="(max-width: 801px) 100vw, 801px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11185" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/mainwindowmessagerecieved/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png" data-orig-size="801,321" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainwindowmessagerecieved" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png" decoding="async" loading="lazy" class="aligncenter wp-image-11185 size-full" src="../Images/5c58ac188716de8b160b0e473c9a044f.png" alt="main window showing message was recieved" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png 801w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-300x120.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved-768x308.png 768w" sizes="(max-width: 801px) 100vw, 801px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowmessagerecieved.png"/></noscript>
+<p>这些是在electronic中同步使用IPC模块的基础。现在，让我们探索以异步方式使用IPC消息传递！</p>
+<h2>异步IPC消息传递</h2>
+<p>同步消息传递的一大缺点是，对于需要一些时间才能完成的任务，它会阻塞呈现器进程，从而使应用程序在此期间无法正常工作。这不是一个很好的用户体验，所以对于这样的场景，我们可以使用异步IPC方法来代替。</p>
+<p>我们现在将向我们的index.html文件添加两个元素:</p>
+<pre>&lt;button id="sendAsyncMsgBtn"&gt;Ping Main Process Async&lt;/button&gt;
+&lt;p id="asyncReply"&gt;Chilling for async response&lt;/p&gt;</pre>
+<p>另外，将以下块样式添加到style.css文件中，这是我们添加的新元素的样式:</p>
+<pre>#sendAsyncMsgBtn{
+    color: #fff;
+    font-family: sans-serif;
+    font-weight: bold;
+    padding: .5rem;
+    background-color: rgb(146, 58, 31);
+    box-shadow: 2px 2px 2px rgb(146, 58, 31);
+}
+#asyncReply{
+    font-family: sans-serif;
+    color: #fff;
+    border: 1px solid rgb(16, 56, 78);
+    border-radius: 4px;
+    padding: .5rem;
+    background-color: rgb(16, 56, 78);
+    box-shadow: inset 0 0 2px rgb(16, 56, 78);
+}</pre>
+<p><img data-attachment-id="11191" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/mainwindowwithasync/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png" data-orig-size="803,377" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainwindowwithasync" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png" decoding="async" class="aligncenter wp-image-11191 size-full jetpack-lazy-image" src="../Images/46af3d4416f0926e30ad3e22e851cb2c.png" alt="main window with async added" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png 803w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-300x141.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-768x361.png 768w" data-lazy-sizes="(max-width: 803px) 100vw, 803px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11191" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/mainwindowwithasync/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png" data-orig-size="803,377" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="mainwindowwithasync" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-300x141.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png" decoding="async" loading="lazy" class="aligncenter wp-image-11191 size-full" src="../Images/46af3d4416f0926e30ad3e22e851cb2c.png" alt="main window with async added" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png 803w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-300x141.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync-768x361.png 768w" sizes="(max-width: 803px) 100vw, 803px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/mainwindowwithasync.png"/></noscript>
+<p>切换到我们的<code>renderer.js</code>文件，我们将获得对新按钮的引用，像以前一样，我们将为按钮点击创建一个事件监听器:</p>
+<pre>const asyncMsgBtn = document.querySelector('#sendAsyncMsgBtn')
+asyncMsgBtn.addEventListener('click', () =&gt; {
+
+})</pre>
+<p>使用异步IPC消息有两个主要区别。第一种是不使用<code>sendSync</code>方法，而是使用send方法:</p>
+<pre>asyncMsgBtn.addEventListener('click', () =&gt; {
+  ipc.send('async-message', 'Async message baby')
+})</pre>
+<p>另一个区别是，我们现在必须显式地编写回调函数，该函数将处理来自主进程的响应:</p>
+<pre>ipc.on('async-reply', (event, arg) =&gt; {
+ const message = `Asynchronous message reply: ${arg}`
+ document.querySelector('#asyncReply').innerHTML = message
+})</pre>
+<p>主进程中的IPC代码在<code>main.js</code>文件中也略有变化。实际的监听器并没有改变，但是响应的方法改变了。我们现在使用<code>event.sender.send</code>来响应，而不是在<code>Event</code>对象上调用<code>returnValue</code>方法:</p>
+<pre>ipcMain.on('async-message', (event, arg) =&gt; {
+ if (arg === 'Async message baby') {
+ event.sender.send('async-reply', 'Yes hunie, I hear you loud and clear')
+ }
+})</pre>
+<p>您现在可以继续测试这个新功能了。您应该能够触发这两种类型的IPC消息。</p>
+<p><img data-attachment-id="11198" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/windowwithasyncrun/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png" data-orig-size="799,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="windowwithasyncrun" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png" decoding="async" class="aligncenter wp-image-11198 size-full jetpack-lazy-image" src="../Images/3a5ddd146f04b5ab4bc04d19e63011ed.png" alt="IPC messaging" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png 799w, https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-300x135.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-768x345.png 768w" data-lazy-sizes="(max-width: 799px) 100vw, 799px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="11198" data-permalink="https://blog.logrocket.com/handling-interprocess-communications-in-electron-applications-like-a-pro/windowwithasyncrun/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png" data-orig-size="799,359" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="windowwithasyncrun" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png" decoding="async" loading="lazy" class="aligncenter wp-image-11198 size-full" src="../Images/3a5ddd146f04b5ab4bc04d19e63011ed.png" alt="IPC messaging" srcset="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png 799w, https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-300x135.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun-768x345.png 768w" sizes="(max-width: 799px) 100vw, 799px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/windowwithasyncrun.png"/></noscript>
+<h2>结论</h2>
+<p>IPC消息传递的概念适用于与应用程序的闪屏窗口和主进程通信等概念。在这里，我们使用来自渲染器进程的动作在主进程中启动了一个第三方库。</p>
+<p>IPC模块没有很多方法——只是发送和接收的变体。这对于电子应用中的进程共存至关重要。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

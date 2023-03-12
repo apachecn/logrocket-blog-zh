@@ -1,0 +1,227 @@
+<html>
+<head>
+<title>Optimized media loading using the Web Workers API - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Web Workers API优化媒体加载</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/optimized-media-loading-web-workers/#0001-01-01">https://blog.logrocket.com/optimized-media-loading-web-workers/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>现在是2020年，今年我们肯定遇到了太多的问题。然而，开发人员几十年来一直面临的一个问题是如何有效地将媒体加载到web应用程序中。</p>
+<p>尽管我们已经进行了一些实验并学习了使用各种技术来解决这些问题，比如惰性加载、压缩、基于带宽的动态媒体选择等，但仍有一些情况会对应用性能和用户体验造成严重损害。</p>
+<p>在本文中，我们将讨论构建大约1，000幅图像(有效和无效图像)的拼贴的技术，同时，我们将讨论问题、一些解决方案以及各种方法的优缺点。</p>
+<p>让我们考虑下面的基本设置。<code>index.html</code>是一个简单的网页，有一个按钮开始点击加载图像，还有一个计时器(带<code>setInterval</code>)显示浏览器冻结时的性能:</p>
+<pre>//index.html
+
+&lt;html&gt;
+    &lt;head&gt;
+        &lt;title&gt;Optimized media loading with web workers | LogRocket&lt;/title&gt;
+        &lt;link rel="stylesheet" href="styles.css"&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div&gt;
+            &lt;div class="box"&gt;
+                &lt;button id="start" onclick="start()"&gt;Start&lt;/button&gt;
+                &lt;div id="count"&gt;&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div id="collage"&gt;&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+    &lt;script&gt;
+        setInterval(() =&gt; {
+            const count = document.getElementById("count")
+            const today = new Date();
+            const time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+            count.innerHTML = time.toString();
+        }, 100)
+        &lt;/script&gt;
+&lt;/html&gt;</pre>
+<p><code>images.js</code>是要加载的图像的URL数组:</p>
+<p><img data-attachment-id="27209" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/images-js-array/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png" data-orig-size="730,487" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The images.js array" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array-300x200.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png" decoding="async" class="aligncenter size-full wp-image-27209 jetpack-lazy-image" src="../Images/cfcf483b7b4a6c4d4733680610a3dd92.png" alt="The images.js Array" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array-300x200.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27209" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/images-js-array/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png" data-orig-size="730,487" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The images.js array" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array-300x200.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27209" src="../Images/cfcf483b7b4a6c4d4733680610a3dd92.png" alt="The images.js Array" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array-300x200.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/images-js-array.png"/></noscript>
+<p>我们将探索解决这个问题的三种不同方法:将图像添加到DOM中、使用promises和使用web workers。</p>
+<h2>将图像添加到DOM</h2>
+<p>添加所有这些图像的一种简单方法是遍历URL数组，为每个URL创建一个新的DOM元素，并将其附加到DOM中。这种方法阻塞了主线程，也造成了糟糕的用户体验——更不用说频繁的DOM更改带来的性能问题了。</p>
+<p>下面是代码及其工作原理的示例:</p>
+<pre>// Function to append images into the DOM
+const start = () =&gt; {
+        const container = document.getElementById("collage")
+        images.forEach(url =&gt; {
+            const image = document.createElement("img");
+            image.src = url;
+            container.appendChild(image)
+        });
+    }</pre>
+<p><img data-attachment-id="27204" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-dom/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif" data-orig-size="730,399" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images to the DOM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom-300x164.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif" decoding="async" class="aligncenter size-full wp-image-27204 jetpack-lazy-image" src="../Images/371e6750dea054e268962c82989f0219.png" alt="Demo of Adding Images Directly to the DOM" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27204" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-dom/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif" data-orig-size="730,399" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images to the DOM" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom-300x164.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27204" src="../Images/371e6750dea054e268962c82989f0219.png" alt="Demo of Adding Images Directly to the DOM" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-dom.gif"/></noscript>
+<p>正如您所看到的，在上面的方法中，有效和无效的图像URL都被添加到了DOM中，这影响了性能(注意计时器中的延迟)。这可以用<code>createDocumentFragment</code>做得好一点，但是变化不大。</p>
+<p>这被证明是一个非常糟糕的方法，迫使我们寻找更好的方法，即承诺方法。</p>
+<h2>利用承诺</h2>
+<p>处理这种情况的更好的解决方案是异步加载这些图像，并立即将它们插入DOM。我们可以使用promises单独通过<code>Image()</code> API异步加载图像。关于<code>Image()</code>建造者的更多细节可以在这里找到<a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/Image">。</a></p>
+<p>在这种方法中，我们遍历URL数组并创建一个promise，将每个URL加载到<code>Image</code> API中。然后，它公开了<code>onload</code>和<code>onerror</code>函数，分别解析为图像或null。代码看起来像这样:</p>
+<pre>  const imagesPromiseArray = urlArray.map(url =&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const img = new Image();
+      img.onload = () =&gt; {
+        resolve(img);
+      };
+      img.onerror = () =&gt; {
+        resolve(null);
+      };
+      img.src = url;
+    });
+  });</pre>
+<p>一旦我们有了图像承诺的数组，我们现在可以在一个<code>Promise.all</code>中解析它们，并将其作为承诺返回。这里，我们只过滤并返回有效图像，忽略无效图像，因为我们用<code>null</code>为无效图像解析图像承诺。</p>
+<pre>return new Promise((resolve, reject) =&gt; {
+    Promise.all(imagesPromiseArray).then(images =&gt; {
+      resolve(images.filter(Boolean));
+    });
+  });</pre>
+<p>将所有这些放在一起:</p>
+<pre>//resolve-images.js
+
+const resolveImages = urlArray =&gt; {
+  const imagesPromiseArray = urlArray.map(url =&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const img = new Image();
+      img.onload = () =&gt; {
+        resolve(img);
+      };
+      img.onerror = () =&gt; {
+        resolve(null);
+      };
+      img.src = url;
+    });
+  });
+
+  return new Promise((resolve, reject) =&gt; {
+    Promise.all(imagesPromiseArray).then(images =&gt; {
+      resolve(images.filter(Boolean));
+    });
+  });
+
+};</pre>
+<p>在我们的<code>start</code>函数中，我们将使用这个承诺，而不是一个接一个地添加图像，而是一次将所有有效的图像添加到DOM中。<code>start</code>函数看起来像:</p>
+<pre>const start = () =&gt; {
+      const imageFragment = document.createDocumentFragment();
+      const container = document.getElementById("collage")
+       resolveImages(images).then((imgs) =&gt; {
+          imgs.forEach((img) =&gt; {
+              imageFragment.appendChild(img)
+          });
+          container.appendChild(imageFragment)
+      }, () =&gt; {})
+}</pre>
+<p>行动的变化:</p>
+<p><img data-attachment-id="27205" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-promises/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif" data-orig-size="480,384" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images using promises" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises-300x240.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif" decoding="async" class="aligncenter size-full wp-image-27205 jetpack-lazy-image" src="../Images/936972aa4548520e7199f9993b9e2f3c.png" alt="Demo of Adding Images Using Promises" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27205" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-promises/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif" data-orig-size="480,384" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images using promises" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises-300x240.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27205" src="../Images/936972aa4548520e7199f9993b9e2f3c.png" alt="Demo of Adding Images Using Promises" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-promises.gif"/></noscript>
+<p>如果你注意到上面的gif，性能和用户体验都好了很多。现在，当用户点击<strong> S <em> <em/> </em> </strong> tart按钮时，图像的加载在后台开始，过一会儿所有有效的图像被加载到屏幕中。</p>
+<p>然而，有一个问题显而易见。一旦点击<strong>开始</strong>按钮，计数器就会在<code>6:14:4</code>停止相当长的时间。这是因为浏览器被冻结了，因为它必须同时处理大量的图片。在现实世界的应用程序中，情况会更糟，因为应用程序的其他部分也会占用主线程。</p>
+<p>因此，这种方法可能看起来更好，但仍然不够。这就把我们带到了Web Workers API。</p>
+<h2>使用网络工作者</h2>
+<p>JavaScript是一种单线程语言，因此，当执行数据密集型任务时，它会冻结浏览器，就像上例中单击按钮后发生的情况一样。</p>
+<p>但是我们可以利用Web Workers API来利用多线程的优势，这样就不会弄乱主线程。在我们的案例中，这正是我们要解决的问题。关于Web Workers API的更多细节可以在这里找到。</p>
+<p>步骤很简单，如下所示:</p>
+<p><img data-attachment-id="27207" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/web-worker-process/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png" data-orig-size="730,378" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding web workers to an application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png" decoding="async" class="aligncenter size-full wp-image-27207 jetpack-lazy-image" src="../Images/73e93fe3b32dc7a352b971271f232e64.png" alt="Flow Chart Explaining the Process of Adding a Web Worker" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process-300x155.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27207" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/web-worker-process/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png" data-orig-size="730,378" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding web workers to an application" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27207" src="../Images/73e93fe3b32dc7a352b971271f232e64.png" alt="Flow Chart Explaining the Process of Adding a Web Worker" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process-300x155.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/web-worker-process.png"/></noscript>
+<p>让我们用代码来实现它。第一步是创建一个新文件<code>image-worker.js</code>。</p>
+<pre>self.addEventListener(
+  "message",
+  async function(e) {
+    const urls = e.data;
+    const images = await Promise.all(
+      urls.map(async url =&gt; {
+        try {
+          const response = await fetch(url);
+          const fileBlob = await response.blob();
+          if (fileBlob.type === "image/jpeg")
+            return URL.createObjectURL(fileBlob);
+        } catch (e) {
+          return null;
+        }
+      })
+    );
+    self.postMessage(images);
+  },
+  false
+);</pre>
+<p>这里，我们遍历URL数组，获取它们，将它们转换成blob，并返回有效图像blob的数组。我们不能使用<code>Image()</code> API，因为它转换成了<code>img</code>元素，而且web workers不支持或不允许你访问DOM。</p>
+<p>下一步是在我们的<code>resolveImages</code>函数中使用web worker，如下所示:</p>
+<pre>const worker = new Worker("image-worker.js");</pre>
+<p>主线程和web workers使用<code>postMessage</code>函数进行通信。因此，我们将通过<code>postMessage</code>将图像URL数组传递给web worker:</p>
+<pre>worker.postMessage(urlArray);</pre>
+<p>在worker处理完URL并将图像blobs的数组发送回主线程后，我们需要一个事件侦听器来处理它，如下所示:</p>
+<pre>worker.addEventListener(
+      "message",
+      async function(event) {
+        const imagePromises = event.data.map(async url =&gt; {
+          if (url) {
+            return await createImage(url);
+          }
+        });
+        const imageElements = await Promise.all(imagePromises);
+        resolve(imageElements.filter(Boolean));
+      },
+      false
+    );</pre>
+<p>这里，在我们获得图像blob之后，我们使用<code>createImage</code>函数中的<code>Image()</code> API构建图像组件，并重复与前面方法相同的步骤。</p>
+<pre>const createImage = url =&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const img = new Image();
+      img.onload = () =&gt; {
+        resolve(img);
+      };
+      img.onerror = () =&gt; {
+        resolve(null);
+      };
+      img.src = url;
+    });
+  };</pre>
+<p>综上所述，<code>resolveImages.js</code>看起来像是:</p>
+<pre>const resolveImages = urlArray =&gt; {
+  const createImage = url =&gt; {
+    return new Promise((resolve, reject) =&gt; {
+      const img = new Image();
+      img.onload = () =&gt; {
+        resolve(img);
+      };
+      img.onerror = () =&gt; {
+        resolve(null);
+      };
+      img.src = url;
+    });
+  };
+  return new Promise((resolve, reject) =&gt; {
+    const worker = new Worker("image-worker.js");
+    worker.postMessage(urlArray);
+    worker.addEventListener(
+      "message",
+      async function(event) {
+        const imagePromises = event.data.map(async url =&gt; {
+          if (url) {
+            return await createImage(url);
+          }
+        });
+        const imageElements = await Promise.all(imagePromises);
+        resolve(imageElements.filter(Boolean));
+      },
+      false
+    );
+  });
+};</pre>
+<p>这种方法提供了基于承诺的方法的所有好处，并且还防止了浏览器冻结，因为我们将所有操作从主线程转移到了web workers。在下面的gif图中，你可以看到图像加载的流畅体验——计时器根本没有停止或延迟。</p>
+<p><img data-attachment-id="27208" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-web-workers/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif" data-orig-size="480,140" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images using web workers" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers-300x88.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif" decoding="async" class="aligncenter size-full wp-image-27208 jetpack-lazy-image" src="../Images/3e290d4b4b88e509022494fd175724dd.png" alt="Demo of Adding Images Using Web Workers" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="27208" data-permalink="https://blog.logrocket.com/optimized-media-loading-web-workers/adding-images-web-workers/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif" data-orig-size="480,140" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding images using web workers" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers-300x88.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-27208" src="../Images/3e290d4b4b88e509022494fd175724dd.png" alt="Demo of Adding Images Using Web Workers" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/adding-images-web-workers.gif"/></noscript>
+<h2>结论</h2>
+<p>因此，在Web Workers API的帮助下，我们成功地优化了媒体加载。我们可以利用工人的力量来解决web开发世界中的许多长期问题，这是它的一个用例。如果你能找到更好的方法或想法，请发表评论。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

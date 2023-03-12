@@ -1,0 +1,225 @@
+<html>
+<head>
+<title>Async actions in bare Redux with Thunk or custom middleware - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Thunk或定制中间件的bare Redux中的异步操作</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/async-actions-bare-redux-thunk-custom-middleware/#0001-01-01">https://blog.logrocket.com/async-actions-bare-redux-thunk-custom-middleware/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong> </em> <em>:本帖更新于2022年2月4日，旨在解决Redux工具包的发布问题，并再次强调本文的重点是Redux的裸实现。</em></p>
+<p><em> <strong>免责声明</strong>:本指南主要关注一个裸Redux实现。如果你是Redux的新手，用React和Redux启动新应用的推荐方式是使用官方模板之一:<a href="https://github.com/reduxjs/cra-template-redux" target="_blank" rel="noopener"> Redux + JS模板</a>，<a href="https://github.com/reduxjs/cra-template-redux-typescript" target="_blank" rel="noopener"> Redux + TS模板</a>，或者<a href="https://github.com/reduxjs/cra-template-redux" target="_blank" rel="noopener">创建React应用</a>。这些利用了<a href="https://redux-toolkit.js.org/" target="_blank" rel="noopener"> Redux Toolkit </a>和React Redux与React组件的集成。</em></p>
+<p>正如罗恩·斯旺森所说，</p>
+<blockquote><p>给一个人一条鱼，喂他一天。不要教一个人去钓鱼…自己养活自己。他是个成年人了。钓鱼也没那么难。</p></blockquote>
+<p>如您所知，<a href="https://redux.js.org/" target="_blank" rel="noopener"> Redux </a>为您提供了一种管理JavaScript应用程序状态的优雅方法。它的基础设施是基于功能基础的，让您可以轻松地构建可测试的代码。</p>
+<p>然而，Redux的状态管理任务流是完全同步的:调度一个动作会立即生成对中间件和reducers的调用链，以执行状态转换。</p>
+<p>这给我们带来了一些问题:</p>
+<ol>
+<li>我们如何通过异步动作实现应用程序的状态转换？</li>
+<li>我们如何实现状态转换，包括对web服务器的请求，或者使用计时器？</li>
+<li>我们如何将应用程序状态与异步操作生成的数据集成在一起，同时遵守Redux的架构模式？</li>
+</ol>
+<p>在本文中，我们将讨论:</p>
+
+<p>这应该会让您对中间件如何与Redux协同工作有一个很好的了解。</p>
+<h2 id="splitting-asynchronous-action">拆分异步操作</h2>
+<p>将异步任务集成到Redux架构中的常见方法是将一个异步动作分解为至少三个同步动作，每个动作通知异步任务:</p>
+<ul>
+<li>出发</li>
+<li>已成功完成</li>
+<li>不成功的</li>
+</ul>
+<p>这些操作中的每一个都会改变应用程序的状态，并使其与异步任务执行期间发生的事情保持一致。</p>
+<p>实现这种方法要求您调度启动异步任务的操作。当异步任务结束时，回调应该管理异步任务的结果，并用肯定或否定的响应适当地更新状态。</p>
+<p>也就是说，您可能想通过修改它们的reducer来支持异步操作，也就是说，确保拦截该操作的reducer启动异步任务并管理其结果。</p>
+<p>然而，这种实现违反了缩减器必须是纯函数的约束。事实上，就其本质而言，异步任务的结果是基于副作用的。所以，让我们来看看这个问题的几个有效的解决方案。</p>
+
+<p>第一种方法基于<a href="https://github.com/reduxjs/redux-thunk" target="_blank" rel="noopener"> Thunk中间件</a>。这个<a href="https://redux.js.org/advanced/middleware" target="_blank" rel="noopener">中间件</a>的作用非常简单:验证一个动作是否是一个函数，如果是，就执行它。这个简单的行为允许我们创建动作，而不是简单的对象，而是具有业务逻辑的功能。</p>
+<p>为了解决异步任务的问题，我们可以将一个动作定义为一个函数，该函数启动一个异步任务并将其执行委托给Thunk中间件。与reducer不同，不要求中间件是一个纯函数，因此Thunk中间件可以毫无问题地执行触发副作用的功能。</p>
+<p>让我们通过实现一个简单的应用程序来将这些概念付诸实践，这个应用程序显示了来自一个专门的API的随机引用。网页的标记如下所示:</p>
+<pre class="language-html hljs">  &lt;div&gt;
+  Ron Swanson says:
+  &lt;blockquote id="quote"&gt;&lt;/blockquote&gt;
+&lt;/div&gt;
+</pre>
+<p>对于JavaScript端，需要获取<a href="https://redux.js.org/introduction/installation" target="_blank" rel="noopener"> <code>redux</code>和<code>redux-thunk</code> </a>依赖项，并在模块中导入几项，如下所示:</p>
+<pre class="language-javascript hljs">import { createStore, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+</pre>
+<p>如前所述，您必须首先定义三个同步动作，它们代表异步任务执行期间的状态变化。让我们定义以下常数:</p>
+<pre class="language-javascript hljs">const QUOTE_REQUESTED = "QUOTE_REQUESTED";
+const QUOTE_RECEIVED = "QUOTE_RECEIVED";
+const QUOTE_FAILED = "QUOTE_FAILED";
+</pre>
+<p>如您所见，它们代表了我们上面描述的三个阶段。</p>
+<p>现在让我们为Thunk定义一个动作创建者:</p>
+<pre class="language-javascript hljs">function getQuoteAction() {
+  return function(dispatch) {
+    dispatch({
+      type: QUOTE_REQUESTED,
+    });
+
+
+  fetch("https://ron-swanson-quotes.herokuapp.com/v2/quotes")
+    .then(response =&gt; response.json())
+    .then(data =&gt; dispatch({
+        type: QUOTE_RECEIVED,
+        payload: data
+      }))
+    .catch(error =&gt; dispatch({
+        type: QUOTE_FAILED,
+        payload: error
+      })
+    );
+  }
+}
+</pre>
+<p>您可能注意到的第一件事是，动作创建者<code>getQuoteAction()</code>像预期的那样返回了一个函数。返回的函数开始分派同步动作<code>QUOTE_REQUESTED</code>并执行<code>fetch()</code>来实际启动异步HTTP请求。然后，它根据异步HTTP请求的结果，分派另外两个同步操作中的一个。</p>
+<h3>管理状态转换</h3>
+<p>一旦我们定义了一个异步动作到三个同步动作的转换，我们需要管理它们对状态转换的影响。让我们定义应用程序的初始状态以及将管理报价检索的缩减器:</p>
+<pre class="language-javascript hljs">const initialState = { data: [], status:"" };
+
+function quotes(state = initialState, action) {
+  switch (action.type) {
+    case QUOTE_REQUESTED:
+      state = Object.assign({}, state, {status: "waiting"});
+      break;
+    case QUOTE_RECEIVED:
+      state = Object.assign({}, state, {data: […action.payload], status: "received"});
+      break;
+    case QUOTE_FAILED:
+      state = Object.assign({}, state, {status: "failed", error: action.payload});
+    break;
+  }
+
+
+  return state;
+}
+</pre>
+<p>应用程序状态的结构由一个数据数组和一个状态字符串组成，数据数组包含要显示的引号列表(在我们的例子中，我们只有一个引号)，状态字符串表示异步操作的当前状态。对于应用程序的正确行为来说,<code>status</code>属性并不是严格必需的，但是为了向用户提供反馈，它可能是有用的。<code>quotes()</code>函数通过处理三个同步动作并相应地生成新的应用程序状态来实现一个标准的缩减器。</p>
+<h3>创建存储并指定Thunk</h3>
+<p>下一步是通过指定Thunk中间件的使用来创建Redux存储，如以下语句所示:</p>
+<pre class="language-javascript hljs">let store = createStore(quotes, initialState, applyMiddleware(thunk));
+</pre>
+<p>最后，您必须管理将它连接到Redux store的UI，如下面的代码所示:</p>
+<pre class="language-javascript hljs">const quoteElement = document.getElementById("quote");
+
+store.dispatch(getQuoteAction());
+store.subscribe(() =&gt; {
+  const state = store.getState();
+
+
+  if (state.status == "waiting") {
+    quoteElement.innerHTML = "Loading…";
+  }
+  if (state.status == "received") {
+    quoteElement.innerHTML = state.data[0];
+  }
+});
+</pre>
+<p>如您所见，当调用<code>getQuoteAction()</code>创建者并订阅状态更改时，启动操作被调度。当状态发生变化时，检查<code>status</code>属性值，并相应地在blockquote HTML元素中注入文本。</p>
+<p>浏览器中的最终结果如下:<br/> <img data-attachment-id="93722" data-permalink="https://blog.logrocket.com/async-actions-bare-redux-thunk-custom-middleware/final-browser-result/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png" data-orig-size="730,348" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-browser-result" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result-300x143.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png" decoding="async" class="aligncenter size-full wp-image-93722 jetpack-lazy-image" src="../Images/3d66af74a54f29d6df8e95e76a45e77e.png" alt="The final result in our browser" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result-300x143.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="93722" data-permalink="https://blog.logrocket.com/async-actions-bare-redux-thunk-custom-middleware/final-browser-result/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png" data-orig-size="730,348" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="final-browser-result" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result-300x143.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-93722" src="../Images/3d66af74a54f29d6df8e95e76a45e77e.png" alt="The final result in our browser" srcset="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result-300x143.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/02/final-browser-result.png"/></noscript>
+<p>在<a href="https://codepen.io/andychiare/pen/aPgxgp" target="_blank" rel="noopener"> CodePen </a>上试试这段代码。</p>
+<h3>bare Redux和RTK实现的区别</h3>
+<p>Redux Toolkit提供了一个<a href="https://redux-toolkit.js.org/api/createAsyncThunk" target="_blank" rel="noopener"> <code>createAsyncThunk API</code> </a>，它封装了所有这些逻辑，并为您提供了一个简洁流畅的异步操作实现。Redux Toolkit的<a href="https://redux-toolkit.js.org/rtk-query/overview" target="_blank" rel="noopener"> RTK查询数据获取API </a>是专门为Redux应用程序构建的数据获取和缓存解决方案，可以消除编写任何thunks或reducers来管理数据获取的需要。</p>
+<h2 id="creating-custom-redux-middleware">创建您自己的定制Redux中间件</h2>
+<p><em> <strong>免责声明</strong> : Redux Thunk的默认中间件广泛应用于多个React Redux应用。本节将解释它是如何工作的，以及如何在实践中使用强大的Redux中间件。</em></p>
+<p>Redux Thunk很好地解决了Redux中管理异步动作的问题，但是它迫使您通过发送HTTP请求和处理响应来使动作创建者的代码变得更加复杂。</p>
+<h3>为什么我需要定制中间件？</h3>
+<p>如果您的应用程序经常与服务器交互，那么在动作创建器中会有大量重复或非常相似的代码。这扭曲了动作创建者的最初目的，即基于参数创建一个动作。</p>
+<p>因此，在这些情况下，创建特定的中间件可能更合适。目标是在一个特殊的中间件中隔离向服务器发出HTTP请求的代码，并将动作创建器恢复到其原始作业。</p>
+<p>让我们定义一个常量来标识HTTP请求的元操作。我们称之为元操作，因为它不是直接修改应用程序状态的操作。相反，它是一个将触发HTTP请求的操作，这将通过生成其他操作而导致应用程序状态的更改。</p>
+<p>以下是我们不变的定义:</p>
+<pre class="language-javascript hljs">const HTTP_ACTION = "HTTP_ACTION";
+</pre>
+<p>除了这个常量之外，您还需要定义标识实际操作及其相关同步操作的常量，以实现HTTP请求，正如我们之前看到的:</p>
+<pre class="language-javascript hljs">const QUOTE = "QUOTE"
+const QUOTE_REQUESTED = "QUOTE_REQUESTED";
+const QUOTE_RECEIVED = "QUOTE_RECEIVED";
+const QUOTE_FAILED = "QUOTE_FAILED";
+</pre>
+<p>现在，您需要元操作创建器——这个操作创建器将一个普通的操作对象作为输入并包装它，以便创建一个通过HTTP处理的异步操作。下面是我们将要使用的元操作创建器:</p>
+<pre class="language-javascript hljs">function httpAction(action) {
+  const httpActionTemplate = {
+    type: "",
+    endpoint: null,
+    verb: "GET",
+    payload: null,
+    headers: []
+  };
+
+
+  return {
+    HTTP_ACTION: Object.assign({}, httpActionTemplate, action)
+  };
+}
+</pre>
+<p>您可能会注意到，它返回了一个以<code>HTTP_ACTION</code>常量作为唯一属性的对象。该属性的值来自作为参数传递的动作，并与动作模板相结合。注意，这个模板包含了HTTP请求的一般选项。</p>
+<p>每当您想要创建一个包含HTTP请求的异步操作时，您都可以使用这个元操作创建器。例如，为了应用这种方法来检索前面描述的随机Ron Swanson引语，您可以使用下面的action creator:</p>
+<pre class="language-javascript hljs">function getQuoteAction() {
+  return httpAction({
+    type: QUOTE,
+    endpoint: "https://ron-swanson-quotes.herokuapp.com/v2/quotes"
+  });
+}
+</pre>
+<p>如您所见，任何涉及HTTP请求的异步动作都可以通过调用<code>httpAction()</code>元动作创建器来定义，只需最少的必要数据来构建请求。您不再需要在这里添加同步动作生成的逻辑，因为它被移到了自定义中间件中，如以下代码所示:</p>
+<pre class="language-javascript hljs">const httpMiddleware = store =&gt; next =&gt; action =&gt; {
+  if (action[HTTP_ACTION]) {
+    const actionInfo = action[HTTP_ACTION];
+    const fetchOptions = {
+      method: actionInfo.verb,
+      headers: actionInfo.headers,
+      body: actionInfo.payload || null
+    };
+
+
+    next({
+      type: actionInfo.type + "_REQUESTED"
+    });
+
+
+    fetch(actionInfo.endpoint, fetchOptions)
+      .then(response =&gt; response.json())
+      .then(data =&gt; next({
+        type: actionInfo.type + "_RECEIVED",
+        payload: data
+      }))
+      .catch(error =&gt; next({
+        type: actionInfo.type + "_FAILED",
+        payload: error
+     }));
+  } else {
+    return next(action);
+  }
+}
+</pre>
+<p>中间件寻找<code>HTTP_ACTION</code>标识符，并使用<code>_REQUESTED</code>后缀为当前动作添加一个全新的动作。这个新动作通过<code>next()</code>插入到中间件管道中，向服务器发送HTTP请求，等待响应或失败。当其中一个事件发生时，中间件生成<code>RECEIVED</code>或<code>FAILED</code>动作，就像基于thunk的方法一样。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>此时，为了达到与基于thunk的方法相同的结果，您唯一需要做的更改就是创建存储:</p>
+<pre class="language-javascript hljs">let store = createStore(quotes, initialState, applyMiddleware(httpMiddleware));
+</pre>
+<p>您告诉Redux通过应用您的定制<code>httpMiddleware</code>来创建商店，而不是Thunk中间件。缩减器的实现和UI管理保持不变。</p>
+<p>你可以尝试在<a href="https://codepen.io/andychiare/pen/roXxpB" target="_blank" rel="noopener"> CodePen </a>上实现这个方法。</p>
+<h2>结论</h2>
+<p>总之，我们发现任何异步动作都可以被分割成至少三个同步动作。我们利用这个原则实现了两种在使用Redux时管理异步动作的方法。</p>
+<p>您可能会考虑基于标准Thunk中间件的第一种方法，这是两种方法中比较容易的一种，但是它会迫使您改变动作创建器的原始性质。</p>
+<p>第二种方法基于定制的中间件，乍看起来可能更复杂，但最终却更具可伸缩性和可维护性。</p>
+<p>为Redux编写中间件是一个强大的工具；Redux Thunk是最广泛使用的异步操作中间件之一。Thunk也是Redux Toolkit和RTK Query的默认异步中间件。</p>
+<p>如果您想为Redux应用程序提供一个简单的API集成，那么强烈推荐使用RTK Query。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

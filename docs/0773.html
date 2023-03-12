@@ -1,0 +1,639 @@
+<html>
+<head>
+<title>Building a menu bar application with Electron and React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用电子和反应构建菜单栏应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/#0001-01-01">https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本文中，我将详细介绍如何使用Electron.js和React实现菜单栏应用程序。</p>
+<p>虽然我选择使用React，但是客户端当然可以使用任何其他框架或者只是普通的JavaScript。</p>
+<p>而且，本教程的目标操作系统是macOS。</p>
+<p>因此，如果您想在另一个操作系统(如Windows或Linux)上尝试本教程，您可能需要对代码做一些小的调整，因为Electron API在不同的操作系统上有不同的显示。</p>
+<h2>设置项目</h2>
+<p>为了让那些不知道如何配置项目的人快速而容易地完成，我准备了一个带有React.js的电子样板。</p>
+<p>您可以克隆或下载它来启动项目，也可以使用您自己喜欢的样板文件。</p>
+<p>在这里找到我的:</p>
+<blockquote class="embedly-card" data-card-controls="1" data-card-align="center" data-card-theme="light">
+
+<p>Transpiling JS和Style林挺CSS模块支持Sass编译器SVG loader文件URL Loader npm运行客户端运行渲染器进程，然后NPM运行服务器运行主进程。npm run build为生产构建，npm run dist分发可执行文件。</p>
+</blockquote>
+<p>电子基础</p>
+<h3>在我们开始之前，让我们快速回顾一下电子是如何构成的。</h3>
+<p>电子有两个过程:渲染器和main。</p>
+<p>您可以将它们分别视为客户端和服务器端。</p>
+<p>渲染器进程顾名思义定义了在窗口内部渲染什么，主进程定义了创建什么窗口，以及与它们的交互和其他后端相关的事情。</p>
+<p>这两个过程互不知晓。</p>
+<p>为了让他们沟通，有<a href="https://www.electronjs.org/docs/api/ipc-main" target="_blank" rel="noopener noreferrer"> ipcMain </a>和<a href="https://www.electronjs.org/docs/api/ipc-renderer" target="_blank" rel="noopener noreferrer"> ipcRenderer </a>模块，基本都是<code>EventEmitters</code>。</p>
+<p>稍后我将更详细地介绍这些模块。</p>
+<p>现在，让我们从对<code>src/server/main.js</code>文件的基本导入开始。</p>
+<p>注意，我指的是我在文章顶部提供的样板文件的目录结构，所以这可能会因您的设置而改变。</p>
+<p><code>electron-util</code>是一个有用的包，当你处于开发模式时，可以有条件地启用诸如devTools之类的东西。</p>
+<p>导入前不要忘记安装<code>electron-util</code>:</p>
+<p>创建窗口</p>
+<pre>const { app, BrowserWindow } = require('electron');
+const { is } = require('electron-util');
+const path = require('path');</pre>
+<h2>在electronic中，BrowserWindow API创建一个带有指定选项的浏览器窗口，并加载一个想要显示的URL。</h2>
+<p>让我们创建一个名为<code>createMainWindow</code>的函数，并在其中创建一个<code>BrowserWindow</code>。</p>
+<p>更多来自LogRocket的精彩文章:</p><div class="code-block code-block-54">
+<hr/>
+<h3>我在<code>createMainWindow</code>函数之外声明<code>mainWindow</code>变量的原因是因为我们稍后将创建一个类来在BrowserWindow之外创建一个<a href="https://www.electronjs.org/docs/api/tray" target="_blank" rel="noopener noreferrer">托盘</a>对象，所以我们需要全局访问该变量。</h3>
+
+<hr/></div>
+<pre>let mainWindow = null;
+
+const createMainWindow = () =&gt; {
+  mainWindow = new BrowserWindow({
+    backgroundColor: '#FFF',
+    width: 250,
+    height: 150,
+    webPreferences: {
+      devTools: is.development,
+      nodeIntegration: true,
+    }
+  });
+  if (is.development) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadURL(`file://${path.join(__dirname, '../../build/index.html')}`);
+  }
+};</pre>
+<p><a href="https://www.electronjs.org/docs/api/browser-window" target="_blank" rel="noopener noreferrer"> API文档</a>帮助您找出所有可用的设置，所以我不会详细介绍。</p>
+<p>然而，你会看到我们使用<code>is.development</code>从本地开发服务器打开devTools和loadURL。如果构建文件夹是为生产而构建的，也可以使用它。</p>
+<p>要创建BrowserWindow实例，我们需要等到应用程序准备就绪。</p>
+<p>因此，我们需要使用<code>ready</code>事件，它是在电子完成初始化时发出的:</p>
+<p>到目前为止，我们只创建了一个BrowserWindow并指定了要在其中显示的内容。</p>
+<pre>app.on('ready', () =&gt; {
+  createMainWindow();
+});</pre>
+<p>但是，我们没有运行任何渲染器进程。</p>
+<p>如果您运行<code>npm run client</code>，这将在<code>localhost</code>端口<code>3000</code>上启动一个服务器，这是在开发模式下由<code>loadURL</code>方法加载的特定端口。</p>
+<p>因为已经有一个呈现文本的组件，所以您可以继续在另一个终端实例中运行<code>npm run server</code>。</p>
+<p>这将运行电子应用程序。您应该会看到以下应用程序窗口:</p>
+<p><img data-attachment-id="16309" data-permalink="https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/an-image-of-the-electron-minimal-boilerplate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="An image of the Electron Minimal Boilerplate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png" decoding="async" class="aligncenter wp-image-16309 size-full jetpack-lazy-image" src="../Images/1e67232084ef4da3e022fd19159bc191.png" alt="An image of the Electron Minimal Boilerplate product." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate-300x191.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png"/></p>
+<p>编辑<code>src/client/components/App/index.js</code>将重新渲染组件并自动更新主窗口的内容。</p><noscript><img data-lazy-fallback="1" data-attachment-id="16309" data-permalink="https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/an-image-of-the-electron-minimal-boilerplate/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="An image of the Electron Minimal Boilerplate" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png" decoding="async" loading="lazy" class="aligncenter wp-image-16309 size-full" src="../Images/1e67232084ef4da3e022fd19159bc191.png" alt="An image of the Electron Minimal Boilerplate product." srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate-300x191.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/An-image-of-the-Electron-Minimal-Boilerplate.png"/></noscript>
+<p>创建托盘对象</p>
+<h2>我们创建的主窗口出现在屏幕的中间，但是我们想在菜单栏中创建一个图标，并在单击它时切换这个窗口。</h2>
+<p>为此，我们首先需要创建一个<code>Tray</code>对象，它在菜单栏中显示指定的图标。</p>
+<p>因为我们需要定位和切换我们的<code>mainWindow</code>对象，并且最好能够在右键单击<code>Tray</code>图标时显示系统菜单，所以创建一个将所有功能捆绑在一起的类会更方便。</p>
+<p>所以，让我们在<code>src/server</code>下创建一个名为<code>TrayGenerator.js</code>的文件。</p>
+<p>在<code>TrayGenerator</code>类中，我们需要以下函数以及一个接受<code>BrowserWindow</code>对象的构造函数，在我们的例子中是<code>mainWindow</code>变量:</p>
+<p><code>getWindowPosition</code></p>
+<ul>
+<li><code>showWindow</code></li>
+<li><code>toggleWindow</code></li>
+<li><code>rightClickMenu</code></li>
+<li><code>createTray</code></li>
+<li><code>getWindowPosition()</code></li>
+</ul>
+<pre>const { Tray, Menu } = require('electron');
+const path = require('path');
+
+class TrayGenerator {
+  constructor(mainWindow) {
+    this.tray = null;
+    this.mainWindow = mainWindow;
+  }
+  getWindowPosition = () =&gt; {
+  };
+
+  showWindow = () =&gt; {
+  };
+
+  toggleWindow = () =&gt; {
+  };
+
+  rightClickMenu = () =&gt; {
+  }
+
+  createTray = () =&gt; {
+  };
+}
+
+module.exports = TrayGenerator;</pre>
+<h3>这个函数需要计算出托盘图标和BrowserWindow的位置和尺寸，以便找到使BrowserWindow相对于托盘图标居中和向右的x和y坐标。</h3>
+<p>在BrowserWindow和Tray对象上调用的<code>getBounds()</code>函数返回x和y位置，以及宽度和高度信息。</p>
+<p>虽然托盘对象实例还没有分配给<code>this.tray</code>，但是它将在调用<code>getWindowPosition()</code>时被分配，所以假设它已经分配了适当的对象。</p>
+<p>返回的x和y值保证主窗口位于托盘图标的下方居中位置。</p>
+<pre>getWindowPosition = () =&gt; {
+  const windowBounds = this.mainWindow.getBounds();
+  const trayBounds = this.tray.getBounds();
+  const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
+  const y = Math.round(trayBounds.y + trayBounds.height);
+  return { x, y };
+};</pre>
+<p><code>showWindow()</code></p>
+<h3>该函数负责使用我们之前创建的函数<code>getWindowPosition()</code>来设置主窗口的位置。</h3>
+<p>首先，我们使用<code>setPosition</code>方法设置主窗口的位置。</p>
+<p>然后我们通过使用<code>show</code>方法使它可见。</p>
+<p>请注意，虽然默认情况下主窗口是可见的，但我们稍后会将其设置为不可见，因为我们不希望它在菜单栏应用程序运行时出现。</p>
+<p>在macOS中，有多个桌面(工作区)，因此如果您点按托盘图标并显示窗口，然后切换到另一个桌面并再次点按那里的图标，您应该确保它不会聚焦先前打开的窗口。</p>
+<p>为了处理这个问题，我们通过使用<code>setVisibleOnAllWorkspaces</code>方法使它在所有桌面上可见，然后聚焦在活动桌面上可见的那个。</p>
+<p>我们通过将<code>false</code>传递给相同的方法来隐藏其余部分:</p>
+<p><code>toggleWindow()</code></p>
+<pre>showWindow = () =&gt; {
+  const position = this.getWindowPosition();
+  this.mainWindow.setPosition(position.x, position.y, false);
+  this.mainWindow.show();
+  this.mainWindow.setVisibleOnAllWorkspaces(true);
+  this.mainWindow.focus();
+  this.mainWindow.setVisibleOnAllWorkspaces(false);
+};</pre>
+<h3>这是一个非常简单的函数。</h3>
+<p>我们使用<code>isVisible</code>方法来判断窗口是否可见。如果是，我们把它藏起来。</p>
+<p>如果不是，我们就展示出来。</p>
+<p>这个函数稍后将被附加到托盘对象的<code>click</code>事件监听器。</p>
+<p><code>rightClickMenu()</code></p>
+<pre>toggleWindow = () =&gt; {
+  if (this.mainWindow.isVisible()) {
+    this.mainWindow.hide();
+  } else {
+    this.showWindow();
+  }
+};</pre>
+<h3>这个函数为一个上下文菜单的选项创建一个数组，当右击托盘图标时会显示出来。</h3>
+<p>您可以在以下API文档中找到托盘和菜单上使用的<code>popUpContextMenu</code>和<code>buildFromTemplate</code>方法的详细信息，以及用于创建菜单的其他可用选项:</p>
+<p>将图标和上下文菜单添加到系统的通知区域。进程:主托盘是一个EventEmitter。平台注意事项Linux托盘图标默认使用状态通知项，当它在用户的桌面环境中不可用时，将使用GtkStatusIcon。</p>
+<blockquote class="embedly-card" data-card-controls="1" data-card-align="center" data-card-theme="light">
+
+<p>Add icons and context menus to the system’s notification area. Process: Main Tray is an EventEmitter. Platform Considerations Linux Tray icon uses StatusNotifierItem by default, when it is not available in user’s desktop environment theGtkStatusIcon will be used instead.</p>
+</blockquote>
+<p>创建本地应用程序菜单和上下文菜单。过程:Main创建一个新菜单。menu类有以下静态方法:将Menu设置为macOS上的应用程序菜单。在Windows和Linux上，该菜单将被设置为每个窗口的顶部菜单。</p>
+<blockquote class="embedly-card" data-card-controls="1" data-card-align="center" data-card-theme="light">
+
+<p><code>createTray()</code></p>
+</blockquote>
+<p>最后一个方法通过传递托盘图标的路径来创建托盘实例。</p>
+<pre>rightClickMenu = () =&gt; {
+  const menu = [
+    {
+      role: 'quit',
+      accelerator: 'Command+Q'
+    }
+  ];
+  this.tray.popUpContextMenu(Menu.buildFromTemplate(menu));
+}</pre>
+<h3>在<code>/server</code>下创建一个名为<code>assets</code>的文件夹，将PNG格式的图标文件放在那里。</h3>
+<p>图标文件名要以<code>Template</code>结尾是macOS的一个规则，因此选择了<code>IconTemplate</code>这个名字。</p>
+<p>你需要两个带<code>@1x</code>和<code>@2x</code>后缀的版本，大小分别对应16×16和32×32像素。</p>
+<p>需要在macOS上启用<code>setIgnoreDoubleClickEvents</code>方法，这样双击事件会被忽略，每个单独的点击都会被注册为单击。</p>
+<p>现在我们需要使用<code>toggleWindow()</code>函数在每次点击托盘图标时切换主窗口。</p>
+<p>同样，当右击托盘图标时，我们需要调用<code>rightClickMenu</code>来显示上下文菜单。</p>
+<p>所以我们在托盘对象上使用了<code>click</code>和<code>right-click</code>事件监听器:</p>
+<p>现在我们已经完成了<code>TrayGenerator</code>类。</p>
+<p>是时候实例化它，然后对它调用<code>createTray</code>方法了。</p>
+<pre>createTray = () =&gt; {
+  this.tray = new Tray(path.join(__dirname, './assets/IconTemplate.png'));
+  this.tray.setIgnoreDoubleClickEvents(true);
+
+  this.tray.on('click', this.toggleWindow);
+  this.tray.on('right-click', this.rightClickMenu);
+};</pre>
+<p>但是首先，在<code>main.js</code>文件的顶部导入<code>TrayGenerator</code>类:</p>
+<p>然后通过传递<code>mainWindow</code>并调用其实例上的<code>createTray()</code>方法来初始化<code>TrayGenerator</code>，以生成一个托盘对象。</p>
+<p>我们在调用了<code>createMainWindow()</code>之后就这样做了，它创建了一个<code>BrowserWindow</code>的实例并将其分配给了<code>mainWindow</code>变量。</p>
+<pre>const TrayGenerator = require('./TrayGenerator');</pre>
+<p>进一步调整</p>
+<p>如果你运行<code>npm run client</code>然后<code>npm run server</code>，你会注意到主窗口仍然出现在屏幕中间，然后当你点击托盘图标时消失。</p>
+<pre>app.on('ready', () =&gt; {
+  createMainWindow();
+  const Tray = new TrayGenerator(mainWindow);
+  Tray.createTray();
+});</pre>
+<h2>如果您再次单击托盘图标，它会根据我们的需要重新定位在图标下方。</h2>
+<p>这是因为我们最初没有隐藏主窗口。</p>
+<p>因此，传递给BrowserWindow的以下选项确保:</p>
+<p>–窗口最初不可见<br/>–窗口没有框架<br/>–不能将窗口置于全屏模式<br/>–用户不能调整窗口大小</p>
+<p>你可能已经注意到，虽然我们在菜单栏中有一个托盘图标，但应用程序图标在dock中仍然可见。</p>
+<p>如果您不希望这样，您可以简单地调用下面的代码行来隐藏它:</p>
+<pre>show: false,
+frame: false,
+fullscreenable: false,
+resizable: false,</pre>
+<p>因此，在所有的调整之后，<code>main.js</code>中的最终代码如下所示:</p>
+<p>在主进程上保存数据</p>
+<pre>app.dock.hide();</pre>
+<p>无论您想存储一些用户偏好还是应用程序状态，都有一个非常方便的npm包<code><a href="https://www.npmjs.com/package/electron-store" target="_blank" rel="noopener noreferrer">electron-store</a></code>来保存主进程上的数据。</p>
+<pre>// eslint-disable-next-line import/no-extraneous-dependencies
+const { app, BrowserWindow } = require('electron');
+const { is } = require('electron-util');
+const path = require('path');
+const TrayGenerator = require('./TrayGenerator');
+
+let mainWindow = null;
+
+const createMainWindow = () =&gt; {
+  mainWindow = new BrowserWindow({
+    backgroundColor: '#FFF',
+    width: 300,
+    height: 150,
+    show: false,
+    frame: false,
+    fullscreenable: false,
+    resizable: false,
+    webPreferences: {
+      devTools: is.development,
+      nodeIntegration: true,
+    }
+  });
+  if (is.development) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadURL(`file://${path.join(__dirname, '../../build/index.html')}`);
+  }
+};
+
+app.on('ready', () =&gt; {
+  createMainWindow();
+  const Tray = new TrayGenerator(mainWindow);
+  Tray.createTray();
+});
+
+app.dock.hide();</pre>
+<h2>让我们使用这个包来存储一个用户首选项，这对于菜单栏应用程序很重要:“启动时启动”。</h2>
+<p>启动时自动启动</p>
+<p>安装并导入包，然后在<code>main.js</code>中创建一个带有模式的存储:</p>
+<h3>我们要做的下一件事是能够切换这个值。</h3>
+<p>这可以在渲染器过程中完成，或者我们可以将此功能添加到我们之前创建的contextMenu中，这可以通过右键单击托盘图标来触发。</p>
+<pre>const Store = require('electron-store');
+const schema = {
+  launchAtStart: true
+}
+const store = new Store(schema);</pre>
+<p>让我们稍微修改一下<code>TrayGenerator</code>类，使它也接受一个存储对象，并显示一个“启动时启动”的切换选项。</p>
+<p>我们添加了一个新的菜单项，它有这种类型的<code>checkbox</code>。</p>
+<p>它的状态应该取决于<code>launchAtStart</code>键，它是我们在用来初始化存储的模式中定义的。</p>
+<p>因此，为了获取这个值，我们在store对象上使用了<code>get</code>方法。</p>
+<p>每当我们单击这个菜单项时，我们就获得复选框的值，并通过使用<code>set</code>方法将其存储为<code>launchAtStart</code>键的值。</p>
+<p>因此，<code>TrayGenerator.js</code>文件的最终版本如下所示:</p>
+<p>另外，在创建TrayGenerator实例时，不要忘记将<code>store</code>对象作为第二个参数。</p>
+<p>现在你应该可以在右键菜单中看到“启动时启动”选项。</p>
+<pre>constructor(mainWindow, store) {
+  this.tray = null;
+  this.store = store;
+  this.mainWindow = mainWindow;
+}
+
+rightClickMenu = () =&gt; {
+  const menu = [
+    {
+      label: 'Launch at startup',
+      type: 'checkbox',
+      checked: this.store.get('launchAtStart'),
+      click: event =&gt; this.store.set('launchAtStart', event.checked),
+    },
+    {
+      role: 'quit',
+      accelerator: 'Command+Q'
+    },
+  ];
+  this.tray.popUpContextMenu(Menu.buildFromTemplate(menu));
+}</pre>
+<p>虽然我们将checkbox的值存储在name <code>launchAtStart</code>键下的store对象中，但是我们没有利用它将我们的应用程序添加到系统的登录项列表中。</p>
+<pre>const Tray = new TrayGenerator(mainWindow, store);</pre>
+<p>这是通过用一个对象调用<code>app</code>上的<code>setLoginItemSettings</code>方法来完成的，该对象具有值为<code>launchAtStart</code> store item的<code>openAtLogin</code>的键。</p>
+<p>渲染器和主进程之间的通信</p>
+<p>到目前为止，我们只创建了一个窗口，并通过单击托盘图标来触发它。</p>
+<pre>app.setLoginItemSettings({
+  openAtLogin: store.get('launchAtStart'),
+});</pre>
+<h2>然而，实际的应用程序存在于客户端，也就是渲染器进程。</h2>
+<p>使用React在renderer进程上构建和设计应用程序与构建常规React应用程序没有什么不同。</p>
+<p>但是，当涉及到渲染器和主进程之间的通信时，这是通过电子API处理的。</p>
+<p>ipcMain和ipcRenderer</p>
+<p>这两个进程之间的通信通过<code>ipcMan</code>和<code>ipcRenderer</code>模块进行。</p>
+<h3>ipcRenderer可以监听和发送消息，而ipcMain只能监听来自Renderer进程的消息。</h3>
+<p>为了向特定的窗口发送消息，应该在特定的BrowserWindow对象上调用<code>webContents.send()</code>。</p>
+<p>下面您可以看到通信的示例演示。</p>
+<p>主流程= &gt;渲染器流程:</p>
+<p>渲染器进程= &gt;主进程</p>
+<ul>
+<li>IPC在运行</li>
+</ul>
+<pre>// In main process
+const { ipcMain } = require('electron');
+mainWindow.webContents.send('MSG_FROM_MAIN', 'hello renderer');
+
+// In renderer process
+const { ipcRenderer } = window.require('electron');
+ipcRenderer.on('MSG_FROM_MAIN', (event, data) =&gt; console.log(data));</pre>
+<ul>
+<li>让我们构建一个非常基本的React应用程序，并将它的状态数据存储在我们在上一节中创建的电子商店中。</li>
+</ul>
+<pre>// In renderer process
+const { ipcRenderer } = window.require('electron');
+ipcRenderer.send('MSG_FROM_RENDERER', 'hello main');
+
+// In main process
+const { ipcMain } = require('electron');
+ipcMain.on('MSG_FROM_RENDERER', (event, data) =&gt; console.log(data));</pre>
+<h3>React应用程序是一个基本的计数器，您可以通过单击按钮来增加或减少一个数字。</h3>
+<p><img data-attachment-id="16310" data-permalink="https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/a-toggle-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A toggle screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png" decoding="async" class="aligncenter wp-image-16310 size-full jetpack-lazy-image" src="../Images/f1577071ab8a5e9c3703fd39c16a4d54.png" alt="The basic React counter app." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen-300x191.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png"/></p>
+<p>我只是分享组件代码以及样式，没有进入任何细节，因为它是非常基本的。我将详细介绍IPC连接。</p>
+<p>当用户与应用程序交互并改变状态时，我们需要将这些信息发送到主进程进行存储。</p><noscript><img data-lazy-fallback="1" data-attachment-id="16310" data-permalink="https://blog.logrocket.com/building-a-menu-bar-application-with-electron-and-react/a-toggle-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A toggle screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png" decoding="async" loading="lazy" class="aligncenter wp-image-16310 size-full" src="../Images/f1577071ab8a5e9c3703fd39c16a4d54.png" alt="The basic React counter app." srcset="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen-300x191.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/03/A-toggle-screen.png"/></noscript>
+<p>正如我们之前讨论的，通过<code>ipcRenderer.send();</code>将数据从渲染器发送到主进程。</p>
+<pre>import React from 'react';
+import styles from './styles.sass';
+class App extends React.Component {
+  constructor() {
+    super();
+    this.state = {
+      counter: 0
+    };
+  }
+
+  increase = () =&gt; {
+    this.setState(prevState =&gt; ({ counter: prevState.counter + 1 }));
+  }
+
+  decrease = () =&gt; {
+    const { counter } = this.state;
+    if (counter) {
+      this.setState(prevState =&gt; ({ counter: prevState.counter - 1 }));
+    }
+  }
+
+  render() {
+    const { counter } = this.state;
+    return (
+      &lt;div className={styles.app}&gt;
+        &lt;button
+          type="button"
+          className={styles.button}
+          onClick={this.decrease}
+        &gt;
+          -
+        &lt;/button&gt;
+        &lt;div className={styles.counter}&gt;{counter}&lt;/div&gt;
+        &lt;button
+          type="button"
+          className={styles.button}
+          onClick={this.increase}
+        &gt;
+          +
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+export default App;</pre>
+<pre>body
+  margin: 0
+.app
+  align-items: center
+  display: flex
+  font-family: monospace
+  font-size: 16px
+  height: 100vh
+  justify-content: space-around
+  padding: 0 40px
+
+  .counter
+    font-size: 20px
+
+  .button
+    align-items: center
+    border: 1px solid black
+    border-radius: 50%
+    cursor: pointer
+    display: flex
+    font-size: 20px
+    height: 50px
+    justify-content: center
+    outline: none
+    width: 50px</pre>
+<p>从渲染器进程发送</p>
+<p>让我们包括来自<code>Electron</code>的<code>ipcRenderer</code>。</p>
+<h3>现在，每次更新状态时，我们都需要发送一条消息。</h3>
+<p>在<code>increase</code>和<code>decrease</code>函数中，我们调用<code>setState</code>。</p>
+<pre>const { ipcRenderer } = window.require('electron');</pre>
+<p>它的回调函数是我们需要发送消息的地方。</p>
+<p>由于我们将发送相同的消息和数据，我创建了一个名为<code>sendCounterUpdate</code>的函数，并通过传递状态变量<code>counter</code>作为参数在<code>setState</code>的回调中调用这个函数。</p>
+<p>注意，如果使用对象析构作为<code>const {counter} = this.state</code>来传递<code>counter</code>状态，这将引用旧的状态，而不是最近更新的状态，因此使用<code>this.state.counter</code>作为<code>this.sendCounterUpdate</code>的参数。</p>
+<p>现在消息被发送到主进程，但是我们没有任何机制来监听这个消息。</p>
+<p>在渲染器进程中接收</p>
+<pre>sendCounterUpdate = (data) =&gt; {
+      ipcRenderer.send('COUNTER_UPDATED', data);
+    }
+    
+    increase = () =&gt; {
+  this.setState(prevState =&gt; (
+    { counter: prevState.counter + 1 }
+  ), () =&gt; {
+    this.sendCounterUpdate(this.state.counter);
+  });
+}
+
+decrease = () =&gt; {
+  const { counter } = this.state;
+  if (counter) {
+    this.setState(prevState =&gt; (
+      { counter: prevState.counter - 1 }
+    ), () =&gt; {
+      this.sendCounterUpdate(this.state.counter);
+    });
+  }
+}</pre>
+<p>将来自<code>Electron</code>的<code>ipcMain</code>包含在您的<code>main.js</code>文件中。</p>
+<h3>在<code>app</code>的<code>ready</code>事件的回调函数中，我们监听渲染器进程发送的特定消息，并将接收到的数据存储在商店的<code>counterValue</code>键中。</h3>
+<p>我们还必须将这个键添加到商店的模式中。</p>
+<pre>const { app, BrowserWindow, ipcMain } = require('electron');</pre>
+<p>因此，用初始值<code>0</code>更新<code>schema</code>变量如下:</p>
+<p>现在消息被发送到主进程，但是我们没有任何机制来监听这个消息。</p>
+<p>单独存储这个值没有任何用处。因此，每次初始化应用程序时，我们都需要将这个值发送回渲染器进程。</p>
+<pre>const schema = {
+  launchAtStart: true,
+  counterValue: 0
+}
+app.on('ready', () =&gt; {
+  createMainWindow();
+  const Tray = new TrayGenerator(mainWindow, store);
+  Tray.createTray();
+
+  ipcMain.on('COUNTER_UPDATED', (event, data) =&gt; {
+    store.set('counterValue', data);
+  });
+});</pre>
+<p>我们还需要在渲染器进程中监听此消息。</p>
+<p>从主进程发送</p>
+<p>正如我们之前所讨论的，这是通过调用<code>mainWindow.webContent</code>上的<code>send</code>方法来实现的，其中<code>mainWindow</code>是我们想要向其发送消息的窗口。</p>
+<h3>在发送消息之前，我们需要确保我们创建的browserWindow实例(<code>mainWindow</code>)已经加载完毕。</h3>
+<p>如果我们不做这种检查，很可能我们的消息会在渲染器进程开始监听它之前被发送出去，结果我们可能会错过它。</p>
+<p><code>did-finish-load</code>事件在<code>mainWindow.webContents</code>上发出，保证渲染器进程已加载并准备就绪。</p>
+<p>在<code>mainWindow.webContents.on('did-finish-load')</code>的回调函数中，我们发送一条<code>INITIALIZE_COUNTER</code>消息以及从存储中获取的<code>counterValue</code>数据。</p>
+<p>在主进程上接收</p>
+<p>在React应用中，我们使用<code>componentDidMount</code>生命周期钩子开始监听<code>INITIALIZE_COUNTER</code>消息，并在主进程发送该消息时用接收到的数据设置计数器状态，这在渲染器进程完成加载后只发生一次。</p>
+<pre>app.on('ready', () =&gt; {
+  createMainWindow();
+  const Tray = new TrayGenerator(mainWindow, store);
+  Tray.createTray();
+
+  ipcMain.on('COUNTER_UPDATED', (event, data) =&gt; {
+    store.set('counterValue', data);
+  });
+
+  mainWindow.webContents.on('did-finish-load', () =&gt; {
+    mainWindow.webContents.send('INITIALIZE_COUNTER', store.get('counterValue'));
+  });
+});</pre>
+<h3>下面是<code>main.js</code>和React组件的最终版本</h3>
+<p><code>Main.js</code>:</p>
+<pre>componentDidMount() {
+  ipcRenderer.on('INITIALIZE_COUNTER', (event, counter) =&gt; {
+    this.setState({ counter });
+  });
+}</pre>
+<p>反应组件:</p>
+<p>分发应用程序</p>
+<pre>const { app, BrowserWindow, ipcMain } = require('electron');
+const Store = require('electron-store');
+const { is } = require('electron-util');
+const path = require('path');
+const TrayGenerator = require('./TrayGenerator');
+
+const schema = {
+  launchAtStart: true,
+  counterValue: 0
+};
+
+const store = new Store(schema);
+let mainWindow = null;
+
+const createMainWindow = () =&gt; {
+  mainWindow = new BrowserWindow({
+    backgroundColor: '#FFF',
+    width: 300,
+    height: 150,
+    show: false,
+    frame: false,
+    fullscreenable: false,
+    resizable: false,
+    webPreferences: {
+      devTools: is.development,
+      nodeIntegration: true,
+    }
+  });
+  if (is.development) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadURL(`file://${path.join(__dirname, '../../build/index.html')}`);
+  }
+};
+
+app.on('ready', () =&gt; {
+  createMainWindow();
+  const Tray = new TrayGenerator(mainWindow, store);
+  Tray.createTray();
+  ipcMain.on('COUNTER_UPDATED', (event, data) =&gt; {
+    store.set('counterValue', data);
+  });
+  mainWindow.webContents.on('did-finish-load', () =&gt; {
+    mainWindow.webContents.send('INITIALIZE_COUNTER', store.get('counterValue'));
+  });
+});
+
+app.dock.hide();</pre>
+<p>完成实现后，最后一步是分发应用程序。</p>
+<pre>import React from 'react';
+import styles from './styles.sass';
+const { ipcRenderer } = window.require('electron');
+
+class App extends React.Component {
+  constructor() {
+    super();
+    this.state = {
+      counter: 0
+    };
+  }
+
+  componentDidMount() {
+    ipcRenderer.on('INITIALIZE_COUNTER', (event, counter) =&gt; {
+      this.setState({ counter });
+    });
+  }
+
+  sendCounterUpdate = (data) =&gt; {
+    ipcRenderer.send('COUNTER_UPDATED', data);
+  }
+
+  increase = () =&gt; {
+    this.setState(prevState =&gt; (
+      { counter: prevState.counter + 1 }
+    ), () =&gt; {
+      this.sendCounterUpdate(this.state.counter);
+    });
+  }
+
+  decrease = () =&gt; {
+    const { counter } = this.state;
+
+    if (counter) {
+      this.setState(prevState =&gt; (
+        { counter: prevState.counter - 1 }
+      ), () =&gt; {
+        this.sendCounterUpdate(this.state.counter);
+      });
+    }
+  }
+
+  render() {
+    const { counter } = this.state;
+
+    return (
+      &lt;div className={styles.app}&gt;
+        &lt;button
+          type="button"
+          className={styles.button}
+          onClick={this.decrease}
+        &gt;
+          -
+        &lt;/button&gt;
+        &lt;div className={styles.counter}&gt;{counter}&lt;/div&gt;
+        &lt;button
+          type="button"
+          className={styles.button}
+          onClick={this.increase}
+        &gt;
+          +
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+export default App;</pre>
+<h2>发布一个电子应用程序有几个不同的包，但我个人使用的是<code>electron-builder</code>,这已经包含在样板文件中，我在本文开始时已经分享了。</h2>
+<p>如果您正在使用样板文件，您所要做的就是运行<code>npm run build</code>来创建React应用程序的生产版本，然后运行<code>npm run dist</code>来分发您的电子应用程序。</p>
+<p>结论</p>
+<p>那些使用他们自己的设置的人可以在这里得到更多关于<a href="https://www.electron.build" target="_blank" rel="noopener noreferrer">电子建造者的信息。</a></p>
+<h2>编码快乐！</h2>
+<p>使用LogRocket消除传统反应错误报告的噪音</p>
+<p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p> automatically aggregates client side errors, React error boundaries, Redux state, slow component load times, JS exceptions, frontend performance metrics, and user interactions. Then LogRocket uses machine learning to notify you of the most impactful problems affecting the most users and provides the context you need to fix it.
+
+</p><p vwo-el-id="28675661060">Focus on the React bugs that matter —
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">try LogRocket today</a>.
+</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

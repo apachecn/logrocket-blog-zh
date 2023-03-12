@@ -1,0 +1,279 @@
+<html>
+<head>
+<title>React concurrent mode - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React并发模式- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-concurrent-mode/#0001-01-01">https://blog.logrocket.com/react-concurrent-mode/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>首先，一个大大的警告:我要写的关于<strong>的东西</strong>已经可以用了，但是<strong>还不应该用</strong>。</p>
+<p>这些都是实验性的功能，它们会有所改变。剩下的会是一点(全部？)的内部工作和这里概述的结果。</p>
+<p>如果你喜欢实验性的东西和阅读React的未来，你来对地方了。否则，最好等到尘埃落定，这个特性就永远存在了。</p>
+<h2>什么是并发模式？</h2>
+<p>React团队将并发模式描述为:</p>
+<blockquote><p>[…]一系列新功能有助于React应用保持响应，并根据用户的设备功能和网络速度进行适当调整。</p></blockquote>
+<p>听起来很棒，对吧？有几个功能属于这一类别:</p>
+<ul>
+<li>控制初始渲染的能力</li>
+<li>区分渲染事件优先级的能力</li>
+<li>暂停和恢复组件呈现的方法</li>
+<li>缓存和优化运行时呈现代码</li>
+<li>虚拟渲染，或隐藏尚不需要的内容</li>
+</ul>
+<p>在并发模式下，呈现是可中断的，并且可能发生在多个阶段。</p>
+<p>下图对此进行了更直观的解释:</p>
+<p><img data-attachment-id="17812" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/sample/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SAMPLE" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE-300x195.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif" decoding="async" class="aligncenter wp-image-17812 size-full jetpack-lazy-image" src="../Images/6b9a23517e3b5bee7b137a77ad77826c.png" alt="Initial rendering of React concurrent mode." data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17812" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/sample/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SAMPLE" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE-300x195.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif" decoding="async" loading="lazy" class="aligncenter wp-image-17812 size-full" src="../Images/6b9a23517e3b5bee7b137a77ad77826c.png" alt="Initial rendering of React concurrent mode." data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/SAMPLE.gif"/></noscript>
+<p>如果我们总是遵循最佳实践，有几个不良后果应该不会影响我们。不用说，大多数现实世界的应用程序至少在一个地方会违反这一点，所以让我们来探索如何捕捉问题，以及我们可以对这样的问题做些什么。</p>
+<h2>使用并发模式</h2>
+<p>为了实际使用并发模式，我们需要React和React DOM的预览版。毕竟，这仍然是实验性的，不是任何生产版本的一部分。</p>
+<pre>npm install <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6a180f0b091e2a0f121a0f1803070f041e0b06">[email protected]</a> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="35475054564118515a5875504d4550475c58505b415459">[email protected]</a></pre>
+<p>假设您的应用程序的<code>index.jsx</code>看起来像下面的代码:</p>
+<pre>import * as React from 'react';
+import { render } from 'react-dom';
+
+render(&lt;App /&gt;, document.getElementById('root'));</pre>
+<p>新方法(支持并发模式)将把<code>render</code>调用分成两部分:</p>
+<ul>
+<li>在元素上创建渲染根</li>
+<li>实际上使用渲染根来开始渲染子对象</li>
+</ul>
+<p>因此，代码更改为:</p>
+<pre>import * as React from 'react';
+import { createRoot } from 'react-dom';
+
+createRoot(document.getElementById('root')).render(&lt;App /&gt;);</pre>
+<p>老方法就不能保留吗？实际上，它仍然会存在——为了向后兼容。</p>
+<p>目前，计划了三种不同的模式:</p>
+<ol>
+<li>遗留模式(我们在第一个片段中看到的模式)</li>
+<li>阻塞模式(这将是第一个迁移步骤)</li>
+<li>并发模式(上一个片段中的模式)</li>
+</ol>
+<p>对于阻塞模式，我们将用<code>createBlockingRoot</code>替换<code>createRoot</code>。这是并发模式的一个子集，应该更容易理解。</p>
+<p>React文档比较列出了这三种模式的特性。</p>
+<p><img data-attachment-id="17813" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-features/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png" data-orig-size="692,379" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-features" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png" decoding="async" class="aligncenter wp-image-17813 size-full jetpack-lazy-image" src="../Images/3143339b730829994e1c45d6dfc6ea09.png" alt="React concurrent mode features." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png 692w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features-300x164.png 300w" data-lazy-sizes="(max-width: 692px) 100vw, 692px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17813" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-features/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png" data-orig-size="692,379" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-features" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features-300x164.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png" decoding="async" loading="lazy" class="aligncenter wp-image-17813 size-full" src="../Images/3143339b730829994e1c45d6dfc6ea09.png" alt="React concurrent mode features." srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png 692w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features-300x164.png 300w" sizes="(max-width: 692px) 100vw, 692px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-features.png"/></noscript>
+<p>正如我们所看到的，这三个从遗留模式中删除的特性在相当长的一段时间内都应该被避免。问题——尤其是对于最近的应用——甚至可能不在于我们的代码，而在于仍然利用这些功能的依赖关系。</p>
+<p>就我个人而言，我认为这个列表是按照出现的次数排序的。我怀疑字符串引用会比传统上下文的使用更常见。我觉得缺少<code>findDOMNode</code>在大多数情况下不会是问题。</p>
+<h3>初步迁移指南</h3>
+<p>我确信，从长远来看，将会有一套工具和助手来正确地诊断和指导迁移到React并发模式。</p>
+<p>以下几点应该足以检查迁移是否有意义和可能。</p>
+<p>此外，它还可以帮助我们实际执行迁移。</p>
+<p>关键问题是:我的应用程序会遭受性能损失吗？如果我们处理大型列表或大量元素，那么它肯定是有意义的。此外，如果我们的应用程序是高度动态的，并且可能在未来获得更多的异步功能，那么迁移也是有意义的。</p>
+<p>为了检查迁移是否可行，我们必须知道目前为止我们使用的是React的哪个API接口。</p>
+<p>如果我们完全掌握了钩子和函数，那就太好了——几乎不会有任何问题。</p>
+<p>如果我们在类上(更不用说带有潜在填充的<code>React.createClass</code>),那么我们很有可能使用不推荐的生命周期方法。更糟糕的是，有可能误用这些生命周期方法。</p>
+<p>我的建议是，在考虑使用React的并发模式之前，迁移到新的生命周期方法，甚至是钩子。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>其中一个原因当然是旧的(不安全的)生命周期名称已被否决，并且已经以别名存在。</p>
+<p>这里我们有:</p>
+<ul>
+<li><code>componentWillMount</code>，也可用作<code>UNSAFE_componentWillMount</code></li>
+<li><code>componentWillReceiveProps</code>，也可用作<code>UNSAFE_componentWillReceiveProps</code></li>
+<li><code>componentWillUpdate</code>，也可用作<code>UNSAFE_componentWillUpdate</code></li>
+</ul>
+<p>一般来说，检查一切是否与当前模型一致的最简单方法是激活严格模式。</p>
+<pre>import * as React from 'react';
+import { render } from 'react-dom';
+
+render(
+  &lt;React.StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/React.StrictMode&gt;,
+  document.getElementById('root')
+);</pre>
+<p>在严格模式下，一些函数会运行两次，以检查是否有副作用。此外，使用不推荐的生命周期函数将在控制台中特别注明。还有其他有用的警告。</p>
+<p>回到我们的迁移上来:在我们完成了代码的功课之后，我们就可以试一试了。</p>
+<p>我会先从完全并发模式开始。最有可能的是，它会工作。否则，根据我的经验，阻塞模式起作用的可能性很小。尽管如此，试一试也无妨。</p>
+<p>重要的是，虽然对并发模式的更改应该在生产版本中恢复，但是到目前为止所有其他的更改都是完全值得的，如果可能的话应该投入生产。</p>
+<h3>实际例子</h3>
+<p>好了，让我们看看React并发在实践中是怎样的。</p>
+<p>我们从一个使用标准渲染的简单应用程序开始。它从一个服务器获得一个帖子列表，并从另一个包中使用列表组件的延迟加载。</p>
+<p>代码类似于下面的代码:</p>
+<pre>// index.jsx
+import * as React from 'react';
+import { render } from 'react-dom';
+import { App } from './App';
+
+render(
+  &lt;React.StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/React.StrictMode&gt;,
+  document.querySelector('#app')
+);
+
+// App.jsx
+import * as React from 'react';
+
+const List = React.lazy(() =&gt; import('./List'));
+
+export default () =&gt; (
+  &lt;div&gt;
+    &lt;h1&gt;My Sample App&lt;/h1&gt;
+    &lt;p&gt;Some content here to digest...&lt;/p&gt;
+    &lt;React.Suspense fallback={&lt;b&gt;Loading ...&lt;/b&gt;}&gt;
+      &lt;List /&gt;
+    &lt;/React.Suspense&gt;
+  &lt;/div&gt;
+);</pre>
+<p>我们定义的列表如下:</p>
+<pre>import * as React from 'react';
+
+export default () =&gt; {
+  const [photos, setPhotos] = React.useState([]);
+
+  React.useEffect(() =&gt; {
+    fetch('https://jsonplaceholder.typicode.com/photos')
+      .then((res) =&gt; res.json())
+      .then((photos) =&gt; setPhotos(photos));
+    return () =&gt; {
+      // usually should prevent the operation from finishing / setting the state
+    };
+  }, []);
+
+  return (
+    &lt;div&gt;
+      {photos.map((photo) =&gt; (
+        &lt;div key={photo.id}&gt;
+          &lt;a href={photo.url} title={photo.title} target="_blank"&gt;
+            &lt;img src={photo.thumbnailUrl} /&gt;
+          &lt;/a&gt;
+        &lt;/div&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>现在(除了缺少效果处理器的实现)，这看起来很不错。</p>
+<p>但是，效果不是很好:</p>
+<p><img data-attachment-id="17808" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-frames/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png" data-orig-size="880,452" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-frames" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-300x154.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png" decoding="async" class="aligncenter wp-image-17808 jetpack-lazy-image" src="../Images/54ccb236a38bab733cda4cbcb8838c6b.png" alt="React concurrent mode frames" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png 880w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-300x154.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-768x394.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17808" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-frames/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png" data-orig-size="880,452" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-frames" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-300x154.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png" decoding="async" loading="lazy" class="aligncenter wp-image-17808" src="../Images/54ccb236a38bab733cda4cbcb8838c6b.png" alt="React concurrent mode frames" srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png 880w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-300x154.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames-768x394.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-frames.png"/></noscript>
+<p>首先，我们在此加载5000个条目。更糟糕的是，我们的渲染树负载相当重。</p>
+<p>所以我们试着用React的并发模式。我们从使用API加载的改进版本开始。</p>
+<p>让我们把照片装入它自己的模块:</p>
+<pre>function fetchPhotos() {
+  return fetch('https://jsonplaceholder.typicode.com/photos')
+    .then((res) =&gt; res.json());
+}
+
+export function createPhotosResource() {
+  let status = 'pending';
+  let result = undefined;
+
+  const suspender = fetchPhotos().then(
+    (photos) =&gt; {
+      status = 'success';
+      result = photos;
+    },
+    (error) =&gt; {
+      status = 'error';
+      result = error;
+    },
+  );
+
+  return {
+    read() {
+      switch (status) {
+        case 'pending':
+          throw suspender;
+        case 'error':
+          throw result;
+        case 'success':
+          return result;
+      }
+    },
+  };
+}</pre>
+<p>这是定义异步资源的初步API。它肯定会改变——通过一些抽象或其他细节。</p>
+<p>后端API访问的整个生命周期现在都在一个专用模块中，根本没有任何UI。那很好。我们如何使用它？</p>
+<p>我们只需要改变列表:</p>
+<pre>import * as React from 'react';
+
+export default ({ resource }) =&gt; {
+  const photos = resource.read();
+
+  return (
+    &lt;div&gt;
+      {photos.map((photo) =&gt; (
+        &lt;div key={photo.id}&gt;
+          &lt;a href={photo.url} title={photo.title} target="_blank"&gt;
+            &lt;img src={photo.thumbnailUrl} /&gt;
+          &lt;/a&gt;
+        &lt;/div&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>在这种情况下，我们将资源作为名为<code>resource</code>的道具传入。</p>
+<p>此时，代码更好了(也更健壮了)，但是性能还是一样的。</p>
+<p>让我们添加一个为长时间运行的API请求做准备的转换。该转换允许延迟加载指示器。</p>
+<p>最后，我们的<code>App</code>模块如下所示:</p>
+<pre>import * as React from 'react';
+import { createPhotosResource } from './photos';
+
+const List = React.lazy(() =&gt; import('./List'));
+
+export default () =&gt; {
+  const [photosResource, setPhotosResource] = React.useState();
+  const [startTransition, isPending] = React.useTransition(500);
+
+  React.useEffect(() =&gt; {
+    const tid = setTimeout(() =&gt; {
+      startTransition(() =&gt; {
+        setPhotosResource(createPhotosResource());
+      });
+    }, 100);
+
+    return () =&gt; clearTimeout(tid);
+  }, []);
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;My Sample App&lt;/h1&gt;
+      &lt;p&gt;Some content here to digest...&lt;/p&gt;
+      &lt;React.Suspense fallback={&lt;b&gt;Loading ...&lt;/b&gt;}&gt;
+        &lt;List resource={photosResource} pending={isPending} /&gt;
+      &lt;/React.Suspense&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>好的——到目前为止一切顺利。但是这对我们的渲染有帮助吗？没有那么多。但是等等…我们还没有激活并发模式！</p>
+<p>入口模块现在更改为:</p>
+<pre>import * as React from 'react';
+import { createRoot } from 'react-dom';
+import App from './App';
+
+createRoot(document.querySelector('#app')).render(
+  &lt;React.StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/React.StrictMode&gt;,
+);</pre>
+<p>因此，最终用户感觉渲染很流畅。让我们来看看:</p>
+<p><img data-attachment-id="17811" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-final/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-final" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final-300x195.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif" decoding="async" class="aligncenter wp-image-17811 size-full jetpack-lazy-image" src="../Images/cb2aab2eae80f760e99e6cb86842624a.png" alt="Final rendering of a sample app using React concurrent mode. " data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17811" data-permalink="https://blog.logrocket.com/react-concurrent-mode/attachment/react-concurrent-mode-final/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif" data-orig-size="730,475" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-concurrent-mode-final" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final-300x195.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif" decoding="async" loading="lazy" class="aligncenter wp-image-17811 size-full" src="../Images/cb2aab2eae80f760e99e6cb86842624a.png" alt="Final rendering of a sample app using React concurrent mode. " data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/react-concurrent-mode-final.gif"/></noscript>
+<p>演示的完整代码可以在GitHub上找到。</p>
+<h2>结论</h2>
+<p>React并发模式提供了一种很好的方式来利用现代功能，真正实现令人惊叹的用户体验。</p>
+<p>现在，要很好地扩展React代码，需要进行大量的微调和实验。有了并发模式，这应该会得到彻底的改善。</p>
+<p>通过遵循最佳实践和避免不推荐的API，给出了启用并发模式的途径。</p>
+<p>React的简单工具在这里非常有用。</p>
+<p>你在哪里可以看到使用React新的并发模式的好处和障碍？你认为它会是下一件大事吗？我们很想在评论中听到你的意见！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

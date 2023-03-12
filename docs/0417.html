@@ -1,0 +1,200 @@
+<html>
+<head>
+<title>How to write your own search engine using Node.js and Elastic - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何使用Node.js和Elastic - LogRocket Blog编写自己的搜索引擎</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/write-your-own-search-engine-using-node-js-and-elastic/#0001-01-01">https://blog.logrocket.com/write-your-own-search-engine-using-node-js-and-elastic/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>许多人倾向于给谷歌的搜索算法(也称为<a href="https://en.wikipedia.org/wiki/PageRank" target="_blank" rel="noopener noreferrer">页面排名</a>)添加许多神秘色彩，因为它总是设法在前几页向我们展示我们正在寻找的结果(即使在有数百个结果页面的情况下)。</p>
+<p>它是如何工作的？为什么这么准？这些问题没有真正的答案，当然，除非你是谷歌内部维护它的团队的一员。</p>
+<p>我们不需要侵入谷歌的服务器，窃取他们的算法，就可以开发出一种非常强大的搜索功能，你可以轻松地将它集成到你的网站/网络应用中，同时获得出色的用户体验。</p>
+<p>我实际上指的是通常所说的“全文搜索”。如果您来自传统的web开发世界，您可能习惯于使用SQL数据库，例如<a href="https://www.mysql.com/" target="_blank" rel="noopener noreferrer"> MySQL </a>或<a href="https://www.postgresql.org/" target="_blank" rel="noopener noreferrer"> PostgreSQL </a>，它们默认允许您在字符串字段中执行基于通配符的搜索，例如:</p>
+<pre>SELECT * FROM Cities WHERE name like 'new%';</pre>
+<p>使用上面的查询，您通常会得到匹配的结果，例如:</p>
+<ul>
+<li>纽约</li>
+<li>新德里</li>
+<li>新奥尔良</li>
+</ul>
+<p>您得到了模式，如果您的数据库中有更复杂的对象，比如带有标题和正文的博客文章，您可能还想对它们进行更“有趣”的搜索，比如:</p>
+<pre>SELECT * FROM BLOG_POSTS WHERE title like '%2019%' OR body like '%2019%';</pre>
+<p>现在上面的查询也会产生一些结果，但是这些结果的最佳顺序是什么呢？因为电话号码<em> 444220192 </em>在它的体内而匹配的博客帖子会在标题为<em>“2019年最佳足球队”</em>的博客帖子之前被返回，这有意义吗？后一种匹配肯定更相关，但是简单的通配符匹配无法做到这一点。</p>
+<p>正因为如此，在您的站点上添加全文搜索可能是一个很好的匹配(特别是如果您希望您的用户搜索非结构化的内容，例如FAQ或可下载的文档，等等)。</p>
+<h2>转到全文</h2>
+<p>这些是基本通配符搜索的用例。诚然，最常见的SQL数据库，如MySQL和PostgreSQL，已经包含了某种形式的基本全文功能，但如果您想充分利用这种技术，您需要一个专用的搜索引擎，如<a href="https://www.elastic.co/" target="_blank" rel="noopener noreferrer"> Elastic </a>。</p>
+<p>这些引擎的工作方式是通过创建所谓的“倒排索引”。在我们示例的上下文中，我们试图索引文本文档，它们从每个文档中提取每个单词，并记录它们出现在文档中的引用及其在文档中的位置。因此，不必在每个文档中搜索子串(就像上面的SQL示例一样)，只需要在单词列表中搜索子串，那些匹配的单词就已经知道它们在索引中出现的位置。</p>
+<p><img data-attachment-id="5029" data-permalink="https://blog.logrocket.com/write-your-own-search-engine-using-node-js-and-elastic/pagerankalgorithm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png" data-orig-size="691,479" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pagerankalgorithm" data-image-description="&lt;p&gt;This is how inverted index is built&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm-300x208.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png" decoding="async" class="aligncenter wp-image-5029 size-full jetpack-lazy-image" src="../Images/e0742f508505f38d32746250dd03e72f.png" alt="inverted index" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png 691w, https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm-300x208.png 300w" data-lazy-sizes="(max-width: 691px) 100vw, 691px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="5029" data-permalink="https://blog.logrocket.com/write-your-own-search-engine-using-node-js-and-elastic/pagerankalgorithm/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png" data-orig-size="691,479" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="pagerankalgorithm" data-image-description="&lt;p&gt;This is how inverted index is built&lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm-300x208.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png" decoding="async" loading="lazy" class="aligncenter wp-image-5029 size-full" src="../Images/e0742f508505f38d32746250dd03e72f.png" alt="inverted index" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png 691w, https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm-300x208.png 300w" sizes="(max-width: 691px) 100vw, 691px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/pagerankalgorithm.png"/></noscript>
+<p>上图以非常简单的方式显示了如何构建倒排索引:</p>
+<ol>
+<li>索引上列出了每个单词</li>
+<li>对源文档的引用存储在每个单词上(允许对不同文档的多次引用)</li>
+<li>在每个文档中，我们还记录了单词的位置(第3列)</li>
+</ol>
+<p>有了这些信息，我们可以简单地搜索索引，并匹配您的查询和索引中的单词之间的任何重合(我们甚至可以使用子字符串进行搜索，并仍然返回有效的结果)。</p>
+<p>这仍然没有让我们得到我们所需要的，因为我们没有任何关于相关性的信息。标题上的匹配和正文上的匹配哪个更重要？完全匹配还是部分匹配？这些是我们的引擎在搜索时需要知道的规则，幸运的是，我们今天使用的引擎(<a href="https://www.elastic.co/" target="_blank" rel="noopener noreferrer"> Elastic </a>)会处理这些规则，甚至更多。</p>
+<p>那么让我们看看这个基本的倒排索引，看看我们如何使用弹性来利用这一技术，好吗？</p>
+<h2>变得有弹性</h2>
+<p>安装和运行一个本地版本的Elastic真的非常简单，特别是如果你按照官方说明去做的话。</p>
+<p>一旦启动并运行了它，您就可以使用它的RESTful API和手头的任何HTTP客户端与它进行交互(我将使用<a href="https://curl.haxx.se/" target="_blank" rel="noopener noreferrer"> curl </a>，默认情况下它应该安装在大多数常见的操作系统中)。</p>
+<p>一旦设置好了，真正的工作就可以开始了，不要担心，我将带您完成本文中的以下所有步骤:</p>
+<ol>
+<li>你需要创建一个索引</li>
+<li>之后，您将为索引中的文档创建一个映射</li>
+<li>一旦一切都设置好了，你就可以索引文档了</li>
+<li>最终，搜索将成为可能</li>
+</ol>
+<p>为了让事情更容易理解，让我们假设我们正在构建一个图书馆的API，它将允许你搜索不同数字书籍的内容。</p>
+<p>出于本文的目的，我们将保持最少的元数据，但是您可以根据您的特定用例添加所需的数量。这些书将从古腾堡项目下载，并首先被手工索引。</p>
+<h3>如何创建你的第一个索引</h3>
+<p>根据定义，Elastic中的每个索引文档都需要插入到索引中，这样，如果您开始索引不同的和不相关的对象，就可以很容易地在您需要的范围内进行搜索。</p>
+<p>如果方便的话，你可以把索引想象成一个容器，一旦你决定搜索某个东西，你需要选择一个容器。</p>
+<p>要创建新的索引，只需运行以下命令:</p>
+<pre>$ curl -X PUT localhost:9200/books</pre>
+<p>通过这一行，您将您的请求发送到您的<em>本地主机</em>(当然，假设您正在进行本地测试)，并使用端口9200，这是Elastic的默认端口。</p>
+<p>路径“books”是正在创建的实际索引。命令的成功执行将返回类似以下内容:</p>
+<pre>{
+  "acknowledged" : true,
+  "shards_acknowledged" : true,
+  "index" : "books"
+}</pre>
+<p>现在，记住这条路，让我们进入下一步，创建一个地图。</p>
+<h3>如何为您的文档创建地图</h3>
+<p>这一步实际上是可选的，您可以在查询执行期间定义这些参数，但是我总是发现维护外部映射比绑定到代码的业务逻辑更容易。</p>
+<p>您可以在这里设置如下内容:</p>
+<ul>
+<li>我们的书名和正文可以做哪些<strong>类型的匹配</strong>(是完全匹配吗？我们使用全文还是基本匹配？等等)</li>
+<li>每场比赛的重量。或者换句话说，标题中的匹配与正文中的匹配有多相关？</li>
+</ul>
+<p>为了创建特定索引的映射，您必须使用mappings端点并发送描述新映射的<a href="https://blog.logrocket.com/the-quiet-revolution-how-json-displaced-xml-1e1f3e8552f7/" target="_blank" rel="noopener noreferrer"> JSON </a>。下面是一个遵循上述数字图书索引思想的示例:</p>
+<pre>{
+  "properties": {
+    "title": {
+      "type": "text",
+      "analyzer": "standard",
+      "boost": 2
+    },
+    "body": {
+      "type": "text",
+      "analyzer": "english"
+    }
+  }   
+}</pre>
+<p>这个映射定义了两个字段，标题和正文，标题需要用标准分析器进行分析，正文考虑到这些都是英语书，将使用英语语言分析器。我还增加了标题上的匹配，这使得它们中的任何一个都比书的正文上的匹配相关两倍。</p>
+<p>为了在我们的索引上设置它，我们需要做的就是使用下面的请求:</p>
+<pre>$ curl -X PUT "localhost:9200/books?pretty" -H 'Content-Type: application/json' -d'
+{ 
+  "properties": {
+    "title": {
+      "type": "text",
+      "analyzer": "standard",
+      "boost": 2
+    },
+    "body": {
+      "type": "text",
+      "analyzer": "english"
+    }
+  }
+}
+'</pre>
+<p>成功的执行将产生如下结果:</p>
+<pre>{
+  "acknowledged" : true
+}</pre>
+<p>现在我们的索引和映射已经准备好了，我们要做的就是开始索引，然后执行搜索。</p>
+<h3>如何将内容索引成弹性的</h3>
+<p>尽管从技术上来说，我们不需要编码就可以做到这一点，但我将在Node.js中创建一个快速脚本来加速将书籍发送到Elastic的过程。</p>
+<p>这个脚本很简单，它将从一个特定的目录中读取文件的内容，抓取第一行并将其作为标题，然后其他所有内容将作为正文的一部分进行索引。</p>
+<p>下面是简单代码:</p>
+<pre>const fs = require("fs")
+const request = require("request-promise-native")
+const util = require("util")
+
+let files = ["60052-0.txt", "60062-0.txt", "60063-0.txt", "pg60060.txt"]
+const readFile = util.promisify(fs.readFile)
+
+async function indexBook(fid, title, body) {
+    let url = "http://localhost:9200/books/_doc/" + fid
+    let payload = {
+        url: url, 
+        body: {
+            title: title, 
+            body: body.join("\n")
+        },
+        json: true
+    }
+    return request.put(payload)
+}
+( _ =&gt; {
+    files.forEach( async f =&gt; {
+        let book = await readFile("./books/" + f);
+        [title, ...body] = book.toString().split("\n");
+        try {
+            let result = await indexBook(f, title, body);
+            console.log("Indexing result: ", result);
+        } catch (err) {
+            console.log("ERROR: ", err)
+        }
+    })
+})();</pre>
+<p>我所做的就是浏览我的数组中的图书列表，并将它们的内容发送给Elastic。用来索引的方法是PUT，路径是<code>your-host:your-port/index-name/_doc/a-doc-ID</code>。</p>
+<ul>
+<li>我使用默认的主机和端口(<em> localhost </em>和<em> 9200 </em></li>
+<li>我的索引是我之前创建的:<em>书籍</em></li>
+<li>我使用的索引是文件名，我知道它对于每本书都是唯一的</li>
+</ul>
+<p>这实质上留给我们一件事去做，查询我们的数据。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3>如何在弹性中查询索引</h3>
+<p>为了查询索引，我们可以像目前为止一样使用Elastic的REST API，或者我们可以继续使用<a href="https://www.npmjs.com/package/elasticsearch" target="_blank" rel="noopener noreferrer"> Elastic的官方Node.js库</a>。</p>
+<p>为了展示一些不同的东西，我将向您展示如何使用Elastic的NPM模块执行搜索查询，如果您想开始使用它，请随时查看他们的文档。</p>
+<p>一个快速的例子应该足以将我到目前为止所讨论的一切付诸实践，它将对索引文档执行全文搜索，并根据相关性(这是弹性使用的默认标准)返回一个排序的结果列表。</p>
+<p>下面的代码就是这么做的，让我给你演示一下:</p>
+<pre>var elasticsearch = require('elasticsearch');
+var client = new elasticsearch.Client({
+  host: 'localhost:9200/books'
+});
+
+let q = process.argv[2];
+
+( async query =&gt; {
+    try {
+        const response = await client.search({
+            q: query
+        });
+        console.log("Results found:", response.hits.hits.length)
+        response.hits.hits.forEach( h =&gt; {
+            let {_source, ...params } = h;
+            console.log("Result found in file: ", params._id, " with score: ", params._score)
+        })
+    } catch (error) {
+        console.trace(error.message)
+    }
+})(q)</pre>
+<p>上面的代码将您在执行脚本时使用的第一个单词作为CLI参数，并将其用作查询的一部分。</p>
+<p>如果您继续阅读，您应该能够下载并索引Guterberng项目中的一些书籍，并编辑其中两本。在其中一行中添加“testing”一词作为第一行的一部分，在另一行中添加相同的词，但在文本的中间。这样，您就可以根据我们设置的映射了解相关性是如何工作的。</p>
+<p>对我来说，我得到的结果如下:</p>
+<pre>Results found: 2
+    Result found in file:  60052-0.txt  with score:  2.365865
+    Result found in file:  pg60060.txt  with score:  1.7539438</pre>
+<p>由于我使用文件名作为文档索引，我可以重用这段信息来显示相关的结果。</p>
+<p>本质上，你现在可以下载任意多的书，并使用之前的代码对它们进行索引。你有自己的搜索引擎，能够快速搜索并返回相关的文件名供你打开。这里的速度是我之前提到的使用倒排索引的好处之一，因为它不需要每次都遍历每个文档的整个主体，它只会搜索您在内部索引中输入的单词，并返回它在索引过程中引用的列表。</p>
+<p>由此得出的一个直接结论是，你可以有把握地说，索引一个文档比搜索要昂贵得多(从计算角度来说)。由于通常情况下，大多数搜索引擎花费大部分时间搜索而不是索引，这是一个完全好的权衡。</p>
+<h2>结论</h2>
+<p>这就是我对弹性的介绍，我希望你和我一样觉得有趣。就我个人而言，这个NoSQL数据库(它也是众所周知的)是我最喜欢的数据库之一，这要感谢你用很少的代码获得的强大功能。</p>
+<p>通过对书籍进行分类并将这些信息保存为索引元数据的一部分，您可以轻松地扩展上面的代码。之后，您可以记录用户搜索的书籍类型，然后根据他们的偏好用不同的提升值调整单个映射(例如，一些用户喜欢科幻书籍，而另一些用户喜欢基于历史的书籍)。这会给你一个更接近谷歌的行为。想象力是极限！</p>
+<p>请在评论中告诉我你过去是否使用过Elastic，以及你使用过什么样的疯狂搜索引擎！</p>
+<p>否则，<em>下一场见！</em></p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,115 @@
+<html>
+<head>
+<title>How to take full advantage of full-static mode in Nuxt.js 2.13 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Nuxt.js 2.13 - LogRocket博客中充分利用全静态模式</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-take-full-advantage-of-full-static-mode-in-nuxt-2-13/#0001-01-01">https://blog.logrocket.com/how-to-take-full-advantage-of-full-static-mode-in-nuxt-2-13/#0001-01-01</a></blockquote><div><div class="mainheading">
+
+<div class="row post-top-meta hidden-md-down">
+
+<div class="col-md-10 col-xs-12">
+<a class="text-capitalize link-dark" href="https://blog.logrocket.com/author/edmundekott/">
+Edmund Ekott <span class="btn follow">Follow</span></a>
+<span class="author-description d-block">Frontend engineer who specializes in building complex UIs with JavaScript and CSS.</span>
+</div>
+</div>
+<h1 class="posttitle">如何充分利用Nuxt.js 2.13中的全静态模式</h1>
+<h2 class="post-subtitle"/>
+<p><span class="post-date"><time class="post-date">2020年10月6日</time> </span> <span class="dot"/> <span class="readingtime"> 2分钟阅读</span> <span class="wordcount"> 768 </span> <span class="logrocket_editor"/></p>
+</div>
+<article class="article-post">
+<p>js是一个用于构建快速而强大的web应用程序的开源框架。6月18日，Nuxt 2.13版本引入了对静态应用的改进支持，使得指定如何处理通用模式(<code>{ mode:'universal'}</code>)下的应用成为可能。现在，普通的服务器端渲染应用程序和静态应用程序的处理方式有了明显的区别。</p>
+<p>让我们放大这个新的全静态模式，并探索在使用Nuxt.js构建下一个静态应用程序时利用其功能的一些方法。</p>
+<h2 id="knownissues">Nuxt.js的已知问题</h2>
+<p>在我们深入研究Nuxt 2.13之前，让我们简单地了解一下驱动上述变化的一些问题。</p>
+<ul>
+<li>运行<code>nuxt generate</code>会重新构建你的整个应用程序，即使它不是必需的，这会减慢部署时间。</li>
+<li>您不能在开发中测试<a href="https://nuxtjs.org/guides/concepts/static-site-generation#spa-fallback" target="_blank" rel="noopener noreferrer"> SPA回退</a>，因为只有当您运行<code>nuxt generate</code>时页面才会被排除</li>
+<li>为静态应用程序构建模块或插件是乏味的，因为只有当<code>nuxt generate</code>运行时<code>process.static</code>才是<code>true</code></li>
+</ul>
+<h2 id="thesolutiontargetoption">解决方案:<code>target</code>选项</h2>
+<p>Nuxt 2.13中的<code>target</code>选项可以让你明确地指定你希望Nuxt如何处理你的应用。</p>
+<p>要在您的<code>nuxt.config.js</code>文件中设置它:</p>
+<pre>export default {
+  mode: 'universal',
+  target: 'static' /* or 'server' */
+}
+</pre>
+<p>现在，用<code>nuxt dev</code>在开发模式下运行您的项目将会:</p>
+<ul>
+<li>退回到404、错误和重定向的客户端呈现</li>
+<li>将<code>process.static</code>设置为<code>true</code></li>
+</ul>
+<p>注意:当<code>mode</code>设置为<code>spa</code>时，全静态模式不起作用。要使用它，你必须把你的<code>mode</code>换成<code>universal</code>，把<code>target</code>换成<code>static</code>。<code>target</code>的默认值是<code>server</code>，所以如果省略了<code>target</code>选项，它将始终是<code>server</code>。</p>
+<p>让我们看看Nuxt 2.13帮助解决上面列出的问题的一些其他方式。</p>
+<h3 id="nomorebuilddelays">不再有构建延迟</h3>
+<p>对于全静态应用程序，如果代码没有变化，Nuxt不需要重新构建整个项目。当<code>nuxt generate</code>运行时(在&gt; = v2.14中可用)，Nuxt足够聪明，可以在部署期间使用之前的构建缓存。这一改进<a href="https://nuxtjs.org/blog/nuxt-static-improvements#generate-time-cache-vs-full-webpack-build" target="_blank" rel="noopener noreferrer">将部署速度提高了大约3.6倍</a>。</p>
+<h3 id="fasterloadtimes">更快的加载时间</h3>
+<p>现在，所有页面都用<code>mode:'universal'</code>和<code>target:'static'</code>预渲染为HTML。带有<code>asyncData</code>和<code>fetch</code>的HTTP请求被生成并存储在JS文件中，用于客户端导航，所以当您导航到这些页面时，实际上没有任何HTTP请求。</p>
+<h3 id="runproductionsitelocally">在本地运行生产站点</h3>
+<p>当您运行<code>nuxt generate</code>在<code>/dist</code>文件夹中生成静态页面时，您可以使用<code>nuxt start</code>为您的静态应用程序启动一个生产服务器。这非常适合在部署到静态主机之前进行本地测试。</p>
+<h3 id="generationconfig">生成配置</h3>
+<p>现在，您可以使用<code>nuxt.config.js</code>中的<code>generate</code>属性配置静态应用程序的生成方式。</p>
+<h4>从缓存中排除文件</h4>
+<p>您可以选择忽略项目中的特定目录，这样当发生更改时，它们将不会触发任何构建。</p>
+<pre>export default {
+  generate: {
+    cache: {
+      ignore: ['guides'] // changes in the guides folder will not cause a re-build
+    }
+  }
+}
+</pre>
+<p>默认情况下，缓存会忽略以下文件和目录。</p>
+<ul>
+<li><code>dist/</code></li>
+<li><code>.nuxt/</code></li>
+<li><code>static/</code></li>
+<li><code>.env</code>、<code>.npmrc</code>等点文件</li>
+<li><code>node_modules</code></li>
+<li><code>README.md</code></li>
+</ul>
+<h4>爬行者</h4>
+<p>在以前的版本中(&lt;= v2.12), you had to manually add dynamic links in the <a href="https://nuxtjs.org/guides/configuration-glossary/configuration-generate#routes" target="_blank" rel="noopener noreferrer"> <code>generate.routes</code> </a>)选项在你的<code>nuxt.config.js</code>文件中。Nuxt 2.13自带一个内置的爬虫，可以自动检测相对链接并为其生成页面。</p>
+<p>如果你想让爬虫跳过某些路线的生成，你可以使用<a href="https://nuxtjs.org/guides/configuration-glossary/configuration-generate#exclude" target="_blank" rel="noopener noreferrer"> <code>generate.exclude</code> </a>并指定路线的正则表达式或字符串。如果要禁用爬虫，将<a href="https://nuxtjs.org/guides/configuration-glossary/configuration-generate#crawler" target="_blank" rel="noopener noreferrer"> <code>generate.crawler</code> </a>设置为<code>false</code>。</p>
+<pre>// in nuxt.config.js file
+export default {
+  generate: {
+    crawler: false
+  }
+}
+</pre>
+<p>如果由于某种原因，爬虫无法生成一些页面，可以使用<code>generate.routes</code>选项自己添加。</p>
+<h2 id="nextsteps">后续步骤</h2>
+<p>现在我们已经介绍了Nuxt 2.13中引入的新特性的静态部分，是时候用它们来改进你的应用了。</p>
+<p>下面是你可以在下一个Nuxt项目中实现全静态的一些步骤。</p>
+<ol>
+<li>升级到Nuxt v2.14</li>
+<li>确保在您的<code>nuxt.config.js</code>文件中<code>target</code>被设置为<code>static</code></li>
+<li>在<code>package.json</code>文件的<code>scripts</code>选项中切换命令，如下所示:<pre>"scripts": { "dev": "nuxt", "generate": "nuxt generate", "start": "nuxt start" }</pre></li>
+</ol>
+<ul>
+<li>   <ul>
+<li><code>nuxt dev</code>将启动开发服务器，并会知道您是否在静态模式下运行</li>
+<li><code>nuxt generate</code>将静态页面生成到一个名为<code>/dist</code>的文件夹中</li>
+<li><code>nuxt start</code>将启动生产服务器为您的静态应用提供服务</li>
+</ul>
+</li>
+</ul>
+<p>前往<a href="https://github.com/nuxt/nuxt.js/releases" target="_blank" rel="noopener noreferrer"> GitHub </a>获取更多关于最新Nuxt版本中引入的特性和错误修复的信息。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

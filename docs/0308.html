@@ -1,0 +1,441 @@
+<html>
+<head>
+<title>Build a GraphQL + React app with TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用TypeScript - LogRocket博客构建一个GraphQL + React应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-graphql-react-app-typescript/#0001-01-01">https://blog.logrocket.com/build-graphql-react-app-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>为了准确起见，本文最后一次更新于2021年7月29日，代码库由作者审核。</em></p>
+<p>GraphQL和TypeScript都得到了广泛采用，当这两者与React结合时，它们创造了理想的开发人员体验。</p>
+<p>GraphQL改变了我们对API的看法，并利用直观的键/值对匹配，客户端可以请求在网页或移动应用程序屏幕上显示所需的准确数据。TypeScript通过向变量添加静态类型来扩展JavaScript，从而导致更少的错误和更可读的代码。</p>
+<p>本文将带您通过React和Apollo构建一个客户端应用程序，使用公共的SpaceX GraphQL API来显示关于发射的信息。我们将为我们的查询自动生成TypeScript类型，并使用React钩子执行这些查询。我们将讨论以下主题:</p>
+
+<p>本文将假设您对React、GraphQL和TypeScript有所了解，并将重点放在集成它们以构建一个正常运行的应用程序上。如果你需要额外的练习，你可以找到大量高质量的编码教程来帮助你提高速度。</p>
+<p>如果你在任何一点卡住了，可以参考<a href="https://github.com/treyhuffine/graphql-react-typescript-spacex" target="_blank" rel="noopener noreferrer">源代码</a>或者看<a href="https://spacex-graphql.netlify.com/" target="_blank" rel="noopener noreferrer">直播app </a>。</p>
+<p><img data-attachment-id="2506" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/spacex-launch-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif" data-orig-size="480,262" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Final SpaceX launch app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app-300x164.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif" decoding="async" class="size-full wp-image-2506 aligncenter jetpack-lazy-image" src="../Images/643cb452dfeb4e42bdb72b85de54cece.png" alt="SpaceX Launch App Gif" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="2506" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/spacex-launch-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif" data-orig-size="480,262" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Final SpaceX launch app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app-300x164.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif" decoding="async" loading="lazy" class="size-full wp-image-2506 aligncenter" src="../Images/643cb452dfeb4e42bdb72b85de54cece.png" alt="SpaceX Launch App Gif" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-app.gif"/></noscript>
+<h2 id="why-graphql-typescript">为什么是GraphQL + TypeScript？</h2>
+<p>GraphQL API需要是强类型的，并且数据是从单个端点提供的。通过在这个端点上调用一个<code>GET</code>请求，客户机可以接收一个完全自我记录的后端表示，其中包含所有可用的数据和相应的类型。</p>
+<p>使用<a href="https://github.com/dotansimha/graphql-code-generator" target="_blank" rel="noopener noreferrer"> GraphQL代码生成器</a>，我们扫描web应用程序目录以查找查询文件，并将它们与GraphQL API提供的信息进行匹配，从而为所有请求数据创建TypeScript类型。通过使用GraphQL，我们可以免费自动输入React组件的属性。这导致你的产品更少的错误和更快的迭代速度。</p>
+<h2 id="getting-started">TypesScript、React和GraphQL入门</h2>
+<p>我们将使用<a href="https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/"> create-react-app </a>和TypeScript设置来引导我们的应用程序。通过执行以下命令初始化您的应用程序:</p>
+<pre class="language-bash hljs">npx create-react-app graphql-typescript-react --template typescript
+// NOTE - you will need Node v8.10.0+ and NPM v5.2+</pre>
+<p>通过使用<code>--template typescript</code>标志，CRA将把你的文件生成为<code>.ts</code>和<code>.tsx</code>，并且它将创建一个<code>tsconfig.json</code>文件。</p>
+<p>导航到应用程序目录:</p>
+<pre class="language-shell hljs">cd graphql-typescript-react</pre>
+<p>现在我们可以安装额外的依赖项了。我们的应用程序将使用Apollo来执行GraphQL API请求。Apollo需要的附加库是<code>@apollo/client</code>和<code>graphql</code>。</p>
+<p><code>apollo-boost</code>包含查询API和在内存中本地缓存数据所需的工具；<code>react-apollo</code>为React提供绑定；<code>react-apollo-hooks</code>在React钩子中包装Apollo查询；<code>graphql-tag</code>用于建立我们的查询文档；而<code>graphql</code>是提供GraphQL实现细节的对等依赖:</p>
+<pre class="language-bash hljs">yarn add @apollo/client graphql</pre>
+<p><code>graphql-code-generator</code>用于自动化我们的打字稿工作流程。我们将安装codegen CLI来生成我们需要的配置和插件:</p>
+<pre class="language-bash hljs">yarn add -D @graphql-codegen/cli</pre>
+<p>通过执行以下命令来设置codegen配置:</p>
+<pre class="language-bash hljs">npx graphql-codegen init</pre>
+<p>这将启动CLI向导。请执行以下步骤:</p>
+<ol>
+<li>用React构建的应用程序。</li>
+<li>该模式位于<a href="https://spacexdata.herokuapp.com/graphql" target="_blank" rel="noopener noreferrer"> <code>https://spacexdata.herokuapp.com/graphql</code> </a>。</li>
+<li>将operations和fragments location设置为<code>./src/components/**/*.{ts,tsx}</code>,这样它将在我们所有的TypeScript文件中搜索查询声明。</li>
+<li>使用默认插件“TypeScript”、“TypeScript Operations”、“TypeScript React Apollo”</li>
+<li>将生成的目的地更新为<code>src/generated/graphql.tsx</code>(Apollo插件需要<code>.tsx</code>)。</li>
+<li>不要生成自省文件。</li>
+<li>使用默认的<code>codegen.yml</code>文件。</li>
+<li>制作您的跑步脚本<code>codegen</code>。</li>
+</ol>
+<p>现在，通过在您的CLI中运行<code>yarn</code>命令，安装CLI工具添加到您的<code>package.json</code>中的插件。</p>
+<p>我们还将对我们的<code>codegen.yml</code>文件进行一次更新，这样它也可以通过添加<code>withHooks: true</code>配置选项来生成类型化的React Hook查询。您的配置文件应该如下所示:</p>
+<pre class="language-yaml hljs">overwrite: true
+schema: 'https://spacexdata.herokuapp.com/graphql'
+documents: './src/components/**/*.ts'
+generates:
+  src/generated/graphql.tsx:
+    plugins:
+      - 'typescript'
+      - 'typescript-operations'
+      - 'typescript-react-apollo'
+    config:
+      withHooks: true</pre>
+<h2 id="graphql-queries-types">编写GraphQL查询和生成类型</h2>
+<p>GraphQL的一个主要好处是它利用了<a href="https://blog.logrocket.com/data-retrieval-in-graphql-with-react-apollo/">声明性数据获取</a>。我们能够编写与使用它们的组件共存的查询，并且UI能够准确地请求它需要呈现的内容。</p>
+<p>当使用REST APIs时，我们需要找到可能是最新的也可能不是最新的文档。如果REST有任何问题，我们将需要对API和控制台发出请求。</p>
+<p>GraphQL解决了这个问题，它允许您访问URL，查看完整定义的模式，并对其执行请求，所有这些都在UI中完成。访问<a href="https://spacexdata.herokuapp.com/graphql" target="_blank" rel="noopener noreferrer">https://spacexdata.herokuapp.com/graphql</a>,看看你到底要处理什么数据。</p>
+<p><img data-attachment-id="2508" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/spacex-launch-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-e1627573630548.png" data-orig-size="730,368" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SpaceX launch data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-1024x516.png" decoding="async" class="wp-image-2508 size-full aligncenter jetpack-lazy-image" src="../Images/f0cc73dad92b498e1911325967f5cde0.png" alt="SpaceX Launch Data" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-e1627573630548.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-e1627573630548.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="2508" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/spacex-launch-data/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-e1627573630548.png" data-orig-size="730,368" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="SpaceX launch data" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-300x151.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-1024x516.png" decoding="async" loading="lazy" class="wp-image-2508 size-full aligncenter" src="../Images/f0cc73dad92b498e1911325967f5cde0.png" alt="SpaceX Launch Data" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/spacex-launch-data-e1627573630548.png"/></noscript>
+<p>虽然我们有大量的SpaceX数据可供我们使用，但我们只会显示有关发射的信息。我们将有两个主要组件:</p>
+<ol>
+<li>用户可以点击<code>launches</code>列表了解更多信息。</li>
+<li>单个<code>launch</code>的详细简介。</li>
+</ol>
+<p>对于我们的第一个组件，我们将查询<code>launches</code>键并请求<code>flight_number</code>、<code>mission_name</code>和<code>launch_year</code>。我们将在一个列表中显示这些数据，当用户点击其中一项时，我们将通过<code>launch</code>键查询该火箭的更多数据。让我们在GraphQL playground中测试我们的第一个查询。</p>
+<p><img data-attachment-id="2509" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/first-launch-query-in-graphql-playground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-e1627573656258.png" data-orig-size="730,219" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="First launch query in GraphQL playground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-1024x307.png" decoding="async" class="wp-image-2509 size-full aligncenter jetpack-lazy-image" src="../Images/8e2e149df1b3cba4ad79ef0071f3e615.png" alt="First Launch Query In GraphQL Playground" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-e1627573656258.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-e1627573656258.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="2509" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/first-launch-query-in-graphql-playground/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-e1627573656258.png" data-orig-size="730,219" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="First launch query in GraphQL playground" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-1024x307.png" decoding="async" loading="lazy" class="wp-image-2509 size-full aligncenter" src="../Images/8e2e149df1b3cba4ad79ef0071f3e615.png" alt="First Launch Query In GraphQL Playground" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/first-launch-query-in-graphql-playground-e1627573656258.png"/></noscript>
+<p>为了编写我们的查询，我们首先创建一个<code>src/components</code>文件夹，然后创建一个<code>src/components/LaunchList</code>文件夹。在这个文件夹中，创建<code>index.tsx</code>、<code>LaunchList.tsx</code>、<code>query.ts</code>和<code>styles.css</code>文件。在<code>query.ts</code>文件中，我们可以从操场传输查询，并将其放在一个<code>gql</code>字符串中:</p>
+<pre><code>import { gql } from '@apollo/client';
+
+export const QUERY_LAUNCH_LIST = gql`
+  query LaunchList {
+    launches {
+      flight_number
+      mission_name
+      launch_year
+    }
+  }
+`;</code></pre>
+<p>我们的另一个查询将获得基于<code>flight_number</code>的单次发射的更详细的数据。由于这将由用户交互动态生成，我们将需要使用<a href="https://graphql.org/learn/queries/#variables" target="_blank" rel="noopener noreferrer"> GraphQL变量</a>。我们还可以在操场上用变量测试查询。</p>
+<p>在查询名称旁边，指定变量，并在前面加上一个<code>$</code>及其类型。然后，在主体内部，可以使用变量。对于我们的查询，我们通过将类型为<code>String!</code>的<code>$id</code>变量传递给它来设置启动的<code>id</code>。</p>
+<p><img data-attachment-id="2510" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/passing-id-as-query-var/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-e1627573675255.png" data-orig-size="730,321" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Passing ID as a query variable" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-1024x450.png" decoding="async" class="wp-image-2510 size-full aligncenter jetpack-lazy-image" src="../Images/d0f1f9c78669c308590974b299003f3f.png" alt="Passing ID As Query Variable" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-e1627573675255.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-e1627573675255.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="2510" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/passing-id-as-query-var/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-e1627573675255.png" data-orig-size="730,321" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Passing ID as a query variable" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-1024x450.png" decoding="async" loading="lazy" class="wp-image-2510 size-full aligncenter" src="../Images/d0f1f9c78669c308590974b299003f3f.png" alt="Passing ID As Query Variable" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/passing-id-as-query-var-e1627573675255.png"/></noscript>
+<p>我们将<code>id</code>作为变量传入，它对应于来自<code>LaunchList</code>查询的<code>flight_number</code>。<code>LaunchProfile</code>查询还将包含嵌套的对象/类型，我们可以通过指定括号内的键来获取值。</p>
+<p>例如，launch包含一个<code>rocket</code>定义(类型<code>LaunchRocket</code>，我们将要求它包含<code>rocket_name</code>和<code>rocket_type</code>。为了更好地理解<code>LaunchRocket</code>的可用字段，您可以使用旁边的模式导航器来理解可用数据。</p>
+<p>现在让我们将这个查询转移到我们的应用程序中。用<code>index.tsx</code>、<code>LaunchProfile.tsx</code>、<code>query.ts</code>和<code>styles.css</code>文件创建一个<code>src/components/LaunchProfile</code>文件夹。在<code>query.ts</code>文件中，我们粘贴来自操场的查询。</p>
+<pre>import { gql } from '@apollo/client';
+
+export const QUERY_LAUNCH_PROFILE = gql`
+  query LaunchProfile($id: String!) {
+    launch(id: $id) {
+      flight_number
+      mission_name
+      launch_year
+      launch_success
+      details
+      launch_site {
+        site_name
+      }
+      rocket {
+        rocket_name
+        rocket_type
+      }
+      links {
+        flickr_images
+      }
+    }
+  }
+`;</pre>
+<p>现在我们已经定义了查询，您终于能够生成您的TypeScript接口和类型化挂钩了。在您的终端中，执行:</p>
+<pre class="language-bash hljs">yarn codegen</pre>
+<p>在<code>src/generated/graphql.ts</code>中，您将找到定义应用程序所需的所有类型，以及获取GraphQL端点以检索数据的相应查询。</p>
+<p>这个文件往往很大，但其中充满了有价值的信息。我建议花点时间浏览一下，理解我们的codegen完全基于GraphQL模式创建的所有类型。</p>
+<p>例如，检查<code>type Launch</code>，它是GraphQL中的<code>Launch</code>对象的类型脚本表示，我们在操场上与它交互。还可以滚动到文件的底部，查看专门为我们将要执行的查询生成的代码——它已经创建了组件、hoc、类型化的props/query和类型化的hooks。</p>
+<h2 id="initializing-apollo-client">初始化阿波罗客户端</h2>
+<p>在我们的<code>src/index.tsx</code>中，我们需要初始化Apollo客户端，并使用<code>ApolloProvider</code>组件添加我们的<code>client</code>到React的上下文。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>我们初始化一个新的<code>ApolloClient</code>并给它我们的GraphQL API的URI，然后我们在上下文提供者中包装我们的<code>&lt;App /&gt;</code>组件。您的索引文件应该如下所示:</p>
+<pre>import * as React from 'react';
+import ReactDOM from 'react-dom';
+import { ApolloClient, ApolloProvider, InMemoryCache } from '@apollo/client';
+import './index.css';
+import App from './App';
+
+const client = new ApolloClient({
+  uri: 'https://spacexdata.herokuapp.com/graphql',
+  cache: new InMemoryCache(),
+});
+
+ReactDOM.render(
+  &lt;ApolloProvider client={client}&gt;
+  &lt;App /&gt;  
+  &lt;/ApolloProvider&gt;,
+  document.getElementById('root'),
+);
+</pre>
+<h2 id="building-components">构建我们的组件</h2>
+<p>我们现在已经准备好了通过Apollo执行GraphQL查询所需的一切。</p>
+<p>在<code>src/components/LaunchList/index.tsx</code>内部，我们将创建一个使用生成的<code>useLaunchListQuery</code>钩子的函数组件。查询挂钩返回<code>data</code>、<code>loading</code>和<code>error</code>值。我们将检查容器组件中的<code>loading</code>和<code>error</code>，并将<code>data</code>传递给我们的表示组件。</p>
+<p>我们将通过使用这个组件作为容器/智能组件来保持关注点的分离，并且我们将把数据传递给一个表示/哑组件，该组件仅仅显示它已经被给予的内容。我们还将显示等待数据时的基本加载和错误状态。</p>
+<p>您的容器组件应该如下所示:</p>
+<pre>import * as React from 'react';
+import { useLaunchListQuery } from '../../generated/graphql';
+import LaunchList from './LaunchList';
+
+const LaunchListContainer = () =&gt; {
+  const { data, error, loading } = useLaunchListQuery();
+
+  if (loading) {
+    return &lt;div&gt;Loading...&lt;/div&gt;;
+  }
+
+  if (error || !data) {
+    return &lt;div&gt;ERROR&lt;/div&gt;;
+  }
+
+  return &lt;LaunchList data={data} /&gt;;
+};
+
+export default LaunchListContainer;</pre>
+<p>我们的表示组件将使用我们的类型化的<code>data</code>对象来构建UI。我们用<code>&lt;ol&gt;</code>创建一个有序列表，并映射我们的发布以显示<code>mission_name</code>和<code>launch_year</code>。</p>
+<p>我们的<code>src/components/LaunchList/LaunchList.tsx</code>会是这样的:</p>
+<pre>import * as React from 'react';
+import { LaunchListQuery } from '../../generated/graphql';
+import './styles.css';
+
+interface Props {
+  data: LaunchListQuery;
+}
+
+const className = 'LaunchList';
+
+const LaunchList: React.FC&lt;Props&gt; = ({ data }) =&gt; (
+  &lt;div className={className}&gt;
+    &lt;h3&gt;Launches&lt;/h3&gt;
+    &lt;ol className={`${className}__list`}&gt;
+      {!!data.launches &amp;&amp;
+        data.launches.map(
+          (launch, i) =&gt;
+            !!launch &amp;&amp; (
+              &lt;li key={i} className={`${className}__item`}&gt;
+                {launch.mission_name} ({launch.launch_year})
+              &lt;/li&gt;
+            ),
+        )}
+    &lt;/ol&gt;
+  &lt;/div&gt;
+);
+
+export default LaunchList;</pre>
+<p>如果您使用的是VS代码，IntelliSense将准确显示可用的值，并提供一个自动完成列表，因为我们使用的是TypeScript。它还会警告我们正在使用的数据可能是<code>null</code>或<code>undefined</code>。</p>
+<p><img data-attachment-id="2511" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/intellisense-vs-code-typescript/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-e1627573691268.png" data-orig-size="730,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Autocompleted list of values in intellisense" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-300x109.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-1024x371.png" decoding="async" class="wp-image-2511 size-full aligncenter jetpack-lazy-image" src="../Images/43ea6234137249f26c7de576ef705b09.png" alt="Autocompleted List Of Values In VS Code" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-e1627573691268.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-e1627573691268.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="2511" data-permalink="https://blog.logrocket.com/build-graphql-react-app-typescript/intellisense-vs-code-typescript/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-e1627573691268.png" data-orig-size="730,264" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Autocompleted list of values in intellisense" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-300x109.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-1024x371.png" decoding="async" loading="lazy" class="wp-image-2511 size-full aligncenter" src="../Images/43ea6234137249f26c7de576ef705b09.png" alt="Autocompleted List Of Values In VS Code" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/intellisense-vs-code-typescript-e1627573691268.png"/></noscript>
+<p>说真的，这有多神奇？我们的编辑将为我们编码。同样，如果你需要一个类型或者函数的定义，你可以<code>Cmd + t</code>，用鼠标悬停它，它会给你所有的细节。</p>
+<p>我们还将添加一些CSS样式，这将显示我们的项目，并允许它们在列表溢出时滚动。在<code>src/components/LaunchList/styles.css</code>中，添加以下代码:</p>
+<pre class="language-css hljs">.LaunchList {
+  height: 100vh;
+  overflow: hidden auto;
+  background-color: #ececec;
+  width: 300px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.LaunchList__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.LaunchList__item {
+  padding-top: 20px;
+  padding-bottom: 20px;
+  border-top: 1px solid #919191;
+  cursor: pointer;
+}</pre>
+<p>现在我们将构建我们的profile组件来显示关于发布的更多细节。这个组件的<code>index.tsx</code>文件基本相同，只是我们使用了<code>Profile</code>查询和组件。我们还将一个变量传递给React挂钩，用于启动的<code>id</code>。现在，我们将把它硬编码到<code>'42'</code>中，然后在我们设计好应用程序后添加动态功能。</p>
+<p>在<code>src/components/LaunchProfile/index.tsx</code>中，添加以下代码:</p>
+<pre>import * as React from 'react';
+import { useLaunchProfileQuery } from '../../generated/graphql';
+import LaunchProfile from './LaunchProfile';
+
+const LaunchProfileContainer = () =&gt; {
+  const { data, error, loading } = useLaunchProfileQuery({ variables: { id: '42' } });
+
+  if (loading) {
+    return &lt;div&gt;Loading...&lt;/div&gt;;
+  }
+
+  if (error) {
+    return &lt;div&gt;ERROR&lt;/div&gt;;
+  }
+
+  if (!data) {
+    return &lt;div&gt;Select a flight from the panel&lt;/div&gt;;
+  }
+
+  return &lt;LaunchProfile data={data} /&gt;;
+};
+
+export default LaunchProfileContainer;</pre>
+<p>我们现在需要创建我们的表示组件。它将在UI顶部显示启动名称和详细信息，然后在描述下面有一个启动图像网格。</p>
+<p><code>src/components/LaunchProfile/LaunchProfile.tsx</code>组件将如下所示:</p>
+<pre>import * as React from 'react';
+import { LaunchProfileQuery } from '../../generated/graphql';
+import './styles.css';
+
+interface Props {
+  data: LaunchProfileQuery;
+}
+
+const className = 'LaunchProfile';
+
+const LaunchProfile: React.FC&lt;Props&gt; = ({ data }) =&gt; {
+  if (!data.launch) {
+    return &lt;div&gt;No launch available&lt;/div&gt;;
+  }
+
+  return (
+    &lt;div className={className}&gt;
+      &lt;div className={`${className}__status`}&gt;
+        &lt;span&gt;Flight {data.launch.flight_number}: &lt;/span&gt;
+        {data.launch.launch_success ? (
+          &lt;span className={`${className}__success`}&gt;Success&lt;/span&gt;
+        ) : (
+          &lt;span className={`${className}__failed`}&gt;Failed&lt;/span&gt;
+        )}
+      &lt;/div&gt;
+      &lt;h1 className={`${className}__title`}&gt;
+        {data.launch.mission_name}
+        {data.launch.rocket &amp;&amp;
+          ` (${data.launch.rocket.rocket_name} | ${data.launch.rocket.rocket_type})`}
+      &lt;/h1&gt;
+      &lt;p className={`${className}__description`}&gt;{data.launch.details}&lt;/p&gt;
+      {!!data.launch.links &amp;&amp; !!data.launch.links.flickr_images &amp;&amp; (
+        &lt;div className={`${className}__image-list`}&gt;
+          {data.launch.links.flickr_images.map((image, i) =&gt;
+            image ? (
+              &lt;img
+                src={image}
+                className={`${className}__image`}
+                key={image}
+                alt={`${data.launch?.mission_name} ${i}`}
+              /&gt;
+            ) : null,
+          )}
+        &lt;/div&gt;
+      )}
+    &lt;/div&gt;
+  );
+};
+
+export default LaunchProfile;
+</pre>
+<p>最后一步是用CSS样式化这个组件。将以下内容添加到您的<code>src/components/LaunchProfile/styles.css</code>文件中:</p>
+<pre class="language-css hljs">.LaunchProfile {
+  height: 100vh;
+  max-height: 100%;
+  width: calc(100vw - 300px);
+  overflow: hidden auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.LaunchProfile__status {
+  margin-top: 40px;
+}
+
+.LaunchProfile__title {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.LaunchProfile__success {
+  color: #2cb84b;
+}
+
+.LaunchProfile__failed {
+  color: #ff695e;
+}
+
+.LaunchProfile__image-list {
+  display: grid;
+  grid-gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 40px;
+  padding-bottom: 100px;
+}
+
+.LaunchProfile__image {
+  width: 100%;
+}</pre>
+<p>现在我们已经完成了组件的静态版本，我们可以在UI中查看它们。我们将在<code>src/App.tsx</code>文件中包含我们的组件，并将<code>&lt;App /&gt;</code>转换成一个函数组件。我们使用一个函数组件来简化它，并允许我们在添加点击功能时使用钩子。</p>
+<pre>import * as React from 'react';
+import LaunchList from './components/LaunchList';
+import LaunchProfile from './components/LaunchProfile';
+
+import './App.css';
+
+const App = () =&gt; {
+  return (
+    &lt;div className="App"&gt;
+      &lt;LaunchList /&gt;
+      &lt;LaunchProfile /&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default App;</pre>
+<p>为了得到我们想要的样式，我们将把<code>src/App.css</code>改为如下:</p>
+<pre class="language-css hljs">.App {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}</pre>
+<p>在您的终端中执行<code>yarn start</code>，在您的浏览器中导航到<code><a href="http://localhost:3000" rel="nofollow">http://localhost:3000</a></code>，您应该会看到您的应用程序的基本版本！</p>
+<h2 id="user-interaction">添加用户交互</h2>
+<p>现在，我们需要添加功能，以便在用户单击面板中的项目时获取完整的启动数据。我们将在<code>App</code>组件中创建一个钩子来跟踪航班ID，并将其传递给<code>LaunchProfile</code>组件来重新获取发射数据。</p>
+<p>在我们的<code>src/App.tsx</code>中，我们将添加<code>useState</code>来维护和更新ID的状态。我们还将使用名为<code>handleIdChange</code>的<code>useCallback</code>作为点击处理程序，当用户从列表中选择一个时更新ID。我们将<code>id</code>传递给<code>LaunchProfile</code>，将<code>handleIdChange</code>传递给<code>&lt;LaunchList /&gt;</code>。</p>
+<p>更新后的<code>&lt;App /&gt;</code>组件应该如下所示:</p>
+<pre>const App = () =&gt; {
+  const [id, setId] = React.useState(42);
+  const handleIdChange = React.useCallback(newId =&gt; {
+    setId(newId);
+  }, []);
+
+  return (
+    &lt;div className="App"&gt;
+      &lt;LaunchList handleIdChange={handleIdChange} /&gt;
+      &lt;LaunchProfile id={id} /&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>在<code>LaunchList.tsx</code>组件中，我们需要为<code>handleIdChange</code>创建一个类型，并将其添加到我们的props析构中。然后，在我们的<code>&lt;li&gt;</code>航班项目上，我们将执行<code>onClick</code>回调中的函数。</p>
+<pre>export interface OwnProps {
+  handleIdChange: (newId: number) =&gt; void;
+}
+
+interface Props extends OwnProps {
+  data: LaunchListQuery;
+}
+
+// ...
+const LaunchList: React.FC&lt;Props&gt; = ({ data, handleIdChange }) =&gt; (
+  
+// ...
+&lt;li
+  key={i}
+  className={`${className}__item`}
+  onClick={() =&gt; handleIdChange(launch.flight_number!)}
+&gt;</pre>
+<p>在<code>LaunchList/index.tsx</code>里面，一定要从<code>LaunchList/LaunchList.tsx</code>导入<code>OwnProps</code>声明，键入要传递给容器组件的<code>props</code>，然后将道具展开到<code>&lt;LaunchList data={data} {...props} /&gt;</code>。</p>
+<p>最后一步是在<code>id</code>改变时<code>refetch</code>数据。在<code>Launch/Profile/index.tsx</code>文件中，我们将使用<code>useEffect</code>，它管理React生命周期，并在<code>id</code>改变时触发获取。以下是实现提取所需的唯一更改:</p>
+<pre>interface OwnProps {
+  id: number;
+}
+
+const LaunchProfileContainer: React.FC&lt;OwnProps&gt; = ({ id }) =&gt; {
+  const { data, error, loading, refetch } = useLaunchProfileQuery({
+    variables: { id: String(id) },
+  });
+  React.useEffect(() =&gt; {
+    refetch({ id: String(id) });
+  }, [refetch, id]);</pre>
+<p>因为我们已经将表示从数据中分离出来，所以我们不需要对我们的<code>&lt;LaunchProfile /&gt;</code>组件做任何更新；我们只需要更新<code>index.tsx</code>文件，这样当选择的<code>flight_number</code>改变时，它可以重新提取完整的启动数据。</p>
+<p>现在你有了！如果您遵循这些步骤，您应该有一个功能完整的GraphQL应用程序。如果您在任何地方迷路了，您可以在<a href="https://github.com/treyhuffine/graphql-react-typescript-spacex" target="_blank" rel="noopener noreferrer">源代码</a>中找到工作解决方案。</p>
+<h2>结论</h2>
+<p>一旦配置好app，我们可以看到开发速度快得不可思议。我们可以轻松地构建一个数据驱动的UI。GraphQL允许我们定义我们在组件中需要的数据，并且我们可以无缝地在我们的组件中使用它作为道具。生成的TypeScript定义对我们编写的代码给予了极高的信任。</p>
+<p>如果您希望更深入地了解项目，下一步将是使用API中的附加字段添加分页和更多的数据连接。要对启动列表进行分页，您需要获取当前列表的长度，并将<code>offset</code>变量传递给<code>LaunchList</code>查询。</p>
+<p>我鼓励您更深入地探索它，并编写您自己的查询，这样您就可以巩固所介绍的概念。</p>
+<p><i>如果您觉得这篇文章很有帮助，<a href="https://medium.com/@treyhuffine" target="_blank" rel="noopener noreferrer">请关注我的Medium </a>，获取更多关于React、Node.js和JavaScript的文章！你也可以在推特上找到我。</i></p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

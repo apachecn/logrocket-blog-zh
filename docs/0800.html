@@ -1,0 +1,240 @@
+<html>
+<head>
+<title>Deploying state machines with frontend frameworks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用前端框架部署状态机</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/#0001-01-01">https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在现代web应用程序中，有许多方式来表示状态。在React中，您可以在组件中本地封装您的状态，或者使用像<a href="https://redux.js.org/" target="_blank" rel="noopener noreferrer"> Redux </a>这样的状态管理库来全局管理您的状态。无论应用程序的状态以哪种方式表示，它通常由组件表示，这些组件可以被改变以确定应用程序如何被查看。</p>
+<p>构建应用程序时，可能需要为应用程序的每种状态准备一个样式表。Web应用程序已经变得越来越复杂，为应用程序中的每种状态形式创建一个样式表可能会导致复杂化。在这篇博文中，我们将学习如何使用有限状态机在我们的应用程序中创建交互式的复杂转换。</p>
+<h2>何时使用有限状态机</h2>
+<p>首先，有限状态机是解释系统行为的模型，该系统在某个时间点只能处于一种状态。状态机的工作是读取一系列输入，然后针对每个输入切换到不同的状态。比方说，你有一辆由状态机表示的汽车，它要么在移动，处于过渡状态(缓慢停止或缓慢启动)，要么静止不动。它不可能同时处于所有四种状态，也不可能既不运动，在停止和开始之间转换，在开始和停止之间转换，也不静止。</p>
+<p>当构建一个前端应用程序时，你必须用事件监听器和<code>if</code>或<code>while</code>表达式为你的应用程序所处的每个不同状态创建事件和条件。你的应用程序的扩展可以看到你做的一些表达相互矛盾。<a href="https://xstate.js.org/docs/" target="_blank" rel="noopener noreferrer"> XState </a>让您为每个州实现一个模型，并处理不同州之间的转移。</p>
+<h2>使用XState</h2>
+<p>为了展示XState如何与前端框架一起工作，我们将使用XState和React构建一个采访页面的概念。该页面将呈现一个问题和一个侧边栏，让用户有机会偷看问题的答案。在任何给定的时间点，用户是:</p>
+<ul>
+<li>查看他们将要回答的问题</li>
+<li>查看他们不理解的问题的答案</li>
+<li>从查看问题过渡到查看答案</li>
+<li>从查看答案过渡到查看问题</li>
+</ul>
+<p>对于动画，以及在我们的组件中包含CSS样式，我们将使用以下内容:</p>
+<ul>
+<li><a href="https://www.npmjs.com/package/@emotion/core" target="_blank" rel="noopener noreferrer"> @emotion/core </a> —一个为用JavaScript编写CSS样式而设计的样式合成库</li>
+<li>gsap  —一个为JavaScript对象制作动画的库</li>
+</ul>
+<p>假设我们已经创建了一个React应用程序(参见如何做这个<a href="https://create-react-app.dev/docs/getting-started/" target="_blank" rel="noopener noreferrer">这里</a>，我们将安装<code>XState</code>和<code>xstate/react</code>，这是一组在React应用程序中使用XState的实用程序:</p>
+<pre>npm i xstate @xstate/react</pre>
+<h2>创建我们的组件</h2>
+<p>我们将创建的第一个组件是一个用于过渡的按钮。在这个按钮组件中，我们将从主组件中传递道具。它将包含我们的状态机以及我们调用的函数:</p>
+<pre>// Button.jsx
+
+/** @jsx jsx */
+import { css, jsx } from "@emotion/core";
+export const Button = props =&gt; (
+  &lt;button
+    {...props}
+  &gt;
+    {props.children}
+  &lt;/button&gt;
+);</pre>
+<p>接下来，我们将创建一个<code>Test</code>组件，它将包含我们的应用程序主体以及在转换过程中可以被我们的状态机调用的函数。让我们定义两个函数——<code>openAnswer</code>和<code>closeAnswer</code>，用于在问题和答案之间切换:</p>
+<pre>// Test.jsx
+
+const openAnswer = useCallback(
+    (context, event) =&gt; {
+      return new Promise(resolve =&gt; {
+        TweenMax.to(element.current, 0.5, {
+          x: 0,
+          backdropFilter: "blur(2px)",
+          ease: Elastic.easeOut.config(1, 1),
+          onComplete: resolve
+        });
+      });
+    },
+    [element]
+  );
+
+  const closeAnswer = useCallback(
+    (context, event) =&gt; {
+      return new Promise(resolve =&gt; {
+        TweenMax.to(element.current, 0.5, {
+          x: -290,
+          backdropFilter: "blur(0px)",
+          ease: Elastic.easeOut.config(1, 1),
+          onComplete: resolve
+        });
+      });
+    },
+    [element]
+  );</pre>
+<p>在上面的代码示例中，我们使用了<code><a href="https://reactjs.org/docs/hooks-reference.html#usecallback" target="_blank" rel="noopener noreferrer">useCallback</a></code>钩子来跟踪变化，并且只在值发生变化时更新，以防止不必要的重新渲染。下图描绘了当<code>openAnswer</code>中的钩子被触发时应用程序的状态:</p>
+<p><img data-attachment-id="17114" data-permalink="https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/openanswer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openanswer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png" decoding="async" class="aligncenter size-full wp-image-17114 jetpack-lazy-image" src="../Images/861eb60c7707ea29a8672ce03a5d4b57.png" alt="state of the app when the hook in openAnswer is triggered" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17114" data-permalink="https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/openanswer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openanswer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-17114" src="../Images/861eb60c7707ea29a8672ce03a5d4b57.png" alt="state of the app when the hook in openAnswer is triggered" srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/openanswer.png"/></noscript>
+<p>类似的图像显示了<code>closeAnswer</code>中的钩子被触发的时间:</p>
+<p><img data-attachment-id="17115" data-permalink="https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/closeanswer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="closeanswer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png" decoding="async" class="aligncenter size-full wp-image-17115 jetpack-lazy-image" src="../Images/4e01177544d7a7378d3717dbe8bd24ee.png" alt="closeAnswer is triggered" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="17115" data-permalink="https://blog.logrocket.com/deploying-state-machines-with-frontend-frameworks/closeanswer/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png" data-orig-size="730,416" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="closeanswer" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-17115" src="../Images/4e01177544d7a7378d3717dbe8bd24ee.png" alt="closeAnswer is triggered" srcset="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/04/closeanswer.png"/></noscript>
+<h2>设置我们的状态机并配置视图</h2>
+<p>我们将指定我们的应用程序可以处于的所有四种状态，初始状态为面试问题的视图:</p>
+<pre>&lt;!--Test.jsx --&gt;
+
+const testMachine = Machine({
+  initial: 'QUESTIONS',
+  states: {
+    QUESTIONS: {},
+    VIEWING: {},
+    ANSWERS: {},
+    RETURNING: {},
+  },
+})</pre>
+<p>接下来，我们将在状态机中配置我们希望应用程序采用的转换路径。我们将从<code>QUESTIONS</code>到<code>ANSWERS</code>，用<code>VIEWING</code>和<code>RETURNING</code>作为过渡:</p>
+<pre>&lt;!--Test.jsx --&gt;
+
+const testMachine = Machine({
+  initial: 'QUESTIONS',
+  states: {
+    QUESTIONS: {
+      on: {
+        ANSWERS: 'VIEWING',
+      },
+    },
+    VIEWING: {
+      on: {
+        REPEAT: 'RETURNING',
+      },
+    },
+    ANSWERS: {
+      on: {
+        REPEAT: 'RETURNING',
+      },
+    },
+    RETURNING: {
+      on: {
+       ANSWERS: 'VIEWING',
+      },
+    },
+  },
+})</pre>
+<p>为了完成我们的状态机，我们需要正确处理发生在<code>VIEWING</code>和<code>RETURNING</code>状态之间的转换。通过其<a href="https://xstate.js.org/docs/guides/communication.html#the-invoke-property" target="_blank" rel="noopener noreferrer"> invoke </a>属性，XState能够创建能够返回承诺的函数。让我们添加之前定义的在问题和答案之间切换的函数:</p>
+<pre>&lt;!--Test.jsx --&gt;
+
+const testMachine = Machine({
+  initial: "QUESTIONS",
+  states: {
+    QUESTIONS: {
+      on: {
+        ANSWERS: "VIEWING"
+      }
+    },
+    VIEWING: {
+      invoke: {
+        src: "openAnswer",
+        onDone: { target: "ANSWERS" }
+      },
+      on: {
+        REPEAT: "RETURNING"
+      }
+    },
+    ANSWERS: {
+      on: {
+        REPEAT: "RETURNING"
+      }
+    },
+    RETURNING: {
+      invoke: {
+        src: "closeAnswer",
+        onDone: { target: "QUESTIONS" }
+      },
+      on: {
+        ANSWERS: "VIEWING"
+      }
+    }
+  }
+});</pre>
+<p>现在我们已经完成了状态的定义，我们将使用<code>useMachine</code>钩子来配置我们的状态机的服务。这暴露了我们的应用程序的当前状态以及它可以被设置为的可能状态:</p>
+<pre>&lt;!--Test.jsx --&gt;
+
+  const [current, send] = useMachine(testMachine, {
+    services: {
+      openAnswer,
+      closeAnswer
+    }
+  });</pre>
+<p>接下来，我们需要设置我们的用户界面，以便与我们到目前为止创建的状态和控件进行通信。在<code>Test.jsx</code>中，设置一个三元运算符来选择当<code>ANSWERS</code>按钮被点击时，主页面上的视图应该是什么:</p>
+<pre>&lt;!--Test.jsx --&gt;
+
+ const testAnswers =
+ current.matches("ANSWERS") || current.matches("VIEWING") ? "REPEAT" : "ANSWERS";
+
+ let label = testAnswers === "ANSWERS" ? "ANSWERS" : "REPEAT";</pre>
+<p>接下来，我们将创建我们的按钮。单击时，它应该生成与我们刚刚定义的三元运算符对齐的转换:</p>
+<pre>&lt;!-- Test.jsx --&gt;
+
+return (
+    &lt;div
+      ref={element}
+      css={css`
+        color: #fff;
+        z-index: 9999;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 380px;
+        transform: translateX(-290px);
+        display: grid;
+        grid-template-rows: 40px auto;
+        align-content: start;
+        justify-content: end;
+      `}
+    &gt;
+      &lt;Button
+        onClick={() =&gt; {
+          send(testAnswers);
+        }}
+      &gt;
+        {label}
+      &lt;/Button&gt;
+    &lt;/div&gt;
+  );</pre>
+<p>在下面的剪辑中，当单击按钮时，显示该应用程序状态在两种状态之间转换的标题——按钮的状态也会根据我们在三元运算符中的设置而改变:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/_FhltGQhM4A?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<p>最后，我们将创建一个功能性的父组件，它处理我们的<code>Test</code>组件中的多个常量，并通过一个<code>useState</code>钩子返回我们的应用程序的启动状态:</p>
+<pre>&lt;!-- index.js --&gt;
+
+import { css, jsx } from "@emotion/core";
+import { useState } from "react";
+import { Test } from "./Test";
+
+function App() {
+  const [testStatus, setTestStatus] = useState();
+  return (
+    &lt;div&gt;
+      &lt;Test setStatus={setTestStatus} /&gt;
+      &lt;div&gt;
+          &lt;div&gt;
+            {testStatus}
+          &lt;/div&gt;
+          &lt;div&gt;
+            &lt;span role="img" aria-label="paper"&gt;
+           📝
+            &lt;/span&gt;
+            The inner diameter of a test tube can be measured accurately using a:
+            &lt;br&gt;&lt;/br&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>我们终于完成了！这是完成的应用程序，请注意所有相关部分的状态同时切换:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/s-UhMdm05RY?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h2>结论</h2>
+<p>在web应用程序中处理状态时，没有统一的解决方案。只要确保你的架构是正确的，并且你在每个组件中创建的条件并不矛盾。XState有助于使这些条件具体化。围绕已经存在一段时间的有限状态机的概念构建，它非常稳定。如果你想更多地了解代码示例，你可以在CodeSandbox 上查看完整的工作演示<a href="https://codesandbox.io/s/interview-model-ykqks" target="_blank" rel="noopener noreferrer">。</a></p>
+<p> </p>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

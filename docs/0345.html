@@ -1,0 +1,184 @@
+<html>
+<head>
+<title>How to convert your existing Redux containers to Hooks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何将您现有的Redux容器转换为Hooks - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/convert-existing-redux-containers-hooks/#0001-01-01">https://blog.logrocket.com/convert-existing-redux-containers-hooks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按:</em> </strong> <em>本文更新于2022年5月12日，包含更多关于Redux的最新信息。</em></p>
+<h2 id="introduction">介绍</h2>
+<p>随着<a href="https://blog.logrocket.com/tag/react/" target="_blank" rel="noopener"> React </a>在前端工程领域加快步伐，新的模式出现了，以帮助我们的应用程序更具可伸缩性和可维护性。随着像<a href="https://blog.logrocket.com/smarter-redux-redux-toolkit/" target="_blank" rel="noopener"> Redux </a>和MobX这样的全球状态管理工具的引入，其中一些模式扩展了它们在整个行业的影响力。</p>
+<p>人类的大脑有一种认知倾向，在给定的情况下保留有限数量的事物。这导致我们将程序分成更小的单元，这样我们就可以一次思考、编码、测试和修复一件事情，有时这被称为关注点分离。</p>
+<h2>内容</h2>
+
+<h2 id="changing-patterns-socs">改变SOC的模式</h2>
+<p>随着Redux的引入，容器和表示组件的模式在2015年夏天出现了，当时Dan Abramov写了一篇关于它的<a href="https://medium.com/@dan_abramov/smart-and-dumb-components-7ca2f9a7c7d0" target="_blank" rel="noopener">惊人的帖子</a>。</p>
+<p>该模式的主要关注点是将您的业务或全局有状态逻辑从您的表示组件中分离出来。这使得开发人员更容易在任何给定的时间只关注相关的东西；一部分的变化不会对另一部分产生任何变化。</p>
+<p>因此，编写或修复表示层的开发人员必须确保a11y标准和基于平台的优化能够提供更好的美观性，而编写业务逻辑的开发人员必须确保交付给表示层组件的数据是从给定的道具中正确导出的。</p>
+<p>在React 16.8中引入钩子之后，事情发生了很大的变化，正如Dan在同一篇博客的更新中所描述的:</p>
+<blockquote><p>2019年更新:我很久以前写了这篇文章，我的观点也随之发展。特别是，我不建议再这样拆分你的组件了。如果您发现这在您的代码库中很自然，这种模式会很方便。但我已经多次看到它在没有任何必要的情况下，以近乎教条的热情被强制执行。我发现它有用的主要原因是因为它让我将复杂的有状态逻辑与组件的其他方面分开。Hooks让我做同样的事情，没有任意的划分。</p></blockquote>
+<p>但是将业务逻辑与表示组件分离的核心概念仍然可以使我们的许多复杂问题更容易解决。</p>
+<h2 id="redux-hooks-better-functional-components">Redux挂钩:更好的功能组件</h2>
+<p>自从Hooks发布以来，React社区很快就采用了它。同样，React Redux也在他们现有的API中添加了钩子。有了更好的开发者体验和性能提升，这个API为更倾向于钩子的代码库带来了一些巨大的改进。</p>
+<p>基于钩子，你的组件现在没有连接钩子的麻烦。在ducks模式中，我们的Redux商店被分成称为“ducks”的小块。鸭子是UI层商店的供应商。对于类组件，<code>connect()</code>方法用于向ducks提供状态和动作。connect API的这些部分现在可以作为两个独立的挂钩使用。现在使用<code>useSelector</code>钩子来选择状态，而动作分派器现在可以通过<code>useDispatch</code>钩子来使用。</p>
+<h2 id="useselector"><code>useSelector()</code></h2>
+<p>这几乎是connect方法中<code>mapStateToProps</code>(第一个参数)的概念替换。<a href="https://react-redux.js.org/api/hooks#useselector" target="_blank" rel="noopener">这个钩子</a>需要两个函数作为参数:一个选择器函数和一个等式函数。选择器将使用整个Redux存储状态作为其唯一的参数来调用，并且必须返回组件所使用的状态的相关部分。</p>
+<p>每当选择器功能被执行时，相等功能将被提供当前和新的状态。如果它返回一个假值，组件将被强制重新渲染；否则，组件将不会重新呈现。默认情况下，相等函数是两个状态之间的浅层比较。</p>
+<h3><code>useSelector()</code>中的新功能</h3>
+<p>在许多应用程序中使用Redux的大量经验之后，考虑到基于Hooks的API的性质，Redux团队对<code>useSelector</code>进行了一些明智的修改，与<code>mapStateToProps</code>的工作方式进行了比较。</p>
+<ul>
+<li>选择器函数可以返回任何值，而不仅仅是对象</li>
+<li>这个API中没有参数<code>ownProps</code>,因为props在函数组件中是可用的，并且可以通过闭包使用</li>
+<li>等式函数可以修改:它可以是Lodash的<code>isEqual</code>或Immutable的匹配器</li>
+</ul>
+<h2 id="usedispatch"><code>useDispatch()</code></h2>
+<p>connect方法的第二个参数是一个<a href="https://react-redux.js.org/api/hooks#usedispatch" target="_blank" rel="noopener">函数，它为我们的组件提供了动作分派器</a>。经过<a href="https://github.com/reduxjs/react-redux/issues/1252#issuecomment-488160930" target="_blank" rel="noopener">深思熟虑的辩论</a>和Redux的Twitter社区的大多数共识，Redux采用了<code>useDispatch</code>而不是<code>useActions</code>。它将一个action对象作为参数，然后提供给我们的reducer，以反映全局状态的变化。</p>
+<h2 id="containers-hooks-smooth-transformation">容器和挂钩:顺利转型</h2>
+<p>这种转变通常会让开发人员对他们现有的代码库更加谨慎。但是由于所有这些新特性在性能和可伸缩性方面给了应用程序很大的提升，没有人想错过它们。</p>
+<p>谈到向后兼容性，React是最好的库之一。正如React团队所提到的，基于类的组件不会消失，在可预见的未来，即将发布的React版本将会支持它们。</p>
+<p>但是如果你想利用Hooks给React生态系统带来的一些很酷的好处，那么这里有一个指南来启动你的转变。</p>
+<p>让我们考虑一个获取并提供黑客新闻条目列表的容器的例子。我们将探索如何将我们的容器转换成钩子，并保持它们在我们现有的代码库中工作。</p>
+<p>我们的基于类的容器带有用类实现的子属性，看起来像这样:</p>
+<pre class="language-javascript hljs">/*
+ *
+ * HackerNews
+ *
+ */
+
+import React from 'react';
+import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
+import { createStructuredSelector } from 'reselect';
+import { compose } from 'redux';
+import { injectReducer, injectSaga } from "redux-injectors";
+
+import reducer from './reducer';
+import saga from './sagas';
+
+import makeSelectHackerNews from './selectors';
+import { fetch } from './actions';
+
+class HackerNews extends React.PureComponent {
+  componentDidMount() {
+    const { hackerNews } = this.props;
+    if (!hackerNews.data.length &amp;&amp; !hackerNews.fetching) {
+      this.props.fetch({
+        offset: 0,
+        limit: 15,
+      });
+    }
+  }
+
+  render() {
+    const { fetching, data, error } = this.props.hackerNews;
+    return this.props.children.call(null, {
+      fetching,
+      data,
+      error,
+    });
+  }
+}
+
+HackerNews.propTypes = {
+  hackerNews: PropTypes.object.isRequired,
+  children: PropTypes.func.isRequired,
+  fetch: PropTypes.func.isRequired,
+};
+
+const mapStateToProps = createStructuredSelector({
+  hackerNews: makeSelectHackerNews(),
+});
+
+function mapDispatchToProps(dispatch) {
+  return {
+    fetch: (data) =&gt; dispatch(fetch(data)),
+  };
+}
+const withConnect = connect(
+  mapStateToProps,
+  mapDispatchToProps,
+);
+const withReducer = injectReducer({ key: 'hackerNews', reducer });
+const withSaga = injectSaga({ key: 'hackerNews', saga });
+export default compose(
+  withReducer,
+  withSaga,
+  withConnect,
+)(HackerNews);
+</pre>
+<p>改造后会是这样的:</p>
+<pre class="language-javascript hljs">/*
+ *
+ * HackerNews
+ *
+ */
+
+import React from 'react';
+import { useSelector, useDispatch, shallowEqual } from 'react-redux';
+import { createStructuredSelector } from 'reselect';
+import { useInjectReducer, useInjectSaga } from "redux-injectors";
+
+import reducer from './reducer';
+import saga from './sagas';
+import makeSelectHackerNews from './selectors';
+import { fetch } from './actions';
+
+function useHackerNews(props) {
+  useInjectReducer({ key: "hackerNews", reducer: reducer });
+  useInjectSaga({ key: "hackerNews", saga: saga });
+
+  const hackerNews = useSelector&lt;&gt;(makeSelectHackerNews, shallowEqual);
+  const dispatch = useDispatch();
+
+  useEffect(() =&gt; {
+    if (!hackerNews.data.length &amp;&amp; !hackerNews.fetching) {
+      dispatch(fetch({
+        offset: 0,
+        limit: 15,
+      }));
+    }    
+  }, [hackerNews]);
+
+  return hackerNews;
+}
+
+export default function HackerNews({ children, ...props }) {
+  const hackerNews = useHackerNews(props);
+  return children(hackerNews);
+};
+</pre>
+<p>如您所见，以前放在组件类之外的代码现在是功能组件的一部分。我们已经将之前使用的相同的选择器方法移到了新的<code>useSelector</code>钩子上，现在通过<code>useDispatch</code>钩子可以使用相同的分派方法。</p>
+<p>我们的新容器为我们提供了一个选项，将它用作新功能组件的定制挂钩，并保持基于props的子组件像以前一样平稳运行。</p>
+<h2 id="what-are-upsides">有哪些好处？</h2>
+<p>与基于类的组件相比，功能组件的一个主要优点是代码行更少。与基于类的组件相比，这给了你稍微好一点的性能，并且它可以在大规模应用中产生显著的差异。</p>
+<p>钩子还通过将连接的逻辑组合在一起使我们的组件更具可读性。在我们的容器中，我们不必向下滚动来理解<code>mapStateToProps</code>或<code>mapDispatchToProps</code>。除此之外，我们去掉了连接的hoc，这将减少组件层次结构中的节点数量。</p>
+<p>钩子现在是Redux推荐的方法，因为<a href="https://react-redux.js.org/api/hooks" target="_blank" rel="noopener">官方文档提到了</a>:</p>
+<blockquote><p>我们建议使用React-Redux hooks API作为React组件中的默认方法。现有的connect API仍然工作，并将继续得到支持，但是Hooks API更简单，并且与TypeScript一起工作得更好。</p></blockquote>
+<h2 id="redux-here-to-stay">Redux会留在这里吗？</h2>
+<p>在React中发布钩子和上下文之后，有很多关于我们是否还需要Redux的争论— <a href="https://blog.logrocket.com/redux-isnt-dead/" target="_blank" rel="noopener">它是不是已经过时了</a>？</p>
+<p>依我看，这个问题可以根据不同的用例有不同的答案。Redux仍然服务于它的初衷，是大规模应用程序最可靠的状态管理库之一。</p>
+<p>当我第一次用React开发时，它没有任何全局状态管理，只是对所有事情使用本地状态。随着我们的应用程序变得越来越大，我们意识到对全局状态的需求，从那时起，使用Redux是一种非常棒的体验。</p>
+<p>我们在<a href="https://peekaboo.guru/karachi" target="_blank" rel="noopener"> Peekaboo Guru </a>的前端采用了这种容器表示模式，到目前为止我们没有任何遗憾；我们正在庆祝我们产品的三周年纪念日。</p>
+<p>除此之外，React有一条最吸引人的标语:“学一次，写遍天下。”随着脸书在React Native和其他React渲染器上投入的努力，现在不仅可以更容易地利用你的知识，还可以跨平台利用你的代码库。如果以真实的方式实现，这种模式允许您在不同平台的React应用程序之间共享大量代码。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

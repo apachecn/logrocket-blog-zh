@@ -1,0 +1,170 @@
+<html>
+<head>
+<title>Exception handling in JavaScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>JavaScript - LogRocket博客中的异常处理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/exception-handling-in-javascript/#0001-01-01">https://blog.logrocket.com/exception-handling-in-javascript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>错误是编程旅程的一部分。通过制造错误，我们实际上学会了如何不做某事，以及下次如何做得更好。</p>
+<p>在JavaScript中，当代码语句紧密耦合并且其中一个生成错误时，继续执行剩余的代码语句是没有意义的。相反，我们试图尽可能优雅地从错误中恢复。JavaScript解释器检查<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Control_flow_and_error_handling" target="_blank" rel="noopener noreferrer">异常处理</a>代码，以防出现此类错误，如果没有异常处理程序，程序将返回导致错误的函数。</p>
+<p>对<a href="https://developer.mozilla.org/en-US/docs/Glossary/Call_stack" target="_blank" rel="noopener noreferrer">调用堆栈</a>上的每个函数重复这一过程，直到找到异常处理程序或到达顶层函数，这导致程序因出错而终止。</p>
+<p>一般来说，异常有两种处理方式:</p>
+<ol>
+<li><b>抛出异常</b>——如果在运行时出现了无法有效处理的问题，最好抛出异常<pre>function openFile(fileName) {     if (!exists(fileName)) {         throw new Error('Could not find file '+fileName); // (1)     }     ... }</pre></li>
+<li><strong>捕捉异常</strong> —抛出的异常在运行时更有意义的地方被捕捉和处理<pre>try {   openFile('../test.js'); } catch(e) { // gracefully handled the thrown expection  } </pre></li>
+</ol>
+<p>让我们更详细地探究这些行为。</p>
+<h2 id="throwanexception">抛出异常</h2>
+<p>如果你长期使用JavaScript，你可能会看到类似于<code>ReferenceError: fs is not defined</code>的东西。这表示通过throw语句引发的异常。</p>
+<h3>句法</h3>
+<pre>throw «value»;
+// Don't do this
+if (somethingBadHappened) {
+    throw 'Something bad happened';
+}
+</pre>
+<p>对于可以作为异常抛出的数据类型没有限制，但是JavaScript有特殊的内置异常类型。其中一个是<code>Error</code>，正如你在前一个例子中看到的。这些内置的异常类型给了我们更多的细节，而不仅仅是一条异常消息。</p>
+<h3>错误</h3>
+<p><code>Error</code>类型用于表示一般异常。这种类型的异常最常用于实现用户定义的异常。它有两个内置属性可以使用。</p>
+<h4>1.<code>message</code></h4>
+<p>这就是我们作为参数传递给<code>Error</code>构造函数的内容，例如<code>new Error('This is the message')</code>。您可以通过<code>message</code>属性访问该消息。</p>
+<pre>const myError = new Error(‘Error is created’)
+console.log(myError.message) // Error is created</pre>
+<h4>2.<code>stack</code></h4>
+<p>属性返回导致错误的文件的历史(调用栈)。栈顶还包括消息，后面是实际的栈，从最近的/孤立的错误点开始，到最外部负责的文件。</p>
+<pre>Error: Error is created
+at Object. (/Users/deepak/Documents/error-handling/src/index.js:1:79)
+at Module.<em>compile (internal/modules/cjs/loader.js:689:30)
+at Object.Module.</em>extensions..js (internal/modules/cjs/loader.js:700:10)
+at Module.load (internal/modules/cjs/loader.js:599:32)
+at tryModuleLoad (internal/modules/cjs/loader.js:538:12)
+at Function.Module._load (internal/modules/cjs/loader.js:530:3)
+at Function.Module.runMain (internal/modules/cjs/loader.js:742:12)
+at startup (internal/bootstrap/node.js:266:19)
+at bootstrapNodeJSCore (internal/bootstrap/node.js:596:3)</pre>
+<p>注意:<code>new Error('...')</code>在抛出之前不做任何事情——也就是说，<code>throw new Error('error msg')</code>将在JavaScript中创建一个<code>Error</code>的实例，并停止执行您的脚本，除非您对<code>Error</code>做一些事情，比如捕捉它。</p>
+<h2 id="catchanexception">捕捉异常</h2>
+<p>现在我们知道了什么是异常以及如何抛出异常，让我们来讨论如何通过捕捉异常来阻止它们使我们的程序崩溃。</p>
+<h3><code>try-catch-finally</code></h3>
+<p>这是处理异常的最简单的方法。让我们看看语法。</p>
+<pre>try {
+    // Code to run
+  } catch (e) {
+    // Code to run if an exception occurs
+  }
+  [ // optional
+    finally {
+      // Code that is always executed regardless of 
+      // an exception occurring
+    }
+  ]
+</pre>
+<p>在<code>try</code>子句中，我们添加了可能会产生异常的代码。如果出现异常，则执行<code>catch</code>子句。</p>
+<p>有时，无论代码是否会生成异常，都有必要执行代码。然后我们可以使用可选块<code>finally</code>。</p>
+<p>即使<code>try</code>或<code>catch</code>子句执行了一条<code>return</code>语句，<code>finally</code>块也会执行。例如，下面的函数返回false，因为<code>finally</code>子句是最后执行的。</p>
+<pre>function foo() {
+  try {
+    return true;
+  } finally {
+    return false;
+  }
+}
+</pre>
+<p>我们在无法事先检查代码正确性的地方使用<code>try-catch</code>。</p>
+<pre>const user = '{"name": "Deepak gupta", "age": 27}';
+try {
+  // Code to run
+  JSON.parse(params)
+  // In case of error, the rest of code will never run
+  console.log(params)
+} catch (err) {
+  // Code to run in case of exception
+  console.log(err.message)
+}
+</pre>
+<p>如上所示，在执行代码之前，不可能检查<code>JSON.parse</code>来获得stringify对象或字符串。</p>
+<p>注意:您可以捕获程序员生成的异常和运行时异常，但是您不能捕获JavaScript语法错误。</p>
+<p><code>try-catch-finally</code>只能捕捉同步错误。如果我们尝试在异步代码中使用它，那么在异步代码完成它的执行之前，<code>try-catch-finally</code>可能已经被执行了。</p>
+<h2 id="howtohandleexceptionsinanasynchronouscodeblock">如何在异步代码块中处理异常</h2>
+<p>JavaScript提供了几种方法来处理<a href="https://blog.logrocket.com/the-visual-learners-guide-to-async-js-62a0a03d1d57/" target="_blank" rel="noopener noreferrer">异步代码块</a>中的异常。</p>
+<h3>回调函数</h3>
+<p>对于回调函数(不推荐)，我们通常会收到如下两个参数:</p>
+<pre>asyncfunction(code, (err, result) =&gt; {
+    if(err) return console.error(err);
+    console.log(result);
+})
+</pre>
+<p>我们可以看到有两个论点:<code>err</code>和<code>result</code>。如果有错误，<code>err</code>参数将等于该错误，我们可以抛出该错误来进行异常处理。</p>
+<p>重要的是要么在<code>if(err)</code>块中返回一些东西，要么将其他指令包装在<code>else</code>块中。否则，您可能会得到另一个错误——例如，当您试图访问<code>result.data</code>时，<code>result</code>可能未定义。</p>
+<h3>承诺</h3>
+<p>有了承诺——<code>then</code>或<code>catch</code>——我们可以通过将错误处理程序传递给<code>then</code>方法或使用<code>catch</code>子句来处理错误。</p>
+<pre>promise.then(onFulfilled, onRejected)
+</pre>
+<p>也可以用<code>.catch(onRejected)</code>而不是<code>.then(null, onRejected)</code>添加一个错误处理程序，其工作方式相同。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们来看一个<code>.catch</code>拒绝承诺的例子。</p>
+<pre>Promise.resolve('1')
+  .then(res =&gt; {
+      console.log(res) // 1
+      throw new Error('something went wrong'); // exception thrown 
+})
+.then(res =&gt; {
+      console.log(res) // will not get executed
+})
+.catch(err =&gt; { 
+      console.error(err) // exception catched and handled
+});
+</pre>
+<h3><code>async</code>和<code>await</code>同<code>try-catch</code></h3>
+<p>有了<code>async</code> / <code>await</code>和<code>try-catch-finally</code>，处理异常变得轻而易举。</p>
+<pre>async function() {
+    try {
+        await someFuncThatThrowsAnError()
+    } catch (err) {
+        console.error(err) 
+    }
+})
+</pre>
+<h2 id="howtohandleuncaughtexceptions">如何处理未捕获的异常</h2>
+<p>现在我们已经很好地理解了如何在同步和异步代码块中执行异常处理，让我们来回答本文的最后一个紧迫问题:我们如何处理未捕获的异常？</p>
+<h3>在浏览器中</h3>
+<p>方法<code>window.onerror()</code>导致在运行时发生错误时，在窗口对象上触发错误事件。我们可以使用这个方法来处理未捕获的异常。</p>
+<p><code>onerror()</code>的另一个实用模式是在你的站点加载图像出错时显示一条消息。</p>
+<pre><code>&lt;img src="testt.jpg" onerror="alert('An error occurred loading yor photo.')" /&gt;
+</code></pre>
+<h3>在Node.js服务器上</h3>
+<p>从<code>EventEmitter</code>模块<em> <em/> </em>派生的流程对象可以订阅事件<code>uncaughtException</code>。</p>
+<pre>process.on("uncaughtException", () =&gt; {})`
+</pre>
+<p>我们可以传递一个回调来处理这个异常。如果我们试图捕获这个未被捕获的异常，进程不会终止，所以我们必须手动完成。</p>
+<p><code>uncaughtException</code>只适用于同步代码。对于异步代码，还有一个事件叫做<code>unhandledRejection</code>。</p>
+<pre>process.on("unhandledRejection", () =&gt; {})
+</pre>
+<p>永远不要尝试为基本类型<code>Error</code>实现一个无所不包的处理程序。这将混淆所发生的一切，并损害代码的可维护性和可扩展性。</p>
+<div class="cro20">
+<h2>通过给出错误上下文，立即处理JavaScript异常</h2>
+<p>处理JavaScript异常是第一步——实际上修复它们是困难的地方。LogRocket 是一个前端应用程序监控解决方案，可以让您回放JavaScript错误，就像它们发生在您自己的浏览器中一样。LogRocket允许您重放带有JavaScript异常的会话，以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。<br/><a href="https://logrocket.com/signup/"><br/><img decoding="async" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript><br/></a><br/>LogRocket记录控制台日志、页面加载次数、堆栈跟踪、慢速网络请求/响应，带有标题+正文、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面应用程序重新创建像素级完美视频。</p>
+<p><a href="https://logrocket.com/signup/">免费试用</a>。</p></div>
+<h2 id="keytakeaways">关键要点</h2>
+<p>让我们回顾一下本文中讨论的一些要点。</p>
+<ul>
+<li><code>throw</code>语句用于生成用户定义的异常。在运行时，当遇到一个<code>throw</code>语句时，当前函数的执行将停止，控制权将传递给调用堆栈中的第一个<code>catch</code>子句。如果没有<code>catch</code>子句，程序将终止</li>
+<li>JavaScript有一些内置的异常类型，最著名的是<code>Error</code>，它返回错误堆栈和消息</li>
+<li><code>try</code>子句将包含可能生成异常的代码</li>
+<li>出现异常时，将执行<code>catch</code>子句</li>
+<li>对于异步代码，最好使用<code>async-await</code>和<code>try-catch</code></li>
+<li>可以捕获未处理的异常，这可以防止应用程序崩溃</li>
+</ul>
+<p>如果在整个过程中处理得当，异常处理可以帮助您提高代码的可维护性、可扩展性和可读性。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

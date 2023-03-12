@@ -1,0 +1,601 @@
+<html>
+<head>
+<title>Improve async programming with JavaScript promises - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用JavaScript promises改进异步编程</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/#0001-01-01">https://blog.logrocket.com/improve-async-programming-with-javascript-promises/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本帖于2021年8月编辑更新，包含新信息。</em></p>
+<p>如果您以前编写过异步JavaScript代码，那么您就已经知道如何使用回调以及回调带来的问题。使用回调的一个主要问题是可能会遇到回调地狱。</p>
+<p>在ES2015中，JavaScript承诺被添加到语言规范中，为异步代码的编写方式带来了全新的转变，也缓解了陷入回调地狱的问题。如果您在代码中使用ES2015语法，您可能已经熟悉了承诺。</p>
+<p>在本指南中，您将学习一些使用promises改进JavaScript异步编程的实用方法，包括:</p>
+
+<p>注意:本指南绝不是JavaScript promises的介绍。阅读本指南需要对承诺有所了解。</p>
+<h2 id="creating-promises">创造承诺</h2>
+<p>JavaScript promise可以使用<code>Promise</code>构造函数创建。构造函数将一个<code>executor</code>函数作为它的参数，这个函数被立即执行以创建承诺。</p>
+<p>反过来，<code>executor</code>可以将两个回调函数作为它的参数，可以在executor函数中调用这两个函数来完成承诺，即:</p>
+<ul>
+<li><code>resolve</code>为实现有价值的承诺</li>
+<li>有理由(通常是错误)拒绝承诺</li>
+</ul>
+<p>这是一个非常简单的JavaScript承诺:</p>
+<pre>const isLessThan10 = (num) =&gt; {
+  new Promise((resolve, reject) =&gt; {
+    if (num &lt; 10) {
+      resolve("Correct");
+    } else {
+      reject("Wrong!!");
+    }
+  })
+    .then((res) =&gt; console.log(res))
+    .catch((err) =&gt; console.log(err));
+};
+
+isLessThan10(14); 
+</pre>
+<p>如果你运行上面的代码，你会看到“错！!"在你的控制台里，意味着承诺得到了<code>rejected</code>。那是因为<code>14</code>明明不小于<code>10</code>，但是当你过了一个小于<code>10</code>的数，承诺的就会是<code>fulfilled</code>。</p>
+<h3>承诺状态</h3>
+<p>在上一节中，你一定注意到我们使用了两个词:<code>rejected</code>和<code>fulfilled</code> <em>。</em>这是JavaScript承诺的三种状态中的两种。我们来谈谈一个承诺的三种可能状态。</p>
+<ul>
+<li><code>rejected</code>–当操作失败时，承诺被拒绝，例如，在上面的<code>isLessThan10</code>函数中，当我们通过14时，承诺被拒绝</li>
+<li><code>fulfilled</code>–当操作起作用或正确时，履行承诺，例如，在上面的函数中，传递一个小于10的数字履行承诺</li>
+<li>当一个承诺等待解决或拒绝时，它就是待定的。只有当操作异步时，承诺才会达到这种状态</li>
+</ul>
+<p>只有在使用promise resolve参数解决承诺时，该承诺才会实现。用一个值实现一个承诺，而用promise reject参数拒绝一个承诺。这两种状态表明承诺已解决，不再待定。</p>
+<h3>约定的承诺</h3>
+<p>很多时候，你只是想创造一个已经确定的承诺——要么有价值地履行，要么有理由地拒绝。对于这种情况，<code>Promise.resolve()</code>和<code>Promise.reject()</code>方法派上了用场。这里有一个简单的例子:</p>
+<pre>// This promise is already fulfilled with a number (100)
+const fulfilledPromise = Promise.resolve(100);
+
+// This promise is already rejected with an error
+const rejectedPromise = Promise.reject(new Error('Operation failed.'));
+
+// Getting the rsolved value of the promise
+fulfilledPromise.then(res =&gt; console.log(res));
+
+// Getting catching to see the error of the promise
+rejectedPromise.then(res =&gt; console.log(res)).catch(err =&gt; console.log(err.message));
+</pre>
+<p>有时你也不确定一个价值是否是一个承诺。在这种情况下，您可以使用<code>Promise.resolve()</code>创建一个带有值的已履行承诺，然后处理返回的承诺。这里有一个例子:</p>
+<pre>// User object
+const USER = {
+  name: 'Glad Chinda',
+  country: 'Nigeria',
+  job: 'Fullstack Engineer'
+};
+
+// Create a fulfilled promise using Promise.resolve()
+Promise.resolve(USER)
+  .then(user =&gt; console.log(user.name));
+</pre>
+<h2 id="handling-promises">处理承诺</h2>
+<p>可以通过向承诺的<code>then()</code>、<code>catch()</code>或<code>finally()</code>方法传递回调来处理一个已解决的承诺，如前面的一些代码片段所示。这里，我们将重构<code>isLessThan10</code>函数，看看如何处理被拒绝和履行的承诺。</p>
+<pre>const isLessThan10 = (num) =&gt; {
+  return new Promise((resolve, reject) =&gt; {
+    if (num &lt; 10) {
+      resolve("Correct");
+    } else {
+      reject("Wrong!!!");
+    }
+  })
+};
+
+// Case1
+isLessThan10(1)
+  .then(console.log)
+  .catch(console.error);
+
+// Case2
+// Alternatively, the rejection can be handled in the same .then() call
+// By passing the rejection handler as second argument to .then()
+isLessThan10(12).then(console.log, console.error);
+</pre>
+<p>除了使用<code>.catch()</code>处理被拒绝的承诺，如上所述，我们还可以向<code>.then()</code>传递两个回调。如果承诺实现了，第一个将处理它，而如果拒绝了，另一个将处理它。我们还可以操纵<code>then()</code>块中承诺的解析值。</p>
+<p>一旦承诺完成，无论是履行还是拒绝，都会执行。这是执行清除操作的好地方，比如重置变量或清除状态。</p>
+<pre>const isLessThan10 = (num) =&gt; {
+  return new Promise((resolve, reject) =&gt; {
+    if (num &lt; 10) {
+      resolve("Correct");
+    } else {
+      reject("Wrong!!!");
+    }
+  })
+    .then(111)
+    .catch(222);
+};
+
+isLessThan10(11)
+  .then((res) =&gt; console.log(res))
+  .catch((err) =&gt; console.error(err))
+  .finally(() =&gt; console.log("This promise is finally settled!"));
+</pre>
+<h2 id="dumb-then-handlers">哑<code>then</code>处理程序</h2>
+<p><code>.then()</code>方法最多可以接受两个处理函数作为它的参数:实现处理函数和拒绝处理函数。</p>
+<p>然而，如果这两个参数中的任何一个不是函数，<code>.then()</code>就用一个函数替换那个参数，并继续正常的执行流程。知道参数被什么样的函数替代变得很重要。事情是这样的:</p>
+<ul>
+<li>如果实现处理程序参数不是一个函数，它将被一个标识函数替换。恒等函数是一个简单地返回它接收到的参数的函数</li>
+<li>如果拒绝处理程序参数不是一个函数，它将被替换为Thrower函数。抛出函数是一个简单地抛出它接收的错误或值作为其参数<img data-attachment-id="66174" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/identity-thrower-functions-written-out/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png" data-orig-size="730,108" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="identity-thrower-functions-written-out" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png" decoding="async" class="aligncenter size-full wp-image-66174 jetpack-lazy-image" src="../Images/74c9adfae077684624fe2b8c974361cb.png" alt="The identity and thrower functions written out" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out-300x44.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png"/> <noscript> <img data-lazy-fallback="1" data-attachment-id="66174" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/identity-thrower-functions-written-out/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png" data-orig-size="730,108" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="identity-thrower-functions-written-out" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-66174" src="../Images/74c9adfae077684624fe2b8c974361cb.png" alt="The identity and thrower functions written out" srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out-300x44.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/identity-thrower-functions-written-out.png"/> </noscript>的函数</li>
+</ul>
+<p>这里有一个简单的例子:</p>
+<pre>const isLessThan10 = (num) =&gt; {
+  return new Promise((resolve, reject) =&gt; {
+    if (num &lt; 10) {
+      resolve("Correct");
+    } else {
+      reject("Wrong!!!");
+    }
+  })
+    .then(111) // Just a random number 
+    .catch(222); // Just a random number
+};
+
+//This will log 'Correct' to the console
+isLessThan10(3).then(res =&gt; console.log(res)).catch(err =&gt; console.error(err));
+
+// This will log 'Wrong' to the console
+isLessThan10(13).then(res =&gt; console.log(res)).catch(err =&gt; console.error(err));
+</pre>
+<p>如果仔细观察，您会注意到<code>identity</code>函数和<code>thrower</code>函数都没有改变承诺序列的正常执行流程。它们的效果就像在承诺链中省略了那个特定的<code>.then()</code>电话一样。出于这个原因，我通常将这些处理程序参数称为“哑处理程序”。</p>
+<h2 id="then-handlers-always-return-promises">经理人总是会兑现承诺</h2>
+<p>关于<code>.then()</code> promise方法需要理解的一件重要事情是，它总是返回一个承诺。</p>
+<p>下面是<code>.then()</code>如何根据传递给它的处理函数返回的内容返回一个承诺的分解:</p>
+<p>承诺的时机</p>
+<h2 id="timing-with-promises">延迟执行</h2>
+<h3>承诺对于计时应用非常有用。像PHP这样的一些编程语言有一个<code>sleep()</code>函数，可以用来延迟操作的执行，直到睡眠时间结束。</h3>
+<p>虽然<code>sleep()</code>函数不是JavaScript规范的一部分，但全局<code>setTimeout()</code>和<code>setInterval()</code>函数通常用于执行基于时间的操作。</p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/API/setInterval" target="_blank" rel="noopener"> <code>setInterval()</code>方法</a>是一个JavaScript函数，用于在指定时间执行代码块，每次调用之间有延迟，而<a href="https://developer.mozilla.org/en-US/docs/Web/API/setInterval" target="_blank" rel="noopener"> <code>setTimeout()</code>方法</a>用于给JavaScript代码块添加定时器。</p>
+<p>下面是如何使用JavaScript中的承诺来模拟<code>sleep()</code>函数。然而，在这个版本的<code>sleep()</code>功能中，停止时间将以毫秒为单位，而不是以秒为单位<em> : </em></p>
+<p>下面是对<code>sleep(ms)</code>函数的略微扩展和注释版本:</p>
+<pre>const sleep = ms =&gt; new Promise(resolve =&gt; setTimeout(resolve, ms));
+</pre>
+<p>甚至可以进一步改进<code>sleep(ms)</code>功能，使其成为一个独立的<code>delay</code>功能，在指定的睡眠时间后执行<code>callback</code>功能。</p>
+<pre>const sleep = ms =&gt; {
+  // Return a new promise
+  // No need defining the executor function with a `reject` callback
+  return new Promise(resolve =&gt; {
+    // Pass resolve as the callback to setTimeout
+    // This will execute `resolve()` after `ms` milliseconds
+    setTimeout(resolve, ms);
+  });
+}
+</pre>
+<p>下面是使用<code>sleep()</code>函数的情况:</p>
+<p>测量执行时间</p>
+<pre>// Sleep for 5 seconds
+// Then execute the operation
+sleep(5000).then(executeOperation);
+
+// Delay function
+// Using async/await with sleep()
+const delay = async (callback, seconds = 1) =&gt; {
+  // Sleep for the specified seconds
+  // Then execute the operation
+  await sleep(seconds * 1000);
+  callback();
+}
+
+// Using the `delay()` function
+// Execution delayed by 5 seconds
+delay(executeOperation, 5);
+</pre>
+<h3>如果您想知道完成一个异步操作需要多长时间，该怎么办？在对某种形式的实现或功能的性能进行基准测试时，通常就是这种情况。</h3>
+<p>下面是一个简单的实现，它利用JavaScript promise来计算异步操作的执行时间。</p>
+<p>在该实现中，使用<code>performance.now()</code>而不是<code>Date.now()</code>来获得具有更高分辨率的时间戳。对于不存在<code>performance</code>对象的非浏览器环境，您可以使用<code>Date.now()</code>或其他主机实现。</p>
+<pre>const timing = callback =&gt; {
+  // Get the start time using performance.now()
+  const start = performance.now();
+
+  // Perform the asynchronous operation
+  // Finally, log the time difference
+  return Promise.resolve(callback())
+    .finally(() =&gt; console.log(`Timing: ${performance.now() - start}`));
+}
+</pre>
+<p>在下面的代码块中，<code>timing()</code>函数可用于记录控制台上异步操作的执行时间:</p>
+<p>承诺顺序执行</p>
+<pre>// Async operation that takes between 1 - 5 seconds
+const asyncOperation = () =&gt; new Promise(resolve =&gt; {
+  setTimeout(() =&gt; resolve('DONE'), Math.ceil(Math.random() * 5) * 1000);
+});
+
+// Compute execution time in ms
+// And log it to the console
+timing(asyncOperation); // Timing: 4003.4000000014203
+</pre>
+<h3>有了JavaScript的承诺，你可以<a href="https://blog.logrocket.com/understanding-asynchronous-javascript/" target="_blank" rel="noopener">按顺序</a>执行异步操作。当后面的异步操作依赖于前面异步操作的执行时，或者当后面的操作需要前面异步操作的结果时，通常会出现这种情况。</h3>
+<p>按顺序执行异步操作通常涉及将一个或多个<code>.``then()</code>和<code>.catch()</code>处理程序链接到一个承诺。当一个承诺在链中被拒绝时，它由链中下一个<code>.then()</code>处理程序中定义的拒绝处理程序来处理，然后继续执行。</p>
+<p>然而，如果在链中的下一个<code>.then()</code>处理程序中没有定义拒绝处理程序，则承诺拒绝会沿着链向下级联，直到它到达第一个<code>.catch()</code>处理程序。</p>
+<p>案例研究:照片库应用程序</p>
+<h3>假设您正在构建一个照片库应用程序，您希望能够从在线照片库中获取照片，然后按照格式、纵横比、尺寸范围等对它们进行过滤。</h3>
+<p>下面是您的应用程序中可能有的一些函数:</p>
+<p>在上面的代码块中，<code>fetchPhotos()</code>函数使用Fetch API提供的全局<code>fetch()</code>函数从<a href="https://picsum.photos/" target="_blank" rel="noopener"> Picsum Photos API </a>中获取一组照片，并返回一个由一组照片实现的承诺。</p>
+<pre>/**
+ * Fetches photos from the Picsum API
+ * @returns {Promise} A promise that is fulfilled with an array of photos from the Picsum repository
+ */
+
+const fetchPhotos = () =&gt;
+  fetch('https://picsum.photos/list')
+    .then(response =&gt; response.json());
+
+/**
+ * Filters photos and returns only JPEG photos 
+ * @param {Array} photos
+ * @returns {Array} An array of JPEG photos
+ */
+const jpegOnly = photos =&gt;
+  photos.filter(({ format }) =&gt; format.toLowerCase() === 'jpeg')
+
+/**
+ * Filters photos and returns only square photos
+ * @param {Array} photos
+ * @returns {Array} An array of square photos
+ */
+
+const squareOnly = photos =&gt;
+  photos.filter(({ width, height }) =&gt; height &amp;&amp; Number.isFinite(height) &amp;&amp; (width / height) === 1)
+
+/**
+ * Returns a function for filtering photos by size based on `px`
+ * @param {number} px The maximum allowed photo dimension in pixels
+ * @returns {Function} Function that filters photos and returns an array of photos smaller than `px`
+ */
+
+const smallerThan = px =&gt; photos =&gt;
+  photos.filter(({ width, height }) =&gt; Math.max(width, height) &lt; px)
+
+/**
+ * Return an object containing the photos count and URLs.
+ * @param {Array} photos
+ * @returns {Object} An object containing the photos count and URLs
+ */
+
+const listPhotos = photos =&gt; ({
+  count: photos.length,
+  photos: photos.map(({ post_url }) =&gt; post_url)
+})
+</pre>
+<p>下面是从<a href="https://picsum.photos/" target="_blank" rel="noopener"> Picsum Photos API </a>返回的集合的样子:</p>
+<p><img data-attachment-id="66177" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/collection-returned-picsum-photos-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png" data-orig-size="730,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="collection-returned-picsum-photos-api" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png" decoding="async" class="aligncenter size-full wp-image-66177 jetpack-lazy-image" src="../Images/8ca11dbb5c8fa676fd55fde80954ccab.png" alt="The collection returned by the Picsum Photos API" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api-300x146.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png"/></p>
+<p>filter函数接受照片集合作为参数，并通过以下方式对集合进行过滤:</p><noscript><img data-lazy-fallback="1" data-attachment-id="66177" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/collection-returned-picsum-photos-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png" data-orig-size="730,355" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="collection-returned-picsum-photos-api" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api-300x146.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-66177" src="../Images/8ca11dbb5c8fa676fd55fde80954ccab.png" alt="The collection returned by the Picsum Photos API" srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api-300x146.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/collection-returned-picsum-photos-api.png"/></noscript>
+<p><code>jpegOnly()</code> —过滤照片集合并返回仅包含JPEG图像的子集合</p>
+<ul>
+<li><code>squareOnly()</code> —过滤照片集合，仅返回具有方形长宽比的照片的子集合</li>
+<li><code>smallerThan()</code> —这是一个高阶函数，它获取一个维度并返回一个照片过滤函数，该函数返回最大维度小于指定维度阈值的照片子集合</li>
+<li>假设我们想要执行以下操作序列:</li>
+</ul>
+<p>获取照片收藏</p>
+<ol>
+<li>过滤收藏，只留下JPEG照片</li>
+<li>过滤收藏，仅留下具有方形纵横比的照片</li>
+<li>过滤收藏，只留下小于2500像素的照片</li>
+<li>从集合中提取照片计数和URL</li>
+<li>在控制台上记录最终输出</li>
+<li>如果序列中的任何一点发生错误，将错误记录到控制台</li>
+<li>下面的代码片段显示了我们如何在promise序列中链接这些操作的执行:</li>
+</ol>
+<p>上述代码将输出类似下图的结果:</p>
+<pre>// Execute asynchronous operations in sequence
+fetchPhotos()
+  .then(jpegOnly)
+  .then(squareOnly)
+  .then(smallerThan(2500))
+  .then(listPhotos)
+  .then(console.log)
+  .catch(console.error);
+</pre>
+<p><img data-attachment-id="66179" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/executing-asynchronous-operations-sequence/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png" data-orig-size="730,286" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="executing-asynchronous-operations-sequence" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png" decoding="async" class="aligncenter size-full wp-image-66179 jetpack-lazy-image" src="../Images/e056bc6140da94456095940a9407bfe0.png" alt="The output of our asynchronous operations sequence" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence-300x118.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png"/></p>
+<p>并行运行和执行JavaScript承诺</p><noscript><img data-lazy-fallback="1" data-attachment-id="66179" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/executing-asynchronous-operations-sequence/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png" data-orig-size="730,286" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="executing-asynchronous-operations-sequence" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence-300x118.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-66179" src="../Images/e056bc6140da94456095940a9407bfe0.png" alt="The output of our asynchronous operations sequence" srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence-300x118.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/executing-asynchronous-operations-sequence.png"/></noscript>
+<h2 id="running-executing-javascript-promises-parallel">有了JavaScript的承诺，您可以批量执行多个独立的异步操作，或者使用<code>Promise.all()</code>方法并行执行<a href="https://blog.logrocket.com/parallelism-concurrency-and-async-programming-in-node-js/" target="_blank" rel="noopener"/>。</h2>
+<p>接受一个可重复的承诺作为其参数，并返回一个承诺，当可重复的承诺中的所有承诺都被满足时，该承诺被满足，或者当可重复的承诺中的一个承诺被拒绝时，该承诺被拒绝。</p>
+<p>如果返回的承诺实现了，那么它将通过iterable中已实现承诺的所有值的数组来实现(以相同的顺序)。但是，如果它拒绝，它会因为iterable中拒绝的第一个承诺而被拒绝。</p>
+<p>案例研究:当前温度</p>
+<h3>假设您正在构建一个天气应用程序，它允许用户查看他们选择的一系列城市的当前温度。</h3>
+<p>使用<code>Promise.all()</code>，你可以向天气API发出一个<code>GET</code>请求，一次性获取所有选定城市的温度，这样你的用户就不会在你的应用上看到一个接一个的数据渲染。</p>
+<p>下面的代码片段演示了如何使用<code>Promise.all()</code>并行获取所选城市的当前温度。</p>
+<p>OpenWeatherMap API服务将被用来获取天气数据，所以如果你想跟随，请点击链接进入他们的网站并注册获取API密钥。</p>
+<p>在上面的代码块中，我们创建了下面的函数:</p>
+<pre>// Use your OpenWeatherMap API KEY
+// Set the current weather data API URL
+const API_KEY = 'YOUR_API_KEY_HERE';
+const API_URL = `https://api.openweathermap.org/data/2.5/weather?appid=${API_KEY}&amp;units=metric`;
+
+// Set the list of cities
+const CITIES = [
+  'London', 'Tokyo', 'Melbourne', 'Vancouver',
+  'Lagos', 'Berlin', 'Paris', 'Johannesburg',
+  'Chicago', 'Mumbai', 'Cairo', 'Beijing'
+];
+
+const fetchTempForCity = city =&gt; {
+  return fetch(`${API_URL}&amp;q=${encodeURIComponent(city)}`)
+    .then(response =&gt; response.json())
+    .then(data =&gt; [ city, data.main.temp || null ]);
+}
+
+const fetchTempForCities = cities =&gt; {
+  return Promise.all(cities.map(fetchTempForCity))
+    .then(temps =&gt; {
+      return temps.reduce((data, [ city, temp ]) =&gt; {
+        return { ...data, [city]: Number.isFinite(temp) ? temp.toFixed(2) * 1 : null };
+      }, {});
+    });
+}
+
+fetchTempForCities(CITIES)
+  .then(console.log, console.error);
+</pre>
+<p><code>fetchTempForCity()</code> —接受单个城市作为其参数，并通过调用OpenWeatherMap API服务返回一个承诺，该承诺以给定城市的当前温度(°C)来实现。返回的承诺用一个格式为:<code>[city, temperature]</code>的数组来实现</p>
+<ul>
+<li><code>fetchTempForCities()</code> —接受一个城市数组，并通过利用<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" target="_blank" rel="noopener"> <code>Array.prototype.map()</code> </a>调用每个城市的<code>fetchTempForCity()</code>函数来获取每个城市的当前温度。</li>
+<li><code>Promise.all()</code>方法用于并行运行请求，并将它们的数据累积到一个数组中，然后使用<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce" target="_blank" rel="noopener"> <code>Array.prototype.reduce()</code>函数</a>将其还原为一个对象。</li>
+</ul>
+<p>上面的代码片段将返回一个类似于下面结果的对象:</p>
+<p><img data-attachment-id="66182" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/openweather-api-code-snippet-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png" data-orig-size="730,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openweather-api-code-snippet-results" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results-300x85.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png" decoding="async" class="aligncenter size-full wp-image-66182 jetpack-lazy-image" src="../Images/861f6e1dca21825f799c0de06bbb67e2.png" alt="The OpenWeather API code snippet results" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results-300x85.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png"/></p>
+<p>拒绝处理</p><noscript><img data-lazy-fallback="1" data-attachment-id="66182" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/openweather-api-code-snippet-results/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png" data-orig-size="730,207" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="openweather-api-code-snippet-results" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results-300x85.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-66182" src="../Images/861f6e1dca21825f799c0de06bbb67e2.png" alt="The OpenWeather API code snippet results" srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results-300x85.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/openweather-api-code-snippet-results.png"/></noscript>
+<h2 id="rejection-handling">值得注意的是，如果传递到<code>Promise.all()</code>中的任何获取温度承诺被拒绝，整个承诺批次将立即因相同原因被拒绝。</h2>
+<p>也就是说，如果十二个获取温度承诺中的至少一个由于某种原因被拒绝，则整个承诺批次将被拒绝，因此，没有温度将从承诺返回。</p>
+<p>在大多数情况下，上述场景通常不是理想的行为——失败的温度获取不应导致批中成功获取的结果被丢弃。我们可以通过使用另一个promise方法<code>promise.allSettled()</code>很容易地解决这个问题，这将在下面讨论，但是还有另一个简单的解决方法。</p>
+<p>解决这个问题的简单方法是在<code>fetchTempForCity</code>承诺上附加一个<code>.catch()</code>处理程序，使其在拒绝的情况下用一个空温度值来履行承诺。</p>
+<p>这将是它的样子:</p>
+<p>通过对<code>fetchTempForCity()</code>函数的小改动，现在有了一个非常高的保证，即在请求失败或出错的情况下，返回的承诺永远不会被拒绝。相反，它将由一个格式为:<code>[city, null]</code>的数组来完成，如下所示:</p>
+<pre>const fetchTempForCity = city =&gt; {
+  return fetch(`${API_URL}&amp;q=${encodeURIComponent(city)}`)
+    .then(response =&gt; response.json())
+    .then(data =&gt; [ city, data.main.temp || null ])
+
+    // Attach a `.catch()` handler for graceful rejection handling
+    .catch(() =&gt; [ city, null ]);
+}
+</pre>
+<p><img data-attachment-id="66184" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/city-null-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png" data-orig-size="730,209" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="city-null-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example-300x86.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png" decoding="async" class="aligncenter size-full wp-image-66184 jetpack-lazy-image" src="../Images/bedb922384a12bc7bf369f6a1c4df44b.png" alt="The city, null formatting" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example-300x86.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png"/></p>
+<p>下面的代码片段包括一些可以添加到前面代码中的内容，以使这成为可能。</p><noscript><img data-lazy-fallback="1" data-attachment-id="66184" data-permalink="https://blog.logrocket.com/improve-async-programming-with-javascript-promises/city-null-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png" data-orig-size="730,209" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="city-null-example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example-300x86.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-66184" src="../Images/bedb922384a12bc7bf369f6a1c4df44b.png" alt="The city, null formatting" srcset="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example-300x86.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/04/city-null-example.png"/></noscript><br/>
+With this change, it becomes possible to further improve the code to be able to schedule retries for failed temperature fetches.
+<p>在这段代码中，<code>TEMPS</code>对象用于保存所列城市的更新温度。<code>MAX_TEMP_FETCH_RETRIES</code>常量是一个整数，它限制了对失败的获取可以进行的重试次数，在本例中是5次。</p>
+<pre>// An object that will contain the current temperatures of the cities
+
+// The keys are the city names, while the values are their current temperatures (in °C)
+
+let TEMPS = null;
+
+// The maximum number of retries for failed temperature fetches
+
+const MAX_TEMP_FETCH_RETRIES = 5;
+
+// Fetches the current temperatures of multiple cities (in °C) and update the `TEMPS` object.
+
+const fetchTemperatures = (cities, retries = 0) =&gt; {
+  return fetchTempForCities(cities)
+    .then(temps =&gt; {
+
+      // Update the `TEMPS` object with updated city temperatures from `temps`
+      TEMPS = (TEMPS === null) ? temps : { ...TEMPS, ...temps };
+
+      // Filter the keys (cities) of the `TEMPS` object to get a list of the cities
+      // with `null` temperature values.
+
+      const RETRY_CITIES = Object.keys(TEMPS)
+        .filter(city =&gt; TEMPS[city] == null);
+
+      // If there are 1 or more cities in the `RETRY_CITIES` list
+      // and the maximum retries has not been exceeded,
+      // attempt to fetch their temperatures again after waiting for 5 seconds.
+      // Also increment `retries` by 1.
+
+      if (RETRY_CITIES.length &gt; 0 &amp;&amp; retries &lt; MAX_TEMP_FETCH_RETRIES) {
+        setTimeout(() =&gt; fetchTemperatures(RETRY_CITIES, ++retries), 5 * 1000);
+      }
+
+      // Return the updated `TEMPS` object
+      return TEMPS;
+
+    })
+    .then(console.log, console.error);
+}
+// Fetch the current temperatures of the cities in the `CITIES` list
+// and update the `TEMPS` object
+
+fetchTemperatures(CITIES);
+</pre>
+<p><code>fetchTemperatures()</code>函数接收一个城市名数组和到目前为止的重试次数作为它的参数。它调用<code>fetchTempForCities()</code>获取传递给它的城市的当前温度，并且用温度更新<code>TEMPS</code>对象。</p>
+<p>对于失败的获取，该函数在等待五秒钟后为自己安排另一个调用，并将重试次数增加<code>1</code>。如果没有超过设置的最大值，重试次数会尽可能多—在我们的例子中是5次。</p>
+<p>等待一切尘埃落定</p>
+<h2 id="waiting-all-settled">正如<code>promise.all()</code>和<code>promise.race()</code>处理多个承诺一样，还有另一个非常有用的承诺<code>promise.allSettled()</code>，它被添加到ES2020的JavaScript规范中。</h2>
+<p>它与<code>promise.all()</code>非常相似，但与它不同的是，当传递给它的iterable中的任何承诺被拒绝时，<code>promise.allSettled()</code>不会被拒绝。相反，它会等待所有承诺都得到解决(履行或拒绝)，然后返回一个包含每个承诺结果的数组。下面我们来看一个例子。</p>
+<p>上述代码将返回如下所示的结果:</p>
+<pre>const promise1 = Promise.resolve("I got fulfilled!");
+const promise2 = Promise.reject("I was rejected!");
+Promise.allSettled([promise1, promise2]).then((results) =&gt;
+  console.log(results)
+);
+</pre>
+<p>现在，让我们重构我们在上面讨论<code>promise.all()</code>时编写的OpenWeatherAPI代码片段，我们实现了一个可能的解决方案，用于通过捕捉错误来拒绝一个承诺的情况。</p>
+<pre>[
+  { status: 'fulfilled', value: 'I got fulfilled!' },
+  { status: 'rejected', reason: 'I was rejected!' }
+]
+</pre>
+<p>有了<code>promise.allSettled()</code>，我们不需要那种变通办法。它会工作得很好，我们还会看到被拒绝的承诺及其原因。让我们重构下面的代码:</p>
+<p>结果应该是这样的:</p>
+<pre>// Use your OpenWeatherMap API KEY
+// Set the current weather data API URL
+
+const API_KEY = "YOUR_API_KEY_HERE";
+const API_URL = `https://api.openweathermap.org/data/2.5/weather?appid=${API_KEY}&amp;units=metric`;
+
+// Set the list of cities
+
+const CITIES = [
+  "Lagos",
+  "Berlin",
+  "Parwis",  // Tweaked this to cause an error
+];
+
+const fetchTempForCity = (city) =&gt; {
+  return fetch(`${API_URL}&amp;q=${encodeURIComponent(city)}`)
+    .then((response) =&gt; response.json())
+    .then((data) =&gt; [city, data.main.temp]);
+};
+
+const fetchTempForCities = (cities) =&gt; {
+  return Promise.allSettled(cities.map(fetchTempForCity)).then((temps) =&gt; temps);
+};
+
+fetchTempForCities(CITIES).then(console.log, console.error);
+</pre>
+<p>注意:如果一个空数组被传递给<code>promise.settled()</code>，它将返回一个解析的承诺，以一个空数组作为值。</p>
+<pre>[
+  { status: "fulfilled", value: ["Lagos", "24.18"]},
+  { status: "fulfilled", value: ["Berlin", "13.83"]},
+  { status: "rejected", 
+    reason: TypeError: Cannot read properties of undefined(reading 'temp')
+  },
+]
+</pre>
+<p>用承诺来竞争异步操作</p>
+<h2 id="racing-async-operations-with-promises">有了JavaScript的承诺，您可以使用<code>Promise.race()</code>方法来竞争多个独立的异步操作。<code>Promise.race()</code>接受iterable of promises作为其参数，并返回一个承诺，该承诺以iterable中第一个确定的承诺相同的方式被履行或拒绝。</h2>
+<p>如果iterable中的第一个已解决的承诺用一个值来实现，那么race承诺用相同的值来实现。但是，如果被拒绝，种族承诺也会以同样的理由被拒绝。如果同时履行或拒绝了多个承诺，那么将根据iterable中承诺的顺序使用第一个承诺。</p>
+<p>如果传递给<code>Promise.race()</code>的iterable为空，那么race promise将永远处于待定状态，并且永远不会解决。</p>
+<p>案例研究:超时响应</p>
+<h3>假设您正在构建一个执行一些异步操作的API端点，比如读取文件或查询数据库，并且您希望保证在5秒内得到响应，否则请求将失败，并显示HTTP状态代码<code>504</code>(网关超时响应)。</h3>
+<p>下面的代码片段演示了如何使用<code>Promise.race()</code>来实现这一点，假设我们正在使用Node.js的<a href="https://expressjs.com/" target="_blank" rel="noopener"> Express.js </a>框架来构建API</p>
+<p>在这个代码片段中，建立了一个非常简单的Express应用程序，它只有一个路径— <code>GET/random</code>用于返回一个在0–100(包括0和100)范围内随机生成的整数，同时还返回执行时间。</p>
+<pre>// Create a new Express app and set the port
+const app = require('express')();
+const PORT = process.env.PORT || 5000;
+
+// The timeout in seconds for API responses
+const TIMEOUT_SECONDS = 5;
+
+// Define a new route on the Express app: GET /random
+app.get('/random', (req, res) =&gt; {
+
+  /**
+   * `execute` is a promise that simulates a time-consuming asynchronous operation
+   * which may take anywhere between 1s - 10s to complete its execution.
+   * On completion, it is fulfilled with an object that looks like this:
+   * {
+   *   statusCode: 200,
+   *   random: (A random integer in the range of 0 - 100, both inclusive)
+   *   duration: (The duration of the execution in seconds, expressed as {duration}s)
+   * }
+   */
+
+  const execute = new Promise(resolve =&gt; {
+    // Random execution time in milliseconds
+    const timeInMs = Math.floor((Math.random() * 10) * 1000);
+
+    // Simulate execution delay using setTimeout and fulfill the promise
+    // with the response object
+    setTimeout(() =&gt; {
+      resolve({
+        statusCode: 200,
+        random: Math.floor(Math.random() * 101),
+        duration: `${timeInMs / 1000}s`
+      })
+    }, timeInMs);
+  });
+
+  /**
+   * `requestTimer` is a promise that is settled after `TIMEOUT_SECONDS` seconds
+   * On completion, it is fulfilled with an object that looks like this:
+   * { statusCode: 504 }
+   * which represents a Gateway Timeout on the server.
+   */
+
+  const requestTimer = new Promise(resolve =&gt; {
+    // Simulate execution delay using setTimeout and fulfill the promise
+    // with the response object
+    const timeoutInMs = TIMEOUT_SECONDS * 1000;
+    setTimeout(() =&gt; resolve({ statusCode: 504 }), timeoutInMs);
+  });
+
+  /**
+   * `Promise.race()` is used to run both the `execute` and the `requestTimer` promises.
+   * The first of the two promises that gets settled will be used to settle the race promise.
+   * The fulfilled response object is then used to form and send the HTTP response.
+   * If an error occurs, a HTTP 500 error response is sent.
+   */
+  return Promise.race([ execute, requestTimer ])
+    .then(({ statusCode = 200, ...data }) =&gt; {
+      const response = res.status(statusCode);
+
+      return (statusCode == 200)
+        ? response.json(data)
+        : response.end();
+    })
+    .catch(() =&gt; res.status(500).end());
+
+});
+
+// Start the app on the set port
+
+app.listen(PORT, () =&gt; console.log(`App is running on port ${PORT}.`));
+</pre>
+<p><code>Promise.race()</code>用来等待两个承诺中的第一个:</p>
+<p>一个<code>execute</code>承诺，执行一些看似耗时的异步操作，并在1s-10s后得到解决</p>
+<ul>
+<li>一个<code>requestTimer</code>承诺，在设定的<code>TIMEOUT_SECONDS</code>秒后，即本例中的<code>5</code>秒后，不做任何事情并得到解决</li>
+<li>所以，事情是这样的:这两个承诺中哪个先得到满足将决定来自端点的最终响应— <code>Promise.race()</code>将确保这一点。</li>
+</ul>
+<p>当在服务工作者中处理<code>fetch</code>事件时，也可以使用类似的技术来检测慢速网络。</p>
+<p>等待第一个兑现的承诺</p>
+<h2 id="waiting-first-fulfilled-promise">在我们想要归还第一个兑现的承诺的情况下，<code>promise.any()</code>就派上了用场。与返回第一个履行或拒绝的承诺的<code>promise.race()</code>不同，<code>promise.any()</code>返回第一个履行的承诺。如果没有履行承诺，它将返回一个被拒绝的承诺，带有一个<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AggregateError" target="_blank" rel="noopener"> <code>AggregateError</code>对象</a>。</h2>
+<p>在四个承诺方法<code>(any(), race(), allSettled()</code>和<code>all()</code>中，只有<code>promise.allSettled()</code>执行传递给它的所有承诺，因为它等待所有承诺被解析。其他的没有，所以他们被称为短路<em>。</em></p>
+<p>下面是一个来自<a href="https://github.com/dance2die" target="_blank" rel="noopener">的表格，一个由金成</a>创建的GitHub gist，显示了<code>promise.all()</code>、<code>promise.allSettled()</code>、<code>promise.race()</code>和<code>promise.any()</code>之间的区别。</p>
+<p>Below is a table from <a href="https://github.com/dance2die" target="_blank" rel="noopener">a GitHub gist created by Sung M. Kim</a> showing the differences between <code>promise.all()</code>, <code>promise.allSettled()</code>, <code>promise.race()</code>, and <code>promise.any()</code>.</p>
+<p>使用带有承诺的async/await</p>
+<h2 id="using-async-await-with-promises"><code>Async</code>和<code>await</code>是可以让写承诺更干净的关键词。在一个函数前面加上关键字<code>async</code>将使该函数返回一个承诺，然后允许它里面有一个<code>await</code>关键字。有了<code>await</code>，我们可以等待承诺被解决。有了<code>async</code>和<code>await</code>，我们就不需要用<code>.then()</code>了。让我们再一次使用OpenWeather API来看下面的例子:</h2>
+<p>我们可以用<code>try…catch</code>方法处理可能的错误。如果承诺被拒绝，我们将在<code>catch</code>块中得到错误。</p>
+<pre>// Set the current weather data API URL
+const API_KEY = "YOUR_API_KEY";
+const API_URL = `https://api.openweathermap.org/data/2.5/weather?appid=${API_KEY}&amp;units=metric`;
+
+const fetchTempForCity = async (city) =&gt; {
+  let response = await fetch(`${API_URL}&amp;q=${encodeURIComponent(city)}`);
+  response = await response.json();
+  console.log(response)
+};
+
+fetchTempForCity('Port harcourt');
+</pre>
+<p>结论</p>
+<pre>const fetchTempForCity = async (city) =&gt; {
+  try {
+    let response = await fetch(`${API_URL}&amp;q=${encodeURIComponent(city)}`);
+    response = await response.json();
+    console.log(response);
+  } catch (error) {
+    console.error(error.message)
+  }
+};
+
+fetchTempForCity('Port harcourt');
+</pre>
+<h2>JavaScript承诺可以彻底改变你编写<a href="https://blog.logrocket.com/evolution-async-programming-javascript/" target="_blank" rel="noopener">异步程序</a>的方式，使你的代码在预期目的方面更加简洁和清晰。</h2>
+<p>在本指南中，我们研究了在异步程序中使用承诺的几种方式，比如:</p>
+<p>依次并行执行操作，甚至进行比赛</p>
+<ul>
+<li>如何履行多项承诺，并等待所有问题得到解决</li>
+<li>如何执行一兑现就终止的承诺</li>
+<li>我们还看到了如何使用async/await函数和<code>await</code>关键字处理承诺。你可以从<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank" rel="noopener"> MDN的JavaScript promise docs </a>中了解更多关于承诺的信息。</li>
+</ul>
+<p>通过理解上下文，更容易地调试JavaScript错误</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</h2>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>.</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

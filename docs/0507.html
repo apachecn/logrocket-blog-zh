@@ -1,0 +1,180 @@
+<html>
+<head>
+<title>How to handle async side effects in 2019 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>2019年如何处理异步副作用- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-handle-async-side-effects-in-2019/#0001-01-01">https://blog.logrocket.com/how-to-handle-async-side-effects-in-2019/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>处理异步操作一直是React生态系统中开发人员的主要关注点。</p>
+<p>有很多不同的方法来处理异步操作，包括Redux-Saga，但是在本文中，我们将关注我认为目前最好的方法:使用<code>react-async</code>。</p>
+<p>我们还将对<code>react-async</code>库和React中处理异步副作用的其他现有方法进行比较。</p>
+<h3>什么是React Async？</h3>
+<p>React Async是一个基于承诺的工具，它允许您以声明的方式处理承诺和获取数据。</p>
+<p>它使得处理异步UI状态变得容易，而不需要假设数据的形状或请求的类型。</p>
+<p>React Async由一个React组件和几个钩子组成。您可以将它与fetch、Axios、GraphQL和其他数据提取库一起使用。</p>
+<p>React Async依赖于使用声明性语法、JSX和native promises来解析数据，使其更接近您在代码中需要它们的位置(例如，在组件级别)，这与Redux等其他系统不同，在Redux等其他系统中，解析数据是在应用程序的更高级别使用actions和reducers之类的东西来进行的。</p>
+<h3>对异步使用做出反应</h3>
+<p>为了像下面的例子一样使用React Async，我们将从<code>react-async</code>导入<code>useAsync</code></p>
+<p>然后我们可以创建我们的异步函数，它接收一个信号作为参数。这个信号就是我们的AbortController API，它为我们提供了一种方法，可以在需要的时候取消我们发出的fetch调用。</p>
+<p>在我们的组件中，我们调用<code>useAsync</code>并传递我们的异步函数。</p>
+<p>调用<code>useAsync</code>返回一个对象，我们可以将它分解成三个重要的值:数据、错误和isPending。</p>
+<p>这些值告诉我们异步函数的状态——是仍然挂起、出错还是成功。</p>
+<p>我们可以使用这些值中的每一个来为用户呈现适当的UI:</p>
+<pre>import { useAsync } from "react-async"
+// You can use async/await or any function that returns a Promise
+const asyncFn = async ({ signal }) =&gt; {
+  const res = await fetch(`/api/users`, { signal })
+  if (!res.ok) throw new Error(res.statusText)
+  return res.json()
+}
+const MyComponent = () =&gt; {
+  const { data, error, isPending } = useAsync({ promiseFn: asyncFn })
+  if (isPending) return "Loading..."
+  if (error) return `Something went wrong: ${error.message}`
+  if (data)
+    &lt;ul&gt;
+      {data.users.map(user =&gt; &lt;li&gt;{user.name}&lt;/li&gt;)}
+    &lt;/ul&gt;
+)
+return null</pre>
+<p>有一些使用React-Async的方法:</p>
+<ul>
+<li>作为一个钩子</li>
+<li>用<code>useFetch</code></li>
+<li>作为一个组件</li>
+<li>作为一个工厂</li>
+<li>使用助手组件</li>
+<li>作为的静态属性</li>
+</ul>
+<p>我将简要介绍前三种方法，只是为了让您对这些实现有个概念，但是您可以随意参考官方使用指南来深入了解每种方法。</p>
+<h3>将异步反应为挂钩</h3>
+<p>React-Async提供了一个名为<code>useAsync</code>的钩子。在您的组件中，您可以像这样调用这个钩子:</p>
+<pre>import { useAsync } from "react-async";
+
+const MyComponent = () =&gt; {
+  const { data, error, isPending } = useAsync({ promiseFn: loadPlayer, playerId: 1 })
+  //...
+};</pre>
+<h3>与<code>useFetch</code>异步反应</h3>
+<p>使用<code>useFetch</code>，您正在创建一个异步获取函数，该函数可以稍后在您的组件中运行:</p>
+<pre>import { useFetch } from "react-async"
+const MyComponent = () =&gt; {
+  const headers = { Accept: "application/json" }
+  const { data, error, isPending, run } = useFetch("/api/example", { headers }, options)
+  // You can call "handleClick" later
+  function handleClick() {
+    run()
+  }
+&lt;button onClick={handleClick}&gt;Load&lt;/button&gt;
+}</pre>
+<h3>将异步作为组件反应</h3>
+<p>这就是React Async真正让JSX大放异彩的地方:</p>
+<pre>import Async from "react-async"
+const MyComponent = () =&gt; (
+  &lt;Async promiseFn={load}&gt;
+    {
+      ({ data, error, isPending }) =&gt; {
+        if (isPending) return "Loading..."
+        if (error) return `Something went wrong: ${error.message}`
+        if (data)
+          return (&lt;div&gt; { JSON.stringify(data, null, 2) }&lt;/div&gt;)
+        return null
+      }
+    }
+  &lt;/Async&gt;
+)</pre>
+<p>您必须将一个函数作为子组件传递给<code>Async</code>组件。</p>
+<p>正如您所看到的，这个函数将根据我们提供给<code>Async</code>的异步函数的状态来评估不同的节点值。</p>
+<h3>反应异步vs <code>useEffect</code></h3>
+<p>与Async/Await结合使用不如React Async方便，尤其是当您开始考虑竞争条件、处理清理和取消挂起的异步操作时。</p>
+<p>React Async以非常高效的方式为您处理所有这些事情。</p>
+<p>让我们看一个用<code>useEffect</code>和Async/Await处理竞争条件的典型例子:</p>
+<pre>const [usersList, updateUsersList] = useState();
+useEffect(() =&gt; {
+  const runEffect = async () =&gt; {
+    const data = await fetchUsersList(filter);
+    updateUsersList(data);
+  };
+  runEffect();
+}, [updateUsersList, filter]);</pre>
+<p>在上面的例子中，如果出于某种原因我们必须调用两次<code>useEffect</code>，并且对<code>fetchUsersList</code>的第二次调用在第一次调用之前解决，那么我们就会有一个过时的“更新”列表。</p>
+<p>您可以通过添加一种方法来解决这个问题，即在您认为必要时阻止<code>updateUsersList</code>调用的发生，但是，这种方法可能无法很好地适应多个<code>await</code>表达式。</p>
+<p>另一方面，当您使用React Async时，您不必担心取消未解决的请求或处理适当的竞争条件，因为React已经为您处理了这些:</p>
+<pre>import { useAsync } from "react-async"
+// You can use async/await or any function that returns a Promise
+const fetchUsersList = async ({ signal }) =&gt; {
+  const res = await fetch(`/api/users`, { signal })
+  if (!res.ok) throw new Error(res.statusText)
+  return res.json()
+}
+const filteredUsers = (users) =&gt; {
+  // Filter users ...
+}
+const MyComponent = () =&gt; {
+  const { data, error, isPending } = useAsync({ promiseFn: fetchUsersList})
+  if (isPending) return "Loading..."
+  if (error) return `Something went wrong: ${error.message}`
+  if (data)
+  &lt;ul&gt;
+    { filteredUsers(data.users).map(user =&gt; &lt;li&gt;{user.name}&lt;/li&gt;) }
+  &lt;/ul&gt;
+)
+return null</pre>
+<p>在上面的代码片段中，任何时候我们调用<code>fetchUsersList</code>，我们都将重新呈现<code>MyComponent</code>组件，这意味着我们将总是拥有我们期望的状态。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>此外，React Async在内部为我们做了一次清理，并使用<code>AbortController</code> API取消了未解决的承诺(即<code>signal</code>变量被传递给<code>fetchUsersList</code>函数)，因此我们不必担心竞争条件和取消我们不再需要的未解决的承诺。</p>
+<p>如果您的应用程序非常简单，并且添加一个14kb的库来处理异步操作没有意义，那么您可以满足于稍微高级一点的<code>useEffect</code>实现。</p>
+<p>在我看来，React Async已经是相当轻量级的了，除了经过充分测试之外，它还有很多好处。</p>
+<p>因此，除非节省14kb的好处至关重要，否则您可能希望使用React Async。</p>
+<h3>React Async vs Redux-Saga</h3>
+<p><code>Redux-Saga</code>是一个库，旨在使应用程序副作用(即异步的事情，如数据获取和不纯的事情，如访问浏览器缓存)更容易管理，更有效地执行，更容易测试，更好地处理故障:<a href="https://redux-saga.js.org/" target="_blank" rel="noopener noreferrer">redux-saga.js.org。</a></p>
+<p>Redux-Saga比React Async需要更多的步骤来开始。</p>
+<p>那是因为它是一个Redux中间件，也就是说你要为它设置Redux。</p>
+<p>Redux的想法是为应用程序的所有或主要部分提供一个集中的状态。这样，您可以通过调度<code>actions</code>来更新您的状态。例如:</p>
+<pre>const Counter = ({ value }) =&gt;
+  &lt;div&gt;
+    &lt;button onClick={() =&gt; store.dispatch({type: 'INCREMENT_ASYNC'})}&gt;
+      Increment after 1 second
+    &lt;/button&gt;
+    &lt;hr /&gt;
+    &lt;div&gt;
+      Clicked: {value} times
+    &lt;/div&gt;
+  &lt;/div&gt;</pre>
+<p>Redux-Saga依靠“ES6生成器”帮助您进行网络调用或执行其他异步副作用:</p>
+<pre>function* incrementAsync() {
+  yield delay(1000)
+  yield put({ type: 'INCREMENT' })
+}</pre>
+<p>如你所见，你产生副作用的地方离你的组件很远。通过在组件内调度操作来触发更新。然后，更新的状态通过你的道具进来。</p>
+<p>相当标准的东西，但是与React Async给你的东西非常不同，而且不够直观。</p>
+<h3>结论</h3>
+<ul>
+<li>使用React Async，您不需要像使用Redux那样假设您的数据将会是什么样子。这就像你通常如何使用承诺。</li>
+<li>使用React Async，您可以将数据解析到更接近您需要的位置，从而更清楚地了解正在发生的事情。</li>
+</ul>
+<p>你不需要理解一个相当复杂的结构，比如reducers和actions——你可以利用你已经知道并在你的组件中使用的东西——JSX、承诺和钩子。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

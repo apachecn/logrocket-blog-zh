@@ -1,0 +1,173 @@
+<html>
+<head>
+<title>Working with Go images - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Go images - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/working-with-go-images/#0001-01-01">https://blog.logrocket.com/working-with-go-images/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Web应用程序经常需要为用户呈现头像，而用户并不总是热衷于上传他们的图片。一个流行的方法是根据用户名字的首字母来生成他们的头像。在本教程中，我们将探索如何在Go中创建这样的化身，并使用<a href="https://github.com/go-chi/chi" target="_blank" rel="noopener noreferrer"> chi路由器</a>通过HTTP提供服务。</p>
+<h2>设置</h2>
+<p>为了跟进，您需要安装一个合理的最新版本的<a href="https://golang.org/doc/install" target="_blank" rel="noopener noreferrer">Go</a>(版本1.14或更高)。</p>
+<blockquote><p>注意:下面使用的shell命令是针对Linux/macOS的，如果与您的操作系统不同，请随意使用它的等效命令。</p></blockquote>
+<p>首先，为项目创建一个文件夹，并初始化一个新的Go模块:</p>
+<pre>$ mkdir go-avatars &amp;&amp; cd go-avatars
+$ go mod init gitlab.com/idoko/go-avatars</pre>
+<p>接下来，通过在您的工作目录(即<code>go-avatars</code>)中运行下面的命令来添加您需要的依赖项:</p>
+<pre>$ go get golang.org/x/image github.com/golang/freetype github.com/go-chi/chi</pre>
+<p>依赖项包括<a href="https://pkg.go.dev/golang.org/x/image" target="_blank" rel="noopener noreferrer"> <code>image</code> </a>，它提供了在Go中处理图像的方法，<a href="https://pkg.go.dev/github.com/golang/freetype/" target="_blank" rel="noopener noreferrer"> <code>freetype</code> </a>用于处理字体(和在图像上书写)，以及<a href="https://pkg.go.dev/mod/github.com/go-chi/chi" target="_blank" rel="noopener noreferrer"> <code>chi</code> </a>路由器，用于通过HTTP服务生成的头像。</p>
+<h2>创建图像画布</h2>
+<p>为了给我们的角色准备背景，我们在工作目录中创建了一个<code>main.go</code>文件，并实现了两个功能——<code>main</code>和<code>createAvatar</code>。打开<code>main.go</code>文件，添加下面的代码块:</p>
+<pre>package main
+import (
+    "fmt"
+    "image"
+    "image/color"
+    "image/draw"
+    "image/png"
+    "log"
+    "os"
+    "time"
+)
+func main() {
+    initials := "LR"
+    size := 200
+    avatar, err := createAvatar(size, initials)
+    if err != nil {
+        log.Fatal(err)
+    }
+    filename := fmt.Sprintf("out-%d.png", time.Now().Unix())
+    file, err := os.Create(filename)
+    if err != nil {
+        log.Fatal(err)
+    }
+    png.Encode(file, avatar)
+}
+func createAvatar(size int, initials string) (*image.RGBA, error) {
+    width, height := size, size
+    bgColor, err := hexToRGBA("#764abc")
+    if err != nil {
+        log.Fatal(err)
+    }
+    background := image.NewRGBA(image.Rect(0, 0, width, height))
+    draw.Draw(background, background.Bounds(), &amp;image.Uniform{C: bgColor},
+        image.Point{}, draw.Src)
+    //drawText(background, initials)
+    return background, err
+}</pre>
+<p><code>createAvatar</code>函数创建一个正方形画布，其宽度和高度与传递给该函数的<code>size</code>参数相同。它将十六进制颜色代码转换为RGBA颜色代码，然后将RGBA均匀地绘制在画布上。接下来，我们将实现<code>hexToRGBA</code>函数来转换颜色。</p>
+<h2>将十六进制代码转换为RGBA颜色</h2>
+<p>将<code>hexToRGBA</code>函数的实现添加到<code>main.go</code>文件中:</p>
+<pre>func hexToRGBA(hex string) (color.RGBA, error) {
+    var (
+        rgba color.RGBA
+        err  error
+        errInvalidFormat = fmt.Errorf("invalid")
+    )
+    rgba.A = 0xff
+    if hex[0] != '#' {
+        return rgba, errInvalidFormat
+    }
+    hexToByte := func(b byte) byte {
+        switch {
+        case b &gt;= '0' &amp;&amp; b &lt;= '9':
+            return b - '0'
+        case b &gt;= 'a' &amp;&amp; b &lt;= 'f':
+            return b - 'a' + 10
+        case b &gt;= 'A' &amp;&amp; b &lt;= 'F':
+            return b - 'A' + 10
+        }
+        err = errInvalidFormat
+        return 0
+    }
+    switch len(hex) {
+    case 7:
+        rgba.R = hexToByte(hex[1])&lt;&lt;4 + hexToByte(hex[2])
+        rgba.G = hexToByte(hex[3])&lt;&lt;4 + hexToByte(hex[4])
+        rgba.B = hexToByte(hex[5])&lt;&lt;4 + hexToByte(hex[6])
+    case 4:
+        rgba.R = hexToByte(hex[1]) * 17
+        rgba.G = hexToByte(hex[2]) * 17
+        rgba.B = hexToByte(hex[3]) * 17
+    default:
+        err = errInvalidFormat
+    }
+    return rgba, err
+}</pre>
+<p>该实现使用来自<a href="https://github.com/icza/gox/blob/master/imagex/colorx/colorx.go" target="_blank" rel="noopener noreferrer"> <code>gox</code> </a>库的代码，并通过将十六进制颜色代码转换为字节序列来工作。对于十六进制三元组(即6位数字、3字节十六进制数)，每个字节的第一位数字乘以16(左移4位)并与同一字节的第二位数字相加，得到RGB等效值。</p>
+<p>如果十六进制字符串是三个数字(比如#FFF)，那么我们只需要将每个数字乘以17就可以得到相应的RGB值。</p>
+<p>你可以在维基百科页面上了解更多关于网络颜色之间转换的信息。</p>
+<p>用<code>go run ./main.go</code>运行<code>main.go</code>文件，在项目目录中生成一个颜色一致的文件，如下图所示(名为<code>out-xxxxxxxx.png</code>)。</p>
+<p><img data-attachment-id="26243" data-permalink="https://blog.logrocket.com/working-with-go-images/blankcanvasgeneratedbyrunningthemaingofile/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blankcanvasgeneratedbyrunningthemaingofile" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" decoding="async" class="aligncenter size-full wp-image-26243 jetpack-lazy-image" src="../Images/44a033bff70c6b66c62e423760716435.png" alt="Blank canvas generated by running the main.go file" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile-150x150.png?crop=1 150w" data-lazy-sizes="(max-width: 200px) 100vw, 200px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="26243" data-permalink="https://blog.logrocket.com/working-with-go-images/blankcanvasgeneratedbyrunningthemaingofile/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blankcanvasgeneratedbyrunningthemaingofile" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-26243" src="../Images/44a033bff70c6b66c62e423760716435.png" alt="Blank canvas generated by running the main.go file" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile-150x150.png?crop=1 150w" sizes="(max-width: 200px) 100vw, 200px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Blankcanvasgeneratedbyrunningthemaingofile.png"/></noscript>
+<h2>在背景上绘制文本</h2>
+<p>接下来，我们将实现负责在空白画布上书写首字母的<code>drawText</code>函数。在编辑器中打开<code>main.go</code>文件，并将下面的代码添加到其中:</p>
+<pre>func drawText(canvas *image.RGBA, text string) error {
+    var (
+        fgColor  image.Image
+        fontFace *truetype.Font
+        err      error
+        fontSize = 128.0
+    )
+    fgColor = image.White
+    fontFace, err = freetype.ParseFont(goregular.TTF)
+    fontDrawer := &amp;font.Drawer{
+        Dst: canvas,
+        Src: fgColor,
+        Face: truetype.NewFace(fontFace, &amp;truetype.Options{
+            Size:    fontSize,
+            Hinting: font.HintingFull,
+        }),
+    }
+    textBounds, _ := fontDrawer.BoundString(text)
+    xPosition := (fixed.I(canvas.Rect.Max.X) - fontDrawer.MeasureString(text)) / 2
+    textHeight := textBounds.Max.Y - textBounds.Min.Y
+    yPosition := fixed.I((canvas.Rect.Max.Y)-textHeight.Ceil())/2 + fixed.I(textHeight.Ceil())
+    fontDrawer.Dot = fixed.Point26_6{
+        X: xPosition,
+        Y: yPosition,
+    }
+    fontDrawer.DrawString(text)
+    return err
+}</pre>
+<p>该函数接受一个<code>image.RGBA</code>指针作为参数，这确保它正在修改传递给它的同一个图像。它使用Go标准库中的<a href="https://blog.golang.org/go-fonts" target="_blank" rel="noopener noreferrer"> goregular </a>字体进行渲染。</p>
+<p>绘制文本本身使用的是<code>font.Drawer</code>结构，它的主要工作是在图像上书写。我们传入avatar画布作为抽屉目标(<code>Dst</code>)和一个完全白色的图像作为源(<code>Src</code>)图像，它以白色呈现文本。</p>
+<p>我们还计算了文本的水平起点(<code>xPosition</code>)，首先测量文本的长度，从整个画布宽度中减去长度，然后将结果除以2(考虑左右边距)。</p>
+<p>类似地，垂直位置(<code>yPosition</code>)的计算方法是，首先将画布高度和文本高度之差减半，然后再次加上文本高度，将文本推入适当的位置。</p>
+<p>记得取消注释<code>createAvatar</code>函数中的<code>drawText(background, initials)</code>行。</p>
+<p>此外，如果您的编辑器没有为您导入依赖项，您可能需要手动导入。</p>
+<p>用<code>go run ./main.go</code>运行<code>main.go</code>文件，您应该会在您的工作目录中看到生成的图像。</p>
+<p><img data-attachment-id="26246" data-permalink="https://blog.logrocket.com/working-with-go-images/avatargeneratedwithinitials/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="avatargeneratedwithinitials" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" decoding="async" class="aligncenter size-full wp-image-26246 jetpack-lazy-image" src="../Images/25aaa0c5afb0a342749f644dea051c9a.png" alt="[Avatar generated with initials set to “IM”" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials-150x150.png?crop=1 150w" data-lazy-sizes="(max-width: 200px) 100vw, 200px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="26246" data-permalink="https://blog.logrocket.com/working-with-go-images/avatargeneratedwithinitials/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="avatargeneratedwithinitials" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-26246" src="../Images/25aaa0c5afb0a342749f644dea051c9a.png" alt="[Avatar generated with initials set to “IM”" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials-150x150.png?crop=1 150w" sizes="(max-width: 200px) 100vw, 200px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/avatargeneratedwithinitials.png"/></noscript>
+<p><img data-attachment-id="26247" data-permalink="https://blog.logrocket.com/working-with-go-images/lravatar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LRavatar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" decoding="async" class="aligncenter size-full wp-image-26247 jetpack-lazy-image" src="../Images/534ba37d772ebba5fa66030fe630883e.png" alt="vatar generated with initials set to “LR” with purple background" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar-150x150.png?crop=1 150w" data-lazy-sizes="(max-width: 200px) 100vw, 200px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="26247" data-permalink="https://blog.logrocket.com/working-with-go-images/lravatar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" data-orig-size="200,200" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="LRavatar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-26247" src="../Images/534ba37d772ebba5fa66030fe630883e.png" alt="vatar generated with initials set to “LR” with purple background" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png 200w, https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar-150x150.png?crop=1 150w" sizes="(max-width: 200px) 100vw, 200px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/LRavatar.png"/></noscript>
+<h2>使用chi路由器渲染生成的图像</h2>
+<p>为了让我们的头像在浏览器中可用，我们将修改我们的<code>main</code>函数，让它通过HTTP渲染生成的图像。用下面的代码替换现有的<code>main</code>函数:</p>
+<pre>router := chi.NewRouter()
+        router.Use(middleware.Logger)
+        router.Get("/avatar", func(w http.ResponseWriter, r *http.Request) {
+                initials := r.FormValue("initials")
+                size, err := strconv.Atoi(r.FormValue("size"))
+                if err != nil {
+                        size = 200
+                }
+                avatar, err := createAvatar(size, initials)
+                if err != nil {
+                        log.Fatal(err)
+                }
+                w.Header().Set("Content-Type", "image/png")
+                png.Encode(w, avatar)
+        })
+        http.ListenAndServe(":3000", router)</pre>
+<p>上面的代码片段首先使用chi设置了<code>/avatar</code>路由来处理HTTP请求。然后，该函数从查询参数中提取姓名首字母和大小，并使用它来生成头像。</p>
+<p>由于<code>png.Encode()</code>采用了一个<code>io.Writer</code>接口(由<code>http.ResponseWriter</code>实现)，我们新的<code>main</code>函数可以直接服务于生成的图像供浏览器渲染。</p>
+<p>在你的终端运行<code>go run ./main.go</code>启动HTTP服务器，访问<a href="http://localhost:3000/avatar?initials=JD&amp;size=300" target="_blank" rel="noopener noreferrer">HTTP://localhost:3000/avatar？initials=JD &amp; size=300 </a>在你的终端查看结果。</p>
+<p><img data-attachment-id="26250" data-permalink="https://blog.logrocket.com/working-with-go-images/firefoxshowingthegeneratedavatarwithinitials/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png" data-orig-size="1366,768" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Firefoxshowingthegeneratedavatarwithinitials" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-1024x576.png" decoding="async" class="aligncenter size-full wp-image-26250 jetpack-lazy-image" src="../Images/20f80dbd5f9cec86f0ae171c29297f44.png" alt="Firefox showing the generated avatar with initials “LR”" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png 1366w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-300x169.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-1024x576.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-768x432.png 768w" data-lazy-sizes="(max-width: 1366px) 100vw, 1366px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="26250" data-permalink="https://blog.logrocket.com/working-with-go-images/firefoxshowingthegeneratedavatarwithinitials/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png" data-orig-size="1366,768" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Firefoxshowingthegeneratedavatarwithinitials" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-300x169.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-1024x576.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-26250" src="../Images/20f80dbd5f9cec86f0ae171c29297f44.png" alt="Firefox showing the generated avatar with initials “LR”" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png 1366w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-300x169.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-1024x576.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials-768x432.png 768w" sizes="(max-width: 1366px) 100vw, 1366px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/Firefoxshowingthegeneratedavatarwithinitials.png"/></noscript>
+<h2>结论</h2>
+<p>我发现动态头像比静态默认头像更具美感，在本文中，我们看到了在Golang中实现它的方法。您可以进一步使用由首字母确定的背景颜色，一种方法是创建一个十六进制颜色字符串的切片或数组，并根据首字母的散列从切片中选择一种颜色。</p>
+<p>教程的完整源代码在<a href="https://gitlab.com/idoko/go-avatars" target="_blank" rel="noopener noreferrer"> GitLab上。</a>我写了一个基于代码的迷你包，你可以在你的代码中使用<a href="https://github.com/idoqo/avi">这里</a>。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

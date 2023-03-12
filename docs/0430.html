@@ -1,0 +1,222 @@
+<html>
+<head>
+<title>Working with Node.js on Hyper-V and WSL2 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Hyper-V和WSL2 - LogRocket博客上使用Node.js</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/#0001-01-01">https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Node.js的一个主要好处是它提供了多平台支持。无论您运行的是Mac、Linux还是Windows，体验几乎是无缝的。</p>
+<p>但是，每个平台之间可能会有细微的差异，尤其是在开发与底层操作系统密切交互的Node.js应用程序时。</p>
+<p>那么，您如何确保您在Windows工作站上编码、运行和测试的内容在您的主机Linux服务器上以相同的方式运行呢？</p>
+<p>在本文中，我们将为那些希望在Linux上运行和测试Node.js应用程序的Windows开发人员提供两种选择:Hyper-V虚拟机和Windows Subsystem for Linux 2 (WSL2)。</p>
+<p>我们将通过Node 12在两个系统中运行来设置Ubuntu 19的实例，比较两者之间的差异，并最终确定哪个系统最适合处理每个场景。</p>
+<p><img data-attachment-id="5614" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-with-hyper-v-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png" data-orig-size="730,248" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ubuntu-with-hyper-v-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn-300x102.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png" decoding="async" class="aligncenter wp-image-5614 jetpack-lazy-image" src="../Images/0e6c29865cb8d7e8f0b992009af59bd5.png" alt="A screenshot of Ubuntu running on Hyper-V compared to the program on WSL2" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn-300x102.png 300w" data-lazy-sizes="(max-width: 1000px) 100vw, 1000px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="5614" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-with-hyper-v-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png" data-orig-size="730,248" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ubuntu-with-hyper-v-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn-300x102.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5614" src="../Images/0e6c29865cb8d7e8f0b992009af59bd5.png" alt="A screenshot of Ubuntu running on Hyper-V compared to the program on WSL2" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn-300x102.png 300w" sizes="(max-width: 1000px) 100vw, 1000px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-with-hyper-v-nocdn.png"/></noscript>
+<p>示例应用程序</p>
+<h2>为了彻底测试开发人员的体验，我们将使用预构建的<strong>图像压缩器</strong>示例应用程序。</h2>
+<p>这是一个简单的Node.js web应用程序，它接受一个或多个图像文件上传，压缩图像，并允许用户下载压缩的图像。</p>
+<p><img data-attachment-id="5402" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/node-js-image-compressor/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png" data-orig-size="883,588" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node.js Image Compressor" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-300x200.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png" decoding="async" class="aligncenter wp-image-5402  jetpack-lazy-image" src="../Images/5c9ea51b2926df00d6ec67aa14736edc.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png 883w, https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-300x200.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-768x511.png 768w" data-lazy-sizes="(max-width: 785px) 100vw, 785px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png"/></p>
+<p>Image Compressor与底层操作系统的文件系统交互，需要一些处理能力来执行图像压缩。</p><noscript><img data-lazy-fallback="1" data-attachment-id="5402" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/node-js-image-compressor/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png" data-orig-size="883,588" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Node.js Image Compressor" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-300x200.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png" decoding="async" loading="lazy" class="aligncenter wp-image-5402 " src="../Images/5c9ea51b2926df00d6ec67aa14736edc.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png 883w, https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-300x200.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor-768x511.png 768w" sizes="(max-width: 785px) 100vw, 785px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Node.js-Image-Compressor.png"/></noscript>
+<p>该应用程序还显示在服务器上压缩图像需要多长时间，这将允许我们在Hyper-V和WSL2之间进行基本的性能比较。</p>
+<p>图像压缩程序可以从GitHub上的<a href="https://github.com/briandesousa/image-compressor" target="_blank" rel="noopener noreferrer">briandesousa/Image-Compressor</a>库下载。只需简单的<code>npm install &amp; npm start</code>就可以安装启动app。<span class=" author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">运行后，您可以在</span>访问该应用</p>
+<p><em> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">提示:最近构建的WSL2支持使用</span> <span class="highlight inline-code author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z"> <code>localhost</code> </span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">来访问运行在WSL2中的服务器。我发现这种能力并不稳定。</span> </em></p>
+<div>
+<p><em> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">最初</span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwyti6z78zz83zs1z80zlz76z4z86z1jrsz81zf8wvrz88zx2z65zz75zz71zz70z">，</span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">示例应用程序可以在</span><span class="highlight attrlink url author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z url"><a href="http://localhost:3000" rel="nofollow">http://localhost:3000</a></span><span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwyti6z78zz83zs1z80zlz76z4z86z1jrsz81zf8wvrz88zx2z65zz75zz71zz70z">，</span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">访问，但是过了一段时间后，我就再也无法连接到它了。</span>T15】</em></p>
+</div>
+<div>
+<p>使用<span class="highlight inline-code author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z"> <code>net stop LxssManager</code> </span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">和</span> <span class="highlight inline-code author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z"> <code>net start LxssManager</code> </span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">重新启动WSL2子系统似乎可以瞬间</span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwyti6z78zz83zs1z80zlz76z4z86z1jrsz81zf8wvrz88zx2z65zz75zz71zz70z">解决</span> <span class="highlight author-d-1gg9uz65z1iz85zgdz68zmqkz84zo2qoxwz83zyz76z1260c9dlz70zz88zorz84zz68zpiollz76zz74zz88zz72z2z67zsz78z">问题。</span></p>
+<p>Hyper-V上的Ubuntu</p>
+</div>
+<h2>我们将从在Windows Hyper-V虚拟机上运行的Ubuntu 19上设置Node 12服务器开始。为此，您的系统需要满足一些要求:</h2>
+<p>您的系统必须运行Windows 10专业版或更高版本。家庭版不支持Hyper-V</p>
+<ul>
+<li>你的系统必须满足微软设定的硬件要求</li>
+<li>您必须<a href="https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/quick-start/enable-hyper-v" target="_blank" rel="noopener noreferrer">在您的系统上启用Hyper-V </a></li>
+<li>在我们开始之前，让我们花点时间了解一下微软在过去几年里是如何拥抱Linux的。我们将使用Hyper-V管理器中的<strong>快速创建</strong>功能，以最简单的方式建立一个Ubuntu 19虚拟机。</li>
+</ul>
+<p>稍后你会看到在WSL2中运行Ubuntu系统是多么容易。很难相信现在在Windows中运行Linux是多么简单。</p>
+<p>要开始，首先从“开始”菜单启动Hyper-V管理器。点击右上角的<strong>快速创建</strong>选项，然后选择Ubuntu 19操作系统选项。</p>
+<p><img data-attachment-id="5617" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-19-04-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png" data-orig-size="1237,759" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu-19.04-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-1024x628.png" decoding="async" class="aligncenter wp-image-5617 jetpack-lazy-image" src="../Images/0af8743faa1c34cf1d62b5737d18c88f.png" alt="Ubuntu 19.04 Hyper-V Quick Create virtual machine" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png 1237w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-300x184.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-768x471.png 768w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-1024x628.png 1024w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png"/></p>
+<p>Hyper-V管理器将下载一个Ubuntu映像并设置虚拟机。该过程完成后，您将看到一个窗口，您可以使用该窗口编辑虚拟机的设置。</p><noscript><img data-lazy-fallback="1" data-attachment-id="5617" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-19-04-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png" data-orig-size="1237,759" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu-19.04-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-300x184.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-1024x628.png" decoding="async" loading="lazy" class="aligncenter wp-image-5617" src="../Images/0af8743faa1c34cf1d62b5737d18c88f.png" alt="Ubuntu 19.04 Hyper-V Quick Create virtual machine" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png 1237w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-300x184.png 300w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-768x471.png 768w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn-1024x628.png 1024w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-19.04-nocdn.png"/></noscript>
+<p>默认情况下，Hyper-V在分配适当的CPU、RAM、硬盘空间和其他硬件资源方面做得不错。但是，如果您对调整设置感兴趣，您可以在此时或以后这样做。</p>
+<p>首先点击<strong>连接</strong>，然后<strong>启动</strong>启动虚拟机。新的Ubuntu系统将会打开一个虚拟机连接窗口。</p>
+<p>Ubuntu启动后，通过系统配置向导来设置系统参数，如语言、时区、机器名、用户名和密码。</p>
+<p><img data-attachment-id="5616" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-system-configuration-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png" data-orig-size="730,612" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ubuntu-system-configuration-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn-300x252.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png" decoding="async" class="aligncenter wp-image-5616 size-full jetpack-lazy-image" src="../Images/0a99f105c247f041fbd050b18ab12973.png" alt="Ubuntu system configuration wizard" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn-300x252.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png"/></p>
+<p>系统配置完成后，Ubuntu需要重启。重新启动后，Hyper-V管理器将提示您重新连接到虚拟机。</p><noscript><img data-lazy-fallback="1" data-attachment-id="5616" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-system-configuration-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png" data-orig-size="730,612" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ubuntu-system-configuration-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn-300x252.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5616 size-full" src="../Images/0a99f105c247f041fbd050b18ab12973.png" alt="Ubuntu system configuration wizard" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn-300x252.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/ubuntu-system-configuration-nocdn.png"/></noscript>
+<p>这一次，系统会提示您输入在前面步骤中指定的用户名和密码。</p>
+<p><img data-attachment-id="5618" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-virtual-machine-login-prompt-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png" data-orig-size="350,428" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu-virtual-machine-login-prompt-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn-245x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png" decoding="async" class="aligncenter wp-image-5618 size-full jetpack-lazy-image" src="../Images/f7bdde331b779d72effc8e35dfb6a849.png" alt="Ubuntu virtual machine login prompt" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png 350w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn-245x300.png 245w" data-lazy-sizes="(max-width: 350px) 100vw, 350px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png"/></p>
+<p>运行示例应用程序</p><noscript><img data-lazy-fallback="1" data-attachment-id="5618" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/ubuntu-virtual-machine-login-prompt-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png" data-orig-size="350,428" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Ubuntu-virtual-machine-login-prompt-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn-245x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5618 size-full" src="../Images/f7bdde331b779d72effc8e35dfb6a849.png" alt="Ubuntu virtual machine login prompt" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png 350w, https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn-245x300.png 245w" sizes="(max-width: 350px) 100vw, 350px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/Ubuntu-virtual-machine-login-prompt-nocdn.png"/></noscript>
+<h2>从现在开始，我们将使用命令行来更新系统、安装必要的软件、下载和运行示例应用程序。从应用程序菜单启动命令窗口，并完成以下任务:</h2>
+<p>确保安装了所有Ubuntu系统更新:</p>
+<ul>
+<li>使用snap安装最新稳定版本的Node.js 12:</li>
+</ul>
+<pre>sudo apt update
+sudo apt upgrade</pre>
+<ul>
+<li><code>sudo snap install node --channel=12/stable --classic</code></li>
+</ul>
+<p><em>提示:如果snap install因“操作太早，设备尚未播种或设备型号未被确认<strong>，</strong>”而失败，请尝试使用</em> <code>sudo apt purg snapd &amp; sudo apt install snapd </code>重新安装snap。</p>
+<p>在启动应用程序之前，记下虚拟机的IP地址。您将需要它来直接从Windows中访问web应用程序。使用<code>ip addr | grep eth0</code>快速定位IP地址。</p>
+<pre>git clone https://github.com/briandesousa/image-compressor.git ~/image-compressor
+cd ~/image-compressor
+npm install</pre>
+<ul>
+<li>用<code>npm run debug</code>在调试模式下启动app。您将在控制台中看到一条消息，指示应用程序正在侦听端口3000。</li>
+<li>此时，您可以切换回Windows，启动您最喜欢的浏览器，并使用虚拟机的IP地址访问<code><a href="http://&lt;ip&amp;gt" rel="nofollow">http://&lt;ip&amp;gt</a>;:3000</code>。你能看到图像压缩程序吗？</li>
+</ul>
+<p>启动并运行Hyper-V虚拟机非常快速和简单。这个过程中最耗时的部分是等待Hyper-V管理器下载并安装Ubuntu操作系统。</p>
+<p>根据你的互联网连接速度和硬件，你可能会发现WLS2上的Ubuntu安装速度要快得多。</p>
+<p>用于Linux 2的Windows子系统上的Ubuntu</p>
+<h2>WSL2被认为是针对Linux的原始Windows子系统的全面改进。目前，WSL2只对从<a href="https://www.bleepingcomputer.com/news/microsoft/windows-subsystem-for-linux-2-wsl-2-released-to-insiders/" target="_blank" rel="noopener noreferrer"> build 18917开始的Windows内部人员开放。</a></h2>
+<p>它现在使用完整的Linux内核，以及虚拟化技术。这意味着它与Hyper-V有相似的系统需求。</p>
+<p>在使用WSL2之前，您需要启用一些可选的特性。以管理员身份打开powershell命令窗口，并运行以下命令:</p>
+<p>默认情况下，启用WSL的原始版本。我们希望将WSL2作为默认设置，这样我们安装的任何Linux发行版都可以在WSL2下运行。在同一个powershell命令窗口中，运行以下命令:</p>
+<pre>Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux</pre>
+<p><em>提示:关于如何设置WSL2的深入指导可以在<a href="https://docs.microsoft.com/en-us/windows/wsl/wsl2-install" target="_blank" rel="noopener noreferrer">这里</a>找到。</em></p>
+<pre>wsl --set-default-version 2</pre>
+<p>现在WSL2已经设置好了，我们将从微软商店安装Ubuntu发行版。从“开始”菜单启动商店应用程序，然后在“Linux”上搜索</p>
+<p>您将在搜索结果中找到一些Linux发行版。我们将要安装的这个简单地命名为<em> Ubuntu </em>。</p>
+<p><img data-attachment-id="5620" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/image_preview-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png" data-orig-size="718,366" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image_preview-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png" decoding="async" class="aligncenter wp-image-5620 jetpack-lazy-image" src="../Images/5cb078ca322a08536f4f2529ab26bb10.png" alt="Ubuntu apps displayed on WSL2" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png 718w, https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn-300x153.png 300w" data-lazy-sizes="(max-width: 718px) 100vw, 718px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png"/></p>
+<p>从Microsoft Store安装Ubuntu应用程序后，返回powershell窗口并运行此命令以确认Ubuntu已安装并在WSL2下运行:</p><noscript><img data-lazy-fallback="1" data-attachment-id="5620" data-permalink="https://blog.logrocket.com/working-with-node-js-on-hyper-v-and-wsl2/image_preview-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png" data-orig-size="718,366" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="image_preview-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-5620" src="../Images/5cb078ca322a08536f4f2529ab26bb10.png" alt="Ubuntu apps displayed on WSL2" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png 718w, https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn-300x153.png 300w" sizes="(max-width: 718px) 100vw, 718px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/image_preview-nocdn.png"/></noscript>
+<p>从开始菜单打开Ubuntu应用程序。一个连接到新的Ubuntu WSL2系统的Ubuntu命令窗口将会打开。在开始使用之前，系统会提示您创建用户名和密码。</p>
+<pre>&gt; wsl -l -v
+      NAME            STATE           VERSION
+      Ubuntu          Running         2</pre>
+<p>在WSL2上升级Ubuntu</p>
+<h2>你有没有注意到我们从微软商店安装的Ubuntu应用没有指定版本号？这是故意的。</h2>
+<p>Ubuntu应用程序的通用版本将始终安装最新的Ubuntu LTS版本。用户仍然可以使用商店中其他版本的Ubuntu应用程序直接安装以前版本的Ubuntu，这些应用程序的名称中包含明确的Ubuntu版本号。</p>
+<p>但是等等——我们有一个小问题。我们的Hyper-V虚拟机运行的是最新最棒的Ubuntu 19“Disco Dingo”，但WSL2 Ubuntu应用安装的是Ubuntu 18“仿生海狸”。</p>
+<p>您可以通过在Ubuntu命令窗口运行<code>lsb_release -a</code>并观察输出来确认这一点:</p>
+<p>我们想把苹果比作苹果，所以我们应该升级到Ubuntu 19来匹配我们的Hyper-V虚拟机。幸运的是，升级过程相当简单。</p>
+<pre>No LSB modules are available.
+Distributor ID: Ubuntu
+Description:    Ubuntu 18.04.3 LTS
+Release:        18.04
+Codename:       bionic</pre>
+<p>首先，我们需要将<code>/etc/update-manager/release-upgrades</code>中的<code>Prompt</code>设置从<code>lts</code>改为<code>normal</code>。您可以使用自己选择的命令行编辑器编辑该文件。我更喜欢用<code>nano</code>:</p>
+<p>接下来，运行以下命令升级到Ubuntu的最新普通版本:</p>
+<pre>sudo nano /etc/update-manager/release-upgrades</pre>
+<p>升级需要一些时间才能完成。在升级过程中，可能会提示您解决以前修改过的文件的冲突。</p>
+<pre>sudo do-release-upgrade</pre>
+<p>您需要决定是否接受即将到来的更改。根据我的经验，用引入的更改替换修改过的文件是安全的。</p>
+<p>一旦升级完成，你可以使用<code>lsb_release -a</code>来检查Ubuntu版本，以确认你现在运行的是Ubuntu 19。</p>
+<p>运行示例应用程序</p>
+<h2>从现在开始，您会注意到设置说明与我们在Hyper-V虚拟机上设置示例应用的方式非常相似，但有一些注意事项。</h2>
+<p>在Ubuntu命令窗口中，完成以下步骤:</p>
+<p>确保安装了所有的Ubuntu系统更新。</p>
+<ul>
+<li>使用<code>apt</code>工具安装Node.js。在我们的Hyper-V虚拟机上，我们使用了<code>snap</code>。然而，<code>snap</code>在WSL2中默认不工作。</li>
+</ul>
+<pre>sudo apt update
+sudo apt upgrade</pre>
+<ul>
+<li>也许有可能让<a href="https://discourse.ubuntu.com/t/using-snapd-in-wsl2/12113" target="_blank" rel="noopener noreferrer">让<code>snap</code>在WSL2上工作</a>，但是这超出了本文的范围。</li>
+</ul>
+<p>如果用<code>node -v</code>检查Node.js的安装版本，会注意到安装了一个较老的版本，比如v8.10.0。默认情况下，Ubuntu软件包仓库包含一个相当旧的Node.js版本，但是我们可以从不同的软件包仓库安装一个较新的版本。</p>
+<pre>sudo apt install nodejs</pre>
+<ul>
+<li>最简单的方法是下载并运行NodeSource.com提供的一个方便的脚本，然后重新安装Node.js。为了下载脚本，我们需要先安装<code>curl</code>。</li>
+</ul>
+<p>确认Node.js 12安装了<code>node -v</code></p>
+<pre>sudo apt install curl
+curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+sudo apt install nodejs</pre>
+<ul>
+<li>下载、安装并运行图像压缩器示例应用程序:</li>
+<li>记下您的Ubuntu系统的IP地址，以便您可以从主机浏览器访问示例应用程序。使用<code>ip addr | grep eth0</code>快速定位IP地址。</li>
+</ul>
+<pre>git clone https://github.com/briandesousa/image-compressor.git ~/image-compressor
+cd ~/image-compressor
+npm install</pre>
+<ul>
+<li>用<code>npm run debug</code>在调试模式下启动app。您将在控制台中看到一条消息，指示应用程序正在侦听端口3000。</li>
+<li>此时你可以切换回Windows，启动你最喜欢的浏览器，用Ubuntu系统IP地址访问<code>http:/&lt;ip&gt;/:3000</code>。你能再次看见图像压缩器应用程序吗？</li>
+</ul>
+<p>将Hyper-V与WSL2进行比较</p>
+<h2>在Hyper-V虚拟机中运行Ubuntu Linux与在WSL2中运行操作系统的最大区别在于能够在Hyper-V中访问Ubuntu用户界面。</h2>
+<p>用户界面允许您安装和使用不仅仅是命令行工具。</p>
+<p>根据您系统的硬件性能，您可能会发现WSL2是更快的选择。为了加快在Hyper-V上运行Ubuntu Linux的过程，您可以设置对虚拟机的SSH访问。</p>
+<p>这加快了命令行访问的速度。然而，WSL2可能仍然占上风，因为它不需要SSH来实现访问。</p>
+<p>连续部署设置</p>
+<h2>如果您打算在Windows中开发并在Linux中运行您的应用程序，您可能希望设置一个连续部署模式，在该模式中，您将代码从Windows推送到远程Git repo，并自动在您的Linux系统上提取和部署这些更改。</h2>
+<p>这种模式可以用WSL2实现，但是Hyper-V虚拟机更适合，原因如下:</p>
+<p>虚拟机可以在没有活动连接的情况下在后台运行。只要虚拟机启动，进程就可以保持运行，而WSL2要求命令窗口保持打开以保持进程运行。</p>
+<ul>
+<li>虚拟机状态在主机系统重新启动后保持不变。您的流程可以继续运行，您可以从中断的地方继续开发，而不必重新启动WSL2命令窗口和重新启动您的流程。</li>
+<li>差异汇总</li>
+</ul>
+<h2>让我们从Node.js开发者的角度总结一下Hyper-V虚拟机和WSL2的区别:</h2>
+<p><strong>比较点</strong></p>
+<table>
+<thead>
+<tr>
+<th><strong>Hyper-V上的Linux</strong></th>
+<th><strong>wsl 2上的Linux</strong></th>
+<th>有一个图形用户界面</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是</td>
+<td>不</td>
+<td>有命令行界面</td>
+</tr>
+<tr>
+<td>是的，在GUI中或通过SSH启动命令窗口</td>
+<td>是</td>
+<td>最新版本的Ubuntu开箱即用</td>
+</tr>
+<tr>
+<td>是的，Hyper-V管理器快速创建有最新的Ubuntu版本</td>
+<td>不，Ubuntu应用程序安装最新的LTS版本，但可以升级</td>
+<td>安装开发人员软件的方法</td>
+</tr>
+<tr>
+<td><code>apt</code>、<code>snap</code>，快照存储(GUI)</td>
+<td><code>apt</code></td>
+<td>易于安装最新版本的Node.js</td>
+</tr>
+<tr>
+<td>简单，使用<code>snap</code></td>
+<td>不那么容易，需要从备用软件包库中安装<code>apt</code></td>
+<td>Node.js服务器可以从主机操作系统访问</td>
+</tr>
+<tr>
+<td>是，通过动态IP地址</td>
+<td>是，通过动态IP地址或<code>localhost</code></td>
+<td>可以在后台运行Node.js服务器</td>
+</tr>
+<tr>
+<td>是的，虚拟机继续在后台运行，甚至在主机系统重启后也是如此</td>
+<td>可以，但是你需要打开Ubuntu WSL2命令窗口</td>
+<td>比较性能</td>
+</tr>
+</tbody>
+</table>
+<h2>WSL2中最受推崇的改进之一是性能——特别是文件系统性能。</h2>
+<p>那么，与Hyper-V虚拟机相比，WSL2中的文件系统性能如何呢？</p>
+<p>嗯，我们可以使用我们的图像压缩器示例应用程序得到一个大致的概念，它执行一些内存中的压缩操作，然后将压缩的图像写入磁盘。</p>
+<p>为了比较两个系统之间的性能，我在每个系统上将50MB的图像文件上传到Image Compressor，并观察应用程序用多长时间来响应图像的压缩版本。</p>
+<p>以下是每个系统的平均时间:</p>
+<p>Hyper-V平均时间:62秒</p>
+<p>WSL2平均时间:59秒</p>
+<p>在这个基本的性能测试中，WSL2始终以大约5%的速度领先。</p>
+<p>我应该用什么？</p>
+<h2>您对在一个或多个Linux环境中运行和测试您的应用更感兴趣吗？ WSL2可能是最好的选择，因为您可以安装一些不同的发行版。WSL2实例是相当轻量级的，这意味着如果需要，您甚至可以同时运行几个实例。</h2>
+<p><strong>您是否希望直接在Linux操作系统中开发、测试和运行您的应用？</strong> Hyper-V可能是一个不错的选择，因为您可以使用GUI shell运行完整的Linux操作系统，安装所有开发工具(GUI或CLI ),并根据需要向虚拟机分配任意多或少的系统资源。</p>
+<p>你需要在不受WSL2支持的Linux发行版上运行和测试你的应用吗？ <br/> WSL2目前支持Ubuntu、SUSE Linux Enterprise Server、Debian、Kali。如果你想运行一个不同的发行版，你可能会想要使用Hyper-V，它支持更广泛的Linux发行版。</p>
+<p>Hyper-V虚拟机和Linux的Windows子系统对于开发人员来说都是非常强大的工具。虽然Hyper-V虚拟机总会有一席之地，但Windows子系统for Linux的发展速度尤其令人感兴趣。</p>
+<p>使用Windows和Linux系统的Node.js开发人员应该关注WSL并注意它的潜力。</p>
+<p>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</h2><p>. </p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

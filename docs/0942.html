@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>Working with the JavaScript Cache API - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用JavaScript缓存API - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/javascript-cache-api/#0001-01-01">https://blog.logrocket.com/javascript-cache-api/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<blockquote><p><a href="https://web.dev/cache-api-quick-guide/" target="_blank" rel="noopener noreferrer">缓存API </a>提供了一种机制，用于存储网络请求并在运行时检索相应的响应。它可以在没有互联网连接的情况下使用(或存在不稳定的连接)，这使它成为构建<a href="https://blog.logrocket.com/how-to-build-a-progressive-web-app-pwa-with-node-js/" target="_blank" rel="noopener noreferrer">渐进式网络应用</a>(完全优化的网络应用，像本地应用一样离线工作)的一部分。</p></blockquote>
+<p>因为不可能在开发时预先确定您的用户群，所以重要的是构建可以被广大用户访问的web服务，这些用户可能没有最好的硬件或者可能具有较慢的互联网连接。</p>
+<p>渐进式web应用程序的创建是为了确保web服务可以在所有设备上运行。在移动设备上，它们旨在提供接近原生应用程序的用户体验。在幕后，pwa使用<a href="https://developers.google.com/web/fundamentals/primers/service-workers" target="_blank" rel="noopener noreferrer">服务工作者</a>来实现理想的行为，并且它们利用缓存API来额外控制网络资源。</p>
+<p>这个谷歌网络基础<a href="https://developers.google.com/web/fundamentals/primers/service-workers" target="_blank" rel="noopener noreferrer">页面</a>是这样描述服务人员的:</p>
+<blockquote><p>服务人员是您的浏览器在后台运行的脚本，独立于网页，为不需要网页或用户交互的功能打开了大门。如今，它们已经包括了像<a href="https://developers.google.com/web/updates/2015/03/push-notifications-on-the-open-web" target="_blank" rel="noopener noreferrer">推送通知</a>和<a href="https://developers.google.com/web/updates/2015/12/background-sync" target="_blank" rel="noopener noreferrer">后台同步</a>这样的功能。在未来，服务人员可能会支持其他东西，如定期同步或<a href="https://developer.android.com/training/location/geofencing" target="_blank" rel="noopener noreferrer">地理围栏</a>。服务工作者的一个核心特性是能够拦截和处理网络请求，包括以编程方式管理响应缓存。</p></blockquote>
+<p>我们可以看到缓存在服务人员的工作流程中扮演着重要的角色。本文展示了如何在服务工作者中使用缓存API，并将其作为资源存储的通用机制。</p>
+<p>本教程中的所有代码都可以在这个<a href="https://github.com/Jordanirabor/Working_With_The_Cache_API" target="_blank" rel="noopener noreferrer">资源库</a>中找到，可以随意分叉或发送PR。</p>
+<h2>检测缓存API</h2>
+<p>在现代浏览器中，每个原点都有一个缓存存储，我们可以通过打开浏览器开发工具来检查它:</p>
+<ul>
+<li>在Chrome上:<em>应用</em> &gt; <em>缓存</em> &gt; <em>缓存存储</em></li>
+<li>火狐上:<em>存储</em> &gt; <em>缓存</em></li>
+</ul>
+<blockquote><p>专业提示:在Chrome中，你可以访问<code>chrome://inspect/#service-workers</code>并点击“inspect”选项(在任何已经打开的标签页的正下方),以查看<code>service-worker.js</code>脚本动作的日志记录语句。</p></blockquote>
+<p>缓存API在所有现代浏览器中都可用:</p>
+<ul>
+<li>边&gt; = 17</li>
+<li>歌剧&gt; = 27</li>
+<li>野生动物园&gt; = 11.1</li>
+<li>火狐&gt; = 39</li>
+<li>铬&gt; = 40</li>
+<li>iOS Safari = 11.4 &gt;</li>
+<li>UC浏览器11.8 &gt;=</li>
+<li>Android版chrome &gt; = 67</li>
+</ul>
+<p>因为旧的浏览器可能不支持该API，所以在尝试引用它之前检查它的可用性是一个好习惯。<code>caches</code>属性在<code>window</code>对象上可用，我们可以用下面的代码片段检查它是否在浏览器中实现:</p>
+<pre>if ('caches' in window){
+    // you can safely insert your snippet here
+}</pre>
+<h2>使用</h2>
+<p>缓存API是缓存URL可寻址资源的最佳选择，也就是说，当您使用加载应用程序所需的网络资源时，应该使用缓存API。如果您的应用程序处理大量数据，您可以缓存用户在页面加载时最可能需要的数据。这些资源可能包括基于文件的内容、资产、API响应和网页。</p>
+<p>对于大量结构化数据(包括文件/blob)的存储，您应该理想地使用<a href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API" target="_blank" rel="noopener noreferrer"> IndexedDB </a> API。</p>
+<p>缓存API附带了几种方法来执行以下(CRUD)操作:</p>
+<ol>
+<li>创建新的缓存</li>
+<li>向缓存中添加(更新)项目</li>
+<li>从缓存中检索项目</li>
+<li>从缓存中删除项目</li>
+</ol>
+<p>让我们回顾一下在代码中使用这些方法的一些方法。</p>
+<h2>创建新的缓存</h2>
+<p>在我们开始将<strong>请求-响应</strong>对存储到缓存之前，我们需要创建一个缓存实例。每个源在其高速缓存存储器中可以有多个高速缓存对象。我们可以使用<code>caches.open()</code>方法创建一个新的缓存对象:</p>
+<pre>const newCache = await caches.open('new-cache');</pre>
+<p>上面的代码片段将缓存的名称作为单个参数接收，然后使用该名称创建缓存。<code>caches.open()</code>方法首先检查具有该名称的缓存是否已经存在。如果没有，它就创建它并返回一个用<code>Cache</code>对象解析的<code>Promise</code>。</p>
+<p>在代码片段执行之后，我们现在将有一个新的缓存对象，可以用名称<em> new-cache </em>来引用它。</p>
+<h2>向缓存中添加项目</h2>
+<p>有三种主要方法可以将项目添加到缓存中:</p>
+<ol>
+<li><code>add</code></li>
+<li><code>addAll</code></li>
+<li><code>put</code></li>
+</ol>
+<p>所有这些方法都返回一个<code>Promise</code>，现在让我们来看看它们之间有什么不同。</p>
+<h3>Cache.add()</h3>
+<p>第一个方法是<code>cache.add()</code>，它接受一个参数，这个参数可以是一个URL字符串或者是一个<code>Request</code>对象。对<code>cache.add()</code>方法的调用将向网络发出<a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API" target="_blank" rel="noopener noreferrer">获取</a>请求，并将响应存储在相关联的缓存对象中:</p>
+<pre>newCache.add('/cats.json')</pre>
+<p>或者为了获得更多的控制权，我们可以使用一个请求对象:</p>
+<pre>const options = {
+    method: "GET",
+    headers: new Headers({
+        'Content-Type': 'text/html'
+    }),
+  }  
+newCache.add(new Request('/cats.json', options))</pre>
+<blockquote><p>注意:如果获取不成功并返回错误响应，则缓存中不会存储任何内容，并且<br/> <code>Promise</code>会拒绝。</p></blockquote>
+<h3>Cache.addAll()</h3>
+<p>这个方法的工作方式类似于<code>cache.add()</code>方法，除了它接受一个请求URL字符串或<code>Request</code>对象的数组，并在所有资源都被缓存后返回一个承诺:</p>
+<pre>const urls = ['pets/cats.json', 'pets/dogs.json'];
+newCache.addAll(urls);</pre>
+<blockquote><p>注意:如果请求数组中的一项或多项没有被缓存，则promise拒绝。此外，在缓存数组中的项目时，一个新条目会覆盖任何匹配的现有条目。</p></blockquote>
+<h3>Cache.put()</h3>
+<p><code>Cache.put</code>方法的工作方式与其他方法完全不同，因为它允许一个额外的控制层。<code>put()</code>方法有两个参数，第一个可以是URL字符串或<code>Request</code>对象，第二个是来自网络或在代码中生成的<code>Response</code>:</p>
+<pre>// Retrieve cats.json and cache the response
+newCache.put('./cats.json')
+
+// Create a new entry for cats.json and store the generated response
+newCache.put('/cats.json', new Response('{"james": "kitten", "daniel": "kitten"}'))
+
+// Fetch a response from an external address and create a new entry for cats.json
+newCache.put('https://pets/cats.json');</pre>
+<p><code>put</code>方法允许额外的控制层，因为它允许您存储不依赖于CORS的响应或依赖于服务器响应状态代码的其他响应。</p>
+<blockquote><p>专业提示:前两种方法——<code>add()</code>和<code>addAll()</code>——取决于请求数据的服务器上CORS的状态。如果CORS检查失败，什么都不会被缓存，<code>Promise</code>会拒绝。另一方面，使用<code>put()</code>会给你额外的信心，因为你可以设置内部响应。</p></blockquote>
+<h2>从缓存中检索项目</h2>
+<p>在我们将一些项目添加到缓存中之后，我们需要能够在运行时检索它们。我们可以使用<code>match()</code>方法来检索缓存的响应:</p>
+<pre>// retrieve a new response
+const request = '/cats.json';
+const response = await newCache.match(request);</pre>
+<p>在上面的代码中，我们向<code>match</code>方法传递了一个<code>request</code>变量，如果<code>request</code>变量是一个URL字符串，它将被转换为一个<code>Request</code>对象并用作参数。如果找到匹配的条目，<code>match</code>方法将返回解析为<code>Response</code>对象的<code>Promise</code>。</p>
+<p>浏览器使用不同的因素来确定两个或多个<code>Requests</code>是否匹配。一个<code>Request</code>可能与另一个具有相同的URL，但是使用不同的HTTP方法。浏览器认为两个这样的请求是不同的。</p>
+<p>当使用<code>match</code>方法时，我们也可以传递一个options对象作为第二个参数。这个对象有键值对，告诉<code>match</code>在匹配请求时忽略特定的因素:</p>
+<pre>// create an options object
+const options = {
+        ignoreVary: true, // ignore differences in Headers
+        ignoreMethod: true, // ignore differences in HTTP methods
+        ignoreSearch: true // ignore differences in query strings
+    }
+
+// then we pass it in here
+const response = await newCache.match(request, options);</pre>
+<p>如果有多个缓存项匹配，则返回最早的缓存项。如果我们想要检索所有匹配的响应，我们可以使用<code>matchAll()</code>方法。</p>
+<h2>从缓存中移除项目</h2>
+<p>我们可能不再需要缓存条目，并希望将其删除。我们可以使用<code>delete()</code>方法删除缓存条目:</p>
+<pre>// delete a cache entry
+const request = '/cats.json';
+newCache.delete(request);</pre>
+<p>在上面的代码中，我们在请求变量中保存了一个URL字符串，但是我们也可以将一个<code>Request</code>对象传递给<code>delete</code>方法。在我们有不止一个匹配条目的情况下，我们可以像对待<code>match</code>方法一样传递一个类似的选项<code>Object</code>。</p>
+<h2>删除缓存</h2>
+<p>最后，我们可以通过调用<code>window</code>对象的缓存属性上的<code>delete()</code>方法来删除缓存。让我们删除下面代码片段中的缓存:</p>
+<pre>// delete an existing cache
+caches.delete('new-cache');</pre>
+<blockquote><p>注意:当一个缓存被删除时，<code>delete()</code>方法返回一个<code>Promise</code>(如果缓存确实被删除了),如果出错或缓存不存在则返回一个false。</p></blockquote>
+<h2>结论</h2>
+<p>在本文中，我们浏览了缓存API，并讨论了它对渐进式web应用程序开发的有用性。我们还探索了它的CRUD方法，并看到了检索响应和存储请求是多么容易。</p>
+<blockquote><p>注意:出于安全原因，缓存被绑定到当前源，其他源不能访问为其他源设置的缓存。</p></blockquote>
+<p>本教程中的所有代码都可以在这个<a href="https://github.com/Jordanirabor/Working_With_The_Cache_API" target="_blank" rel="noopener noreferrer">资源库</a>中找到，可以随意分叉或发送PR。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,335 @@
+<html>
+<head>
+<title>React patterns to avoid common pitfalls in local state management - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>避免本地状态管理中常见陷阱的反应模式</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-patterns-common-pitfalls-local-state-management/#0001-01-01">https://blog.logrocket.com/react-patterns-common-pitfalls-local-state-management/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2 id="introduction">介绍</h2>
+<p>在一般的React应用程序中，通常有三种类型的状态:</p>
+<ol>
+<li>从API获取数据和存储数据。这种类型的状态通常由Redux这样的通用状态管理库来管理。</li>
+<li>一个或几个附近组件需要的本地状态或任何客户端状态。</li>
+<li>全局状态，或在整个应用程序中使用的状态。我还会在组件树中添加离需要它们的组件太远的状态(例如，通过单击标题按钮切换侧边栏)。像这样的状态可以用React上下文API来管理。</li>
+</ol>
+<p>在这篇文章中，我们的重点将放在本地状态管理和我们可以用来避免常见陷阱的各种反应模式上。</p>
+<h3 id="prerequisites">先决条件</h3>
+<p>为了从本文中获得最大收益，您应该对React和现代JavaScript有所了解。至此，我们可以开始简单回顾一下什么是状态，以及为什么它在React应用程序中如此重要。</p>
+<h2 id="whatisstateinreactabriefrefresher">React中的状态是什么:简要回顾</h2>
+<p>在React中，状态是一个普通的JavaScript对象，它保存关于组件的信息。状态类似于函数中声明的变量。但是，当函数退出时，此类变量会消失，而React会在渲染之间保留状态变量。</p>
+<p>状态保存影响<code>render()</code>方法的信息；因此，状态更改会触发渲染更新。当一个组件在整个生命周期中挂载和变异时，反应状态从默认值开始。</p>
+<p>这些状态更新或突变通常由用户生成的事件触发。在React中有很多初始化状态的方法，但是我们将使用<code>useState</code>钩子。考虑以下代码:</p>
+<pre>const [bulb, setBulb] = useState("off")</pre>
+<p>上面的代码片段创建了一个名为<code>bulb</code>的状态变量，并用<code>useState</code>钩子的参数初始化它。</p>
+<h2 id="theusestatehook">挂钩是如何工作的</h2>
+<p>现在考虑下面的代码:</p>
+<pre>const [state, setState] = useState(initialState);</pre>
+<p><code>useState</code>函数只有一个参数:初始状态。它返回一个带有两个值的数组:当前状态和一个更新它的函数。我们使用数组析构来存储从<code>useState</code>返回的值。这就是为什么我们写道:</p>
+<pre>const [something, setSomething] = useState()</pre>
+<p>数组析构是现代JavaScript的一个特性。下面是一个演示它如何工作的小代码。你可以<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment">在这里</a>了解更多信息。</p>
+<pre>const [firstname, lastname] = ["Lawrence", "Eagles"];
+
+console.log(firstname);
+// expected output: "Lawrence"
+
+console.log(lastname);
+// expected output: "Eagles"
+
+// A closer case study would be:
+const [state, setState] = [ "hello", (currentState) =&gt; console.log(currentState) ]
+// console.log(state) returns "hello"
+// console.log(setState) returns (currentState) =&gt; console.log(currentState)</pre>
+<p>下图显示了更完整的情况:</p>
+<p><img data-attachment-id="28689" data-permalink="https://blog.logrocket.com/react-patterns-common-pitfalls-local-state-management/usestate-demonstration-flow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png" data-orig-size="730,328" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="useState demonstration flow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png" decoding="async" class="aligncenter size-full wp-image-28689 jetpack-lazy-image" src="../Images/17aaaf4e06f657882154345e06b28781.png" alt="Demonstration of the useState Array Destructuring Flow" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow-300x135.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="28689" data-permalink="https://blog.logrocket.com/react-patterns-common-pitfalls-local-state-management/usestate-demonstration-flow/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png" data-orig-size="730,328" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="useState demonstration flow" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow-300x135.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-28689" src="../Images/17aaaf4e06f657882154345e06b28781.png" alt="Demonstration of the useState Array Destructuring Flow" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow-300x135.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/usestate-demonstration-flow.png"/></noscript>
+<p>请注意，与我们的演示不同，从<code>useState</code>返回的数组的第二个值更新状态如下:</p>
+<pre>import "./styles.css";
+import React, { useState } from "react";
+export default function DemoApp() {
+  console.log("useState result", useState("hello World"));
+  return (
+    &lt;div className="DemoApp"&gt;
+      &lt;h2&gt;Hello welcome!&lt;/h2&gt;
+      &lt;p&gt;Open the console to see the result.&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+
+{/* returns ["hello World", function bound dispatchAction()] */}</pre>
+<p><a href="https://codesandbox.io/s/xenodochial-frost-1nbjn?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩代码</a> —只需刷新CodeSandbox中的页面，打开控制台就能看到结果。</p>
+<h2>React状态管理中的常见陷阱，以及避免它们的模式</h2>
+<p>至此，你应该对React中的状态以及<code>useState</code>钩子的工作方式很熟悉了。因此，接下来，我们将关注管理本地状态中的常见陷阱以及避免它们的模式。</p>
+<h3>1.陈旧状态问题</h3>
+<p>让我们通过一些代码示例直接进入这个问题:</p>
+<pre>import React, { useState } from "react";
+import "./styles.css";
+export default function Example() {
+  const [count, setCount] = useState(0);
+  const lazyUpdateState = () =&gt; {
+    setTimeout(() =&gt; {
+      setCount(count + 1);
+    }, 3000);
+  };
+  return (
+    &lt;div&gt;
+      &lt;p&gt;
+        &lt;strong&gt;You clicked {count} times&lt;/strong&gt;
+      &lt;/p&gt;
+      &lt;button onClick={lazyUpdateState}&gt;Show count&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>上面是具有本地状态<code>count</code>的反应功能组件，其具有初始值<code>0</code>。它有一个函数<code>lazyUpdateState</code>，在<code>3000</code>毫秒后更新<code>count</code>状态。它还向用户显示当前状态。</p>
+<p>现在，当我们点击<code>lazyUpdateState</code>按钮<code>n</code>的次数，我们期望3000ms后状态等于<code>n</code>对吗？但事实并非如此。</p>
+<p>这里我们有陈旧状态的问题。无论按钮被点击多少次，<code>count</code>只增加一次。为了解决这个问题，我们必须使用前一个状态来计算下一个状态。这确保了我们的所有点击都在当前状态的计算中被捕获。</p>
+<p>React允许我们将一个更新函数传递给<code>useState</code>。此函数将以前的状态作为参数，并返回更新后的状态:</p>
+<pre>useState (prevState =&gt; nextState)</pre>
+<p>从上面的语法来看，简单地修改我们的<code>useState</code>钩子来接受一个更新函数就可以解决这个陈旧状态问题。下面是正确的代码。<a href="https://codesandbox.io/s/youthful-waterfall-mtx9f?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩例子。</a></p>
+<pre>import React, { useState } from "react";
+import "./styles.css";
+export default function Example() {
+  const [count, setCount] = useState(0);
+  const handleAlertClick = () =&gt; {
+    setTimeout(() =&gt; {
+      setCount((count) =&gt; count + 1);
+    }, 3000);
+  };
+  return (
+    &lt;div&gt;
+      &lt;p&gt;
+        &lt;strong&gt;You clicked {count} times&lt;/strong&gt;
+      &lt;/p&gt;
+      &lt;button onClick={handleAlertClick}&gt;Show count&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>我们现在将一个更新函数传递给<code>useState</code>。这确保了来自每个点击事件的状态变化被捕获并用于计算当前状态。</p>
+<pre>import React, { useState } from "react";
+import ReactDOM from "react-dom";
+import "./styles.css";
+function App() {
+  const [count, setCount] = useState(0);
+  const [message, setMessage] = useState("");
+  const increment = () =&gt; {
+    setCount(count + 1);
+    setMessage(`computed count is ${count}`);
+  };
+  const decrement = () =&gt; {
+    setCount(count - 1);
+    setMessage(`computed count is ${count}`);
+  };
+  return (
+    &lt;div className="App"&gt;
+      &lt;h1&gt;Update Count!&lt;/h1&gt;
+      &lt;p&gt;Count: {count}&lt;/p&gt;
+      &lt;p&gt;{message}&lt;/p&gt;
+      &lt;button type="button" onClick={increment}&gt;
+        Add
+      &lt;/button&gt;
+      &lt;button type="button" onClick={decrement}&gt;
+        Subtract
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<h3>2.以“类似同步”的方式访问状态</h3>
+<p><code>useState</code>是异步；因此，当我们想要以同步的方式访问状态时，它不能很好地工作。为此，我们必须做一些调整。考虑下面的代码示例:</p>
+<pre>import React, { useState } from "react";
+import ReactDOM from "react-dom";
+import "./styles.css";
+function App() {
+  const [count, setCount] = useState(0);
+  const [currentCount, setCurrentCount] = useState("");
+  const increment = () =&gt; {
+    setCount(count + 1);
+    setCurrentCount(`computed count is ${count}`);
+  };
+  const decrement = () =&gt; {
+    setCount(count - 1);
+    setCurrentCount(`computed count is ${count}`);
+  };
+  return (
+    &lt;div className="App"&gt;
+      &lt;h1&gt;Update Count!&lt;/h1&gt;
+      &lt;p&gt;Count: {count}&lt;/p&gt;
+      &lt;p&gt;{currentCount}&lt;/p&gt;
+      &lt;button type="button" onClick={increment}&gt;
+        Add
+      &lt;/button&gt;
+      &lt;button type="button" onClick={decrement}&gt;
+        Subtract
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>上面的组件类似于我们前面讨论的陈旧状态组件。这里不同的是，这个组件有多个状态变量:<code>count</code>和<code>currentCount</code>。在这种情况下，<code>currentCount</code>的计算依赖于<code>count</code>，是一个独立的状态。因此，给<code>useState</code>传递一个更新函数是行不通的。</p>
+<p>当我们增加或减少状态时，我们看到<code>count</code>总是比<code>currentCount</code>落后1。<a href="https://codesandbox.io/s/useasyncstate-forked-ruxe3?file=/src/index.js">在这里打个比方</a>。</p>
+<p>有许多模式可以用来解决这个问题。下面我们来看看。</p>
+<h4>使用<code>useEffect</code></h4>
+<p>通过更新一个<code>useEffect</code>中的状态，将两个状态都作为依赖关系，这个问题就解决了。这一行解决了问题:</p>
+<pre>useEffect(() =&gt; setCurrentCount(`count is ${count}`), [count, currentCount]);</pre>
+<p><a href="https://codesandbox.io/s/billowing-brook-3t31f?file=/src/App.js">在这里玩代码</a>。</p>
+<p>虽然这种模式可行，但并不理想。React核心团队<a href="https://www.reddit.com/r/reactjs/comments/a3y76f/react_hooks_setstate_gotcha/ebaced5/">的Dan Abramov认为这是一种反模式</a>，他说:</p>
+<blockquote><p>这是不必要的。当你已经知道下一个值时，为什么还要增加额外的工作，比如运行一个效果呢？相反，推荐的解决方案是要么使用一个变量而不是两个变量(因为一个可以从另一个计算出来)，要么首先计算下一个值，然后一起更新它们。或者，如果你准备好了，那么<code>useReducer</code>有助于避免这些陷阱。</p></blockquote>
+<h4>计算下一个状态值并更新两个状态</h4>
+<p>考虑下面的代码:</p>
+<pre> const increment = () =&gt; {
+    const newCount = count + 1;
+    setCount(newCount);
+    currentCount(`count is ${newCount}`);
+  }
+  const decrement = () =&gt; {
+    const newCount = count - 1;
+    setCount(newCount);
+    currentCount(`computed count is ${newCount}`);
+  }</pre>
+<p>我们可以看到，我们已经应用了Abramov的建议，并对我们的函数做了一点小小的调整。我们计算了下一个状态——在本例中是<code>newCount</code>——并用它更新了两个状态。这是一个更干净、更好的解决方案。<a href="https://codesandbox.io/s/intelligent-almeida-z3scp?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩代码</a>。</p>
+<h4>复杂状态管理</h4>
+<p><code>useState</code>非常适合简单的状态管理。但是，它有时用于复杂的状态管理。让我们考虑下面的一些代码示例:</p>
+<pre>import React, { useState } from "react";
+import ReactDOM from "react-dom";
+import "./styles.css";
+function FavouriteLanguages() {
+  const [languages, setLanguages] = useState([]);
+  const [newLanguage, setNewLanguage] = useState("");
+  const add = (language) =&gt; setLanguages([...languages, language]);
+  const remove = (index) =&gt; {
+    setLanguages([...languages.slice(0, index), ...languages.slice(index + 1)]);
+  };
+  const handleAddClick = () =&gt; {
+    if (newLanguage === "") {
+      return;
+    }
+    add({ name: newLanguage });
+    setNewLanguage("");
+  };
+  return (
+    &lt;React.Fragment&gt;
+      &lt;div className="languages"&gt;
+        {languages.map((language, index) =&gt; {
+          return &lt;Movie language={language} onRemove={() =&gt; remove(index)} /&gt;;
+        })}
+      &lt;/div&gt;
+      &lt;div className="add-language"&gt;
+        &lt;input
+          type="text"
+          value={newLanguage}
+          onChange={(event) =&gt; setNewLanguage(event.target.value)}
+        /&gt;
+        &lt;button onClick={handleAddClick}&gt;Add language&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/React.Fragment&gt;
+  );
+}</pre>
+<p>上面的组件是一个<a href="https://codesandbox.io/s/eager-lehmann-xnxy5?fontsize=14&amp;hidenavigation=1&amp;theme=dark">简单应用</a>的一部分，用来创建你最喜欢的编程语言列表。我们看到状态管理涉及到几个操作:<code>add</code>和<code>remove</code>。用<code>useState</code>实现这个会搞乱组件。</p>
+<p>更好的模式是将复杂的状态管理提取到<code>useReducer</code>钩子中:</p>
+<pre>import React, { useState, useReducer } from "react";
+import ReactDOM from "react-dom";
+import "./styles.css";
+function reducer(state, action) {
+  switch (action.type) {
+    case "add":
+      return [...state, action.item];
+    case "remove":
+      return [
+        ...state.slice(0, action.index),
+        ...state.slice(action.index + 1)
+      ];
+    default:
+      throw new Error();
+  }
+}
+function FavouriteLanguages() {
+  const [languages, dispatch] = useReducer(reducer, []);
+  const [newLanguages, setLanguages] = useState("");
+  const handleAddLanguage = () =&gt; {
+    if (newLanguages === "") {
+      return;
+    }
+    dispatch({ type: "add", item: { name: newLanguages } });
+    setLanguages("");
+  };</pre>
+<p>以上是<code>useReducer</code>实现的摘录。<a href="https://codesandbox.io/s/solitary-hill-xscb0?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩完整的代码</a>。</p>
+<p>我们可以看到，复杂的状态管理操作被抽象成了<code>reducer</code>函数。同样，<code>add</code>和<code>remove</code>动作触发这些操作。这比使用<code>useState</code>使我们的组件变得杂乱要干净得多。</p>
+<p>这就是关注点分离的力量。组件呈现UI并处理从<code>events</code>开始的变化，而<code>reducer</code>处理状态操作。</p>
+<p>另一个专业技巧是将<code>reducer</code>创建为一个单独的模块。这样，它可以在其他组件中重用，从而使我们的代码保持干燥。</p>
+<h4>从异步回调访问最新状态</h4>
+<p>考虑下面的代码:</p>
+<pre>import React, { useState } from "react";
+import "./styles.css";
+function App() {
+  const [count, setCount] = useState(0);
+
+ const handleAlert = () =&gt; {
+    setTimeout(() =&gt; {
+      alert('You clicked on: ' + count);
+    }, 3000);
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {count} times&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+      &lt;/button&gt;
+      &lt;button onClick={handleAlert}&gt;
+        Show alert
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>从上面的组件中，当我们点击<code>Show alert</code>按钮时，就会调用<code>handleAlert</code>函数。3000ms后弹出当前<code>count</code>的警告框。</p>
+<p>问题是<code>count</code>总是陈旧的，这意味着如果我们在警报弹出之前增加<code>count</code>，它仍然不会显示最新的<code>count</code>。<a href="https://codesandbox.io/s/fragrant-snow-ug56r?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩代码</a>。</p>
+<p>虽然这类似于我们前面讨论的陈旧状态问题，但解决方案却非常不同。这里，我们希望能够保存在更新时不会触发重新呈现的可变数据。推荐的方法是使用<code>useRef</code>钩。它允许我们保存数据，改变它，并从中读取。</p>
+<p>考虑下面的代码:</p>
+<pre>import React, { useState, useRef } from "react";
+import "./styles.css";
+export default function Example() {
+  const counterRef = useRef(0);
+  const [count, setCount] = useState(false);
+  const handleIncrement = () =&gt; {
+    counterRef.current++;
+    setCount(!count);
+  };
+  function handleAlertClick() {
+    setTimeout(() =&gt; {
+      alert("You clicked on: " + counterRef.current);
+    }, 3000);
+  }
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {counterRef.current} times&lt;/p&gt;
+      &lt;button onClick={handleIncrement}&gt;Click me&lt;/button&gt;
+      &lt;button onClick={handleAlertClick}&gt;Show alert&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>通过这个实现，我们将可变状态<code>counterRef</code>保存在<code>useRef</code>钩子中。<code>useRef</code>有一个<code>current</code>属性，它实际上存储了我们的状态。因此，我们在每次点击事件时更新该属性。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>这里使用计数来触发重新渲染，以便可以在视图中捕捉到更改。另一种方法是使用<code>useEffect</code>钩。<a href="https://codesandbox.io/s/infallible-shaw-1k41v?fontsize=14&amp;hidenavigation=1&amp;theme=dark">在这里玩代码</a>。</p>
+<h2>结论</h2>
+<p>我们的谈话到此结束。我真的希望你觉得有趣。一定要采取预防措施，不要陷入我们上面讨论的任何陷阱。</p>
+<p>我将留给你一个很好的经验法则，那就是坚持钩子的规则。不管使用什么钩子，偏离这些都会导致无数的陷阱。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

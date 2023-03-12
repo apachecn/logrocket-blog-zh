@@ -1,0 +1,309 @@
+<html>
+<head>
+<title>Documenting your Express API with Swagger - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用斯瓦格-日志火箭博客记录您的快递应用编程接口</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/documenting-express-js-api-swagger/#0001-01-01">https://blog.logrocket.com/documenting-express-js-api-swagger/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>这篇关于用Swagger记录Express.js API的文章最后一次更新是在2022年12月9日，添加了关于如何将Swagger连接到Node.js、Swagger的好处以及如何使用CSS定制Swagger的章节。此更新还解决了以前版本中存在的代码错误。</em></p>
+<p>我们都知道记录API的重要性。就Node.js APIs而言，无论它们是构建在Express.js之上还是任何其他框架之上，您都有大量的开源选项。其中包括apiDoc、docbox等。</p>
+<p>在本教程中，我们将探索如何在Express.js API中使用Swagger。Swagger是一个开源的工具集，可以让你设计、构建、记录和使用RESTful web服务。它被设计成基本上是<a href="https://github.com/swagger-api/swagger-codegen#overview">不可知的</a>，这意味着你可以将它用于几乎任何你喜欢的语言和框架。</p>
+<p>在我们的例子中，我们将使用两个库:swagger-ui-express和swagger-jsdoc。第一个模块允许您从一个<code>swagger.json</code>文件或一个内联对象提供一个Swagger UI(基于swagger-ui项目自动生成的视图)。</p>
+<p>第二个项目是关于在整个代码中使用JSDoc注释集成Swagger。这很有用，尤其是当您有大量的API和几十个模型时。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="benefits-using-swagger">使用Swagger的好处</h2>
+<p>在我们开始将Swagger集成到Node.js应用程序之前，让我们看看为什么Swagger对任何应用程序都很重要——它如何在开发过程中提供帮助。</p>
+<p>Swagger的一个重要好处是，它有助于理解API如何为应用程序的客户端工作。Swagger在应用程序的客户端和服务器端同步API。这样，在前端工作的开发人员可以理解API是如何工作的，并将API集成到客户端。</p>
+<p>使用Swagger的另一个好处是它对开发人员和非开发人员都很全面。参与产品开发的每一个人，包括<a href="https://blog.logrocket.com/product-management/">产品经理</a>，利益相关者，开发者，都可以在UI中试用API，而不需要独立运行服务器。</p>
+<p>我们可以随心所欲地定制API文档。所以，总的来说，Swagger的主要优势是它使API开发过程更快、更有效。</p>
+<p>现在，我们知道了在应用程序中使用Swagger的优点，让我们来看看如何在应用程序中设置和配置它。</p>
+<h2 id="express-js-api-application-setup">Express.js API应用程序设置</h2>
+<p>本教程不会涉及任何与<a href="https://blog.logrocket.com/build-rest-api-node-express-mysql/"> Express API构建</a>相关的内容。我们已经有了一个<a href="https://github.com/diogosouza/simple-express-crud-api">现成的例子</a>，您可以在实现之前克隆到您的本地机器上。</p>
+<p>这是一个简单的API，允许你管理内存中的图书列表。您可以根据自己的定制随意增加。</p>
+<p>一旦你的应用程序中有了这个，在终端中运行下面的命令:</p>
+<pre class="language-bash hljs">npm install
+npm i swagger-ui-express swagger-jsdoc
+</pre>
+<p>这些将把所需的依赖项下载到您的应用程序中。现在是时候将Swagger集成到Node.js应用程序中了。</p>
+<h2 id="connect-swagger-node-js">如何将Swagger连接到Node.js</h2>
+<p>要将Swagger连接到Node.js应用程序，请在<code>server.js</code>中导入<code>swagger-ui-express</code>和<code>swagger-jsdoc</code>:</p>
+<pre class="language-javascript hljs">const express = require("express"),
+  bodyParser = require("body-parser"),
+  swaggerJsdoc = require("swagger-jsdoc"),
+  swaggerUi = require("swagger-ui-express");
+</pre>
+<p>这是两个分别代表我们导入的库的对象。接下来，在应用程序的<code>listen</code>函数前添加以下代码:</p>
+<pre class="language-javascript hljs">const options = {
+  definition: {
+    openapi: "3.1.0",
+    info: {
+      title: "LogRocket Express API with Swagger",
+      version: "0.1.0",
+      description:
+        "This is a simple CRUD API application made with Express and documented with Swagger",
+      license: {
+        name: "MIT",
+        url: "https://spdx.org/licenses/MIT.html",
+      },
+      contact: {
+        name: "LogRocket",
+        url: "https://logrocket.com",
+        email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="71181f171e31141c10181d5f121e1c">[email protected]</a>",
+      },
+    },
+    servers: [
+      {
+        url: "http://localhost:3000",
+      },
+    ],
+  },
+  apis: ["./routes/*.js"],
+};
+
+const specs = swaggerJsdoc(options);
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(specs)
+);
+</pre>
+<p>正如您在第一行中看到的，这个配置对象将一个<a href="https://github.com/OAI/OpenAPI-Specification/releases/tag/3.1.0"> <code>OpenAPI</code> </a>设置为v3.1.0</p>
+<p>Swagger使用开放API规范，这是RESTful APIs的一个标准的语言无关接口，允许人类和机器理解web服务的功能，而不必访问源代码或检查网络流量。</p>
+<p>您可以参考每个版本的所有可用设置的官方文档。在这里，我们只使用了基本信息:API信息、名称、标题、描述、许可、API所有者的联系方式等等。</p>
+<p>API的属性是必不可少的，因为它搜索模型和端点定义，所以要正确地通知它。</p>
+<p>最后，我们使用<code>swaggerJsdoc</code>函数扫描作为参数传入的选项，并返回转换后的Swagger规范对象。反过来，这个可以与<code>swaggerUi</code>设置过程一起使用。</p>
+<p>您现在可以通过<code>npm start</code>命令启动应用程序。当访问<code><a href="http://localhost:3000/api-docs/" rel="nofollow">http://localhost:3000/api-docs/</a></code> URL时，您将看到以下屏幕:</p>
+<p><img data-attachment-id="152170" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-document-swagger/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png" data-orig-size="730,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js documenting with Swagger" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png" decoding="async" class="aligncenter size-full wp-image-152170 jetpack-lazy-image" src="../Images/288fa2bee84d9be081962a07463908bd.png" alt="Express.js Documenting With Swagger" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger-300x247.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152170" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-document-swagger/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png" data-orig-size="730,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js documenting with Swagger" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152170" src="../Images/288fa2bee84d9be081962a07463908bd.png" alt="Express.js Documenting With Swagger" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger-300x247.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-document-swagger.png"/></noscript>
+<p>请注意，我们仍然没有在规范中定义任何操作。这是因为我们需要显式地将这些操作映射到路由。否则，Swagger无法自己找出API端点。</p>
+<p>或者，您可以在UI中添加一个搜索栏，以防API有太多操作。为此，将实现更改如下:</p>
+<pre class="language-javascript hljs">app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(specs, { explorer: true })
+);
+</pre>
+<p>现在，搜索栏将会出现:</p>
+<p><img data-attachment-id="152172" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-search-bar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png" data-orig-size="730,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js and Swagger example with search bar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png" decoding="async" class="aligncenter size-full wp-image-152172 jetpack-lazy-image" src="../Images/f877d4d134d232e0ec0f76eb3540268d.png" alt="Express.js and Swagger Example with Search Bar" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar-300x247.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152172" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-search-bar/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png" data-orig-size="730,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js and Swagger example with search bar" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar-300x247.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152172" src="../Images/f877d4d134d232e0ec0f76eb3540268d.png" alt="Express.js and Swagger Example with Search Bar" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar-300x247.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-search-bar.png"/></noscript>
+<h2 id="creating-api-model">创建API模型</h2>
+<p>像许多重要的框架和API架构一样，数据被封装到模型中，变得更容易访问。Swagger还希望你的API有模型，并让你来定义它们。</p>
+<p>转到<code>routes/books.js</code>，将以下代码放在文件的开头:</p>
+<pre class="language-javascript hljs">/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Book:
+ *       type: object
+ *       required:
+ *         - title
+ *         - author
+ *         - finished
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The auto-generated id of the book
+ *         title:
+ *           type: string
+ *           description: The title of your book
+ *         author:
+ *           type: string
+ *           description: The book author
+ *         finished:
+ *           type: boolean
+ *           description: Whether you have finished reading the book
+ *         createdAt:
+ *           type: string
+ *           format: date
+ *           description: The date the book was added
+ *       example:
+ *         id: d5fE_asz
+ *         title: The New Turing Omnibus
+ *         author: Alexander K. Dewdney
+ *         finished: false
+ *         createdAt: 2020-03-10T04:05:06.157Z
+ */
+</pre>
+<p>还记得我们说过的JSDocs吗？JSDocs现在进入场景，并通过<code>@swagger</code>注释帮助我们设置其余的Swagger规范定义。在这里，您可以定义任意多的模式。在我们的例子中，我们只是定义了域<code>Books</code>。</p>
+<p>required属性接收必须在请求中填充的属性列表。这一步对于让人们知道在使用你的API时他们必须发送什么是至关重要的。</p>
+<p><code>properties</code>属性描述了模型属性的详细信息。每个属性必须有一个名称，后跟其类型、描述(可选)和格式(您也可以验证值)。关于可用数据类型的完整列表，请参考<a href="https://swagger.io/docs/specification/data-models/data-types/"> Swagger数据类型</a>。</p>
+<p>最后，您可以为这个模式模型提供一个请求数据的例子。那以后会有用的。当您重新启动应用程序并刷新页面时，您会看到下面的屏幕:</p>
+<p><img data-attachment-id="152175" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-documenting-swagger/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png" data-orig-size="730,570" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js documenting with Swagger book schema" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png" decoding="async" class="aligncenter size-full wp-image-152175 jetpack-lazy-image" src="../Images/b1d455f579cdf135406d1bf4bc6d6b75.png" alt="Express.js Documenting with Swagger Book Schema" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger-300x234.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152175" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-documenting-swagger/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png" data-orig-size="730,570" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js documenting with Swagger book schema" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152175" src="../Images/b1d455f579cdf135406d1bf4bc6d6b75.png" alt="Express.js Documenting with Swagger Book Schema" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger-300x234.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-documenting-swagger.png"/></noscript>
+<p>好多了，不是吗？</p>
+<p>需要注意的是，如果您在模式中遇到了一个<code>YAMLSemanticError</code>，请确保检查YAML配置中的缩进:</p>
+<p><img data-attachment-id="152177" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-yaml/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png" data-orig-size="730,218" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js and Swagger YAML error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png" decoding="async" class="aligncenter size-full wp-image-152177 jetpack-lazy-image" src="../Images/7b179d1fbe54c59b21efefe787ed51ce.png" alt="Express.js and Swagger YAML Error" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml-300x90.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152177" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-yaml/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png" data-orig-size="730,218" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Express.js and Swagger YAML error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml-300x90.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152177" src="../Images/7b179d1fbe54c59b21efefe787ed51ce.png" alt="Express.js and Swagger YAML Error" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml-300x90.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-yaml.png"/></noscript>
+<h3 id="integrating-operations-into-routes">将操作整合到路线中</h3>
+<p>现在，我们已经将Swagger <code>schema</code>整合到路线中。但是，我们仍然没有任何操作。让我们解决这个问题。在前面的JSDoc注释之后，添加以下内容:</p>
+<pre class="language-javascript hljs">/**
+ * @swagger
+ * tags:
+ *   name: Books
+ *   description: The books managing API
+ * /books:
+ *   post:
+ *     summary: Create a new book
+ *     tags: [Books]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Book'
+ *     responses:
+ *       200:
+ *         description: The created book.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       500:
+ *         description: Some server error
+ *
+ */
+</pre>
+<p>让我们分部分来分析，从Swagger标签开始。标签允许您在Swagger文档中创建一个部分。分配给此标签的所有路线将出现在同一分区下。这是一种组织设置。</p>
+<p>在我们的例子中，所有的端点将被映射到同一个标签。接下来，我们设置我们的第一条路线:书的创作。这很简单。首先，定义一个<code>title</code>并指定路径将被附加到的<code>tag</code>。</p>
+<p>然后，我们有请求和响应。在请求中，定义三件事:请求是否是必需的、请求的内容类型以及必须从哪个模式处理请求。</p>
+<p>模式可以通过<code>#components/schemas</code> Swagger操作符来引用。对于响应，定义HTTP响应代码和每个代码的属性。我们只是担心有一个<code>HTTP 200</code>的快乐路径。</p>
+<p>继续直接在Swagger UI页面中测试新操作:</p>
+<p><img data-attachment-id="152179" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-book-working/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif" data-orig-size="730,507" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Documenting Express.js API with Swagger full example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working-300x208.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif" decoding="async" class="aligncenter size-full wp-image-152179 jetpack-lazy-image" src="../Images/97c0b3ec6371000589e1ee37b50b9891.png" alt="Documenting Express.js API with Swagger Full Example" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152179" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-book-working/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif" data-orig-size="730,507" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Documenting Express.js API with Swagger full example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working-300x208.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152179" src="../Images/97c0b3ec6371000589e1ee37b50b9891.png" alt="Documenting Express.js API with Swagger Full Example" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-working.gif"/></noscript>
+<p>现在，您可以看到示例值出现的位置。为用户提供样本数据作为他们执行任务的参考会更容易。</p>
+<p>下面，您可以找到所有其他操作的代码:</p>
+<pre class="language-javascript hljs">/**
+ * @swagger
+ * tags:
+ *   name: Books
+ *   description: The books managing API
+ * /books:
+ *   get:
+ *     summary: Lists all the books
+ *     tags: [Books]
+ *     responses:
+ *       200:
+ *         description: The list of the books
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Book'
+ *   post:
+ *     summary: Create a new book
+ *     tags: [Books]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Book'
+ *     responses:
+ *       200:
+ *         description: The created book.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       500:
+ *         description: Some server error
+ * /books/{id}:
+ *   get:
+ *     summary: Get the book by id
+ *     tags: [Books]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The book id
+ *     responses:
+ *       200:
+ *         description: The book response by id
+ *         contens:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       404:
+ *         description: The book was not found
+ *   put:
+ *    summary: Update the book by the id
+ *    tags: [Books]
+ *    parameters:
+ *      - in: path
+ *        name: id
+ *        schema:
+ *          type: string
+ *        required: true
+ *        description: The book id
+ *    requestBody:
+ *      required: true
+ *      content:
+ *        application/json:
+ *          schema:
+ *            $ref: '#/components/schemas/Book'
+ *    responses:
+ *      200:
+ *        description: The book was updated
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Book'
+ *      404:
+ *        description: The book was not found
+ *      500:
+ *        description: Some error happened
+ *   delete:
+ *     summary: Remove the book by id
+ *     tags: [Books]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The book id
+ *
+ *     responses:
+ *       200:
+ *         description: The book was deleted
+ *       404:
+ *         description: The book was not found
+ */
+</pre>
+<p>理想情况下，这些映射应该放在每个Express.js路由函数之上。然而，为了简单起见，我们将它们集中在一个地方。</p>
+<h3 id="mapping-endpoints">映射端点</h3>
+<p>现在，我们将操作分为两个主要类别:接收<code>id</code>参数的操作和不接收参数的操作。这对于Swagger理解如何用正确的路径参数匹配路线是必要的。</p>
+<p>每当您的端点中有参数时，不管它们是什么类型，您都必须在<code>parameters</code>属性下告知细节。</p>
+<p>以下是所有端点都正确映射的结果:</p>
+<p><img data-attachment-id="152182" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-book-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png" data-orig-size="730,569" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Correctly mapped endpoints in Express.js API with Swagger" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png" decoding="async" class="aligncenter size-full wp-image-152182 jetpack-lazy-image" src="../Images/68ae59303a1e38620638044cb44845fd.png" alt="Correctly Mapped Endpoints in Express.js API with Swagger" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api-300x234.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152182" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/express-js-swagger-book-api/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png" data-orig-size="730,569" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Correctly mapped endpoints in Express.js API with Swagger" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152182" src="../Images/68ae59303a1e38620638044cb44845fd.png" alt="Correctly Mapped Endpoints in Express.js API with Swagger" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api-300x234.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/express-js-swagger-book-api.png"/></noscript>
+<h2 id="swagger-customization-css">用CSS进行大摇大摆的定制</h2>
+<p>您可以通过在Swagger集成中实现自定义CSS来自定义Swagger UI。为此，将<code>customCssUrl</code>选项添加到<code>swaggerUi.setup</code>中:</p>
+<pre class="language-javascript hljs">app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(specs, {
+    explorer: true,
+    customCssUrl:
+      "https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="eb989c8a8c8c8e99c69e82c69f838e868e98abd8c5dbc5db">[email protected]</a>/themes/3.x/theme-newspaper.css",
+  })
+);
+</pre>
+<p>这里，我们将自定义CSS文件传递到<code>customCssUrl</code>选项中。它将改变自定义风格的大摇大摆的用户界面。</p>
+<p>这是它在自定义CSS文件之前的样子:</p>
+<p><img data-attachment-id="152184" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/swagger-custom-css-before/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png" data-orig-size="730,388" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before customizing Your Express.js API in Swagger with CSS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before-300x159.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png" decoding="async" class="aligncenter wp-image-152184 size-full jetpack-lazy-image" src="../Images/d940e745f5f40fbb554383c14015dd8a.png" alt="Before Customizing Your Express.js API in Swagger with CSS" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before-300x159.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152184" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/swagger-custom-css-before/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png" data-orig-size="730,388" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before customizing Your Express.js API in Swagger with CSS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before-300x159.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png" decoding="async" loading="lazy" class="aligncenter wp-image-152184 size-full" src="../Images/d940e745f5f40fbb554383c14015dd8a.png" alt="Before Customizing Your Express.js API in Swagger with CSS" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before-300x159.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-before.png"/></noscript>
+<p>现在，看看它在以下情况下会是什么样子:</p>
+<p><img data-attachment-id="152186" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/swagger-custom-css-after/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png" data-orig-size="730,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before customizing your Express.js API in Swagger with CSS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png" decoding="async" class="aligncenter size-full wp-image-152186 jetpack-lazy-image" src="../Images/c7a8bd324008249ff1dbe990a16642af.png" alt="After Customizing Your Express.js API in Swagger with CSS" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after-300x166.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="152186" data-permalink="https://blog.logrocket.com/documenting-express-js-api-swagger/attachment/swagger-custom-css-after/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png" data-orig-size="730,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Before customizing your Express.js API in Swagger with CSS" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after-300x166.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-152186" src="../Images/c7a8bd324008249ff1dbe990a16642af.png" alt="After Customizing Your Express.js API in Swagger with CSS" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after-300x166.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/swagger-custom-css-after.png"/></noscript>
+<h2>结论</h2>
+<p>您可以单独测试每个端点，以确保它按照您的<a href="https://blog.logrocket.com/how-automate-api-tests-postman/">邮递员</a>的要求准确工作。</p>
+<p>Swagger不仅仅能够记录你的API。快速浏览一下官方文件会让你更好地理解它的威力。记住记录应该是你团队文化的一部分。否则，您的文档不会总是最新的。</p>
+<p>你可以在这里找到完整的源代码<a href="https://github.com/ganeshmani/swagger-nodejs-tutorial">。祝你好运！</a></p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,280 @@
+<html>
+<head>
+<title>How to build a Markdown plugin for your Gatsby blog - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何为你的Gatsby博客建立一个Markdown插件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/#0001-01-01">https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>自从<a href="https://www.markdownguide.org/" target="_blank" rel="noopener noreferrer"> Markdown </a>的出现，写文章(和一般的文本)有了新的转变。在以前，你要么必须直接使用HTML，要么只能使用在线文本编辑器提供的文本编辑选项。但是现在，任何支持Markdown <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z94z80zjw2z78zz66zz90zz83z0jz76zez65zz65ztz85zz83zsz82z2z65zwz71zz80zsz66zowx">内容</span>的服务都让写作变得更加容易。</p>
+<p>Gatsby和其他几个框架支持Markdown。这些降价文件可用于创建网页或博客。此外，Gatsby允许开发人员创建称为插件的工具，这些工具可以连接到Markdown文件并修改输出的HTML。</p>
+<p>在本文中，您将学习如何为您的Gatsby博客构建一个Markdown插件。例如，我们将构建一个文本突出显示插件，这样当它找到您在文本周围定义的特定语法时，它会将其处理成一个样式化的HTML，将文本显示为突出显示。这是我的网站上的插件<a href="https://dillionmegida.com/p/react-render-props-simplified/" target="_blank" rel="noopener noreferrer">——特别是文字“分享代码和功能”。</a></p>
+<p>请注意，您并不局限于本文中使用的示例。这篇文章的目的只是教你如何构建一个Markdown插件。您可以使用本文中的知识来构建其他优秀的插件，并为其他开发人员开源。</p>
+<h2>盖茨比和博客的降价</h2>
+<p>Markdown提供了一种特殊的语法，可以方便地创建文档。减价内容的结果通常是HTML，但根据使用的工具不同，结果也可能不同。</p>
+<p>例如，下面的HTML…</p>
+<pre>&lt;h2&gt;I am a header&lt;/h2&gt;
+&lt;p&gt;I am a paragraph&lt;/p&gt;
+&lt;code&gt;
+   &lt;pre&gt;
+     console.log('I am JavaScript')
+  &lt;/pre&gt;
+&lt;/code&gt;
+&lt;img src='https://google.com' alt='This is not an image'&gt;
+</pre>
+<p>…可通过以下降价内容实现:</p>
+<pre># I am a header
+
+I am a paragraph
+
+```
+console.log('I am JavaScript')
+```
+
+[!This is not an image](https://google.com)</pre>
+<p>因为处理Markdown内容后的最终结果是HTML，所以使用Markdown成为编写常规内容的无缝过程。</p>
+<p>Gatsby是一个静态站点生成器，用于创建不同的web应用程序，包括博客。该框架支持Markdown，这使得开发人员可以更容易地在Markdown文件中编写博客，并将其转换为成熟的页面。本文并不关注Gatsby如何创建这些页面，所以查看他们的<a href="https://www.gatsbyjs.com/blog/2017-07-19-creating-a-blog-with-gatsby/" target="_blank" rel="noopener noreferrer">文档</a>以获得更多信息。</p>
+<h2>降价的抽象语法树</h2>
+<p>一般来说，所有的编程语言都有语法。任何语言的语法都显示了该语言是如何工作的以及它所支持的关键字。这种语法可以用一棵<a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree" target="_blank" rel="noopener noreferrer">抽象语法树</a> (AST)来表示，它显示了从源代码中捕获的树中的每个节点。</p>
+<p>降价文件有自己的抽象语法树。您可以在这个<a href="https://astexplorer.net/" target="_blank" rel="noopener noreferrer"> live AST explorer </a>中进行试验。该树显示了Markdown文件中每个关键字的含义以及它们如何映射到相应的HTML元素。</p>
+<p>让我们回顾一下下面的降价文本:</p>
+<pre><code># I am a header
+I am a paragraph
+```
+console.log('I am JavaScript')
+```
+</code></pre>
+<p>现在，这是来自实时浏览器的上述降价文件的语法树:</p>
+<pre><code>{
+  "type": "root",
+  "children": [
+    {
+      "type": "heading",
+      "depth": 1,
+      "children": [
+        {
+          "type": "text",
+          "value": "I am a header",
+        }
+      ],
+    },
+    {
+      "type": "paragraph",
+      "children": [
+        {
+          "type": "text",
+          "value": "I am a paragraph",
+        }
+      ],
+    },
+    {
+      "type": "code",
+      "lang": null,
+      "meta": null,
+      "value": "console.log('I am JavaScript')",
+    }
+  ],
+}
+</code></pre>
+<p>请注意，上面列出的第一个Markdown文件是为了显示HTML的重要部分而总结的，但是您可以在live viewer中找到完整的信息。</p>
+<p>在这个Markdown内容中，树将它的每个部分分解成节点，每个节点有不同的类型、值等等。</p>
+<h2>gatsby-transformer-remark，降价修改背后的工具</h2>
+<p><code><a href="https://www.gatsbyjs.com/plugins/gatsby-transformer-remark/" target="_blank" rel="noopener noreferrer">gatsby-transformer-remark</a></code>是盖茨比团队打造的插件。这个插件的目的是将Markdown内容解析成最终的HTML。该插件使用抽象语法树来实现这一点。</p>
+<p>从Markdown接收AST，允许其他插件修改内容。本质上，生成最终的HTML是插件和<code>gatsby-transformer-remark</code>的共同努力。</p>
+<h2>构建文本高亮插件</h2>
+<p>就像其他Markdown插件一样，文本高亮插件将挂钩Markdown文件，并将部分(或全部)内容修改为HTML，这些内容将包含在最终的HTML中。</p>
+<p>对于这个插件，我们希望连接到Markdown文件，获取一个匹配我们将要定义的语法的文本或段落，并用一个包含一些样式的元素替换它，使它高亮显示。</p>
+<p>实现这一点的手动方法是将元素直接添加到降价内容中:</p>
+<pre><code># I am a header
+I want &lt;span class='highlight'&gt;this text&lt;/span&gt; highlighted.
+</code></pre>
+<p>但是手动将元素添加到Markdown文件中，以突出显示文章中的每一个文本，或者跨几篇文章，可能会很繁琐。那么，为什么不让它变得更简单呢？</p>
+<p>在我们的插件中，我们将使用以下语法:</p>
+<p><code>I want -# this text #- highlighted</code></p>
+<p>注意<code>-#</code>和<code>#-</code>是开始和结束符号。在这里，我们的插件将挑选每一个匹配该语法的字符串，并将其格式化为:</p>
+<pre><code>I want &lt;span class="highlight"&gt;this text&lt;/span&gt;
+</code></pre>
+<p>或者</p>
+<pre><code>I want &lt;span style="...styles"&gt;this text&lt;/span&gt;
+</code></pre>
+<p>如果使用类名方法，类名可以在全局样式表中使用。如果使用style方法，它将应用内联样式。</p>
+<h2>设置环境</h2>
+<p>理想情况下，这个插件将是一个独立的项目。然而，我们不想不断地部署到<a href="https://www.npmjs.com/" target="_blank" rel="noopener noreferrer"> npm </a>，更新项目中已安装的插件，并测试直到我们满意为止。</p>
+<p>谢天谢地，Gatsby允许使用<a href="https://www.gatsbyjs.com/docs/creating-a-local-plugin/" target="_blank" rel="noopener noreferrer">本地插件</a>。这意味着插件将与Gatsby项目共存，我们可以直接测试它。</p>
+<p>如果你有一个已经存在的Gatsby博客来测试这个插件，那么你已经准备好了。如果没有，快速克隆这个<a href="https://www.gatsbyjs.com/starters/gatsbyjs/gatsby-starter-blog" target="_blank" rel="noopener noreferrer"> repo (Gatsby starter blog) </a>并安装所需的依赖项。</p>
+<p>下一步是在项目的根目录下创建一个插件文件夹。当Gatsby构建它的文件时，在检查<code>node_modules</code>之前，它首先检查这个文件夹以查看指定的插件是否存在。</p>
+<p>在插件文件夹中，创建一个以插件命名的新文件夹。我叫它<code>gatsby-remark-text-highlighter</code>。</p>
+<p>在您的终端中，将您的当前目录更改到该文件夹并运行<code>npm init</code>。回答问题，您将获得为您创建的<code>package.json</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>为了让这个插件工作，我们需要两个依赖项:<a href="https://www.npmjs.com/package/unist-util-visit" target="_blank" rel="noopener noreferrer"> unist-util-visit </a>和<a href="https://www.npmjs.com/package/mdast-util-to-string" target="_blank" rel="noopener noreferrer"> &lt; mdast-util-to-string </a>。前者用于访问(挂钩)所有节点，就像我们在Markdown文件中的抽象语法树中看到的那样，而后者用于获取节点的文本内容。</p>
+<p>运行:</p>
+<pre><code>npm install unist-util-visit mdast-util-to-string --save
+</code></pre>
+<p>在Gatsby中，你必须添加每个用于<code>gatsby-config.js</code>的插件。因此:</p>
+<pre><code>module.exports = {
+  plugins: [
+    {
+      resolve: `gatsby-transformer-remark`,
+      options: {
+        plugins: [
+          {
+            resolve: `gatsby-remark-text-highlighter`,
+            options: {}
+          },
+        ]
+      }
+    }
+  ]
+}
+</code></pre>
+<p>这个插件是作为<code>gatsby-transformer-remark</code>的一个插件添加的，而不是在根目录，因为，如前所述，这个插件是由它驱动的。</p>
+<h2>开发插件</h2>
+<p>创建<code>index.js</code>文件并添加以下内容:</p>
+<pre><code>const visit = require("unist-util-visit")
+const toString = require("mdast-util-to-string")
+
+module.exports = ({ markdownAST }, options) =&gt; {
+  const {useDefaultStyles = true, className = ""} = options;
+
+  visit(markdownAST, "paragraph", (node) =&gt; {
+    // do something with paragraph
+  });
+}
+</code></pre>
+<p>使用我们从这个插件中公开的函数来修改降价内容。它传递一个充满选项的对象(我们只关心<code>markdownAST</code>)和一个<code>options</code>(在<code>gatsby-config.js</code>中指定)作为参数。</p>
+<p>从<code>options</code>参数中，我们描述了两个属性:<code>useDefaultStyles</code>，它指定是否应该使用这个插件创建的样式，以及<code>className</code>，它指定将被添加到元素中的类。</p>
+<p>通过<code>visit</code>(从<code>unist-util-visit</code>导出的函数)，我们可以访问Markdown文件的<code>markdownAST</code> (Markdown抽象语法树)中的所有段落，并应用回调函数。回调函数被赋予节点参数。</p>
+<p>接下来的步骤是定义语法。Regex将用于语法，以便我们可以选择匹配它的字符串。以下是正则表达式:</p>
+<pre><code>const syntax = /-#.*#-/
+</code></pre>
+<p>上面的正则表达式将匹配出现的每个文本，如下所示:</p>
+<pre><code>-# The cat caught the mouse #-
+I want to be -# highlighted #-. I -# mean #- it.
+</code></pre>
+<p>综上所述，我们有:</p>
+<pre><code>const visit = require("unist-util-visit")
+const toString = require("mdast-util-to-string")
+
+module.exports = ({ markdownAST }, options) =&gt; {
+  visit(markdownAST, "paragraph", (node) =&gt; {
+    let para = toString(node)
+    const syntax = /-#((?!#-).)*#-/ig
+    const matches = para.match(syntax);
+
+    if (matches !== null) {
+      console.log(para);
+    }
+  });
+}
+</code></pre>
+<p>正则表达式匹配任何有<code>-#</code>和<code>#-</code>但中间没有<code>-#</code>的字符串。<code>(?!#-)</code>将有助于挑选出高亮单词的多个实例。</p>
+<p>由于<code>visit</code>访问每个段落，我们需要添加子句<code>matches !== null</code>来确保我们只修改我们需要的段落。</p>
+<p>为了测试这一点，打开您的Gatsby博客，快速创建一个新的Markdown文件(或一个现有的文件)并添加:</p>
+<pre><code>I want to be -# highlighted #-
+
+I -# have #- different -# highlights #-
+
+I do not want to be highlighted
+</code></pre>
+<p>现在在你的终端中运行<code>gatsby</code> develop，你会看到<code>I want to be -# highlighted #-</code>和<code>I -# have #- different -# highlights #-</code>登录到终端。下面是截图:</p>
+<figure id="attachment_25902" aria-describedby="caption-attachment-25902" class="wp-caption aligncenter"><img data-attachment-id="25902" data-permalink="https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/attachment/ywux5k7e/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png" data-orig-size="896,168" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Gatsby-Markdown-highlighted-text-screenshot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-300x56.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png" decoding="async" class="wp-image-25902 jetpack-lazy-image" src="../Images/57811d5a7ed604a0677e8ff227ee203f.png" alt="Gatsby Markdown highlighted text screenshot" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png 896w, https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-300x56.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-768x144.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="25902" data-permalink="https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/attachment/ywux5k7e/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png" data-orig-size="896,168" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Gatsby-Markdown-highlighted-text-screenshot" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-300x56.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png" decoding="async" loading="lazy" class="wp-image-25902" src="../Images/57811d5a7ed604a0677e8ff227ee203f.png" alt="Gatsby Markdown highlighted text screenshot" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png 896w, https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-300x56.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E-768x144.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/ywUX5K7E.png"/></noscript><figcaption id="caption-attachment-25902" class="wp-caption-text">Screenshot of texts logged to the console that match the syntax.</figcaption></figure>
+<p>既然我们已经确认我们获取了正确的文本，接下来要做的就是格式化它。下面是剩余的代码:</p>
+<pre><code>const visit = require("unist-util-visit")
+const toString = require("mdast-util-to-string")
+module.exports = ({ markdownAST }, options) =&gt; {
+  const {useDefaultStyles = true, className = ""} = options;
+  visit(markdownAST, "paragraph", node =&gt; {
+    let para = toString(node)
+
+    const syntax = /-#((?!#-).)*#-/ig
+    const matches = para.match(syntax)
+
+    if (matches !== null) {
+      let style = null
+      if (useDefaultStyles) {
+        style = `
+          display:inline-block;
+          padding:5px;
+          background-color:yellow;
+          color:black;
+          border-radius: 5px;
+        `
+      }
+
+      // remove #- and -#
+      const removeSymbols = text =&gt; text.replace(/-#/g, "").replace(/#-/g, "")
+
+      const putTextInSpan = text =&gt;
+        `&lt;span
+          ${useDefaultStyles &amp;&amp; style ? ` style='${style}'` : ""}
+          ${className !== "" ? `class='${className}'` : ""}
+        &gt;${removeSymbols(text)}&lt;/span&gt;`
+
+      matches.map(match =&gt; {
+        para = para.replace(match, putTextInSpan(match))
+      })
+      para = '&lt;p&gt;' + para + '&lt;/p&gt;'
+      node.type = "html"
+      node.children = undefined
+      node.value = para
+    }
+  })
+  return markdownAST
+}
+</code></pre>
+<p>要使用在最后一个<code>gatsby develop</code>之后添加到插件中的新更改，您需要首先运行<code>gatsby clean</code>，因为Gatsby缓存了插件。</p>
+<p>如上面的代码所示:</p>
+<ul>
+<li>如果<code>useDefaultStyles</code>是<code>true</code>，则指定内联样式</li>
+<li>匹配语法的文本放在一个没有符号的<code>span</code>元素中</li>
+<li>映射<code>matches</code>数组中的文本，每个匹配语法的文本都放在一个没有符号的span元素中</li>
+<li>如果给<code>className</code>一个值，那么<code>span</code>元素接收该值作为类</li>
+<li><code>node</code>的<code>type</code>改为html，<code>children</code>未定义，<code>value</code>为格式化段落</li>
+</ul>
+<p>现在再次运行<code>gatsby develop</code>。以下是使用默认样式的网页结果:</p>
+<figure id="attachment_25750" aria-describedby="caption-attachment-25750" class="wp-caption aligncenter"><img data-attachment-id="25750" data-permalink="https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/attachment/cpnxfuxh/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png" data-orig-size="730,314" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Gatsby-Markdown-highlighted-text-screenshot" data-image-description="" data-image-caption="&lt;p&gt;Here’s the live view of highlighted text&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh-300x129.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png" decoding="async" class="size-full wp-image-25750 jetpack-lazy-image" src="../Images/2baf5ab821b6a150197b35d187606fd9.png" alt="Gatsby Markdown highlighted text" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh-300x129.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="25750" data-permalink="https://blog.logrocket.com/how-to-build-a-markdown-plugin-for-your-gatsby-blog/attachment/cpnxfuxh/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png" data-orig-size="730,314" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Gatsby-Markdown-highlighted-text-screenshot" data-image-description="" data-image-caption="&lt;p&gt;Here’s the live view of highlighted text&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh-300x129.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png" decoding="async" loading="lazy" class="size-full wp-image-25750" src="../Images/2baf5ab821b6a150197b35d187606fd9.png" alt="Gatsby Markdown highlighted text" srcset="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh-300x129.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/cpNXFuXh.png"/></noscript><figcaption id="caption-attachment-25750" class="wp-caption-text">Here’s the live view of highlighted text.</figcaption></figure>
+<h2>进一步的步骤</h2>
+<p>我们也可以应用自定义样式。用<code>options</code>属性扩展我们的插件使它更具可重用性。在<code>gatsby-config</code>中，添加以下内容:</p>
+<pre><code>{
+  resolve: `gatsby-remark-text-highlighter`,
+  options: {
+    useDefaultStyles: false,
+    className: 'text-highlight'
+  }
+</code></pre>
+<p>在全局样式表或附加到博客的任何样式表中，您可以添加如下内容:</p>
+<pre><code>.text-highlight {
+  padding: 10px;
+  border-radius: 10px;
+  background-color: purple;
+  color: white;
+}
+</code></pre>
+<h2>部署插件</h2>
+<p>您不能将这个插件部署到npm，因为我已经部署了它，并且因为库必须有唯一的名称。你可以选择用不同的名字命名你的插件，或者，更好的是，构建另一个不存在的插件，就像你对其他npm库所做的那样:</p>
+<pre><code>npm login
+npm publish
+</code></pre>
+<p>现在，你的插件可以被任何项目使用。没有人需要在他们的项目中创建一个插件文件夹，因为Gatsby将在生产中使用你的插件。</p>
+<p>您可以在<a href="https://github.com/dillionmegida/gatsby-remark-text-highlighter" target="_blank" rel="noopener noreferrer">源代码</a>中找到完整的代码，欢迎您投稿！</p>
+<h2>结论</h2>
+<p>在本文中，我们了解了什么是Markdown，以及Gatsby如何通过允许我们挂钩并格式化Markdown文件来扩展其功能。我们还创建了一个文本高亮插件，展示了创建Markdown插件的理想方法。</p>
+<p>文本高亮插件可能看起来很简单，但是它应该为你提供足够的洞察力来构建你自己的插件。</p>
+<p>在创建<a href="https://www.gatsbyjs.com/plugins/gatsby-remark-liquid-tags/">Gatsby-remark-liquid-tags</a>时，我也使用了这里列出的方法。如果你愿意，请随时查看并投稿。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

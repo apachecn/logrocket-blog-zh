@@ -1,0 +1,333 @@
+<html>
+<head>
+<title>Reverse engineering Observable - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>逆向工程观察-日志火箭博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/reverse-engineering-observable-4069f3853139/#0001-01-01">https://blog.logrocket.com/reverse-engineering-observable-4069f3853139/#0001-01-01</a></blockquote><div><article class="article-post">
+<figure><img decoding="async" src="../Images/be1de63acd1e659e8db3f642be3df7e6.png" data-height="512" data-width="512" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*xX3Dg4fZPHr-dDl9mnKGtQ.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*xX3Dg4fZPHr-dDl9mnKGtQ.jpeg"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/be1de63acd1e659e8db3f642be3df7e6.png" data-height="512" data-width="512" data-original-src="https://storage.googleapis.com/blog-images-backup/1*xX3Dg4fZPHr-dDl9mnKGtQ.jpeg"/></noscript></figure>
+<p><strong>TL；DR: </strong>在本文中，我们将从<a href="https://github.com/ReactiveX/rxjs" target="_blank" rel="noopener noreferrer"> <em> RxJS </em> </a>库中逆向工程可观察对象。我们还将从库中重新创建几个操作符，并了解观察器和订阅。我们还将使用<a href="https://www.typescriptlang.org/" target="_blank" rel="noopener noreferrer">类型脚本</a>来注释代码。最后，我们将编写一个非常小的示例代码来使用这个逆向工程库。您可以在<a href="https://stackblitz.com/edit/rxjs-reverse?file=index.ts" target="_blank" rel="noopener noreferrer"> StackBlitz </a>找到演示。</p>
+<figure/>
+<p/>
+<h3>反应式编程和RxJS简介</h3>
+<p>让我们保持简单。</p>
+<ul>
+<li><em>反应式编程是用异步数据流编程—Andre Staltz(</em><a href="https://cycle.js.org/" target="_blank" rel="noopener noreferrer"><em>cycle . js</em></a><em>)</em></li>
+</ul>
+<p>我不会在这篇文章中给你一个冗长的解释(你可以在这里找到更多的信息<a href="https://gist.github.com/staltz/868e7e9bc2a7b8c1f754" target="_blank" rel="noopener noreferrer"/>)，但是反应式编程基本上是一种管理异步数据流的范例(或者方法)。</p>
+<p><strong> RxJS </strong>是做反应式编程的库。它允许你用函数式方法编写反应式程序。</p>
+<h3>什么是可观察的？</h3>
+<p><a href="http://reactivex.io/rxjs/class/es6/Observable.js~Observable.html" target="_blank" rel="noopener noreferrer">可观测</a>是RxJS的核心要素。这或多或少有点像一个数组，数组中的项目在未来异步到达。</p>
+<ul>
+<li><em> Observable代表未来价值或事件的可调用集合的概念。— RxJS文档</em></li>
+</ul>
+<p>从API的角度来看，Observable有一个<strong> subscribe </strong>方法。这个subscribe方法用于调用可观察对象的执行。</p>
+<figure>
+<pre><code>let observable; // somehow we have created it
+observable.subscribe(doSomething); // doSomething does the heavy lifting for observable.</code></pre>
+</figure>
+<p>在上面的例子中，我们使用一些神奇的rxjs代码创建了一个名为<strong> observable </strong>的可观察对象，然后通过传递<strong> doSomething调用<em> subscribe </em>方法。需要记住的一件重要事情是，当我们调用subscribe方法时，Observable才开始工作。现在，忽略我们是如何创造出可观察的，以及什么是doSomething。</strong></p>
+<p>同样值得注意的是，这个subscribe方法返回一个叫做<strong>订阅</strong>的东西。基本上，这种订阅允许我们从可观察的事物中退订。换句话说，它用一个<strong> unsubscribe </strong>方法返回一个对象，这允许我们停止监听Observable发送的值。</p>
+<h3>什么是观察者？</h3>
+<p>Observer是回调函数的集合，它对通过Observable到达的值做出反应。</p>
+<ul>
+<li>Observer是一个回调集合，它知道如何监听被观察对象传递的值。— RxJS文档。</li>
+</ul>
+<p>在Observable中，我们需要回调三件事:</p>
+<ul>
+<li><strong>值</strong> —可观察的将要发送/推送的未来值</li>
+<li><strong>错误</strong> —当可观察对象完成发送值时，调用可观察对象发出信号时可能发生的错误</li>
+</ul>
+<p>因此，<strong> Observer </strong>是如下所示的三个回调方法的集合:</p>
+<figure>
+<pre><code>{
+  'next':  (value) =&gt; { // do whatever you want to here },
+  'error': (error) =&gt; { // error occurred },
+  'complete': () =&gt; { // complete}
+}</code></pre>
+</figure>
+<h4>订阅方法和观察器</h4>
+<p>观察器和订阅方法之间存在关系。看一下下面的例子:</p>
+<figure>
+<pre><code>let observable; // somehow we have created it
+let doSomething = {
+  'next': (value) =&gt; { // do whatever you want to here },
+  'error': (error) =&gt; { // error occurred },
+  'complete': () =&gt; { // complete}
+};
+
+observable.subscribe(doSomething); // doSomething does the heavy lifting for observable.</code></pre>
+</figure>
+<p>这里，我们创建了一个<strong>可观察对象</strong>，然后通过调用<strong>订阅</strong>方法来执行它。如果您仔细观察，我们已经将一个<strong>观察者</strong>传递给了subscribe方法。</p>
+<p>您可以在TypeScript中编写subscribe的类型定义，如下所示:</p>
+<p><code>Observable.subscribe(observer:Observer):Subscription;</code></p>
+<p>您可以将这种模式与任何Push API结合使用。</p>
+<h3>使用可观察和观察者模式</h3>
+<p>在下面的例子中，我们将围绕JavaScript的<strong> setInterval </strong> API包装Observable:</p>
+<figure>
+<pre><code>function setIntervalObservable(time) {
+  return {
+    'subscribe': (observer) =&gt; {
+      let timeId = setInterval(() =&gt; { observer.next(); }, time);
+      let subscription = {
+        'unsubscribe': () =&gt; {
+          clearInterval(timeId);
+        };
+      };
+      return subscription;
+    };
+  }
+}</code></pre>
+</figure>
+<p>现在我们可以用<strong>时间</strong>调用这个<strong> setIntervalObservable </strong>方法并订阅它。它将在给定的<strong>时间</strong>的每个周期后触发<strong> observer.next </strong>回调，如下所示:</p>
+<figure>
+<pre><code>let interval$ = setIntervalObservable(1000);
+let observer = {
+  'next': (value) =&gt; { console.log("Hello World"); },
+  'error': (error) =&gt; { // error occurred },
+  'complete': () =&gt; { // complete}
+};
+interval$.subscribe(observer);
+
+// Output
+// Hello World 
+// Hello World
+// ...</code></pre>
+</figure>
+<h3>可观察的逆向工程</h3>
+<p>到目前为止，您已经了解了观察者、可观察对象、订阅等内容。现在我们将使用TypeScript类和接口创建Observable。</p>
+<h3>创建观察者界面</h3>
+<p>如前所述，观察者是回调的集合。你已经知道<strong>下一个</strong>、<strong>错误</strong>和<strong>完成</strong>但是有一个可选值叫做<strong>关闭</strong>。您将在本教程的后面使用它:</p>
+<figure>
+<pre><code>interface Observer {
+  next: (value: any) =&gt; void;
+  error: (err: any) =&gt; void;
+  complete: () =&gt; void;
+}</code></pre>
+</figure>
+<h3>正在创建订阅类</h3>
+<p>如上所述，<strong> subscribe </strong>方法返回一个<strong>订阅</strong>。因此，基本上，订阅将<strong> unsubscribe </strong>方法作为输入，以便用户稍后可以调用它:</p>
+<figure>
+<pre><code>class Subscription {
+  unsubscribe:() =&gt; void;
+  constructor(unsubscribe:() =&gt; void) {
+    this.unsubscribe = unsubscribe;
+  }
+};</code></pre>
+</figure>
+<h3>创建可观察类</h3>
+<p>在本节中，我们将创建一个可观察的类和一个构造函数，它将<strong> subscribe </strong>方法作为输入。subscribe方法将<strong>观察者</strong>作为输入，并返回一个<strong>订阅:</strong></p>
+<figure>
+<pre><code>class Observable {
+  subscribe: (observer: Observer) =&gt; Subscription;
+  constructor(subscribe) {
+    this.subscribe = subscribe;
+  };
+}</code></pre>
+</figure>
+<h3>在可观察类上创建创建静态方法</h3>
+<p>Observable还附带了一个名为<strong> <em> create </em> </strong>的静态方法来创建新的Observable。这个方法也采用了一个<strong>订阅</strong>方法，并返回一个<strong>可观察值:</strong></p>
+<figure>
+<pre><code>class Observable {
+...
+  public static create(subscribe): Observable {
+    return new Observable(subscribe);
+  };
+}</code></pre>
+</figure>
+<h3>RxJS创建运算符</h3>
+<p>通常，在使用RxJS时，您不需要创建自己的自定义可观察对象。RxJS附带了创建方法，允许您从不同类型的输入中创建可观察对象。根据需要，创建方法的输入可以是任何东西，但它必须返回一个可观察值。</p>
+<p>您可以使用TypeScript描述创建运算符，如下所示:</p>
+<p><code>creationOperator(input:any): Observable;</code></p>
+<p>RxJS中有很多创建操作符，比如来自事件的和来自的<strong>等等。</strong></p>
+<p><strong> setIntervalObservable </strong>(我们之前用过的)其实是一个创建方法。我们可以使用我们的Observable和Subscription类轻松地重写它，如下所示:</p>
+<figure>
+<pre><code>function setIntervalObservable(time) {
+  return Observable.create(observer =&gt; {
+    let timeId = setInterval(() =&gt; observer.next(), time);
+    return new Subscription(() =&gt; { 
+      clearInterval(timeId);
+    });
+  });
+}</code></pre>
+</figure>
+<h3>创建运算符的逆向工程</h3>
+<p>RxJS的创建操作符的<strong>基本上以<em>多个值作为输入</em>，然后将这些值推/发送给观察者，如下所示:</strong></p>
+<figure>
+<pre><code>// example
+of(1,2,3)
+.subscribe(observer);
+
+// output
+// 1 2 3</code></pre>
+</figure>
+<p>我们必须做到以下几点:</p>
+<ul>
+<li>对作为输入给出的每个值进行循环</li>
+<li>用这些值触发<strong> observer.next </strong></li>
+<li>之后，火<strong> observer.complete() </strong></li>
+<li>返回一个<strong>订阅</strong></li>
+</ul>
+<p>以下是运算符的<strong>的完整代码:</strong></p>
+<figure>
+<pre><code>let of = (...values) =&gt;  {
+  return new Observable((observer:Observer) =&gt; {
+    values.forEach(value =&gt; {
+      observer.next(value);
+    });
+    // complete observer
+    observer.complete();
+    return new Subscription(() =&gt; {
+      // unsubscription action here
+    });
+  });
+};</code></pre>
+</figure>
+<h3>如何创建自定义创建运算符？</h3>
+<p>创建自定义创建操作符如下所示:</p>
+<ul>
+<li>根据需要，操作员可以接受任何数量或类型的输入</li>
+<li>它必须返回一个<strong>可观察值</strong></li>
+<li>通过调用<strong> observer.next </strong>发送/推送值</li>
+<li>观察完成后，发射<strong> observer.complete() </strong></li>
+<li>不要忘记从<strong>可观察的</strong>中返回一个<strong>订阅</strong></li>
+</ul>
+<h3>RxJS中的可管道化运算符</h3>
+<p>到目前为止，我们已经创建了Observable并订阅了它们。但是RxJS的另一个重要元素允许我们用异步值进行函数式编程。所以我们基本上可以用Array的map，filter或者类似的方法/算子来修改原来的可观测值。</p>
+<p>为了使用这些操作符，有一个名为<strong> pipe的可观察类方法。</strong>该管道方法将单个或多个操作符作为输入，并返回新的可观察值:</p>
+<p><code>Observable.pipe(...invokedOperators): Observable;</code></p>
+<p>下面是一个在RxJS中使用<strong>过滤器</strong>和<strong>映射</strong>操作符的例子:</p>
+<figure>
+<pre><code>let $stream = of(1,2,3,4);
+$stream
+.pipe(
+  filter(x =&gt; x &gt; 2),
+  map(x =&gt; x * 2)
+).subscribe(observer);
+
+// Output
+// of     1 2 3 4
+// filter - - 3 4
+// map    - - 6 8</code></pre>
+</figure>
+<h3>创建自定义可管道化运算符</h3>
+<p>你必须首先理解RxJS pipeable操作符的结构和剖析，才能在Observable类上编写我们自己的定制<strong> pipe </strong>方法。</p>
+<p>使用TypeScript的可管道化运算符的类型定义如下所示:</p>
+<p><code>type pipeableOperator = (input) =&gt; (source:Observable) =&gt; Observable;</code></p>
+<ul>
+<li>操作员接受一个<strong>输入。</strong>该输入可以是任何值，可以是单值或多值。这取决于你想做什么样的运营商。</li>
+<li>operator函数返回另一个函数。该返回函数将源可观察值作为输入，并通过基于操作员的<strong> <em>输入</em> </strong>执行所需动作来修改输入，从而返回新的可观察值。</li>
+</ul>
+<h3>创建过滤器运算符</h3>
+<p>为了创建过滤操作符，让我们先看看它的结构:</p>
+<p><code>filter(filterPredicate): (source:Observable) =&gt; Observable;</code></p>
+<ol>
+<li><strong> filterPredicate </strong>是返回布尔值的函数。你必须将它应用到源可观测物发出的值上。</li>
+<li>我们可以通过订阅source Observable来访问它发出的值，如下所示:</li>
+</ol>
+<figure>
+<pre><code>source.subscribe({
+  next(value) {
+    if(filterPredicate(value) {
+      // emit the value for new Observer here
+      // using observer.next(value);
+    });
+  }
+});</code></pre>
+</figure>
+<p>3.在上面所示的<em> if条件</em>中，发出新的可观察值。</p>
+<p>下面是我们如何编写过滤器操作符的代码:</p>
+<figure>
+<pre><code>// type definition for pipeable operator
+type pipeableOperator = (input) =&gt; (source:Observable) =&gt; Observable;
+
+let filter:pipeableOperator = (filterFn) =&gt; {
+  return (source) =&gt; {
+    return new Observable((observer: Observer) =&gt; {
+        let subscription = source.subscribe({ 
+         next(value) { 
+           if(filterFn(value)) {
+             observer.next(value); 
+           };
+          },
+         error(err) { observer.error(err); },
+         complete() { observer.complete(); }
+        });
+        
+        // Unsubscription
+        return new Subscription(() =&gt; {
+            subscription.unsubscribe();
+        });
+    });
+  };
+};</code></pre>
+</figure>
+<ul>
+<li><em>同样，你可以创建其他操作符，比如</em> <strong> <em>地图</em> </strong> <em>等等。</em></li>
+</ul>
+<p><strong>创建管道方法</strong></p>
+<p>现在我们可以逆向工程<strong>管道</strong>方法。但首先，我们必须做到以下几点:</p>
+<ol>
+<li>管道方法接受单个或多个输入。所以我们必须遍历所有这些操作符。我们可以使用JavaScript的<strong> spread </strong>操作符和<strong> forEach </strong>来实现，如下所示:</li>
+</ol>
+<figure>
+<pre><code>pipe(...operators) {
+  operators.forEach(operator =&gt; {
+  });
+}</code></pre>
+</figure>
+<p>2.重要的是要认识到，在内部管道方法中，我们实际上并没有得到可管道化的操作符，而是得到了对它的调用。换句话说，我们基本上是在访问操作符返回的任何内容。它是一个函数，接受源观测值并返回新的修改后的观测值。</p>
+<ol>
+<li>我们可以通过<strong>这个来访问源观测值。</strong></li>
+<li>
+<p>基本上，我们将从<strong>这个</strong>作为第一个可观察值开始，然后调用它的第一个操作符。我们将使用这个新的可观察值作为下一个操作符的来源。</p>
+</li>
+</ol>
+<p>下面是我们将如何编写管道方法:</p>
+<figure>
+<pre><code>class Observable {
+...
+ public pipe(...invockedOps): Observable {
+    let observable = this;
+    invockedOps.forEach(invockedOp =&gt; {
+      observable = invockedOp(observable);
+    });
+    return observable;
+  }
+}</code></pre>
+</figure>
+<h3>最后一个例子</h3>
+<p>下面是一个使用我们的逆向工程库创建和消费可观察对象的示例:</p>
+<figure>
+<pre><code>// import the code that you have written 
+// import { Observer, of }
+// import { map, filter }
+let observer: Observer =  {
+  next(value) { console.log(value); },
+  error(error) { console.warn(error) },
+  complete() { console.log("completed") }
+};
+
+let myValues = of(1,2,3,4)
+.pipe(
+  filter(x =&gt; x &gt; 2)
+).subscribe(observer);</code></pre>
+</figure>
+<p>有趣的是，上面例子中的代码完全兼容RxJS。所以基本上你可以将导入切换到<strong> RxJS </strong>库，一切都会正常工作。</p>
+<h3>结论</h3>
+<p>在本文中，我们编写了RxJS可观察对象的一个非常小的子集，创建了自定义创建操作符和自定义管道操作符，以及RxJS中操作符、过滤操作符的逆向工程。我们还了解了<strong>观察者</strong>和<strong>订阅</strong>。你可以在<a href="https://stackblitz.com/edit/rxjs-reverse?file=index.ts" target="_blank" rel="noopener noreferrer"> StackBlitz </a>查看演示。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

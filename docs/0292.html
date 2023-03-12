@@ -1,0 +1,736 @@
+<html>
+<head>
+<title>How to make a tic-tac-toe bot with WebAssembly for Go - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用WebAssembly为Go - LogRocket博客制作井字机器人</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-make-a-tic-tac-toe-bot-with-webassembly-for-go-e01800a874c9/#0001-01-01">https://blog.logrocket.com/how-to-make-a-tic-tac-toe-bot-with-webassembly-for-go-e01800a874c9/#0001-01-01</a></blockquote><div><article class="article-post">
+<p id="d715" class="graf graf--p graf-after--figure">不久前，我写了一篇关于React应用程序中Go WebAssembly的基本设置的文章。我们将借用我们在那里所做的工作，所以请确保先阅读一下(或者下载<a class="markup--anchor markup--p-anchor" href="https://github.com/Chrischuck/React-Go-WASM" target="_blank" rel="noopener noreferrer" data-href="https://github.com/Chrischuck/React-Go-WASM">入门模板</a>)！</p>
+<p id="debe" class="graf graf--p graf-after--p">如果您需要下载模板，请运行以下命令:</p>
+<p id="6233" class="graf graf--p graf-after--p"><code>git clone <a href="https://github.com/Chrischuck/React-Go-WASM.git" rel="nofollow">https://github.com/Chrischuck/React-Go-WASM.git</a></code></p>
+<p id="4feb" class="graf graf--p graf-after--p">另外，确保你已经下载了Chrome浏览器，因为我们需要它来进行开发。</p>
+<p id="31bf" class="graf graf--p graf-after--p">上次我们使用Go只是简单地将内容记录到控制台。这很酷，但这一次我们将通过制作一个在井字游戏中无与伦比的机器人来使用Go。</p>
+<p id="ad8f" class="graf graf--p graf-after--p">本教程将依次涵盖以下主题:</p>
+<ul class="postList">
+<li>一字棋</li>
+<li id="a720" class="graf graf--li graf-after--li">极大极小算法</li>
+<li id="7e8b" class="graf graf--li graf-after--li">在Go中实现MiniMax</li>
+<li id="e9ea" class="graf graf--li graf-after--li">让它在React中工作</li>
+<li id="869a" class="graf graf--li graf-after--li">面向Go的WebAssembly的要点/缺陷</li>
+</ul>
+<p id="6793" class="graf graf--p graf-after--li">正如你所看到的，我们将涵盖很多不同的主题，从人工智能理论，写一些围棋，和一点点的网络开发。你不需要成为这些方面的专家，所以让我们直接开始吧。</p>
+<p id="ea4d" class="graf graf--p graf-after--p">这里有一个完整的<a class="markup--anchor markup--p-anchor" href="https://chris-tac-toe.netlify.com/" target="_blank" rel="noopener noreferrer" data-href="https://chris-tac-toe.netlify.com/">演示</a>(仅限☹️桌面和Chrome)及其<a class="markup--anchor markup--p-anchor" href="https://github.com/Chrischuck/ai-tic-tac-toe" target="_blank" rel="noopener noreferrer" data-href="https://github.com/Chrischuck/ai-tic-tac-toe">回购</a>的链接。</p>
+<p id="c1a1" class="graf graf--p graf-after--p">作为另一个资源，链接到这篇文章的<a class="markup--anchor markup--p-anchor" href="https://github.com/Chrischuck/React-Go-WASM" target="_blank" rel="noopener noreferrer" data-href="https://github.com/Chrischuck/React-Go-WASM">回购</a>。</p>
+
+<div class="section-inner sectionLayout--insetColumn">
+<h3 id="2066" class="graf graf--h3 graf-after--figure">井字游戏基础</h3>
+<p id="293a" class="graf graf--p graf-after--h3">如果你不熟悉井字游戏，这是一种到处都是小学生玩的游戏。它的起源可以追溯到古埃及(远至公元前1300年)！游戏比较简单，大家来看看吧！</p>
+<figure id="96f5" class="graf graf--figure graf-after--p">
+<figcaption class="imageCaption"><a href="https://en.wikipedia.org/wiki/Tic-tac-toe#/media/File:Tic-tac-toe-game-1.svg">Image</a> from Wikipedia</figcaption></figure>
+<p id="226c" class="graf graf--p graf-after--figure">你有一个3×3矩阵(如上所示)，一个玩家是O，另一个是x。玩家轮流用他们的符号填充空白位置。第一个连续获得三个符号的人获胜！经典的井字游戏包括一个3×3的棋盘，但是只要它是正方形的，你就可以玩到任何大小。对于本教程，出于简单和性能原因，我们将坚持使用3×3(稍后将详细介绍性能原因)。</p>
+<h3 id="301f" class="graf graf--h3 graf-after--p">如何一直赢——MiniMax</h3>
+<p id="3600" class="graf graf--p graf-after--h3">我们首先应该检查的是为井字游戏机器人提供动力的实际算法。来自维基百科的该算法的定义陈述如下:</p>
+<blockquote id="82a9" class="graf graf--blockquote graf-after--p"><p><a class="markup--anchor markup--blockquote-anchor" href="https://en.wikipedia.org/wiki/Minimax" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Minimax"> <strong class="markup--strong markup--blockquote-strong"> Minimax </strong> </a>是在<a class="markup--anchor markup--blockquote-anchor" title="Artificial intelligence" href="https://en.wikipedia.org/wiki/Artificial_intelligence" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Artificial_intelligence">人工智能</a>、<a class="markup--anchor markup--blockquote-anchor" title="Decision theory" href="https://en.wikipedia.org/wiki/Decision_theory" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Decision_theory">决策理论</a>、<a class="markup--anchor markup--blockquote-anchor" title="Game theory" href="https://en.wikipedia.org/wiki/Game_theory" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Game_theory">博弈论</a>、<a class="markup--anchor markup--blockquote-anchor" title="Statistics" href="https://en.wikipedia.org/wiki/Statistics" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Statistics">统计学</a>和<a class="markup--anchor markup--blockquote-anchor" title="Philosophy" href="https://en.wikipedia.org/wiki/Philosophy" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Philosophy">哲学</a>中使用的决策规则，用于<em class="markup--em markup--blockquote-em">Minimax</em>mizing the possible<a class="markup--anchor markup--blockquote-anchor" title="Loss function" href="https://en.wikipedia.org/wiki/Loss_function" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/Loss_function">loss</a>for a worst case(<em class="markup--em markup--blockquote-em">max</em>imum loss)场景。</p></blockquote>
+<p id="37b0" class="graf graf--p graf-after--blockquote">这意味着我们的算法不一定要赢，而是不要输。将这种想法应用到我们的井字游戏中，我们的机器人将选择给对手最低获胜机会的路径。</p>
+<p id="6c3e" class="graf graf--p graf-after--p">请看下图:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/bb17ac0621887437025253964212e85f.png" data-src="https://cdn-images-1.medium.com/max/1600/1*gbgYtkd4MBF8afkm9Dc1yQ.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/1*gbgYtkd4MBF8afkm9Dc1yQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/1*gbgYtkd4MBF8afkm9Dc1yQ.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/bb17ac0621887437025253964212e85f.png" data-src="https://cdn-images-1.medium.com/max/1600/1*gbgYtkd4MBF8afkm9Dc1yQ.png" data-original-src="https://cdn-images-1.medium.com/max/1600/1*gbgYtkd4MBF8afkm9Dc1yQ.png"/></noscript>
+<figure id="8cf0" class="graf graf--figure graf-after--p"><figcaption class="imageCaption"><a class="markup--anchor markup--figure-anchor" href="https://en.wikipedia.org/wiki/File:Minimax.svg" target="_blank" rel="noopener noreferrer" data-href="https://en.wikipedia.org/wiki/File:Minimax.svg">Image</a> from Wikipedia</figcaption></figure>
+<p id="f4ec" class="graf graf--p graf-after--figure">上面有圆圈的关卡代表对手的选择(0，2，4)，而有方块的关卡代表机器人的选择(1和3)。分支代表可能的选择。对于机器人的每个可能的移动，它将遍历树，直到它到达一个终止状态，即不能再移动。沿着树的每条路径代表一系列的移动。看第一层，我们有6对，(10，inf)，(5)，(-10)，(7，5)，(-inf)，和(-7，-5)。既然是对手的选择，我们就选择每对的最小值，所以10，5，-10，5，-inf，和-7。然后，我们将相同的算法应用于我们的值新值，但不是取最小值，而是取最大值。</p>
+<p id="ad7c" class="graf graf--p graf-after--p">这种朴素的MiniMax版本工作得很好，但是我们可以用一种叫做alpha-beta修剪的东西来改进它。</p>
+<p id="b714" class="graf graf--p graf-after--p">有了alpha-beta剪枝，我们可以完全忽略树的一些分支，大大加快我们寻找最佳解决方案的速度。</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/f5f5f8a2bf928728d091d630e94eb0b9.png" data-src="https://cdn-images-1.medium.com/max/1600/0*l2X89FetJrhFXSuy.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/0*l2X89FetJrhFXSuy.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/0*l2X89FetJrhFXSuy.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/f5f5f8a2bf928728d091d630e94eb0b9.png" data-src="https://cdn-images-1.medium.com/max/1600/0*l2X89FetJrhFXSuy.png" data-original-src="https://cdn-images-1.medium.com/max/1600/0*l2X89FetJrhFXSuy.png"/></noscript>
+<figure id="7d7c" class="graf graf--figure graf-after--p"><figcaption class="imageCaption"><a href="https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning#/media/File:AB_pruning.svg">Image</a> from Wikipedia</figcaption></figure>
+<p id="b098" class="graf graf--p graf-after--figure">让我们开始应用极大极小算法来看看阿尔法-贝塔剪枝在起作用。查看对(5，6)，最小值是5。我们知道，我们现在必须在5和我们在正确的分支上得到的任何值之间选择一个最大值。现在对比(7，4)，我们的最小值是4。4小于5，所以我们在比较时会选择5作为最大值。因此，我们不必检查第三个分支，在本例中是5，因为它不可能在树中向上传播超过与5的最大比较。</p>
+<h3 id="68cb" class="graf graf--h3 graf-after--p">围棋中的极小极大</h3>
+<p id="7bbe" class="graf graf--p graf-after--h3">从我们上次停止的地方开始(或者在下载初学者模板之后)，您的文件夹结构应该如下所示:</p>
+<figure id="b5ce" class="graf graf--figure graf-after--p">
+
+</figure>
+<p id="d1a9" class="graf graf--p graf-after--figure">将<code>server/go</code>文件夹中的<code>main.go</code>文件编辑如下:</p>
+<pre>package main
+
+import "syscall/js"
+
+func findNextComputerMove(args []js.Value) {
+    grid := args[0]
+    turnCount := args[1].Int()
+
+    nextMove := GetNextMove(grid, turnCount)
+    js.Global().Set("nextMove", js.TypedArrayOf(nextMove))
+}
+
+func checkGameState(args []js.Value) {
+    grid := args[0]
+    lastMoveArg := args[1]
+    turnCount := args[2].Int()
+    player := args[3].String()
+
+    lastMove := []int8{
+        int8(lastMoveArg.Index(0).Int()),
+        int8(lastMoveArg.Index(1).Int()),
+    }
+    gameState := StateValue(grid, lastMove, player, turnCount)
+
+    js.Global().Set("gameState", js.ValueOf(gameState))
+}
+
+func registerCallbacks() {
+    js.Global().Set("findNextComputerMove", js.NewCallback(findNextComputerMove))
+    js.Global().Set("checkGameState", js.NewCallback(checkGameState))
+}
+
+func main() {
+    done := make(chan bool, 0)
+    registerCallbacks()
+    &lt;-done
+}</pre>
+<p>与上次相比，我们实际上只添加了三样东西，一个发现机器人下一步行动的函数，一个检查游戏状态的函数(机器人赢，用户赢，平局或游戏未结束)，以及计算完成后的游戏状态本身。这两个函数本质上都是包装器，将我们即将编写的代码展示给JavaScript客户机。请记住，在我们的React应用程序中，变量<code>gameState</code>和函数<code>findNextComputerMove</code>以及<code>checkGameState</code>将作为全局变量公开。</p>
+</div>
+<div>
+<p id="e34f" class="graf graf--p graf-after--p">记下这两个函数的参数，<code>args []js.Value</code>。我们有一个包含JavaScript值的数组，而不是多个参数。所以在客户端，我们可以传递尽可能多的参数，它们将在<code>args</code>数组中被索引。</p>
+<p id="3a9e" class="graf graf--p graf-after--p">查看<code>checkGameState</code>函数，您可以看到我们使用索引从数组中提取我们需要的参数。</p>
+<p id="3cfd" class="graf graf--p graf-after--p">现在在您的<code>server/go</code>文件夹中创建一个名为<code>tictactoe.go</code>的文件。我们要做的第一件事是创建一个检查游戏状态的函数:</p>
+<pre>package main
+
+import "syscall/js"
+
+func StateValue(grid js.Value, lastMove []int8, player string, turnCount int) int {
+    // return 0 for more moves to be played, 1 for Computer win, 2 for hooman win, and 3 for tie!
+    rowIndex := lastMove[0]
+    columnIndex := lastMove[1]
+    gridSize := grid.Length()
+
+    // check columns and rows
+    rowEqual := true
+    columnEqual := true
+    for i := 0; i &lt; gridSize; i++ {
+        if grid.Index(int(rowIndex)).Index(i).String() != player {
+            rowEqual = false
+        }
+
+        if grid.Index(i).Index(int(columnIndex)).String() != player {
+            columnEqual = false
+        }
+
+        if !rowEqual &amp;&amp; !columnEqual {
+            break
+        }
+    }
+
+    if rowEqual || columnEqual {
+        if player == "COMPUTER" {
+            return 1
+        }
+        return 2
+    }
+
+    // check upper left to bottom right diagonal
+    if rowIndex == columnIndex {
+        firstDiagonalEqual := true
+        for i := 0; i &lt; gridSize; i++ {
+            if grid.Index(i).Index(i).String() != player {
+                firstDiagonalEqual = false
+            }
+        }
+        if firstDiagonalEqual {
+            if player == "COMPUTER" {
+                return 1
+            }
+            return 2
+        }
+    }
+
+    // check top right to bottom left diagonal
+    if int(rowIndex) == gridSize-1-int(columnIndex) {
+        secondDiagonalEqual := true
+
+        for i := 0; i &lt; gridSize; i++ {
+            if grid.Index(i).Index(gridSize-1-i).String() != player {
+                secondDiagonalEqual = false
+            }
+        }
+        if secondDiagonalEqual {
+            if player == "COMPUTER" {
+                return 1
+            }
+            return 2
+        }
+    }
+
+    if gridSize*gridSize == turnCount {
+        return 3
+    }
+    return 0
+}</pre>
+</div>
+<p id="172a" class="graf graf--p graf-after--figure">这个函数的作用是检查游戏是否是平局，机器人赢了，人类赢了，或者是否还有棋可走。它将代表游戏状态的一个<code>js.Grid</code>作为它的第一个参数，最后一次玩的棋，最后一次玩的棋的玩家，以及到目前为止的回合数。该函数返回四种不同的状态:</p>
+<ul class="postList">
+<li id="aaae" class="graf graf--li graf-after--p">如果还有更多棋要走，则为0</li>
+<li id="2b11" class="graf graf--li graf-after--li">1如果机器人赢了</li>
+<li id="5ad2" class="graf graf--li graf-after--li">2如果人类赢了</li>
+<li id="6b3b" class="graf graf--li graf-after--li">3如果是平局</li>
+</ul>
+<p id="6383" class="graf graf--p graf-after--li">首先，该函数检查受此移动影响的行或列是否在一行中创建了三个。如果有一个获胜状态，该函数将根据谁获胜返回1或2。如果没有人通过列或行获胜，则检查对角线，如果最后一步是在对角线上。同样，如果有一个赢的状态，根据谁赢了，返回1或2。如果不是，该函数通过检查圈数是否等于网格大小的平方来检查是否有平局。如果有平局，则返回3，如果没有，则返回0。</p>
+<p id="5804" class="graf graf--p graf-after--p">现在我们有能力检查游戏的状态，我们可以建立我们的极大极小算法。将以下更改添加到您的<code>tictactoe.go</code>文件中:</p>
+<pre>package main
+
+import (
+    "math"
+    "syscall/js"
+)
+
+type SuccessorState struct {
+    Grid     js.Value
+    LastMove []int8
+    Rating   int
+}
+
+/*
+ * StateValue function...
+ */
+
+func GetNextMove(grid js.Value, turnCount int) []int8 {
+    successorStates := getSuccessorStates(grid, "COMPUTER")
+    var maxState SuccessorState
+
+    // kicking off the minimax algo, we can assume the move is from the computer
+    for index, state := range successorStates {
+        state.Rating = miniMax(state.Grid, state.LastMove, "COMPUTER", turnCount, math.MinInt32, math.MaxInt32)
+
+        if index == 0 || state.Rating &gt; maxState.Rating {
+            maxState = state
+        }
+    }
+    return maxState.LastMove
+}</pre>
+<p id="9dc4" class="graf graf--p graf-after--figure">这个<code>GetNextMove</code>函数简单地迭代所有下一个可能的状态，并在每个后续状态上运行Minimax算法。完成后，它返回具有最大值的状态。</p>
+<p id="1254" class="graf graf--p graf-after--p">现在让我们添加一些实用函数。将以下内容添加到文件中:</p>
+<pre>func intMax(x int, y int) int {
+    if x &gt; y {
+        return x
+    }
+    return y
+}
+
+func intMin(x int, y int) int {
+    if x &lt; y {
+        return x
+    }
+    return y
+}
+
+func getSuccessorStates(grid js.Value, player string) []SuccessorState {
+    var states []SuccessorState
+
+    // slice version of our grid so we can copy it
+    baseGrid := duplicateGrid(grid)
+
+    for i := 0; i &lt; grid.Length(); i++ {
+        for j := 0; j &lt; grid.Length(); j++ {
+            if grid.Index(i).Index(j).String() == "" {
+                // copy the base grid
+                newGrid := make([]interface{}, len(baseGrid))
+                copy(newGrid, baseGrid)
+                jsGrid := js.ValueOf(newGrid)
+                // apply the next move
+                jsGrid.Index(i).SetIndex(j, player)
+
+                newState := SuccessorState{
+                    Grid:     jsGrid,
+                    LastMove: []int8{int8(i), int8(j)},
+                }
+                states = append(states, newState)
+            }
+        }
+    }
+    return states
+}
+
+func duplicateGrid(grid js.Value) []interface{} {
+    // I wish there was an easier way... but as of now I don't
+    // think you can create a duplicate of a js array :(
+    // so we just pass the values into a slice
+    // pls lmk if you have an optimal solution
+    gridSize := grid.Length()
+
+    newGrid := make([]interface{}, gridSize)
+
+    for i := 0; i &lt; gridSize; i++ {
+        newGridRow := make([]interface{}, gridSize)
+        for j := 0; j &lt; gridSize; j++ {
+            newGridRow[j] = grid.Index(i).Index(j).String()
+        }
+        newGrid[i] = newGridRow
+    }
+    return newGrid
+}</pre>
+<p id="6391" class="graf graf--p graf-after--figure">前两个函数<code>intMin</code>和<code>intMax</code>只是返回两个数的最小值和最大值。<code>getSuccessorStates</code>获取一个当前的游戏状态，为玩家找到所有可能的走法，应用每个走法，然后返回应用了每个可能走法的状态数组。最后一个效用函数是<code>duplicateGrid</code>函数。该函数获取类型为<code>js.Value</code>的网格，并将其转换成一个切片。到目前为止，我不认为有更简单的方法来做这个手术，这是一个明显的痛点。但稍后会详细介绍。</p>
+<p id="411f" class="graf graf--p graf-after--p">现在我们有了先决条件，我们可以创建极小极大函数的核心。将以下函数添加到您的<code>tictactoe.go</code>文件中:</p>
+<pre>func miniMax(grid js.Value, lastMove []int8, player string, turnCount int, alpha int, beta int) int {
+    gameState := StateValue(grid, lastMove, player, turnCount)
+
+    if gameState == 1 {
+        return 1
+    } else if gameState == 2 {
+        return -1
+    } else if gameState == 3 {
+        return 0
+    }
+
+    if player == "COMPUTER" {
+        return miniMaxMin(grid, "HUMAN", turnCount, alpha, beta)
+    } else {
+        return miniMaxMax(grid, "COMPUTER", turnCount, alpha, beta)
+    }
+}</pre>
+<p>这个函数非常简单。首先，它获取当前状态的值，并返回1表示计算机获胜，-1表示人类获胜，0表示平局。接下来，我们应用算法的最小/最大部分。如果轮到计算机，我们选择返回计算机最大值的回合。如果轮到人类，我们为人类选择获胜最少的回合。</p>
+<p>让我们构建<code>miniMaxMin</code>函数。将此函数添加到您的<code>tictactoe.go</code>文件中:</p>
+<pre>func miniMaxMin(grid js.Value, player string, turnCount int, alpha int, beta int) int {
+    successorStates := getSuccessorStates(grid, player)
+
+    minStateRating := int(math.MaxInt32 + 1)
+    for _, state := range successorStates {
+        minStateRating = intMin(minStateRating, miniMax(state.Grid, state.LastMove, player, turnCount+1, alpha, beta))
+
+        if minStateRating &lt;= alpha {
+            return minStateRating
+        }
+        beta = intMin(beta, minStateRating)
+    }
+    return minStateRating
+}</pre>
+<p id="1e1e" class="graf graf--p graf-after--figure">这个函数取一个给定的状态，对于每个子状态，它找到带来最低净值的状态。然而，我们应用alpha-beta剪枝，所以我们不必遍历树上的每个节点。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p id="5fbc" class="graf graf--p graf-after--p">现在我们来看一下<code>miniMaxMax</code>函数。将此函数添加到您的<code>tictactoe.go</code>文件中:</p>
+<pre>func miniMaxMax(grid js.Value, player string, turnCount int, alpha int, beta int) int {
+    successorStates := getSuccessorStates(grid, player)
+
+    maxStateRating := int(math.MinInt32 - 1)
+    for _, state := range successorStates {
+
+        maxStateRating = intMax(maxStateRating, miniMax(state.Grid, state.LastMove, player, turnCount+1, alpha, beta))
+
+        if maxStateRating &gt;= beta {
+            return maxStateRating
+        }
+        alpha = intMax(alpha, maxStateRating)
+    }
+    return maxStateRating
+}</pre>
+<p id="da1f" class="graf graf--p graf-after--figure">这个函数取一个给定的状态，对于每个子状态，它找到带来最高净值的状态。然而，我们再次应用alpha-beta剪枝，因此我们不必遍历树上的每个节点。</p>
+<p id="f102" class="graf graf--p graf-after--p">围棋中的极小极大算法到此为止！</p>
+<p id="c3f5" class="graf graf--p graf-after--p">是时候建立WASM档案了。<code>cd</code>进入<code>server/go</code>目录，并在您的终端中运行以下程序:</p>
+<pre id="258e" class="graf graf--pre graf-after--p">GOOS=js GOARCH=wasm go build -o main.wasm</pre>
+<p id="fd70" class="graf graf--p graf-after--pre">这应该会在您的<code>server/go</code>目录中创建一个<code>main.wasm</code>文件。</p>
+<p id="4bba" class="graf graf--p graf-after--p">从这里，<code>cd</code>返回到根目录<code>/server</code>并运行<code>npm run dev</code>来启动一个快速服务器来提供你的WASM文件。</p>
+<h3 id="5847" class="graf graf--h3 graf-after--p">连接React中的点</h3>
+<p id="fd09" class="graf graf--p graf-after--h3">现在我们需要把我们的逻辑放到前端。</p>
+<p id="3485" class="graf graf--p graf-after--p">打开一个新的终端，<code>cd</code>进入<code>/client</code>目录。</p>
+<p id="4709" class="graf graf--p graf-after--p">运行以下命令:</p>
+<pre id="6a84" class="graf graf--pre graf-after--p">npm install --save react react-dom &amp;&amp; npm install --save-dev
+@babel/core @babel/plugin-proposal-class-properties @babel/plugin-proposal-decorators @babel/plugin-syntax-dynamic-import @babel/polyfill @babel/preset-env @babel/preset-react add-asset-html-webpack-plugin babel-loader html-webpack-plugin webpack webpack-cli webpack-dev-server webpack-dotenv-plugin</pre>
+<pre id="6a84" class="graf graf--pre graf-after--p"/>
+<p>通过这样做，我们更新了依赖关系，并确保我们拥有构建React应用程序所需的一切。</p>
+<p id="06ab" class="graf graf--p graf-after--p">接下来，更新我们的文件结构，如下所示:</p>
+<p class="graf graf--p graf-after--p"><img decoding="async" class="progressiveMedia-image js-progressiveMedia-image jetpack-lazy-image" src="../Images/ef480501e2795fa242c6d23b8bf8d481.png" data-src="https://cdn-images-1.medium.com/max/1600/1*rhkoQuwptGBbp5Euddz2lQ.png" data-lazy-src="https://cdn-images-1.medium.com/max/1600/1*rhkoQuwptGBbp5Euddz2lQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://cdn-images-1.medium.com/max/1600/1*rhkoQuwptGBbp5Euddz2lQ.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="progressiveMedia-image js-progressiveMedia-image" src="../Images/ef480501e2795fa242c6d23b8bf8d481.png" data-src="https://cdn-images-1.medium.com/max/1600/1*rhkoQuwptGBbp5Euddz2lQ.png" data-original-src="https://cdn-images-1.medium.com/max/1600/1*rhkoQuwptGBbp5Euddz2lQ.png"/></noscript>
+<p id="fc95" class="graf graf--p graf-after--figure">首先，像这样更新你的<code>webpack.config.js</code>:</p>
+<pre>const HtmlWebpackPlugin = require('html-webpack-plugin');
+const AddAssetHtmlPlugin = require('add-asset-html-webpack-plugin');
+const DotenvPlugin = require('webpack-dotenv-plugin');
+
+module.exports = {
+  resolve: {
+    modules: ['src', 'node_modules']
+  },
+  devtool: 'source-map',
+  entry: {
+    vendor: ['@babel/polyfill', 'react', 'react-dom'],
+    client:     './src/index.js',
+  },
+  output: {
+    path: __dirname + '/dist',
+    filename: '[name].chunkhash.bundle.js',
+    chunkFilename: '[name].chunkhash.bundle.js',
+    publicPath: '/',
+  },
+  module: {
+    rules: [
+      {
+        test: /.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader"
+        }
+      },
+     ]
+  },
+  devServer: {
+    historyApiFallback: true,
+    disableHostCheck: true
+  },
+  plugins: [
+    new DotenvPlugin({
+      sample: './.env.example',
+      path: './.env'
+    }),
+    new HtmlWebpackPlugin({
+      title: 'GoWasm!',
+      template: './src/index.html',
+      filename: './index.html',
+      inject: true,
+      minify: {
+        collapseWhitespace: true,
+        collapseInlineTagWhitespace: true,
+        minifyCSS: true,
+        minifyURLs: true,
+        minifyJS: true,
+        removeComments: true,
+        removeRedundantAttributes: true
+      }
+    }),
+    // Make sure to add these in this order, so the wasm_exec.js gets injected first
+    // yes, it's backwards, I know :/
+    new AddAssetHtmlPlugin({ filepath: require.resolve('./src/init_go.js') }),
+    new AddAssetHtmlPlugin({ filepath: require.resolve('./src/wasm_exec.js') })
+  ]
+};</pre>
+<p id="dcc5" class="graf graf--p graf-after--figure">所有改变的是我们增加了Dotenv插件。</p>
+<p id="d5ae" class="graf graf--p graf-after--p">不，在您的<code>.env.example</code>和<code>.env</code>文件中添加以下内容:</p>
+<pre id="adcd" class="graf graf--pre graf-after--p">DEV_SERVER_URI=<a class="markup--anchor markup--pre-anchor" href="http://localhost:3000/" target="_blank" rel="nofollow noopener noreferrer" data-href="http://localhost:3000">http://localhost:3000</a></pre>
+<p id="9c35" class="graf graf--p graf-after--pre">现在让我们更新<code>App.js</code>，粘贴以下内容:</p>
+<pre>import React from 'react'
+
+import Grid from './grid'
+
+export default class App extends React.Component {
+  constructor(props) {
+    super(props)
+
+    this.state = {
+      isLoading: true
+    }
+  }
+
+  componentDidMount() {
+    const { DEV_SERVER_URI } = process.env
+
+        WebAssembly.instantiateStreaming(fetch(DEV_SERVER_URI), go.importObject).then(async (result) =&gt; {
+      go.run(result.instance)
+      this.setState({ isLoading: false })
+    });
+  }
+
+
+  render() {
+    return (
+      &lt;div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center'}}&gt;
+        { 
+          this.state.isLoading ? 
+            &lt;div&gt;
+              { /* https://codepen.io/aurer/pen/jEGbA for this cool loader and more! */ }
+              &lt;svg version="1.1" id="Layer_1"  x="0px" y="0px" width="24px" height="30px" viewBox="0 0 24 30" style={{enableBackground: 'new 0 0 50 50'}}&gt;
+                &lt;rect x="0" y="0" width="4" height="20" fill="#333"&gt;
+                  &lt;animate attributeName="opacity" attributeType="XML"
+                    values="1; .2; 1" 
+                    begin="0s" dur="0.6s" repeatCount="indefinite" /&gt;
+                &lt;/rect&gt;
+                &lt;rect x="7" y="0" width="4" height="20" fill="#333"&gt;
+                  &lt;animate attributeName="opacity" attributeType="XML"
+                    values="1; .2; 1" 
+                    begin="0.2s" dur="0.6s" repeatCount="indefinite" /&gt;
+                &lt;/rect&gt;
+                &lt;rect x="14" y="0" width="4" height="20" fill="#333"&gt;
+                  &lt;animate attributeName="opacity" attributeType="XML"
+                    values="1; .2; 1" 
+                    begin="0.4s" dur="0.6s" repeatCount="indefinite" /&gt;
+                &lt;/rect&gt;
+              &lt;/svg&gt;
+            &lt;/div&gt; : 
+            &lt;Grid /&gt; 
+        }
+      &lt;/div&gt;
+    )
+  }
+}</pre>
+<p id="48e4" class="graf graf--p graf-after--figure">这个组件实际上并没有做很多事情，它只是初始化web assembly，并在加载完成后显示我们的网格组件。</p>
+<p id="e8d0" class="graf graf--p graf-after--p">现在让我们创建网格的每个单元。这个组件也不复杂，只包含一点点逻辑。将此添加到您的<code>cell.js</code>文件中。</p>
+<pre>import React from 'react'
+
+export default class Cell extends React.Component {
+
+  renderIcon() {
+    const { fill } = this.props
+    if (!fill) {
+      return null
+    }
+
+    if (fill === 'HUMAN') {
+      return (
+        // Thanks w3schools! https://www.w3schools.com/graphics/svg_line.asp
+        &lt;svg height="50" width="50"&gt;
+          &lt;line x1="0" y1="0" x2="50" y2="50" style={{stroke:'black', strokeWidth:3}} /&gt;
+          &lt;line x1="0" y1="50" x2="50" y2="0" style={{stroke:'black', strokeWidth:3}} /&gt;
+        &lt;/svg&gt;
+      )
+    }
+
+    if (fill === 'COMPUTER') {
+      return (
+        // Thanks again w3schools! https://www.w3schools.com/graphics/svg_circle.asp
+        &lt;svg height="100" width="100"&gt;
+          &lt;circle cx="50" cy="50" r="40" style={{stroke:'black', strokeWidth:3, fill: 'white' }} /&gt;
+        &lt;/svg&gt;
+      )
+    }
+  }
+
+  clickCell = () =&gt; {
+    const { cell, fillCell, fill, turn, isGameOver } = this.props
+    if (fill || turn !== 'HUMAN' || isGameOver) {
+      return
+    }
+    fillCell(cell, 'HUMAN')
+  }
+
+  render() {
+    const { cell, gridSize, fill, isGameOver, } = this.props
+    const [row, column] = cell
+
+    return (
+      &lt;div 
+        onClick={this.clickCell}
+        style={{
+          width: '100px',
+          height: '100px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRight: column &lt; gridSize - 1 ? '1px solid red' : 'none',
+          cursor: !fill &amp;&amp; !isGameOver ? 'pointer' : 'default'
+        }}
+      &gt;
+        {
+          this.renderIcon()
+        }
+      &lt;/div&gt;
+    )
+  }
+}</pre>
+<p id="3731" class="graf graf--p graf-after--figure">这个组件相当简单。它需要一些来自网格组件的支持。最重要的道具是<code>fill</code>道具，它表示单元格是由人还是由计算机填充。基于这个道具，如果它是自由移动，它将什么都不返回；如果它是人，它将返回一个圆圈；如果它是计算机，它将返回X。</p>
+<p id="efd2" class="graf graf--p graf-after--p">现在，我们来到了前端应用程序的最后一部分:网格组件。</p>
+<p id="61df" class="graf graf--p graf-after--p">继续将它添加到您的<code>grid.js</code>文件中，然后让我们分解它:</p>
+<pre>import React from 'react'
+
+import Cell from './cell'
+
+const DEFAULT_GRID_SIZE = 3
+const DEFAULT_TURN = 'HUMAN' 
+
+const initGrid = (size) =&gt; {
+  const grid = []
+  const gridSize = size || DEFAULT_GRID_SIZE
+
+  for (let i = 0; i &lt; gridSize; i++) {
+    const row = []
+    for (let j = 0; j &lt; gridSize; j++) {
+      row.push('')
+    }
+    grid.push(row)
+  }
+  return grid
+}
+
+export default class Grid extends React.Component {
+  constructor(props) {
+    super(props)
+
+    this.state = {
+      isGameOver: false,
+      startTurn: DEFAULT_TURN,
+      turn: DEFAULT_TURN, 
+      gridSize: DEFAULT_GRID_SIZE,
+      lastMove: null,
+      turnCount: 1,
+      message: '',
+      grid: initGrid()
+    }
+  }
+
+  componentDidMount() {
+    const { turn } = this.state
+
+    if (turn === 'COMPUTER') {
+      this.calculateComputerMove()
+    }
+  }
+
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    const { turn, isGameOver } = this.state
+
+    if (!isGameOver &amp;&amp; turn === 'COMPUTER') {
+      this.calculateComputerMove()
+    }
+  }
+
+  calculateComputerMove = async () =&gt; {
+    const { grid, turnCount } = this.state
+    await new Promise((resolve, reject) =&gt; {
+      findNextComputerMove(grid, turnCount)
+      // let the other threads finish
+      setTimeout(resolve, 0)
+    })
+
+    this.fillCell(nextMove, 'COMPUTER')
+  }
+
+  fillCell = async (cell, player) =&gt; {
+    const { grid, turnCount } = this.state
+    const [row, column] = cell
+
+    const gridCopy = [ ...grid ] // we do this so we don't mutate state itself!
+
+    gridCopy[row][column] = player
+
+    const turn = player === 'HUMAN' ? 'COMPUTER' : 'HUMAN'
+
+
+    await new Promise((resolve, reject) =&gt; {
+      checkGameState(grid, cell, turnCount, player)
+      // let the other threads finish
+      setTimeout(resolve, 0)
+    })
+
+    switch (gameState) {
+      case 1:
+        this.endGame('Computer has won. Press reset to play again!', gridCopy)
+        return
+      case 2:
+        this.endGame('Congrats Hackerman. Press reset to play again!', gridCopy)
+        return
+      case 3:
+        this.endGame('Nobody won. Press reset to play again!', gridCopy)
+        return
+    }
+
+    this.setState({
+      turn,
+      grid: gridCopy,
+      turnCount: turnCount + 1,
+      lastMove: cell
+    })
+  }
+
+  endGame = (message, grid) =&gt; {
+    this.setState({
+      grid,
+      message,
+      isGameOver: true
+    })
+  }
+
+  resetGame = (turn) =&gt; {
+    
+    this.setState((prevState, _) =&gt; ({
+      message: 'Restarting Game..',
+      isGameOver: false,
+      startTurn: turn || prevState.startTurn,
+      turn: turn || prevState.startTurn || DEFAULT_TURN, 
+      gridSize: DEFAULT_GRID_SIZE,
+      lastMove: null,
+      turnCount: 1,
+      grid: initGrid()
+    }), () =&gt; this.setState({ message: ''}))
+  }
+
+  render() {
+    const { grid, gridSize, turn, isGameOver, message } = this.state
+
+    return (
+      &lt;div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center'}}&gt;
+        &lt;h1 style={{textAlign: 'center', marginBottom: '5px'}}&gt;Tic Tac Toe&lt;/h1&gt;
+        &lt;h2 style={{textAlign: 'center', marginTop: '5px'}}&gt;{message ? message : (!isGameOver &amp;&amp; turn === 'COMPUTER') ? 'Computer is thinking 🤔' : ' '}&lt;/h2&gt;
+        &lt;div style={{ display: 'flex', marginBottom: '10px' }}&gt;
+          &lt;select onChange={(e) =&gt; this.resetGame(e.target.value)} style={{ flex: 1, marginRight: '3px'}}&gt;
+            &lt;option value='HUMAN'&gt;Human&lt;/option&gt;
+            &lt;option value='COMPUTER'&gt;Computer&lt;/option&gt;
+          &lt;/select&gt;
+          &lt;button style={{ flex: 1}} onClick={(e) =&gt; this.resetGame()}&gt;Reset&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div style={{marginLeft: 'auto', marginRight: 'auto'}}&gt;
+          {
+            grid.map((row, rowIndex) =&gt; (
+              &lt;div key={`row-${rowIndex}`} style={{ display: 'flex', flexDirection: 'row', maxWidth: `${gridSize*100 + gridSize - 1}px`,borderBottom: rowIndex &lt; gridSize - 1 ? '1px solid red' : 'none'}}&gt;
+                {
+                  row.map((fill, columnIndex) =&gt; (
+                    &lt;Cell
+                      key={`col-${columnIndex}`}
+                      isGameOver={isGameOver}
+                      turn={turn}
+                      fill={fill} // This determines if this cell is empty or not!
+                      cell={[rowIndex, columnIndex]}
+                      gridSize={gridSize}
+                      fillCell={this.fillCell}
+                    /&gt;
+                  ))
+                }
+              &lt;/div&gt;
+            ))
+          }
+        &lt;/div&gt;
+      &lt;/div&gt;
+    )
+  }
+}</pre>
+<p id="6f12" class="graf graf--p graf-after--figure">这个组件做两件事。首先，它跟踪游戏状态，并渲染单元格以反映游戏状态。然后，它使用我们通过web assembly公开的助手函数来计算计算机的移动并更新游戏状态。</p>
+<p id="d891" class="graf graf--p graf-after--p">计算机计算的核心在于<code>fillCell</code>函数。该函数简单地获取网格的状态表示，应用玩家或计算机的移动，并使用web assembly模块公开的<code>checkGameState</code>函数检查游戏是否已经获胜。在计算出游戏状态后，我们通过检查通过WebAssembly全局设置的<code>gameState</code>变量的值来检查游戏是否结束。最后，我们交换玩家的回合。</p>
+<p id="60e0" class="graf graf--p graf-after--p">接下来，使用<code>componentDidUpdate</code>，每当状态更新时，我们检查是否轮到计算机。如果轮到计算机，我们只需使用之前在Go中创建的<code>findNextComputerMove</code>函数。</p>
+<p id="5492" class="graf graf--p graf-after--p">一旦<code>gameState</code>达到一个终止状态，我们就结束游戏。</p>
+<div class="section-inner sectionLayout--insetColumn">
+<h3 id="7f9c" class="graf graf--h3 graf-after--p">运行应用程序</h3>
+<ol class="postList">
+<li id="32ed" class="graf graf--li graf-after--h3">创建两个终端窗口</li>
+<li id="cc60" class="graf graf--li graf-after--li">将<code>cd</code>放入<code>/server</code>文件夹并运行<code>npm install &amp;&amp; npm run dev</code></li>
+<li id="d4e5" class="graf graf--li graf-after--li">另一方面，将<code>cd</code>放入<code>/client</code>文件夹并运行<code>npm run dev</code></li>
+<li id="9f20" class="graf graf--li graf-after--li">在您的Chrome浏览器中导航至<code><a class="markup--anchor markup--li-anchor" href="http://localhost:8080/" target="_blank" rel="noopener noreferrer" data-href="http://localhost:8080">localhost:8080</a></code></li>
+</ol>
+<figure id="12ca" class="graf graf--figure graf-after--li">
+
+</figure>
+<h3 id="1201" class="graf graf--h3 graf-after--figure">Go的WebAssembly问题</h3>
+<h4 id="8f99" class="graf graf--h4 graf-after--h3">1.初始开销</h4>
+<p id="2354" class="graf graf--p graf-after--h4">当使用WebAssembly时，我们需要请求获取WASM文件，然后在它到达浏览器时初始化它。对于中等大小的WASM文件，这会导致很长的初始加载时间。除此之外，Go的WebAssembly变种还附带了Go运行时和垃圾收集器，这会增加它的WASM文件。</p>
+<h4 id="2030" class="graf graf--h4 graf-after--p">2.在单独的线程上运行</h4>
+<p id="e751" class="graf graf--p graf-after--h4">这有好有坏。好的一面是它允许你在应用程序的后台进行处理。然而，这意味着当你在等待数据时，你必须变得有点狡猾。我们必须全局存储变量，以便Go代码可以与React代码共享信息。</p>
+<h4 id="37d5" class="graf graf--h4 graf-after--p">3.表现平平</h4>
+<p id="d125" class="graf graf--p graf-after--h4">在开销之后，我期望计算快如闪电。虽然我还没有测试过，但我相信用JavaScript编写MiniMax算法几乎和围棋一样快。最重要的是，当电路板尺寸达到4×4时，计算量变得太大，你的浏览器很可能会崩溃。</p>
+<h4 id="8842" class="graf graf--h4 graf-after--p">4.Go WASM JavaScript结构的有限功能</h4>
+<p id="e672" class="graf graf--p graf-after--h4">我相信Go代码比我预期的要慢的部分原因是因为从JavaScript数据结构到Go数据结构的转换，反之亦然。例如，<code>duplicateGrid</code>函数是为了在go中克隆一个JS数组而产生的。这样做是因为我无法将一个2d数组深入转换成一个可用的Go数据结构。不幸的是，<code>duplicateGrid</code>函数是用双for循环天真地构建的，这无疑破坏了性能。对于常规的Go数组，你可以用<code>make</code>函数克隆一个数组，如果能在Go中看到这一点就太好了。</p>
+<h3 id="fd1d" class="graf graf--h3 graf-after--p">结论</h3>
+<p id="3185" class="graf graf--p graf-after--h3">WebAssembly for Go允许我们将低级代码带到浏览器中，理论上，允许我们编写更多计算密集型程序。虽然我喜欢将Go用于WebAssembly的想法，但我相信在它被完善并可用于生产之前还有一段路要走。然而，由于这是Go进入WebAssembly的第一步，它还有很大的成长和改进空间。</p>
+<p id="d2d5" class="graf graf--p graf-after--p">我希望你喜欢这个教程，我希望你学到了新的东西！</p>
+</div>
+<p> </p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

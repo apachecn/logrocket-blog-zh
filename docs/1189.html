@@ -1,0 +1,219 @@
+<html>
+<head>
+<title>WebRTC signaling with WebSocket and Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用WebSocket和Node.js的WebRTC信令- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/webrtc-signaling-websocket-node-js/#0001-01-01">https://blog.logrocket.com/webrtc-signaling-websocket-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按:</em> </strong> <em>本文于2022年5月12日更新，包含了与WebRTC和WebSocket最新特性相关的信息。</em></p>
+<p>WebSocket是一种支持客户端应用程序(例如，浏览器、本机平台等)之间实时通信的协议。)和一个WebSocket服务器。它利用一个单一的开放式<a href="https://en.wikipedia.org/wiki/Transmission_Control_Protocol" target="_blank" rel="noopener"> TCP </a>连接(加密或未加密)来处理这两种介质之间的实时数据传输。</p>
+<p>该规范定义了不同的URI方案:<code>ws</code> (WebSocket)用于未加密连接，而<code>wss</code> (WebSocket Secure)用于加密连接。因此，Websockets协议支持双向客户端-服务器模型，在这种模型中，可以无缝传输视频/音频等媒体类型。</p>
+<p>在本文中，我们将探索WebSocket协议，并回顾如何使用Node.js中的<a href="https://github.com/websockets/ws" target="_blank" rel="noopener"> ws </a> WebSocket库来设置一个基本的WebSocket服务器。</p>
+<p>首先，让我们探索WebRTC，这是一种在所有现代浏览器客户端和原生Android/iOS平台上都可用的协议，用于实时双向通信。</p>
+<p>向前跳:</p>
+
+<h2 id="introducing-webrtc">WebRTC简介</h2>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API" target="_blank" rel="noopener"> webRTC </a>，代表Web实时通信，是一种为Web提供一组双向和安全实时对等通信规则的协议。使用WebRTC，web应用程序或其他WebRTC代理可以利用简单的web APIs在对等点之间发送视频、音频和其他类型的媒体。</p>
+<p>WebRTC依靠一堆其他的<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols" target="_blank" rel="noopener">协议</a>来实现其创建<br/>通信通道的目的，然后传输或交换数据和/或媒体类型。为了协调通信，WebRTC客户端需要某种类型的“<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Signaling_and_video_calling" target="_blank" rel="noopener">信令服务器</a>”来交换元数据信息。</p>
+<p>提供<a href="https://github.com/muaz-khan/WebRTC-Experiment/blob/master/Signaling.md" target="_blank" rel="noopener">信号</a>的最常见方式之一是利用<a href="https://socket.io/" target="_blank" rel="noopener">插座。IO</a>–和基于ws的Node.js服务器，用于为WebRTC客户端实时共享会话描述、媒体信息和数据，使它们成为互补技术。</p>
+<blockquote><p><strong>注意</strong>:由于不同的应用程序可能更喜欢使用不同的信令协议或服务，因此WebRTC开放标准没有实现这一点。这有助于确保与生态系统中其他工具的最大兼容性。</p></blockquote>
+<h2 id="how-the-webrtc-protocol-works">WebRTC协议如何工作</h2>
+<p>WebRTC代理知道如何创建与对等方的连接。信令触发这种初始尝试，最终使两个代理之间的呼叫成为可能。代理利用提供/应答模型:一个代理提供开始呼叫，另一个代理响应呼叫并检查关于所提供的媒体描述的兼容性。</p>
+<p>在高层次上，WebRTC协议分四个阶段工作。沟通以有序的方式进行，其中一个阶段必须在下一个阶段开始之前完成。这四个阶段包括:</p>
+<h3 id="signaling">第一阶段:发信号</h3>
+<p>这开始了识别两个打算通信和交换数据的WebRTC代理的过程。当对等体最终连接并可以通信时，信令使用另一种协议，<a href="https://developer.mozilla.org/en-US/docs/Glossary/SDP" target="_blank" rel="noopener"> SDP </a>。<br/>会话描述协议(一种明文协议)对于交换密钥-值对中的媒体部分是有用的。有了它，我们就可以在两个或多个有意连接的对等体之间共享状态。</p>
+<blockquote><p><strong>注</strong>:共享状态可以提供在对等体之间建立连接所需的所有参数。</p></blockquote>
+<h3 id="connecting">阶段2:连接</h3>
+<p>发出信号后，WebRTC代理需要实现双向的、对等的通信。尽管由于各种原因，如不同的IP版本、网络位置或协议，建立连接可能很困难，但与使用HTTP轮询的传统web/服务器客户端通信相比，WebRTC连接提供了更好的选择。使用WebRTC，连接减少了带宽，降低了延迟，并且更安全。</p>
+<blockquote><p><strong>注意</strong> : WebRTC也利用<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols#ICE" target="_blank" rel="noopener"> ICE </a>协议(交互式连接建立)连接两个代理。ICE协议试图找到两个ICE代理之间通信的最佳方式。更多细节可以在<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Connectivity#ICE_candidates" target="_blank" rel="noopener">这里</a>找到。</p></blockquote>
+<h3 id="securing">阶段3:保护</h3>
+<p>每个WebRTC连接都经过加密和身份验证。在幕后，它利用<a href="https://en.wikipedia.org/wiki/Datagram_Transport_Layer_Security" rel="noopener"> DTLS </a>和<a href="https://en.wikipedia.org/wiki/Secure_Real-time_Transport_Protocol" target="_blank" rel="noopener"> SRTP </a>协议来实现跨数据层的无缝和安全通信。类似于TLS，DTLS允许会话协商或握手，并允许对等体之间的安全数据交换。另一方面，SRTP对于交换媒体信息来说很方便。</p>
+<h3 id="communicating">阶段4:沟通</h3>
+<p>使用WebRTC协议，我们可以轻松地发送和接收无限量的音频和视频流。它依赖于两个预先存在的协议:<a href="https://en.wikipedia.org/wiki/Real-time_Transport_Protocol" target="_blank" rel="noopener"> RTP </a>和<a href="https://en.wikipedia.org/wiki/RTP_Control_Protocol" target="_blank" rel="noopener"> RTCP </a>。RTP协议携带媒体信息，允许实时传输视频流。RTCP协议传递或同步关于呼叫的元数据。</p>
+<p>为了获得无缝和成功的通信体验，在共享媒体信息之前，两个通信对等体必须共享双方同意的预定义编解码器。同样，作为标准实践，该协议独立于特定的编解码器，因为有许多<a href="https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs" target="_blank" rel="noopener">选项</a>。</p>
+<blockquote><p><strong>注意</strong>:对于大多数WebRTC应用程序，客户端之间没有直接的套接字连接(除非它们驻留在同一个本地网络上)。解决这类问题的常见方法是使用TURN服务器。该术语代表使用NAT周围中继的穿越，是一种用于中继网络流量的协议。<a href="https://developer.mozilla.org/en-US/docs/Glossary/NAT" target="_blank" rel="noopener"> NAT </a>映射，借助<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols#STUN" target="_blank" rel="noopener"> STUN </a>和<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols#TURN" target="_blank" rel="noopener"> TURN </a>协议，让两个完全不同子网的对等体进行通信。</p></blockquote>
+<h2 id="use-cases-for-webrtc">WebRTC的用例</h2>
+<p>WebRTC对于在web和移动平台上构建实时应用程序非常有用。下面列出了一些最常见的使用案例:</p>
+<ul>
+<li>视频和文本聊天</li>
+<li>分析学</li>
+<li>网络社交</li>
+<li>屏幕共享技术</li>
+<li>会议(音频/视频)</li>
+<li>现场直播</li>
+<li>文件传输</li>
+<li>在线学习</li>
+<li>多人在线游戏</li>
+</ul>
+<h2 id="webrtc-javascript-apis">WebRTC JavaScript APIs</h2>
+<p>WebRTC主要包括三个操作:从摄像机/麦克风获取用户媒体(音频和视频)；通过信道传送该媒体内容；最后，通过信道发送消息。</p>
+<p>现在，让我们来看看每个流程的总结描述。</p>
+
+<p>这个API让我们能够访问任何媒体数据的硬件来源。<code>getUserMedia()</code>方法在用户通过提示允许访问的情况下，激活系统上的摄像头和/或麦克风，并提供包含所需输入的视频轨道和/或音频轨道的<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStream" target="_blank" rel="noopener">[MediaStream]</a></code>。</p>
+<blockquote><p><strong>注意</strong>:<code>Navigator.mediaDevices</code>只读属性返回一个<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices" target="_blank" rel="noopener">[MediaDevices]</a></code>对象/接口，它提供对连接的媒体输入设备如照相机和麦克风的访问，以及屏幕共享。</p></blockquote>
+<p>格式如下所示:</p>
+<pre class="language-javascript hljs">const promise = navigator.mediaDevices.getUserMedia(constraints);
+</pre>
+<p><code>constraints</code>参数是一个<code>MediaStreamConstraints</code>对象，有两个成员:<code>video</code>和<code>audio</code>，描述请求的媒体类型。它还控制媒体流的内容。<br/>例如，我们可以设置一个约束，使用<code>minWidth</code>和<code>minHeight</code>功能打开摄像机:</p>
+<pre class="language-javascript hljs">  'video': {
+    'width':  {'min': minWidth},
+    'height': {'min': minHeight} 
+  }
+</pre>
+<p>或者我们可以在麦克风上设置回声消除:</p>
+<pre class="language-javascript hljs">'audio': {'echoCancellation': true},
+</pre>
+<p>所以，本质上，我们一般可以声明一个<code>constraints</code>变量，就像这样:</p>
+<pre class="language-javascript hljs">const constraints = {
+    'video': true,
+    'audio': true
+}
+</pre>
+<p>最后，让我们看一个例子，看看我们如何应用<code>getUserMedia()</code>来触发对用户浏览器的权限请求:</p>
+<pre class="language-javascript hljs">const openMediaDevices = async (constraints) =&gt; {
+    return await navigator.mediaDevices.getUserMedia(constraints);
+}
+
+try {
+    const stream = openMediaDevices({'video':true,'audio':true});
+    console.log('Got MediaStream:', stream);
+} catch(error) {
+    console.error('Error accessing media devices.', error);
+}
+</pre>
+<p>媒体流API中可用的其他方法包括:</p>
+<ul>
+<li><code>enumerateDevices()</code></li>
+<li><code>getSupportedConstraints()</code></li>
+<li><code>getDisplayedMedia()</code></li>
+<li><code>RTCPeerConnection</code></li>
+</ul>
+<h3 id="rtcpeerconnection-interface"><code>RTCPeerConnection</code>界面</h3>
+<p><code>RTCPeerConnection</code>接口表示本地计算机和远程对等体之间的WebRTC连接。它提供了连接到远程对等点、维护和监控连接以及在不再需要时关闭连接的方法。</p>
+<p>一旦向远程对等点发出<code>RTCPeerConnection</code>，就可以在它们之间传输音频和视频内容。在这一层，我们可以将从<code>getUserMedia()</code>方法接收的流连接到<code>RTCPeerConnection</code>。<br/> <code>RTCPeerConnection</code>方法包括:</p>
+<ul>
+<li><code>addIceCandidate()</code></li>
+<li><code>peerIdentity</code></li>
+<li><code>signalingState</code></li>
+<li><code>setLocalDescription()</code></li>
+<li><code>setRemoteDescription()</code></li>
+</ul>
+<blockquote><p><strong>注意</strong>:一个媒体流应该包括至少一个媒体轨道，当我们打算向远程对等点传输媒体时，必须将该媒体轨道添加到<code>RTCPeerConnection</code>中。</p></blockquote>
+<h3 id="rtcdatachannel-interface"><code>RTCDataChannel</code>界面</h3>
+<p><code><a href="https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel" target="_blank" rel="noopener">[RTCDataChannel]</a></code>接口代表一个网络通道，可用于任意数据的双向点对点传输。要创建一个数据通道并请求一个远程对等体加入，我们可以调用<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection" target="_blank" rel="noopener">[RTCPeerConnection]</a></code>的<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel" target="_blank" rel="noopener">[createDataChannel()]</a></code>方法。下面显示了一个如何操作的示例:</p>
+<pre class="language-javascript hljs">const peerConnection = new RTCPeerConnection(configuration);
+const dataChannel = peerConnection.createDataChannel();
+</pre>
+<p>方法包括:</p>
+<ul>
+<li><code>close()</code>:<code>RTCDataChannel.close()</code>方法关闭RTCDataChannel任何一方都可以调用此方法来启动通信通道的关闭</li>
+<li><code>send()</code>:<code>RTCDataChannel.send()</code>方法通过数据通道向远程对等体发送数据</li>
+</ul>
+<p>基于公开的API集的WebRTC协议的几个开源实现可以在<a href="https://github.com/muaz-khan/WebRTC-Experiment" target="_blank" rel="noopener">这里</a>找到。它包含各种WebRTC实验的存储库。例如，<code>getDisplayMedia()</code>用法的现场演示可以在<a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/getDisplayMedia" target="_blank" rel="noopener">这里</a>找到。</p>
+<h2 id="sample-node-js-websocket-based-server">基于Node.js WebSocket的服务器示例</h2>
+<p>要创建WebRTC连接，客户端需要能够通过WebSocket信令传输消息，web socket信令是两个端点之间的双向套接字连接。在GitHub上可以找到Node.js 上的<a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/websocket-over-nodejs" target="_blank" rel="noopener"> WebSocket的完整演示实现，由Muaz Khan提供。为了更好地理解上下文，让我们探索一下<code>server.js</code>文件中的一些重要部分。</a></p>
+<p>首先，我们可以设置一个接受对象作为参数的HTTP服务器。该对象应该包含建立无缝连接所需的安全密钥。我们还需要指定一个回调函数，以便在收到连接请求以及返回给调用者的响应时运行:</p>
+<pre class="language-javascript hljs">// HTTPs server 
+var app = require('https').createServer(options, function(request, response) {
+  // accept server requests and handle subsequent responses here 
+});
+</pre>
+<p>接下来，我们可以继续设置WebSocket服务器并监听何时有连接请求进入，如下所示:</p>
+<pre class="language-javascript hljs">// require websocket and setup server.
+var WebSocketServer = require('websocket').server;
+
+// wait for when a connection request comes in 
+new WebSocketServer({
+    httpServer: app, 
+    autoAcceptConnections: false 
+}).on('request', onRequest);
+
+// listen on app port 
+app.listen(process.env.PORT || 9449);
+
+//handle exceptions and exit gracefully 
+process.on('unhandledRejection', (reason, promise) =&gt; {
+  process.exit(1);
+});
+</pre>
+<p>从上面的片段中我们可以看到，当我们接收到WebSocket连接时，我们会在app端口上进行侦听。当我们这样做时(在<code>request</code>事件的触发下)，我们用<code>onRequest</code>回调来处理连接请求。</p>
+<p>下面是<code>onRequest</code>方法的内容:</p>
+<pre class="language-javascript hljs">// callback function to run when we have a successful websocket connection request
+function onRequest(socket) {
+
+    // get origin of request 
+    var origin = socket.origin + socket.resource;
+
+    // accept socket origin 
+    var websocket = socket.accept(null, origin);
+
+    // websocket message event for when message is received
+    websocket.on('message', function(message) {
+        if(!message || !websocket) return;
+
+        if (message.type === 'utf8') {
+            try {
+                // handle JSON serialization of messages 
+                onMessage(JSON.parse(message.utf8Data), websocket);
+            }
+            // catch any errors 
+            catch(e) {}
+        }
+    });
+
+    // websocket event when the connection is closed 
+    websocket.on('close', function() {
+        try {
+            // close websocket channels when the connection is closed for whatever reason
+            truncateChannels(websocket);
+        }
+        catch(e) {}
+    });
+}
+</pre>
+<p>在上面的代码中，当消息以指定的格式出现时，我们通过<code>onMessage</code>回调函数处理它，该函数在<code>message</code>事件被触发时运行。</p>
+<p>以下是回调方法的详细信息:</p>
+<pre class="language-javascript hljs">// callback to run when the message event is fired 
+function onMessage(message, websocket) {
+    if(!message || !websocket) return;
+
+    try {
+        if (message.checkPresence) {
+            checkPresence(message, websocket);
+        }
+        else if (message.open) {
+            onOpen(message, websocket);
+        }
+        else {
+            sendMessage(message, websocket);
+        }
+    }
+    catch(e) {}
+}
+</pre>
+<blockquote><p><strong>注</strong>:关于上面使用的其他方法的细节，如<code>sendMessage</code>和<code>checkPresence</code>，以及演示WebSocket服务器的完整实现可以在<a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/websocket-over-nodejs" target="_blank" rel="noopener"> GitHub上找到。</a></p></blockquote>
+<p>此外，要开始使用WebSocket库，我们需要在WebRTC客户机中指定Node.js服务器的地址。完成后，我们可以进行浏览器间WebRTC音频/视频调用，其中的信令由Node.js WebSocket服务器处理。</p>
+<p>最后，为了突出重点，下面是WebSocket连接中需要注意的三种基本方法:</p>
+<ul>
+<li><code>ws.onopen</code>:连接时发出</li>
+<li><code>ws.send</code>:触发发送事件到WebSocket服务器</li>
+<li><code>ws.onmessage</code>:接收消息时发出的事件</li>
+</ul>
+<h2 id="conclusion">结论</h2>
+<p>正如我们所见，WebRTC API包括媒体捕获、音频和视频流的编码和解码、传输和会话管理。尽管浏览器中的WebRTC实现仍在不断发展，因为对WebRTC特性的支持水平各不相同，但我们可以通过使用Adapter.js库来避免兼容性问题。</p>
+<p>该库使用填充和聚合填充来解决各种支持环境中WebRTC实现之间的差异。我们可以用脚本属性将它添加到<code>index.html</code>文件中，就像这样:</p>
+<pre class="language-javascript hljs">&lt;script src="https://webrtc.github.io/adapter/adapter-latest.js"&gt;&lt;/script&gt;
+</pre>
+<p>我们可以在这个<a href="https://webrtc.github.io/samples/" target="_blank" rel="noopener">链接</a>上找到一些展示WebRTC APIs各个部分的小样本。它包含主要WebRTC APIs的实现细节和演示，包括<code>getUserMedia()</code>、<code>RTCPeerConnection()</code>和<code>RTCDataChannel()</code>。</p>
+<p>最后，你可以在GitHub的<a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/websocket-over-nodejs" target="_blank" rel="noopener"> websocket-over-nodejs </a>和<a href="https://github.com/muaz-khan/WebRTC-Experiment/tree/master/socketio-over-nodejs" target="_blank" rel="noopener"> socketio-over-nodejs </a>上找到更多关于web实验的细节。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

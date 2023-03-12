@@ -1,0 +1,264 @@
+<html>
+<head>
+<title>Building nanoSQL-powered APIs - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>构建基于nanoSQL的API-log rocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-nanosql-powered-apis/#0001-01-01">https://blog.logrocket.com/building-nanosql-powered-apis/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>数据库经常需要你用一种特定的查询语言与它们交流。就像SQL数据库层通过SQL查询进行交互一样，MongoDB和其他数据库层用各自的查询语言进行通信。</p>
+<p>在本教程中，我们将向您展示如何使用名为<a href="https://nanosql.io/" target="_blank" rel="noopener noreferrer"> nanoSQL </a>的通用数据库层库来弥合语言鸿沟。</p>
+<h2 id="whatisnanosql">什么是nanoSQL？</h2>
+<p>nanoSQL是用于客户端、服务器和移动设备的JavaScript数据库层。它提供了一种标准化的查询语言，您可以使用这种语言在多个数据库(如MySQL、MongoDB、indexedDB和Redis等)中执行数据存储和查询操作。</p>
+<h3>nanoSQL功能</h3>
+<p>nanoSQL支持多个数据库，并具有相同的API。与其名字相反，nanoSQL不仅仅处理SQL数据库。它还与关系数据库管理系统(RDBMSs)协同工作。</p>
+<p>nanoSQL执行广泛的操作，从简单的查询数据到导入和导出数据。基本上，它像普通数据库一样执行操作。我们将放大应用程序中需要的几个关键操作。</p>
+<p>最好的特性之一是nanoSQL的查询API的通用性，这使得它可以很容易地迁移到其他数据库，而不必学习新的查询语法。nanoSQL支持SQLite(Node.js/Electron、Cordova和NativeScript)、Redis、MongoDB以及其他众多数据库。</p>
+<h3>我们将建造什么</h3>
+<p>为了演示如何将数据从我们的<a href="https://blog.logrocket.com/crud-with-node-graphql-react/" target="_blank" rel="noopener noreferrer"> CRUD API </a>存储到nanoSQL中，我们将构建一个简单的待办事项后端。我们还将通过制作我们的数据库层MongoDB来验证nanoSQL查询语言的通用性。</p>
+<p>我假设你已经安装了的<a href="https://docs.mongodb.com/manual/installation/" target="_blank" rel="noopener noreferrer"> MongoDB，以及JavaScript、Node.js、REST和Postman的基础知识。你可以在</a><a href="https://github.com/Youngestdev/nanosql-todo-app" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到本文使用的代码。</p>
+<h2 id="setup">设置</h2>
+<p>在我们深入探讨之前，让我们先规划一下项目结构和待办事项后端应用程序所需的依赖项的安装。我们将从创建项目文件夹开始。</p>
+<pre>mkdir nanosql-todo-app &amp;&amp; cd nanosql-todo-app
+mkdir src &amp;&amp; touch src/{app,database}.js
+</pre>
+<p>接下来，我们将初始化目录并安装所需的依赖项。</p>
+<pre>npm init -y
+npm i express cors body-parser @nano-sql/core @nano-sql/adapter-mongo
+</pre>
+<p>现在是时候在我们的<code>app.js</code>文件中编写后端API了。</p>
+<h3><code>app.js</code></h3>
+<p>该文件负责处理CRUD操作所需的路由。首先，我们将通过CommonJS模块化的方式导入所需的模块。</p>
+<pre>const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require('cors')
+</pre>
+<p>接下来，我们将初始化导入的库。</p>
+<pre>const app = express();
+app.use(bodyParser.json());
+app.use(cors())
+</pre>
+<p>下一步是编写CRUD操作的路线:</p>
+<ul>
+<li>返回我们的待办事项列表，并允许我们发布新的待办事项</li>
+<li><code>/:id</code>返回一个待办事项，其ID作为参数传递</li>
+<li><code>/del/:id</code>删除ID与传递的ID相匹配的待办事项</li>
+<li><code>/update/:id</code>更新其ID与传递的ID相匹配的待办事项</li>
+<li><code>/delete</code>删除我们nanoSQL数据库中的所有待办事项</li>
+</ul>
+<pre>app.get("/", (req, res) =&gt; {
+});app.get("/:id", (req, res) =&gt; {
+});
+
+app.post("/", async (req, res) =&gt; {
+})
+
+app.delete("/del/:id", async (req, res) =&gt; {
+})
+
+app.put("/update/:id", async (req, res) =&gt; {
+})
+
+app.delete("/delete", async (req, res) =&gt; {
+})</pre>
+<p>上面的代码目前不做任何事情。接下来，我们将编写数据库处理程序。</p>
+<h2 id="buildingdatabasehandlers">构建数据库处理程序</h2>
+<p>后端API依赖数据库来执行任何操作，因此我们需要编写负责每个操作的处理程序。</p>
+<h3><code>database.js</code></h3>
+<p>这个文件负责处理数据存储和查询我们的应用程序。我们必须创建一个对象来存储所有CRUD方法以及启动数据库的触发器函数。</p>
+<p>我们将从导入nanoSQL并创建它的一个实例开始。</p>
+<pre>const nSQL = require("@nano-sql/core");
+const { MongoDB } = require("@nano-sql/adapter-mongo");
+
+const db = nSQL.nSQL;
+</pre>
+<p>变量<code>db</code>存储了nanoSQL的一个实例，并将用于执行所有操作。接下来，我们将创建数据库对象。</p>
+<pre>// Start database...
+
+let database = {}
+</pre>
+<p>数据库对象由负责CRUD操作的方法组成。我们需要定义一个<code>start</code>方法来启动我们的nanoSQL数据库。</p>
+<pre>let database = {
+    start: async function() {
+    return await db().createDatabase({
+      id: "todo_list",
+      mode: new MongoDB("mongodb://localhost:27017"),
+      tables: [
+        {
+          name: "todos",
+          model: {
+            "id:uuid": {pk: true},
+            "item:string": {},            
+          }
+        }
+      ],
+    }).then(() =&gt; {
+      // log a confirmation message.
+      console.log("Database is up!")
+    })
+  },
+}
+</pre>
+<p>start方法是一个异步函数，它在执行nanoSQL的<code>createDatabase()</code>方法后返回成功消息或错误。<code>createDatabase()</code>方法采用以下参数。</p>
+<ul>
+<li><code>id</code> —唯一的数据库标识符</li>
+<li><code>mode</code> —一种数据库模式，可以是TEMP(临时内存数据库)、MySQL、RocksDB、MongoDB，甚至是localStorage(我们将通过在MongoDB中使用它来验证它的通用性)</li>
+<li><code>tables</code> —表格选项采用一组对象，即可以创建多个表格。</li>
+</ul>
+<p>出于本教程的目的，我们将只创建一个表。传递到数组中的对象包括我们的表名、一个定义存储在那里的数据类型的模型、一个作为主键的惟一ID和一个string类型的项。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>因为我们的start方法是异步的，所以一旦数据库启动并运行，我们将添加一个回调来记录确认消息。</p>
+<h3>询问</h3>
+<p>要执行任何数据操作，必须发出查询。nanoSQL中的查询如下所示:</p>
+<pre>db(database_name).query("query type", ...query args).exec()
+</pre>
+<p><code>.query()</code>方法被附加到数据库实例——在我们的例子中是<code>db("todos")</code>。<code>query()</code>方法将一个查询类型作为主要的第一个参数，可选参数主要根据需要作为<code>select</code>查询的条件。</p>
+<p><code>query()</code>方法附加了一个执行查询的<code>.exec()</code>函数。除其他外，查询类型包括:</p>
+<ul>
+<li><code>select</code></li>
+<li><code>total</code></li>
+<li><code>upsert</code>(插入)</li>
+<li><code>delete</code></li>
+</ul>
+<p>在接下来的部分中，我们将看到该查询的运行情况。</p>
+<p>接下来，让我们定义一个<code>retrieve</code>方法，它返回数据库中传递的ID的待办事项。</p>
+<pre>let database = {
+  ...
+  retrieve: async function(id) {
+    return await db("todos").query("select").where(["id", "=", id]).exec().then((item) =&gt; item)
+  },
+}
+</pre>
+<p><code>retrieve</code>方法将<code>id</code>作为实参，作为参数发送进行查询。retrieve方法中传递的查询类型是选择查询。</p>
+<p>select查询通过指示数据库使用<code>.where()</code>方法检查项目来返回待办事项。<code>.where()</code>方法是select语句的前缀附件，因为select语句主要是有条件的。</p>
+<p>下一步是在<code>retrieve</code>方法之后定义一个<code>retrieveAll</code>方法，它返回我们数据库中的待办事项列表。</p>
+<pre>retrieveAll: async function() {
+    return await (db("todos").query("select").exec())
+      .then((rows) =&gt; rows)
+  },
+</pre>
+<p>与<code>retrieve</code>方法不同，<code>.where()</code>方法没有被附加，因为我们查询数据库中的所有条目。这也是从数据库中导出所有数据的好方法。</p>
+<p>现在让我们定义一个<code>insert</code>方法来向我们的待办事项数据库添加一个新项目。</p>
+<pre>insert: async function(item) {
+    return await db("todos").query("upsert", {item: item}).exec();
+  },
+</pre>
+<p>insert方法接受一个参数和一个条目(即待办事项)，并使用<code>upser</code>查询类型将其插入到条目字段中。</p>
+<p>接下来定义<code>update</code>方法。</p>
+<pre>update: async function(id, item) {
+    await db("todos").query("upsert", {item: item}).where(["id", "=", id]).stream((row) =&gt; {
+      console.log(row)
+    }, () =&gt; {
+      console.log("Item Updated")      
+    }, (err) =&gt; {
+      console.log(err)
+    })
+  },
+</pre>
+<p><code>update</code>方法有两个参数:<code>id</code>和<code>item</code>。它通过它的<code>id</code>查找要更新的条目，然后用传递给更新函数的新数据修改它。成功更新数据后，新数据会记录到控制台，并显示一条确认消息。否则，控制台会记录一条错误消息。</p>
+<p>接下来，我们将定义负责删除数据库中一个或多个待办事项的<code>delete</code>和<code>deleteAll</code>方法。</p>
+<pre>delete: async function(id) {
+    return await db("todos").query("delete").where(["id", "=", id]).exec();
+  },
+deleteAll: async function() {
+  return await db("todos").query("delete").exec();
+},
+</pre>
+<p><code>delete</code>方法删除一个ID被传入其中的待办事项。<code>deleteAll</code>删除数据库中的所有待办事项。</p>
+<p>在数据库对象之后，我们将导出我们的<code>database</code>对象用于<code>app.js</code>文件。</p>
+<pre>module.exports = databse;
+</pre>
+<h2 id="connectingthedatabasetoapiroutes">将数据库连接到API路由</h2>
+<p>既然我们已经成功地编写了数据库处理程序，我们将在API路径中实现它们。让我们导航回我们的<code>app.js</code>文件来更新它。</p>
+<pre>const cors = require("cors")
+const database = require("./database")
+...
+database.start();
+
+app.get("/", (req, res) =&gt; {
+  database.retrieveAll().then((items) =&gt; {
+    res.send(items)
+  })
+});
+</pre>
+<p>我们将从实现<code>/</code>路线开始，它返回我们数据库中所有的待办事项。接下来，我们将实现单个待办事项路线。</p>
+<pre>app.get("/:id", (req, res) =&gt; {
+  database.retrieve(req.params.id).then((item) =&gt; {
+    res.send(item)
+  })
+});
+</pre>
+<p><code>/:id</code>将ID作为一个参数从URL传递给数据库，以检索待办事项。我们将实现<code>POST</code>路线<code>/</code>，它允许我们在数据库中插入新的待办事项。</p>
+<pre>app.post("/", async (req, res) =&gt; {
+  await database.insert(req.body.item).then(() =&gt; {    
+    res.status(200).send("You have successfully added a new todo.")
+  })
+})
+</pre>
+<p>此路由在成功插入后发送确认方法和状态。下一步是实现我们的<code>/del/:id</code>方法，它删除单个待办事项，以及<code>/delete</code>方法，它删除数据库中的所有待办事项。</p>
+<pre>app.delete("/del/:id", async (req, res) =&gt; {
+  await database.delete(req.params.id).then(() =&gt; {
+    res.status(200).send(`Todo item ${req.params.id} has been successfully deleted.`)
+  })
+})
+
+app.delete("/delete", async (req, res) =&gt; {
+  await database.deleteAll().then(() =&gt; {
+    res.status(200).send(`All todo items have been deleted.`)
+  })
+})
+</pre>
+<p>我们还实现了我们的<code>/update/:id</code> route，它更新单个待办事项。</p>
+<pre>app.put("/update/:id", async (req, res) =&gt; {
+  await database.update(req.params.id, req.body.item).then(() =&gt; {
+    res.status(200).send(`Todo item ${req.params.id} has been updated successfully.`)
+  })
+})
+</pre>
+<p>最后，我们将实现应用程序的监听器功能。</p>
+<pre>app.listen(8081, () =&gt; {
+  console.log("App's running on port 8081");
+});
+</pre>
+<p>我们将打开一个新的终端，通过<code>mongod</code>启动一个MongoDB实例，然后返回到之前的终端启动我们的应用程序。</p>
+<pre>mkdir todo-db &amp;&amp; mongod --dbpath todo-db
+</pre>
+<p>之前的终端是这样的:</p>
+<pre>node src/app.js
+</pre>
+<h2 id="testingtheapiwithpostman">用Postman测试API</h2>
+<p>在这个阶段，我们应该花点时间来验证上面的代码是否有效。我们将从检索数据库中的待办事项列表开始。</p>
+<p><img decoding="async" src="../Images/eccb196d0a3c3a5d70cbd6106731f321.png" alt="A GET request" data-lazy-src="https://paper-attachments.dropbox.com/s_5BCC56D876756B9E77FA099753C1C5E1C486A0B49261A2C6D108AC8D11240896_1581850958406_GET_REQUEST.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropbox.com/s_5BCC56D876756B9E77FA099753C1C5E1C486A0B49261A2C6D108AC8D11240896_1581850958406_GET_REQUEST.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/eccb196d0a3c3a5d70cbd6106731f321.png" alt="A GET request" data-original-src="https://paper-attachments.dropbox.com/s_5BCC56D876756B9E77FA099753C1C5E1C486A0B49261A2C6D108AC8D11240896_1581850958406_GET_REQUEST.png"/></noscript>
+<p>因为我们的数据库中目前没有数据，所以我们得到一个空数组。让我们添加几个待办事项。</p>
+<p><img data-attachment-id="14339" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/add-new-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding a new item to to-do database to test nanoSQL-powered API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14339 jetpack-lazy-image" src="../Images/1f2b9719829c2d1610047a2d9f4d166b.png" alt="Adding a New Item to To-Do Database to Test nanoSQL-Powered API" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14339" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/add-new-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Adding a new item to to-do database to test nanoSQL-powered API" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14339" src="../Images/1f2b9719829c2d1610047a2d9f4d166b.png" alt="Adding a New Item to To-Do Database to Test nanoSQL-Powered API" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/add-new-item-postman-nanosql.png"/></noscript>
+<p>我们收到了一个成功的响应，所以让我们运行另一个GET请求来验证我们的数据确实在数据库中。</p>
+<p><img data-attachment-id="14345" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/second-get-request-confirm-data-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Second GET request to verify that data is in the database" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14345 jetpack-lazy-image" src="../Images/2b34b09870146c3157cee44df9d7f97a.png" alt="Second GET Request to Verify That Data Is in the Database" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14345" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/second-get-request-confirm-data-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Second GET request to verify that data is in the database" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14345" src="../Images/2b34b09870146c3157cee44df9d7f97a.png" alt="Second GET Request to Verify That Data Is in the Database" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/second-get-request-confirm-data-postman-nanosql.png"/></noscript>
+<p>太好了！现在我们将继续更新第一个待办事项，<code>item 1</code>。复制第一个待办事项的ID，放在<code>localhost:8081/update/</code>后面。</p>
+<p><img data-attachment-id="14346" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/updated-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Updated item in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14346 jetpack-lazy-image" src="../Images/9d5321ddcafee028c1c6b3cc64c4ea19.png" alt="Updated Item in To-Do App to Test nanoSQL-Powered API in Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14346" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/updated-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Updated item in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14346" src="../Images/9d5321ddcafee028c1c6b3cc64c4ea19.png" alt="Updated Item in To-Do App to Test nanoSQL-Powered API in Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/updated-item-postman-nanosql.png"/></noscript>
+<p>我们收到了确认消息，这很好。接下来，我们将测试<code>delete</code>路线。我们将删除待办事项中的第二个项目，方法是将该项目的ID放在删除路径之后:<code>localhost:8081/del/</code>。</p>
+<p><img data-attachment-id="14341" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/delete-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Deleted iotem in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14341 jetpack-lazy-image" src="../Images/4bafd5fc02ab1f0070dbe7bd5ad0af02.png" alt="Deleted Item in To-Do App to Test nanoSQL-Powered API in Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14341" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/delete-item-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Deleted iotem in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14341" src="../Images/4bafd5fc02ab1f0070dbe7bd5ad0af02.png" alt="Deleted Item in To-Do App to Test nanoSQL-Powered API in Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-item-postman-nanosql.png"/></noscript>
+<p>我们应该得到一个响应，即我们的带有传递ID的待办事项已被删除。</p>
+<p>让我们测试一下我们的<code>delete all</code>路线。</p>
+<p><img data-attachment-id="14340" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/delete-all-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Delete all items in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14340 jetpack-lazy-image" src="../Images/3159894d21a3b4a718e153b83a03088a.png" alt="Delete All Items in To-Do App to Test nanoSQL-Powered API in Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14340" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/delete-all-postman-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Delete all items in to-do app to test nanoSQL-powered API in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14340" src="../Images/3159894d21a3b4a718e153b83a03088a.png" alt="Delete All Items in To-Do App to Test nanoSQL-Powered API in Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/delete-all-postman-nanosql.png"/></noscript>
+<p>删除请求返回成功消息。如果我们运行GET请求来列出我们的待办事项，它会返回空数据。</p>
+<p><img data-attachment-id="14342" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/empty-data-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Empty data to verify success of nanoSQL-powered API’s delete all route in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png" decoding="async" class="aligncenter size-full wp-image-14342 jetpack-lazy-image" src="../Images/20af916cda1a7f2abf2148cbb8a061b0.png" alt="Empty Data to Verify Success of nanoSQL-Powered API's delete all Route in Postman" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql-300x181.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="14342" data-permalink="https://blog.logrocket.com/building-nanosql-powered-apis/empty-data-nanosql/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png" data-orig-size="730,441" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Empty data to verify success of nanoSQL-powered API’s delete all route in Postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql-300x181.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-14342" src="../Images/20af916cda1a7f2abf2148cbb8a061b0.png" alt="Empty Data to Verify Success of nanoSQL-Powered API's delete all Route in Postman" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql-300x181.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/empty-data-nanosql.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>本教程应该让您对nanoSQL有一个基本的了解，以及它的特性是如何工作的。主要的收获是，通过构建一个简单的待办事项后端应用程序并在其上执行CRUD操作，您可以将nanoSQL的查询语言与MongoDB一起使用，而无需编写MongoDB查询。</p>
+<p>nanoSQL是一个非常有用的库，它需要较少的代码来完成数据库操作，当数据库层发生变化时，您不必重写现有的查询。你可以在<a href="https://github.com/Youngestdev/nanosql-todo-app" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到文章中使用的代码。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

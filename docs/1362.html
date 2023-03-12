@@ -1,0 +1,368 @@
+<html>
+<head>
+<title>Writing an Android app with Ionic React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Ionic React - LogRocket博客编写Android应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/writing-an-android-app-with-ionic-react/#0001-01-01">https://blog.logrocket.com/writing-an-android-app-with-ionic-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果您知道如何创建React web应用程序，那么您可以使用这些技能来开发使用Ionic框架的移动应用程序。在本文中，我们将看看如何使用Ionic框架创建一个Android食谱应用程序，并做出反应。</p>
+<h2>入门指南</h2>
+<p>让我们从安装一些东西开始。首先，通过运行以下命令全局安装Ionic CLI:</p>
+<pre>npm install -g @ionic/cli native-run cordova-res</pre>
+<p>接下来，让我们创建我们的Ionic应用程序项目:</p>
+<pre>ionic start react-ionic-recipes-app blank  --type=react --capacitor</pre>
+<p><code>blank</code>意味着我们正在创建一个空白应用。一个空白的应用程序添加了路由——这是我们唯一需要的东西。<code>type</code>被设置为<code>react</code>，这意味着我们将创建一个React项目。最后，<code>--capacitor</code>增加了<a href="https://capacitorjs.com/">电容</a>，这是一个来自Ionic的跨平台原生运行时，允许我们从我们的项目文件运行和构建一个原生应用。</p>
+<p>然后，我们将通过在<code>ionic-app</code>项目文件夹中运行以下命令来为我们的项目安装React挂钩:</p>
+<pre>npm install @ionic/react-hooks @ionic/pwa-elements</pre>
+<p>最后，让我们在浏览器中运行应用程序:</p>
+<pre>ionic serve</pre>
+<p>我们应该能在<code><a href="http://localhost:8100" rel="nofollow">http://localhost:8100</a></code>上看到我们的应用。</p>
+<h2>用Ionic React创建我们的配方应用程序</h2>
+<p>现在我们应该有一个项目，可以在我们的Android移动设备或类似于<a href="https://www.genymotion.com/"> Genymotion </a>的模拟器上运行。</p>
+<p><code>App.tsx</code>是项目的入口点组件；这也是路由代码所在的位置。让我们通过编写以下内容来添加更多路线:</p>
+<pre>// src/App.tsx
+
+import React from 'react';
+import { Redirect, Route } from 'react-router-dom';
+import { IonApp, IonRouterOutlet } from '@ionic/react';
+import { IonReactRouter } from '@ionic/react-router';
+import Home from './pages/Home';
+
+/* Core CSS required for Ionic components to work properly */
+import '@ionic/react/css/core.css';
+
+/* Basic CSS for apps built with Ionic */
+import '@ionic/react/css/normalize.css';
+import '@ionic/react/css/structure.css';
+import '@ionic/react/css/typography.css';
+
+/* Optional CSS utils that can be commented out */
+import '@ionic/react/css/padding.css';
+import '@ionic/react/css/float-elements.css';
+import '@ionic/react/css/text-alignment.css';
+import '@ionic/react/css/text-transformation.css';
+import '@ionic/react/css/flex-utils.css';
+import '@ionic/react/css/display.css';
+
+/* Theme variables */
+import './theme/variables.css';
+import RecipeForm from './pages/RecipeForm';
+
+const App: React.FC = () =&gt; (
+  &lt;IonApp&gt;
+    &lt;IonReactRouter&gt;
+      &lt;IonRouterOutlet&gt;
+        &lt;Route path="/home" component={Home} exact={true} /&gt;
+        &lt;Route exact path="/" render={() =&gt; &lt;Redirect to="/home" /&gt;} /&gt;
+        &lt;Route exact path="/recipe-form/:id" component={RecipeForm} /&gt;
+        &lt;Route exact path="/recipe-form" component={RecipeForm} /&gt;
+      &lt;/IonRouterOutlet&gt;
+    &lt;/IonReactRouter&gt;
+  &lt;/IonApp&gt;
+);
+
+export default App;</pre>
+<p>Ionic自带路由器，我们可以随心所欲的使用。为了添加我们的路线，我们将<code>recipe-form</code>路线添加到了<code>IonRouterOutlet</code>中。<code>exact</code>道具意味着离子路由器在路由上进行精确匹配。<code>path</code>当然定义了路由的路径，<code>:id</code>是一个路由参数占位符。<code>component</code>定义当我们导航到给定路径时，我们想要安装哪个组件。</p>
+<h3 id="recipespage">构建食谱页面</h3>
+<p>我们希望在应用程序的主页上显示食谱列表。为此，我们将<code>Home.tsx</code>文件添加到<code>pages</code>文件夹中。然后，我们写道:</p>
+<pre>// src/pages/Home.tsx
+
+import { IonButton, IonCol, IonContent, IonHeader, IonItem, IonLabel, IonList, IonPage, IonRow, IonTitle, IonToolbar } from '@ionic/react';
+import React, { useEffect, useState } from 'react';
+import './Home.css';
+import { Plugins } from '@capacitor/core';
+import { RouteComponentProps } from 'react-router';
+import { Recipe } from '../interfaces/recipe';
+const { Storage } = Plugins;
+
+const Home: React.FC&lt;RouteComponentProps&gt; = ({ match }) =&gt; {
+  const [recipes, setRecipes] = useState&lt;Recipe[]&gt;([])
+
+  const getRecipes = async () =&gt; {
+    const ret = await Storage.get({ key: 'recipes' });
+    const recipes: Recipe[] = JSON.parse(ret.value as string) || [];
+    setRecipes(recipes)
+  }
+
+  useEffect(() =&gt; {
+    getRecipes()
+  }, [match])
+
+  const saveRecipes = async (data: Recipe[]) =&gt; {
+    await Storage.set({
+      key: 'recipes',
+      value: JSON.stringify(data)
+    });
+  }
+
+  const deleteRecipe = async (id: string) =&gt; {
+    const ret = await Storage.get({ key: 'recipes' });
+    const recipes: Recipe[] = JSON.parse(ret.value as string) || [];
+    await saveRecipes(recipes.filter(r =&gt; r.id !== id))
+    await getRecipes()
+  }
+
+  return (
+    &lt;IonPage&gt;
+      &lt;IonHeader&gt;
+        &lt;IonToolbar&gt;
+          &lt;IonTitle&gt;Recipe App&lt;/IonTitle&gt;
+        &lt;/IonToolbar&gt;
+      &lt;/IonHeader&gt;
+      &lt;IonContent fullscreen&gt;
+        &lt;IonRow&gt;
+          &lt;IonCol size="12"&gt;
+            &lt;IonButton routerLink="/recipe-form"&gt;Add Recipe&lt;/IonButton&gt;
+          &lt;/IonCol&gt;
+        &lt;/IonRow&gt;
+        &lt;IonRow&gt;
+          &lt;IonCol&gt;
+            &lt;IonList&gt;
+              {recipes.map(({ id, title }) =&gt; (
+                &lt;IonItem key={id}&gt;
+                  &lt;IonLabel&gt;{title}&lt;/IonLabel&gt;
+                  &lt;IonButton routerLink={`/recipe-form/${id}`}&gt;Edit&lt;/IonButton&gt;
+                  &lt;IonButton onClick={deleteRecipe.bind(undefined, id)}&gt;Delete&lt;/IonButton&gt;
+                &lt;/IonItem&gt;
+              ))}
+            &lt;/IonList&gt;
+          &lt;/IonCol&gt;
+        &lt;/IonRow&gt;
+      &lt;/IonContent&gt;
+    &lt;/IonPage&gt;
+  );
+};
+
+export default Home;</pre>
+<p>在这个文件中，我们使用电容存储库来异步操作存储。</p>
+<p>在我们的例子中，这是比本地存储更好的选择，因为本地存储只能存储少量的临时数据。本地存储还有一个数据回收策略，如果数据占用存储设备50%以上的空间，该策略会释放空间。Capacitor的存储API也是异步的，所以它不会阻碍UI。</p>
+<p>在<code>Home.tsx</code>中，我们通过<code>getRecipes</code>函数获取带有关键字<code>recipes</code>的数据。然后，我们调用<code>setRecipes</code>来设置<code>recipes</code>状态。</p>
+<p>每当<code>match</code>属性改变时，我们运行<code>getRecipes</code>函数。<code>match</code>道具包含导航数据，如URL和URL参数；因此，只要导航完成，我们就能获得最新的数据。</p>
+<p>当我们调用<code>deleteRecipe</code>时，就会调用<code>saveRecipes</code>函数。我们用关键字<code>recipes</code>获取值，解析它，然后调用<code>saveRecipes</code>，而不调用带有给定<code>id</code>的项目。这让我们删除带有给定<code>id</code>的条目。</p>
+<p>由于这个应用程序非常小，我们可以获得所有条目，而不用担心性能损失——但是，如果我们的应用程序存储大量数据，我们应该考虑其他存储解决方案。</p>
+<p>当我们点击<strong>删除</strong>按钮时，我们调用<code>deleteRecipe</code>，当我们点击<strong>编辑</strong>时，我们转到带有菜谱ID的<code>recipe-form</code> URL，这样我们就可以编辑带有给定ID的条目。我们还有<strong>添加配方</strong>按钮，可以转到<code>recipe-form</code>。<code>IonLabel</code>有<code>title</code>，我们在列表中显示。</p>
+<h3 id="addandeditrecipes">添加和编辑配方</h3>
+<p>现在我们需要创建页面来添加或编辑食谱。为此，我们在<code>src/pages</code>文件夹中创建一个<code>RecipeForm.tsx</code>文件，并写入:</p>
+<pre>// src/pages/RecipeForm.tsx
+
+import {
+  IonBackButton,
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonImg,
+  IonInput,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonPage,
+  IonTextarea,
+  IonTitle,
+  IonToolbar
+} from '@ionic/react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useCamera } from '@ionic/react-hooks/camera';
+import { CameraResultType, CameraSource } from "@capacitor/core";
+import { RouteComponentProps } from 'react-router';
+import { Plugins } from '@capacitor/core';
+import { v4 as uuidv4 } from 'uuid';
+import { base64FromPath } from "@ionic/react-hooks/filesystem"
+import { Recipe } from '../interfaces/recipe';
+const { Storage } = Plugins;
+
+function usePhotoGallery() {
+  const { getPhoto } = useCamera();
+  const [photo, setPhoto] = useState&lt;string&gt;('');
+
+  const takePhoto = async () =&gt; {
+    const cameraPhoto = await getPhoto({
+      resultType: CameraResultType.Uri,
+      source: CameraSource.Camera,
+      quality: 100
+    });
+
+    const base64Data = await base64FromPath(cameraPhoto.webPath!);
+    setPhoto(base64Data)
+  };
+
+  return {
+    photo,
+    takePhoto
+  };
+}
+
+interface RecipeFormProps extends RouteComponentProps&lt;{
+  id?: string;
+}&gt; { }
+
+const RecipeForm: React.FC&lt;RecipeFormProps&gt; = ({ match, history }) =&gt; {
+  const { photo, takePhoto } = usePhotoGallery();
+  const [title, setTitle] = useState&lt;string&gt;('')
+  const [steps, setSteps] = useState&lt;string&gt;('')
+  const [existingPhoto, setExistingPhoto] = useState&lt;string&gt;('')
+
+  const saveRecipes = async (data: Recipe[]) =&gt; {
+    await Storage.set({
+      key: 'recipes',
+      value: JSON.stringify(data)
+    });
+  }
+
+  const save = async () =&gt; {
+    if (!title) {
+      alert('Title is required')
+      return
+    }
+
+    if (!steps) {
+      alert('Steps is required')
+      return
+    }
+    const recipe: Recipe = {
+      photo,
+      title,
+      steps,
+      id: uuidv4()
+    }
+
+    const ret = await Storage.get({ key: 'recipes' });
+    const recipes: Recipe[] = JSON.parse(ret.value as string) || [];
+    if (!match.params.id) {
+      await saveRecipes([...recipes, recipe])
+      setExistingPhoto('')
+      setTitle('')
+      setSteps('')
+    }
+    else {
+      const recipeIndex = recipes.findIndex(r =&gt; r.id === match.params.id)
+      recipes[recipeIndex] = {
+        photo,
+        title,
+        steps,
+        id:match.params.id
+      }
+      await saveRecipes(recipes)
+    }
+    history.push('/');
+  }
+
+  const getRecipe = useCallback(async () =&gt; {
+    if (match.params.id) {
+      const ret = await Storage.get({ key: 'recipes' });
+      const recipes: Recipe[] = JSON.parse(ret.value as string) || [];
+      const recipe = recipes.find(r =&gt; r.id === match.params.id)
+      if (match.params.id &amp;&amp; recipe) {
+        const { photo, title, steps } = recipe;
+        setExistingPhoto(photo)
+        setTitle(title)
+        setSteps(steps)
+      }
+    }
+  }, [match.params.id])
+
+  useEffect(() =&gt; {
+    getRecipe()
+  }, [getRecipe, match.params.id])
+
+  useEffect(() =&gt; {
+    setExistingPhoto(photo)
+  }, [photo])
+
+  return (
+    &lt;IonPage&gt;
+      &lt;IonHeader&gt;
+        &lt;IonToolbar&gt;
+          &lt;IonButtons slot="start"&gt;
+            &lt;IonBackButton defaultHref="/" /&gt;
+          &lt;/IonButtons&gt;
+          &lt;IonTitle&gt;{match.params.id ? 'Edit' : 'Add'} Recipe Form&lt;/IonTitle&gt;
+        &lt;/IonToolbar&gt;
+      &lt;/IonHeader&gt;
+      &lt;IonContent fullscreen&gt;
+        &lt;IonHeader collapse="condense"&gt;
+          &lt;IonToolbar&gt;
+            &lt;IonTitle size="large"&gt;Recipe Form&lt;/IonTitle&gt;
+          &lt;/IonToolbar&gt;
+        &lt;/IonHeader&gt;
+        &lt;IonList&gt;
+          &lt;IonItem&gt;
+            &lt;IonButton onClick={takePhoto}&gt;Take Recipe Photo&lt;/IonButton&gt;
+          &lt;/IonItem&gt;
+          &lt;IonItem&gt;
+            &lt;IonLabel&gt;Recipe Photo&lt;/IonLabel&gt;
+            {existingPhoto &amp;&amp; &lt;IonImg src={existingPhoto} /&gt;}
+          &lt;/IonItem&gt;
+          &lt;IonItem lines="none"&gt;
+            &lt;IonInput value={title} placeholder="Title" onIonChange={e =&gt; setTitle(e.detail.value!)}&gt;&lt;/IonInput&gt;
+          &lt;/IonItem&gt;
+          &lt;IonItem lines="none"&gt;
+            &lt;IonTextarea rows={10} value={steps} placeholder="Steps" onIonChange={e =&gt; setSteps(e.detail.value!)}&gt;&lt;/IonTextarea&gt;
+          &lt;/IonItem&gt;
+          &lt;IonItem lines="none"&gt;
+            &lt;IonButton onClick={save}&gt;Save&lt;/IonButton&gt;
+          &lt;/IonItem&gt;
+        &lt;/IonList&gt;
+      &lt;/IonContent&gt;
+    &lt;/IonPage &gt;
+  );
+};
+
+export default RecipeForm;</pre>
+<p>在这个组件中，我们创建了一个<code>usePhotoGallery</code>钩子来让我们拍照并返回照片的Base64字符串版本。</p>
+<p>在钩子中，我们调用<code>useCamera</code>钩子来获得<code>getPhoto</code>函数，我们调用这个函数来拍照。<code>resultType</code>设置为<code>CameraResultType.Uri</code>返回照片的网址。我们用<code>CameraSource.Camera</code>将照片<code>source</code>设置到手机摄像头。<code>quality</code>设置为数字；100是高质量。</p>
+<p>它返回一个带有相机照片数据的承诺。<code>base64FromPath</code>让我们获得照片的Base64字符串版本。我们调用<code>setPhoto</code>来获取照片，并返回<code>photo</code>和<code>takePhoto</code>对象，这样我们就可以在<code>RecipeForm</code>组件中使用它们。</p>
+<p>在<code>RecipeForm</code>组件中，我们有<code>match</code>属性来获取食谱条目的ID。<code>history</code>有浏览器历史对象，它让我们以编程方式导航。</p>
+<p>如果不明显的话，<code>saveRecipes</code>函数保存食谱数据；它用在<code>save</code>功能中。在其中，我们检查了<code>title</code>和<code>steps</code>状态。如果它们被设置，那么我们继续保存条目。</p>
+<p><code>title</code>是配方标题，<code>steps</code>是配方步骤的内容。然后我们创建带有ID的<code>recipe</code>对象。这用于新条目。我们调用<code>Storage.get</code>来获取带有关键字<code>recipes</code>的所有条目，然后用<code>JSON.parse</code>解析它。</p>
+<p>如果<code>match.params.id</code>是falsy，这意味着我们正在添加一个条目，我们将该条目添加到食谱数组的末尾，并用它调用<code>saveRecipes</code>。之后我们清除所有的州。否则，我们用<code>findIndex</code>方法找到<code>recipes</code>数组的索引，然后用我们的状态更新条目。</p>
+<p>然后我们调用<code>saveRecipes</code>保存数据，然后调用<code>history.push</code>返回主页。如果<code>match.params.id</code>存在，<code>getRecipe</code>功能用于获取现有条目的配方数据。</p>
+<p>我们从检索到的条目中设置<code>photo</code>、<code>title</code>和<code>steps</code>状态。我们观察<code>match.params.id</code>，所以如果我们得到一个新的值，我们总是调用<code>getRecipe</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>然后我们使用<code>useEffect</code>钩子来观察<code>match.params.id</code>，当它们改变时我们调用<code>getRecipe</code>。<code>match.params.id</code>有配方的ID，所以当我们点击<strong>编辑</strong>时，我们用它来获取配方。</p>
+<p>当我们更新了<code>photo</code>状态时，我们还设置了<code>existingPhoto</code>状态，这样我们就可以显示它了——只显示<code>existingPhoto</code>比在不同条件下同时显示更容易。<code>photo</code>和<code>existingPhoto</code>都是菜谱照片的Base64字符串。</p>
+<p>在JSX中，我们有带按钮的<code>IonList</code>来调用<code>takePhoto</code>来拍照，我们有标题和步骤的输入。我们还添加了一个<strong>保存</strong>按钮，通过调用<code>save</code>来保存条目。</p>
+<p>最后，我们将为组件构建一个接口。创建文件<code>src/interfaces/recipe.ts</code>并添加:</p>
+<pre>// src/interfaces/recipe.ts
+
+export interface Recipe {
+  photo: string;
+  title: string;
+  steps: string;
+  id: string;
+}</pre>
+<h3>使用Genymotion运行应用程序</h3>
+<p>要使用Genymotion运行我们的应用程序，我们还需要做一些事情。首先，我们通过运行以下命令创建一个资产文件夹:</p>
+<pre>ionic build</pre>
+<p>我们将需要它来运行和构建我们的Android应用程序。接下来，通过运行以下命令添加Android依赖项:</p>
+<pre>npx cap add android
+npx cap sync</pre>
+<p>现在我们需要安装Android Studio和Genymotion，然后我们为Android Studio安装Genymotion插件。完成后，我们使用以下命令运行我们的Ionic React项目:</p>
+<pre>ionic capacitor run android --livereload --external --address=0.0.0.0</pre>
+<p>当被问到时，我们应该选择“VirtualBox虚拟适配器”。这样，我们可以从Genymotion使用互联网。然后，在Android Studio中，按Alt+Shift+F10，我们应该会看到我们的应用程序在Genymotion中运行。</p>
+<h2 id="conclusion">结论</h2>
+<p>有了Ionic，我们可以利用React的知识创建一个可以访问硬件和存储设备的Android移动应用程序。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

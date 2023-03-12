@@ -1,0 +1,52 @@
+<html>
+<head>
+<title>Visualizing backend performance in the Chrome DevTools - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Chrome DevTools - LogRocket博客中可视化后端性能</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/visualizing-backend-performance-in-the-chrome-devtools-bb6fd232540/#0001-01-01">https://blog.logrocket.com/visualizing-backend-performance-in-the-chrome-devtools-bb6fd232540/#0001-01-01</a></blockquote><div><div class="mainheading">
+
+
+<h1 class="posttitle">在Chrome DevTools中可视化后端性能</h1>
+<h2 class="post-subtitle"/>
+<p><span class="post-date"><time class="post-date">2017年3月29日</time> </span> <span class="dot"/> <span class="readingtime"> 2分钟阅读</span> <span class="wordcount"> 613 </span> <span class="logrocket_editor"/></p>
+</div>
+<article class="article-post">
+<p>Chrome的网络面板有许多有助于理解网络请求/响应性能的可视化工具。在这篇文章中，我将分解请求生命周期瀑布，并向您展示如何将后端跟踪信息传输到网络面板。</p>
+<figure><img decoding="async" src="../Images/e0620f76481cce8f94240046aa143617.png" data-height="1040" data-width="1720" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*3gOjg3KO7Q5q-ZYjU1K0YQ.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*3gOjg3KO7Q5q-ZYjU1K0YQ.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/e0620f76481cce8f94240046aa143617.png" data-height="1040" data-width="1720" data-original-src="https://storage.googleapis.com/blog-images-backup/1*3gOjg3KO7Q5q-ZYjU1K0YQ.png"/></noscript></figure>
+<p>默认情况下，Chrome将一个请求的生命周期分为8个部分:</p>
+<p><code>Queueing</code>和<code>Stalled</code>显示了浏览器执行请求之前需要等待的时间。在这个阶段，请求可能会被延迟，原因有几个。浏览器有时会在加载其他资源之前优先加载脚本和CSS等资源。此外，HTTP 1请求最多允许6个并发TCP连接。</p>
+<p><code>DNS Lookup</code>、<code>Initial Connection</code>和<code>SSL</code>都是不言自明的——显示了在请求生命周期的各个部分花费的时间。</p>
+<p><code>Request sent</code>是浏览器向服务器发送请求所花费的时间。这一步通常很快，因为它只代表浏览器发送请求所花费的时间。</p>
+<p><code>Waiting (Time to first bite)</code>显示浏览器发出初始请求后，开始从服务器接收数据所需等待的时间。在此期间，服务器会做任何需要的工作来返回所请求的资源。在一个典型的API请求中，这是大部分延迟发生的地方，并且通常是开发人员对优化有最大控制的步骤。考虑到这一点，显示服务器“内部”发生的更细粒度的数据会很有帮助，我将很快对此进行解释。</p>
+<p>最后，<code>Content Download</code>是在接收到“第一个字节”之后，从服务器接收整个字节流所花费的时间。这里的延迟主要取决于网络连接速度，但显然针对较小的资源进行优化将减少这一步的时间。</p>
+<h4>发送后端计时</h4>
+<p><code>Waiting (TTFB)</code>步骤中发生的事情可能有点神秘，因为服务器在响应请求时可以做许多事情。Chrome有一个API，用于使用<code>Server-Timing</code>头从服务器发送自定义计时:</p>
+<figure><img decoding="async" src="../Images/900ba35476fc924f4ea9a5eada055c62.png" data-height="318" data-width="1690" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*C4ag_Fz_5N_xyDYPuLKhXw.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*C4ag_Fz_5N_xyDYPuLKhXw.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/900ba35476fc924f4ea9a5eada055c62.png" data-height="318" data-width="1690" data-original-src="https://storage.googleapis.com/blog-images-backup/1*C4ag_Fz_5N_xyDYPuLKhXw.png"/></noscript></figure>
+<p>在这个基本的node/express服务器中，您可以看到定时头的格式，这是我为<code>/</code>请求设置的。在这里，我硬编码了一些示例值，但是这些值通常是通过编程填充的。</p>
+<figure><img decoding="async" src="../Images/553c41a8b402481250fa1e9f420516bf.png" data-height="258" data-width="894" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*sxrDUYG1nmnGVoNs-rzv9w.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*sxrDUYG1nmnGVoNs-rzv9w.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/553c41a8b402481250fa1e9f420516bf.png" data-height="258" data-width="894" data-original-src="https://storage.googleapis.com/blog-images-backup/1*sxrDUYG1nmnGVoNs-rzv9w.png"/></noscript></figure>
+<p>然后，当我点击<code>/</code>路线时，计时显示在Chrome网络面板上。</p>
+<p>手动构建<code>Server-Timing</code>头文件很容易，但是也有一些很好的助手库，比如<code><a href="http://npmjs.com/package/server-timing" target="_blank" rel="noopener noreferrer">server-timing</a></code>(在NPM上)，它们有一个更干净的API来做这件事。</p>
+<p>当您访问您的应用程序并注意到QA中的延迟时，发送<code>Server-Timing</code>标头非常有用，因为您可以了解服务器上的特定操作是否缓慢。然而，如果您使用像LogRocket这样的前端日志记录服务，这个API特别有用，它记录所有的网络请求和它们的头。然后，如果您正在调查一个挂起或非常慢的网络请求，您可以看到后端计时并找出哪里出错了。</p>
+<p>但是，请记住，您暴露的任何计时信息都是公开可见的，因此如果您暴露了像<code>validate-password</code>这样的步骤的持续时间，理论上可能会帮助黑客使用计时攻击。</p>
+<h4>额外收获:以编程方式使用资源计时</h4>
+<figure><img decoding="async" src="../Images/884c836b8fecd9ea90a1a4e86c8291f4.png" data-height="892" data-width="1944" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*piqIHHWT1LGQgqYG-l3nfA.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*piqIHHWT1LGQgqYG-l3nfA.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/884c836b8fecd9ea90a1a4e86c8291f4.png" data-height="892" data-width="1944" data-original-src="https://storage.googleapis.com/blog-images-backup/1*piqIHHWT1LGQgqYG-l3nfA.png"/></noscript></figure>
+<p>调用<code>performance.getEntriesByType('resource')</code>返回资源列表和它们各自的计时。这有助于在JavaScript控制台中分析计时，或者在您的应用程序中以编程方式抓取并发送到分析商店。</p>
+<h4>更多资源</h4>
+
+<p>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p>
+<p>Focus on the bugs that matter — <a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">try LogRocket today</a>.</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

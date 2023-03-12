@@ -1,0 +1,195 @@
+<html>
+<head>
+<title>Asynchronous I/O and async/await packages in Rust - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Rust - LogRocket博客中的异步I/O和异步/等待包</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/asynchronous-i-o-and-async-await-packages-in-rust/#0001-01-01">https://blog.logrocket.com/asynchronous-i-o-and-async-await-packages-in-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Rust的异步故事已经进行了一段时间了。但是自从去年年底<a href="https://docs.rs/futures/0.3.6/futures/stream/trait.StreamExt.html" target="_blank" rel="noopener noreferrer">稳定了<code>async/await</code>语法</a>，事情真的开始变得更好了。</p>
+<p/>
+<p>Async在Rust中的工作方式不同于其他语言，比如JavaScript。一个主要的区别是Rust中的异步需要一个执行器来工作。甚至在标准图书馆里都找不到。</p>
+<p>在本教程中，我们将研究三个Rust异步包，评估它们的生产就绪性，并演示如何构建快速、可靠和高度并发的应用程序。</p>
+<ol>
+<li>托基奥</li>
+<li><a href="#asyncstd">异步标准</a></li>
+<li><a href="#futures">期货</a></li>
+</ol>
+<h2 id="howdoesasyncwork">Rust中的异步是如何工作的？</h2>
+<p>在其核心，async/await in Rust是建立在<a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer"> <code>Futures</code> </a>之上的。如果你来自JavaScript，你可以把未来想象成承诺:它们是还没有完成计算的价值。然而，与承诺不同的是，期货不会有任何进展，除非它们被明确地<a href="https://doc.rust-lang.org/std/future/trait.Future.html#tymethod.poll" target="_blank" rel="noopener noreferrer">调查</a>。这就是遗嘱执行人出现的地方。执行器是一个运行时，当它们准备好取得进展时，它通过轮询来为您管理未来。就像我前面提到的，标准库不包括。因此，为了开始使用异步Rust，我们需要使用一个外部执行器箱。</p>
+<p>您可能认为这增加了一层不必要的复杂性，但它允许我们有更多的控制，并使用一个根据我们的应用程序的需求进行调整的执行器，而不是像大多数其他语言一样被迫使用单一的解决方案。</p>
+<p>对于主要是IO绑定的应用程序，异步被用作操作系统线程的替代。与操作系统线程不同，孕育未来的成本很低，而且你可以同时运行数百万个线程。</p>
+<p>让我们看看一些顶级异步板条箱是否生锈。</p>
+<h2 id="tokio">1.时男</h2>
+<p>Tokio是最受欢迎的处理异步锈的板条箱。除了执行器，Tokio还提供了许多标准库类型的异步版本。</p>
+<p>这个机箱中的大部分功能都是您需要启用的可选功能。当不需要这些特性时，这有助于减少编译时间和二进制文件的大小。为了便于演示，我们将使用<code>"full"</code>特性来启用它们。</p>
+<pre>[dependencies]
+tokio = { version = "0.3", features = ["full"] }
+</pre>
+<p>现在，您可以生成一个Tokio运行时，并给它一个运行的未来。</p>
+<pre>fn main() {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        println!("Hello world");
+    })
+}
+</pre>
+<p>这里，我们的应用程序代码可以放在<code>block_on</code>方法的异步块中。这个样板文件可以用一个宏来代替，这个宏允许您使用一个异步main函数。</p>
+<p>以下是通常引导Tokio运行时的方式。</p>
+<pre>#[tokio::main]
+async fn main() {
+    println!("Hello world");
+}
+</pre>
+<p>由于现在这是一个异步函数，我们也应该尝试使用<code>await</code>。为了简单起见，让我们使用<a href="https://docs.rs/tokio/0.3.0/tokio/time/fn.sleep.html" target="_blank" rel="noopener noreferrer"> <code>sleep</code> </a>返回一个未来以供等待。</p>
+<pre>use std::time::Duration;
+use tokio::time::sleep;
+
+#[tokio::main]
+async fn main() {
+    let (v1, v2, v3) = tokio::join!(
+        async {
+            sleep(Duration::from_millis(1500)).await;
+            println!("Value 1 ready");
+            "Value 1"
+        },
+        async {
+            sleep(Duration::from_millis(2800)).await;
+            println!("Value 2 ready");
+            "Value 2"
+        },
+        async {
+            sleep(Duration::from_millis(600)).await;
+            println!("Value 3 ready");
+            "Value 3"
+        },
+    );
+
+    assert_eq!(v1, "Value 1");
+    assert_eq!(v2, "Value 2");
+    assert_eq!(v3, "Value 3");
+}
+</pre>
+<p>这里，我们使用了<code>tokio::join!</code>来同时运行多个期货。它将等待所有的未来完成，并返回元组中每个的结果。在这种情况下，第三个未来将首先完成，然后是第一个，最后是第二个。</p>
+<h3>阻塞码</h3>
+<p>使用<code>sleep</code>也为我们提供了一个很好的机会，来看看在不使用await的情况下在异步上下文中阻塞会发生什么。</p>
+<p>把第二个未来的睡眠改成这样:</p>
+<pre>std::thread::sleep(Duration::from_millis(2800));
+</pre>
+<p>这里我们使用了标准库<code>sleep</code>，它不返回未来值，而是阻塞整个线程。如果你现在运行这个，你会发现只要第二个未来受阻，所有的未来都不会有进展。由于我们没有使用await，所以第二个未来无法知道让步并将控制权交还给<code>tokio</code>运行时。如果运行时被阻塞，它的所有未来也会被阻塞。</p>
+<p>幸运的是，东京支持我们。<a href="https://docs.rs/tokio/0.3.0/tokio/task/index.html" target="_blank" rel="noopener noreferrer"> <code>tokio::task</code> </a>模块包含绿色线程的实现，类似于<a href="https://docs.rs/tokio/0.3.0/tokio/task/index.html" target="_blank" rel="noopener noreferrer"> Go的goroutines </a>。有了<code><a href="https://docs.rs/tokio/0.3.0/tokio/task/index.html#spawn_blocking" target="_blank" rel="noopener noreferrer">spawn_blocking</a></code>，你可以让Tokio运行时在一个专用的线程池中运行阻塞代码，让其他的未来继续前进。</p>
+<p>如果你用这个来阻挡<code>sleep</code>，你的第二个未来会是这样的:</p>
+<pre>async {
+    tokio::task::spawn_blocking(|| {
+        std::thread::sleep(Duration::from_millis(2800));
+    })
+    .await
+    .unwrap();
+    println!("Value 2 ready");
+    "Value 2"
+},
+</pre>
+<p>现在，代码再次按预期运行。当然，这是一个人为的例子，但是阻塞睡眠可以用任何CPU密集型的阻塞代码来代替，Tokio会处理剩下的部分。</p>
+<h3>Tokio任务</h3>
+<p>虽然您可以通过在Tokio的线程池中生成阻塞代码来做得很好，但是为了充分利用futures和async/await，让我们从上到下使用异步代码。我们将使用<a href="https://docs.rs/tokio/0.3.0/tokio/task/fn.spawn.html" target="_blank" rel="noopener noreferrer"> <code>tokio::task::spawn</code> </a>(一个异步版本的<a href="https://doc.rust-lang.org/std/thread/fn.spawn.html" target="_blank" rel="noopener noreferrer"> <code>std::thread::spawn</code> </a>)将期货生成到它们自己的后台任务中。我们将通过创建一个异步工作池来测试这一点，该工作池可以接收在后台运行的作业。</p>
+<p>首先使用枚举定义作业列表。</p>
+<pre>#[derive(Debug)]
+enum Message {
+    SendWelcomeEmail { to: String },
+    DownloadVideo { id: usize },
+    GenerateReport,
+    Terminate,
+}
+</pre>
+<p>这里要注意的主要是<code>Message</code>的<code>Terminate</code>变体，它告诉工人在不再需要工作时停止处理工作。我们还派生了<code>Debug</code>,这样我们可以稍后打印出消息。</p>
+<p>接下来，我们需要使用Tokio提供的其中一个通道与工人进行通信。</p>
+<pre>use std::sync::Arc;
+use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::Mutex;
+
+#[tokio::main]
+async fn main() {
+    let (sender, receiver) = unbounded_channel();
+    let receiver = Arc::new(Mutex::new(receiver));
+}
+</pre>
+<p>这里，我们使用一个无界通道，它是标准库中MPSC通道的异步替代。在生产中，我强烈推荐使用<a href="https://docs.rs/tokio/0.3.0/tokio/sync/mpsc/fn.channel.html" target="_blank" rel="noopener noreferrer"> <code>tokio::sync::mpsc::channel</code> </a>，这是一个有限大小的通道，当应用程序处于负载下时，它会提供背压，以防止应用程序不堪重负。接收者还被包装在一个<a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener noreferrer"> <code>Arc</code> </a>和一个<a href="https://docs.rs/tokio/0.3.0/tokio/sync/struct.Mutex.html" target="_blank" rel="noopener noreferrer"> Tokio <code>Mutex</code> </a>中，因为它将在多个工作者之间共享。这还不能编译，因为它不能推断出我们要通过通道发送的值的类型。</p>
+<p>现在咱们可以催生几个工人了。</p>
+<pre>let size = 5;
+let mut workers = Vec::with_capacity(size);
+
+for id in 0..size {
+    let receiver = Arc::clone(&amp;receiver);
+    let worker = tokio::spawn(async move { /* ... */ });
+    workers.push(worker);
+}
+</pre>
+<p>这产生了一些工人，并将他们的<a href="https://docs.rs/tokio/0.3.0/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer"> <code>JoinHandle</code> </a>推到一个<code>Vec</code>上。现在剩下的就是填写消息处理程序了。</p>
+<pre>use std::time::Duration;
+use tokio::time::sleep;
+
+// ...
+
+let worker = tokio::spawn(async move {
+    loop {
+        let message = receiver
+            .lock()
+            .await
+            .recv()
+            .await
+            .unwrap_or_else(|| Message::Terminate);
+        println!("Worker {}: {:?}", id, message);
+        match message {
+            Message::Terminate =&gt; break,
+            _ =&gt; sleep(Duration::from_secs(1 + id as u64)).await,
+        }
+    }
+});
+</pre>
+<p>这就永远循环下去，打印出每一条信息。如果它收到一个<code>Terminate</code>消息，它就中断循环。对于任何其他消息，它都会休眠。在您自己的应用程序中，您将匹配您想要处理的每条消息，并在这里放置一些真正的逻辑。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>小心互斥保护的生命周期。不使用<code>while let Some(message) = receiver.lock()...</code>的原因是，直到while循环的内容执行之后，它才会放弃互斥保护。这意味着在您处理消息时互斥体将被锁定，并且一次只能有一个工作者工作。</p>
+<p>为了允许工人干净地终止，在<code>main</code>函数完成之前向所有工人发送一个<code>Terminate</code>消息是很重要的。如果不这样做，作业将被中断，并可能处于不良状态。</p>
+<pre>for _ in &amp;workers {
+    let _ = sender.send(Message::Terminate);
+}
+for worker in workers {
+    let _ = worker.await;
+}
+</pre>
+<p>第一个循环发送消息的次数与工作线程的数量一样多。然后第二个等待每个工人完成。我们在这里使用<code>let _ = ...</code>来丢弃结果。这种代码应该放在您不再需要工人的地方。在我们的例子中，那是在<code>main</code>的最后。</p>
+<p>注意这里我们没有在<code>send</code>方法后使用<code>await</code>。这是因为我们使用了一个无限的渠道，它永远不会阻止一个发送者。有界信道可以阻止发送者，所以你需要在发送时使用<code>await</code>。你也可以用<a href="https://docs.rs/tokio/0.3.0/tokio/sync/mpsc/struct.Sender.html" target="_blank" rel="noopener noreferrer"> <code>try_send</code> </a>。</p>
+<p>在这个清理代码上面，让我们把工作发送给工人。</p>
+<pre>sender.send(Message::DownloadVideo { id: 10 }).unwrap();
+sender.send(Message::GenerateReport).unwrap();
+sender.send(Message::SendWelcomeEmail { to: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cfa7a68faab7aea2bfa3aae1aca0a2">[email protected]</a>".into() }).unwrap();
+sender.send(Message::DownloadVideo { id: 25 }).unwrap();
+</pre>
+<p>在这个例子中，我们使用了通道，一个互斥体，并产生了异步任务。如果您已经使用了标准的库等价物，那么其中的每一个都有可识别的API。</p>
+<p>我强烈认为Tokio已经为生产做好了准备。也就是说，当前版本被视为即将发布的1.0版本的测试版。一旦发布，Tokio团队将致力于维护它至少五年。我发现整个<a href="https://tokio.rs/" target="_blank" rel="noopener noreferrer"> Tokio stack </a>的质量也很高，使用起来也很愉快。</p>
+<h2 id="asyncstd">2.异步标准</h2>
+<p>顾名思义，<a href="https://async.rs/" target="_blank" rel="noopener noreferrer"> async-std </a>试图成为Rust标准库的异步版本。它的目标与它的主要竞争对手Tokio相似，但不太受欢迎，因此在野外也不太经得起考验。</p>
+<p>虽然Tokio和async-std的API不完全相同，但它们非常相似，大多数概念都可以在两者之间转换。同样，如果您有使用Rust标准库的经验，那么这两个库应该已经很熟悉了。对于仍然好奇的人，我已经在<a href="https://github.com/joshua-cooper/async-rust-example" target="_blank" rel="noopener noreferrer"> GitHub </a>上发布了我们所做的最后一个例子的代码，以及一个async-std端口。</p>
+<p>最重要的是要知道Tokio和async-std并不是100%兼容的。构建在其中一个之上的库可能无法在另一个的运行时中工作。</p>
+<p>目前，核心语言和标准库只提供了最低限度的异步/等待支持；其余的是由社区写的板条箱。随着时间的推移，当找到正确的抽象时，一些基础部分可能会合并到标准库中，更多的库可能会成为运行时不可知的。在此之前，一定要检查您使用的任何异步库是否依赖于特定的运行时。</p>
+<p>如果稳定性是重中之重，我会推荐Tokio而不是async-std，因为它更成熟，并且在它的基础上构建了更多的库。对于任何探索Rust async的人来说，尝试async-std仍然是一个好主意。谁知道呢，也许你会发现它符合你的需要。</p>
+<h2 id="futures">3.未来</h2>
+<p><a href="https://crates.io/crates/futures" target="_blank" rel="noopener noreferrer"> <code>futures-rs</code>机箱</a>为Rust中的async提供了许多共享的基础组件。Tokio和async-std都将期货箱的一部分用于共享特征等方面。事实上，<code>std::future::Future</code>最初是从这个板条箱中取出的，其他零件可能会在某个时候被移到标准库中。</p>
+<p>这个机箱包含的一个很好的例子是<a href="https://docs.rs/futures/0.3.6/futures/stream/index.html" target="_blank" rel="noopener noreferrer">流模块</a>。流本质上是异步迭代器，这个模块提供了<a href="https://docs.rs/futures/0.3.6/futures/stream/trait.Stream.html" target="_blank" rel="noopener noreferrer"> <code>Stream</code> </a>和<a href="https://docs.rs/futures/0.3.6/futures/stream/trait.StreamExt.html" target="_blank" rel="noopener noreferrer"> <code>StreamExt</code> </a>特征，其中包括类似迭代器可用的组合函数。</p>
+<h2 id="conclusion">结论</h2>
+<p>在我看来，async Rust处于一个很好的位置，尽管有一些关于运行时兼容性的问题。Tokio和async-std都是通用异步运行时，为标准库类型提供异步替代。</p>
+<p>对于一个生产应用程序，我目前推荐Tokio，因为它很成熟，而且基于它构建了大量的板条箱。对于寻找包含电池的框架的人来说，Rust还不是一个好的选择。但对于那些喜欢用更小、更模块化的部分来构建应用程序的人来说，Tokio及其周围的生态系统非常出色。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

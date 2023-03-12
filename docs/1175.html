@@ -1,0 +1,484 @@
+<html>
+<head>
+<title>Strategies for mitigating prop drilling with React and TypeScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用React和TypeScript减轻钻柱的策略</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/#0001-01-01">https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>道具钻探是React最常见的问题之一。你在层次结构的底层组件中添加了一个prop或事件处理程序，你不得不把它添加到每一个父组件中。如果使用TypeScript(或PropTypes)，情况会更糟。现在，您还需要向层次结构中的每个组件添加道具或事件的类型。</p>
+<p>这篇文章将解释这个问题，并通过几个选项来缓解它。这些方法中的大多数已经在其他帖子中解释过了，但是我认为在一个地方用一个通用的演示应用程序来查看它们是有帮助的。我以前没有见过“挑选道具”的方法——如果你见过，请告诉我！如果你喜欢看到所有的例子，看看这篇文章的同伴<a href="https://github.com/danvk/prop-drilling" target="_blank" rel="noopener noreferrer"> GitHub repo </a>。</p>
+<h2>问题是</h2>
+<p>这里有一个小小的React应用程序:</p>
+<p><img data-attachment-id="25676" data-permalink="https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/demoapppropdrilling/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif" data-orig-size="334,180" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demoapppropdrilling" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling-300x162.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif" decoding="async" class="aligncenter size-full wp-image-25676 jetpack-lazy-image" src="../Images/b46f5505ce69973e67c85414d3fbd15d.png" alt="demo app showing prop drilling " data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="25676" data-permalink="https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/demoapppropdrilling/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif" data-orig-size="334,180" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demoapppropdrilling" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling-300x162.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-25676" src="../Images/b46f5505ce69973e67c85414d3fbd15d.png" alt="demo app showing prop drilling " data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/demoapppropdrilling.gif"/></noscript>You can find the full source code <a href="https://codesandbox.io/s/green-pond-kpv82?file=/src/App.tsx" target="_blank" rel="noopener noreferrer">here</a>. It’s not much, but it does show React’s incredible ability to keep multiple parts of the UI in sync with one another.
+<p>这里有四个组件<code>App</code>、<code>LeftColumn</code>、<code>RightColumn</code>和<code>ACounter</code>。<code>App</code>组件拥有状态并呈现两列:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;LeftColumn a={a} onSetA={setA} leftThing="I'm on the left" /&gt;
+        &lt;RightColumn a={a} onSetA={setA} rightThing="I'm on the right" /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>左栏显示它的消息和一个计数器。它将状态和事件处理程序向下传递给计数器:</p>
+<pre>interface LeftColumnProps {
+  a: number;
+  onSetA: (a: number) =&gt; void;
+  leftThing: string;
+}
+
+function LeftColumn({ a, onSetA, leftThing }: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{leftThing}&lt;/h2&gt;
+      &lt;ACounter a={a} onSetA={onSetA} /&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>(右栏类似。)<br/>最后，我们有一个计数器，它呈现一个DOM元素，并在情况发生变化时调用事件处理程序:</p>
+<pre>interface ACounterProps {
+  a: number;
+  onSetA: (a: number) =&gt; void;
+}
+
+function ACounter({ a, onSetA }: ACounterProps) {
+  return (
+    &lt;&gt;
+      a:{" "}
+      &lt;input
+        type="number"
+        style={{ width: "3em" }}
+        value={a}
+        onChange={(e) =&gt; onSetA(+e.target.value)}
+      /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+<p>因为只有一个状态，所以两列中的两个计数器彼此保持同步。这就是React的妙处！</p>
+<p>这个简单的例子用了<a href="https://codesandbox.io/s/green-pond-kpv82?file=/src/App.tsx" target="_blank" rel="noopener noreferrer"> 64行代码</a>。而且已经说明了道具钻的特点，<code>LeftColumn</code>(和<code>RightColumn</code>)组件不直接使用<code>a</code>或<code>onSetA</code>。相反，它们只是将它们传递给子组件。</p>
+<p>如果我们增加另一个计数器，情况会变得更糟:</p>
+<figure id="attachment_25682" aria-describedby="caption-attachment-25682" class="wp-caption aligncenter"><img data-attachment-id="25682" data-permalink="https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/propdrilling2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif" data-orig-size="334,180" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="propdrilling2" data-image-description="" data-image-caption="&lt;p&gt;Now there are TWO counters&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2-300x162.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif" decoding="async" class="size-full wp-image-25682 jetpack-lazy-image" src="../Images/49f7b78caa797beb814a969c11670d16.png" alt="Now there are TWO counters" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="25682" data-permalink="https://blog.logrocket.com/mitigating-prop-drilling-with-react-and-typescript/propdrilling2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif" data-orig-size="334,180" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="propdrilling2" data-image-description="" data-image-caption="&lt;p&gt;Now there are TWO counters&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2-300x162.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif" decoding="async" loading="lazy" class="size-full wp-image-25682" src="../Images/49f7b78caa797beb814a969c11670d16.png" alt="Now there are TWO counters" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/09/propdrilling2.gif"/></noscript><figcaption id="caption-attachment-25682" class="wp-caption-text">Now there are TWO counters</figcaption></figure>
+<p>为了处理这种变化，我们可以将<code>ACounter</code>改为<code>ABCounter</code>，并引入第五个组件，一个通用的<code>Counter</code>，以减少重复:</p>
+<pre>interface CounterProps {
+  name: string;
+  val: number;
+  onSetVal: (val: number) =&gt; void;
+}
+
+function Counter({ name, val, onSetVal }: CounterProps) {
+  return (
+    &lt;&gt;
+      {name}:{" "}
+      &lt;input
+        type="number"
+        style={{ width: "3em" }}
+        value={val}
+        onChange={(e) =&gt; onSetVal(+e.target.value)}
+      /&gt;
+    &lt;/&gt;
+  );
+}
+
+interface ABCounterProps {
+  a: number;
+  onSetA: (a: number) =&gt; void;
+  b: number;
+  onSetB: (b: number) =&gt; void;
+}
+
+function ABCounter({ a, onSetA, b, onSetB }: ABCounterProps) {
+  return (
+    &lt;&gt;
+      &lt;Counter name="a" val={a} onSetVal={onSetA} /&gt;
+      &lt;br /&gt;
+      &lt;Counter name="b" val={b} onSetVal={onSetB} /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+<p>为了实现这一点，我们还必须对所有其他组件进行更改。</p>
+<p>对于<code>LeftColumn</code>:</p>
+<pre>interface LeftColumnProps {
+  a: number;
+  onSetA: (a: number) =&gt; void;
+  b: number;  // NEW!
+  onSetB: (a: number) =&gt; void;  // NEW!
+  leftThing: string;
+}
+
+function LeftColumn({ a, onSetA, b, onSetB, leftThing }: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{leftThing}&lt;/h2&gt;
+      &lt;ABCounter a={a} onSetA={onSetA} b={b} onSetB={onSetB} /&gt;
+      {/* ^^^ Changed! ^^^ */}
+    &lt;/div&gt;
+  );
+}</pre>
+<p>我们必须对<code>RightColumn</code>进行同样的更改。对于<code>App</code>:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);  // NEW!
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;LeftColumn
+          a={a}
+          onSetA={setA}
+          b={b}  { /* NEW! */ }
+          onSetB={setB}  { /* NEW! */ }
+          leftThing="I'm on the left"
+        /&gt;
+        &lt;RightColumn
+          a={a}
+          onSetA={setA}
+          b={b}  { /* NEW! */ }
+          onSetB={setB}  { /* NEW! */ }
+          rightThing="I'm on the right"
+        /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这个应用程序现在记录了99行代码。除了<code>Counter</code>的变化和一个新状态(<code>b</code>)的添加，我们必须向两个类型声明(<code>LeftColumnProps</code>和<code>RightColumnProps</code>)添加新的道具，在两个组件中将它们传递给<code>ABCounter</code>，并从<code>App</code>开始将它们传递给两列。总之，我统计了三个文件中的十行更改，它们只是传递数据和处理程序。如果您想添加第三个计数器，您必须对所有文件进行更多的更改。</p>
+<p>这就是道具钻的问题。这一变化的本质是将<code>b</code>添加到应用程序的状态中，并添加UI来显示它。但是几乎一半的变化是在其他组件中传递道具。</p>
+<p>我们称之为“完全线程化”方法，因为应用程序状态和处理程序一直向下传递。这篇文章的剩余部分着眼于一些减少重复的方法。</p>
+<p>全螺纹:</p>
+<ul>
+<li>优点——它非常明显！这里没有魔法。每个组件都准确地接收它需要的道具</li>
+<li>缺点——最大重复。需要改变层次结构中的所有组件</li>
+</ul>
+<h2>解决方案1:使用更少的组件</h2>
+<p>让我们称之为肯特·c·多兹方法，因为他在他关于支柱钻井的经典文章<a href="https://kentcdodds.com/blog/prop-drilling" target="_blank" rel="noopener noreferrer">中提出了这一方法</a>。我们真的需要所有这些中间组件吗？如果我们保留<code>Counter</code>，但将其他所有内容都放在<code>App</code>，去掉<code>LeftColumn</code>、<code>RightColumn</code>和<code>ABCounter</code>组件，看起来会是这样:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+          &lt;h2&gt;I'm on the left&lt;/h2&gt;
+          &lt;Counter name="a" val={a} onSetVal={setA} /&gt;
+          &lt;br /&gt;
+          &lt;Counter name="b" val={b} onSetVal={setB} /&gt;
+        &lt;/div&gt;
+        &lt;div className="right"&gt;
+          &lt;h2&gt;I'm on the right&lt;/h2&gt;
+          &lt;Counter name="a" val={a} onSetVal={setA} /&gt;
+          &lt;br /&gt;
+          &lt;Counter name="b" val={b} onSetVal={setB} /&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这个版本的应用程序只有46行代码。通过去掉中间组件和它们的道具，我们得到了比原来更短的东西！</p>
+<p>我们还完全消除了prop drilling的问题，因为显示状态和生成事件的<code>Counter</code>组件在管理状态的同一个组件(<code>App</code>)中呈现，不需要线程处理。不涉及中间部件。</p>
+<p>那么这是解决问题的方法吗？我们应该把我们所有的部件都粘在一起吗？这种方法有一些缺点:</p>
+<ol>
+<li>想必，您创建所有这些中间组件是有原因的。也许它们也用于应用程序的其他部分。如果你在多个地方内联它们(就像我们对<code>ABCounter</code>所做的那样)，那么你是在用重复的线程来换取UI代码的复制</li>
+<li>内联组件也消除了内存化的可能性。如果你的组件层次的整个块可以被记忆，那么你将节省许多不必要的渲染</li>
+</ol>
+<p>也就是说，这种方法确实产生了非常简洁明了的代码。它还需要最少的类型注释。因此，在尝试其他解决方案之前，值得考虑是否有一些组件可以合并。如果你正在寻找更多的指导，Kent C. Dodds也有一篇关于何时分解组件的文章。</p>
+<p>使用更少的组件(即Kent C. Dodds方法):</p>
+<ul>
+<li>优点—用最少的类型注释生成非常简洁、清晰的代码</li>
+<li>缺点——使得重用组件更加困难，并且消除了记忆的可能性</li>
+</ul>
+<h2>解决方案2:使用儿童</h2>
+<p>组合组件非常有效，因为它将状态和使用它的组件放在一起，不需要线程！但是缺点是您失去了在代码的其他地方重用中间组件的能力。</p>
+<p>不过还有一个折中的办法，那就是使用React的<code>children</code>道具。通过这样做，我们可以保留我们的中间组件(<code>LeftColumn</code>和<code>RightColumn</code>)，并且仍然将计数器和状态放在一起。</p>
+<p>下面是<code>LeftColumn</code>(一如既往，<code>RightColumn</code>也差不多):</p>
+<pre>interface LeftColumnProps {
+  leftThing: string;
+  children: React.ReactNode;
+}
+
+function LeftColumn({ leftThing, children }: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{leftThing}&lt;/h2&gt;
+      {children}
+    &lt;/div&gt;
+  );
+}</pre>
+<p>它接受它所呈现的一个<code>children</code>道具。下面是你如何使用它(在<code>App</code>):</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;LeftColumn leftThing="I'm on the left"&gt;
+          &lt;Counter name="a" val={a} onSetVal={setA} /&gt;
+          &lt;br /&gt;
+          &lt;Counter name="b" val={b} onSetVal={setB} /&gt;
+        &lt;/LeftColumn&gt;
+        &lt;RightColumn rightThing="I'm on the right"&gt;
+          &lt;Counter name="a" val={a} onSetVal={setA} /&gt;
+          &lt;br /&gt;
+          &lt;Counter name="b" val={b} onSetVal={setB} /&gt;
+        &lt;/RightColumn&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这个解决方案有<a href="https://codesandbox.io/s/sparkling-wood-o8lry?file=/src/App.tsx" target="_blank" rel="noopener noreferrer"> 72行代码</a>。通过让中间组件接受<code>children</code>，我们可以将<code>Counter</code>和状态放在一起，就像我们在解决方案1中所做的那样。但是与解决方案1不同，如果我们愿意，我们仍然可以在应用程序的其他地方重用中间组件。</p>
+<p>React文档在<a href="https://reactjs.org/docs/composition-vs-inheritance.html" target="_blank" rel="noopener noreferrer">组合与继承</a>的主题下讨论孩子。把孩子当作道具是一个非常强大的工具，这是我使用React这些年来越来越欣赏的一个工具。孩子不一定是DOM元素。关于非DOM孩子的一些很好的例子，请查看React Router，<a href="https://reactrouter.com/web/example/basic" target="_blank" rel="noopener noreferrer">使用孩子来绘制路线</a>，以及<a href="https://github.com/alex3165/react-mapbox-gl" target="_blank" rel="noopener noreferrer"> react-mapbox-gl </a>，使用孩子来定义交互式mapbox地图上的图层。</p>
+<p>儿童:</p>
+<ul>
+<li>优点—允许您将组件及其状态放在一起，同时保留可重用的中间组件</li>
+<li>缺点——要求中间组件对其子组件完全不可知</li>
+</ul>
+<h2>解决方案3:将相关道具组合成一个对象</h2>
+<p>如果两个道具经常一起使用，你可以考虑将它们组合成一个单独的物体，然后在周围传递。下面是使用这种方法后<code>ABCounter</code>的样子:</p>
+<pre>interface ABCounterProps {
+  vals: { a: number; b: number };
+  onSetVal: (which: "a" | "b", val: number) =&gt; void;
+}
+
+function ABCounter({ vals: { a, b }, onSetVal }: ABCounterProps) {
+  return (
+    &lt;&gt;
+      &lt;Counter name="a" val={a} onSetVal={(v) =&gt; onSetVal("a", v)} /&gt;
+      &lt;br /&gt;
+      &lt;Counter name="b" val={b} onSetVal={(v) =&gt; onSetVal("b", v)} /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+<p>我们没有将<code>a</code>和<code>b</code>作为单独的道具传递，而是将它们组合成一个单独的<code>vals</code>对象。代替<code>onSetA</code>和<code>onSetB</code>道具，我们有一个带<code>which</code>参数的<code>onSetVal</code>道具。</p>
+<p>我们可以通过<code>LeftColumn</code>传递这两者:</p>
+<pre>interface LeftColumnProps extends ABCounterProps {
+  leftThing: string;
+}
+
+function LeftColumn({ vals, onSetVal, leftThing }: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{leftThing}&lt;/h2&gt;
+      &lt;ABCounter vals={vals} onSetVal={onSetVal} /&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这里我使用了带有类型声明的<code>extends</code>来共享<code>ABCounterProps</code>和<code>LeftColumnProps</code>之间的公共属性。</p>
+<p>最后，<code>App</code>:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);
+  const vals = { a, b };
+  const handleSetVal = (which: "a" | "b", val: number) =&gt;
+    (which === "a" ? setA : setB)(val);
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;LeftColumn
+          vals={vals}
+          onSetVal={handleSetVal}
+          leftThing="I'm on the left"
+        /&gt;
+        &lt;RightColumn
+          vals={vals}
+          onSetVal={handleSetVal}
+          rightThing="I'm on the right"
+        /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>整个事情总共有88行代码。这比我们将所有组件放在一起时要多得多，尽管这肯定是对全线程版本的改进。更何况如果加一个<code>c</code>计数器，只需要<a href="https://codesandbox.io/s/gallant-turing-w1hn4?file=/src/App.tsx" target="_blank" rel="noopener noreferrer">加三行代码</a>。因为第三个计数器将进入同一个对象，所以不需要对中间组件进行任何更改。</p>
+<p>这种方法最适合总是一起传递或一起修改的道具。或者对于完全不修饰的道具。如果您的应用程序有某种全局配置，在启动时只初始化一次，那么这是组合成单个对象的绝佳选择。</p>
+<p>将道具组合成物品:</p>
+<ul>
+<li>优点—减少添加或更改对象属性时的重复</li>
+<li>缺点—可能导致更复杂的事件处理程序。如果组件不需要对象中的所有属性，可能会导致“过度转发”。会使缓存变得更加棘手</li>
+</ul>
+<h2>解决方案4:使用上下文API</h2>
+<p>React的<a href="https://reactjs.org/docs/context.html" target="_blank" rel="noopener noreferrer">上下文API </a>是依赖注入的一种形式。它让父组件提供一个对象，子组件使用它，而中间组件不必知道它的任何信息。</p>
+<p>要使用上下文API，首先需要使用<code>React.createContext</code>创建一个<code>Context</code>对象。</p>
+<p>我们将使用<code>ABCounterProps</code>作为类型:</p>
+<pre>interface ABCounterProps {
+  a: number;
+  onSetA: (a: number) =&gt; void;
+  b: number;
+  onSetB: (b: number) =&gt; void;
+}
+
+const ABContext = React.createContext&lt;ABCounterProps&gt;({
+  a: 0,
+  b: 0,
+  onSetA(a) {},
+  onSetB(b) {}
+});</pre>
+<p>然后，在App中，我们提供上下文:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);
+  const context = { a, b, onSetA: setA, onSetB: setB };
+
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;ABContext.Provider value={context}&gt;
+        &lt;div className="columns" style={{ display: "flex" }}&gt;
+          &lt;LeftColumn leftThing="I'm on the left" /&gt;
+          &lt;RightColumn rightThing="I'm on the right" /&gt;
+        &lt;/div&gt;
+      &lt;/ABContext.Provider&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>最后，在<code>ABCounter</code>中，我们使用<code>React.useContext</code>检索上下文:</p>
+<pre>function ABCounter(props: {}) {
+  const { a, b, onSetA, onSetB } = React.useContext(ABContext);
+  return (
+    &lt;&gt;
+      &lt;Counter name="a" val={a} onSetVal={onSetA} /&gt;
+      &lt;br /&gt;
+      &lt;Counter name="b" val={b} onSetVal={onSetB} /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+<p>不需要对<code>LeftColumn</code>(或<code>RightColumn</code>)做任何修改，这就是上下文API的全部思想。<code>ABContext</code>在我们的组件层次结构中一路向下传送。这个解决方案有91行代码。</p>
+<p>这是不是有点诡异？<code>ABCounter</code>声明没有道具，但明明消耗了东西。如果您未能提供一个<code>ABContext</code>，该应用程序将无法工作。同样，如果您试图在不提供上下文的情况下呈现一个<code>LeftColumn</code>，它也会失败。这些依赖是关键的，但是它们没有以通常的方式列出(通过props)。TypeScript也帮不了你。未能向子组件提供所需的上下文可能是错误，也可能不是错误。它可能只是由父组件提供的。</p>
+<p>背景通常被描述为支柱钻井的解决方案，但是T2的反应文件竭尽全力将你推向替代方案。尤其是如果您使用TypeScript，在跳转到上下文之前考虑您的选择。</p>
+<p>上下文API:</p>
+<ul>
+<li>优点——直接解决了道具穿过中间组件的问题。内置于React中</li>
+<li>缺点—使依赖关系不太明确，并防止TypeScript能够跟踪它们。带来一些自己的样板文件</li>
+</ul>
+<h2>解决方案5:挑选道具</h2>
+<p>这种策略认识到在应用程序中传递的大多数道具都不是唯一的。组件的属性往往是应用程序状态的子集。类似的模式也适用于事件处理程序。如果我们定义了应用程序状态的类型(以及事件处理程序的范围)，那么当我们定义单独的组件时，我们就可以<a href="https://www.typescriptlang.org/docs/handbook/utility-types.html#picktype-keys" target="_blank" rel="noopener noreferrer">【pick】</a>避开它。</p>
+<p>以下是描述应用程序整体状态的类型:</p>
+<pre>interface AppState {
+  leftThing: string;
+  rightThing: string;
+  a: number;
+  b: number;
+  onSetA: (a: number) =&gt; void;
+  onSetB: (b: number) =&gt; void;
+}</pre>
+<p>(实际上，您可能希望分离出事件处理程序。)<br/>要为<code>ABCounter</code>定义道具类型，可以使用TypeScript的内置<code><a href="https://www.typescriptlang.org/docs/handbook/utility-types.html#picktype-keys" target="_blank" rel="noopener noreferrer">Pick</a></code>泛型:</p>
+<pre>type ABCounterProps = Pick&lt;AppState, "a" | "b" | "onSetA" | "onSetB"&gt;;
+
+function ABCounter({ a, onSetA, b, onSetB }: ABCounterProps) {
+  return (
+    &lt;&gt;
+      &lt;Counter name="a" val={a} onSetVal={onSetA} /&gt;
+      &lt;br /&gt;
+      &lt;Counter name="b" val={b} onSetVal={onSetB} /&gt;
+    &lt;/&gt;
+  );
+}</pre>
+<p>将鼠标放在这个定义上，您可以看到我们得到了所有正确的<code>a</code>、<code>b</code>和事件处理程序的类型。</p>
+<p>道具列表对渲染<code>ABCounter</code>的组件也很有用，因为它们可以用它来选择它们传递的道具:</p>
+<pre>const abCounterProps = ["a", "b", "onSetA", "onSetB"];
+
+function LeftColumn(props: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{props.leftThing}&lt;/h2&gt;
+      &lt;ABCounter {..._.pick(props, abCounterProps)} /&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这里我们使用对象扩散(<code>...</code>)和<a href="https://lodash.com/docs/4.17.15#pick" target="_blank" rel="noopener noreferrer">洛达什的</a> <code><a href="https://lodash.com/docs/4.17.15#pick" target="_blank" rel="noopener noreferrer">_.pick</a></code>来挑选<code>ABCounter</code>需要的道具。</p>
+<p>在<code>ABCounterProps</code>(类型)和<code>abCounterProps</code>(值)之间有一些重复。我们怎样才能摆脱这种情况并使它们保持同步呢？请记住，TypeScript类型在运行时消失。所以类型和值是一条<a href="https://effectivetypescript.com/2020/07/27/safe-queryselector/" target="_blank" rel="noopener noreferrer">单行道，</a>你可以从值中派生出类型，但不能从类型中派生出值。所以先说价值。</p>
+<p>我们将使用一个<a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions" target="_blank" rel="noopener noreferrer">常量断言</a> ( <code>as const</code>)来获得<code>abCounterProps</code>的更精确类型:</p>
+<pre>const abCounterProps = ["a", "b", "onSetA", "onSetB"] as const;
+// type is readonly ["a", "b", "onSetA", "onSetB"]</pre>
+<p>如果没有<code>as const</code>，那么推断出的类型就是简单的<code>string[]</code>。这种类型可以参考<code>typeof abCounterProps</code>。要为元组类型的元素抽取类型，可以使用<code>[0]</code>、<code>[1]</code>等。但是我们想要的是所有元素类型的联合。为此我们使用<code>[number]</code>:</p>
+<pre>type T1 = typeof abCounterProps[0]; // type is "a"
+type T2 = typeof abCounterProps[1]; // type is "b"
+type T3 = typeof abCounterProps[number];
+// type is "a" | "b" | "onSetA" | "onSetB"</pre>
+<p>这最后一种类型看起来和我们传递给<code>Pick</code>的工会一模一样！所以我们可以插上这个来得到<code>ABCounterProps</code>:</p>
+<pre>const abCounterProps = ["a", "b", "onSetA", "onSetB"] as const;
+type ABCounterProps = Pick&lt;AppState, typeof abCounterProps[number]&gt;;</pre>
+<p>如果你添加一个道具到<code>abCounterProps</code>，它会自动添加到<code>ABCounterProp</code>。如果新道具不是<code>AppState</code>的一部分，那么你会得到一个错误。</p>
+<p>我们可以对<code>LeftColumnProps</code>使用类似的策略。但是我们可以将<code>ABCounter</code>中的道具展开，而不是明确列出所有道具:</p>
+<pre>const leftColumnProps = [...abCounterProps, "leftThing"] as const;
+type LeftColumnProps = Pick&lt;AppState, typeof leftColumnProps[number]&gt;;
+
+function LeftColumn(props: LeftColumnProps) {
+  return (
+    &lt;div className="left" style={{ paddingRight: 10 }}&gt;
+      &lt;h2&gt;{props.leftThing}&lt;/h2&gt;
+      &lt;ABCounter {..._.pick(props, abCounterProps)} /&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>最后，我们可以使用<code>leftColumnProps</code>来挑选<code>App</code>中的道具:</p>
+<pre>export default function App() {
+  const [a, setA] = React.useState(0);
+  const [b, setB] = React.useState(1);
+
+  const appState: AppState = {
+    a,
+    b,
+    onSetA: setA,
+    onSetB: setB,
+    leftThing: "I'm on the left",
+    rightThing: "I'm on the right"
+  };
+
+  return (
+    &lt;div className="root"&gt;
+      &lt;h1&gt;Prop Drilling&lt;/h1&gt;
+      &lt;div className="columns" style={{ display: "flex" }}&gt;
+        &lt;LeftColumn {..._.pick(appState, leftColumnProps)} /&gt;
+        &lt;RightColumn {..._.pick(appState, rightColumnProps)} /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</pre>
+<p>这种方法的好处是，如果你向<code>ABCounter</code>添加一个新道具，它将自动被添加到中间组件的道具类型中(因为数组扩展和<code>Pick</code>)，并且它将自动被传递下去(因为<code>{..._.pick()}</code>)。您只需要修改消费者和生产者，而不需要修改中间组件。</p>
+<p>我们保留了全线程版本的所有显式依赖关系。只是我们欺骗了TypeScript和JS运行时，让它们为我们添加到中间组件中，而我们不必键入任何内容。因为一切都是显式的，所以当您未能传递所需的属性时，TypeScript仍然可以标记错误。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>这是这种方法的<a href="https://codesandbox.io/s/stoic-snow-upjv2?file=/src/App.tsx" target="_blank" rel="noopener noreferrer">完整源代码，有93行代码。</a></p>
+<p>挑选道具:</p>
+<ul>
+<li>优点—保留显式依赖关系，无需修改中间组件。避免重复的类型声明</li>
+<li>缺点——需要一些奇特的类型脚本结构。查看组件的道具需要你的编辑器的帮助。至少在本例中，没有其他方法节省那么多代码行</li>
+</ul>
+<h2>结论</h2>
+<p>正确钻取可能是React中令人沮丧的一个原因，尤其是在使用TypeScript时。但不要因此而沮丧！有许多可能的方法来避免“线程化”,这种“线程化”会导致与prop drilling相关的重复的样板代码。</p>
+<p>如果你遇到了支柱钻井，首先问问你是否可以使用更少的部件。如果一个组件只在一个地方被使用，你可能想内联它以减少开销。分解出不同的React组件通常是个好主意，但不如分解出不同的函数好。</p>
+<p>如果您不能合并组件，请考虑您的一些中间组件是否主要充当布局组件，或者它们的某些部分是否主要与布局有关。如果是这样，你可能要用<code>children</code>。将子组件传递给组件有助于组件及其状态的协同定位，并且可以有效地减少适当的钻取。</p>
+<p>如果这两种方法都不起作用，你可以考虑将相关的道具合并到对象中，使用上下文API，或者使用本文中描述的“挑选道具”模式。</p>
+<p>有没有其他方法可以避免钻柱？请在<a href="https://github.com/danvk/prop-drilling" target="_blank" rel="noopener noreferrer">同伴回购</a>中建议他们！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

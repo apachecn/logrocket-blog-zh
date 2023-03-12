@@ -1,0 +1,387 @@
+<html>
+<head>
+<title>Building a REST API with Golang using Gin and Gorm - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Gin和Gorm用Golang构建REST API</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rest-api-golang-gin-gorm/#0001-01-01">https://blog.logrocket.com/rest-api-golang-gin-gorm/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本教程最后一次更新是在2022年11月10日，以使代码示例与Go v1.19兼容，并解决评论部分提出的问题。</em></p>
+<p>Go成为一种流行语言是有原因的。它提供了与其他“低级”编程语言(如Java和C++)类似的性能，但它也非常简单，这使得开发体验令人愉快。</p>
+<p>如果我们可以将快速编程语言与快速web框架结合起来，构建一个高性能的RESTful API，来处理大量的流量，会怎么样？</p>
+<p>在做了大量研究来为这个庞然大物找到一个快速可靠的框架之后，我遇到了一个奇妙的开源项目，叫做<a href="https://github.com/gin-gonic/gin"> Gin </a>。</p>
+<p>向前跳:</p>
+
+<h2 id="what-is-gin">杜松子酒是什么？</h2>
+<p>Gin框架是轻量级的，有很好的文档记录，当然，速度非常快。</p>
+<p>与其他Go web框架不同，Gin使用定制版本的<a href="https://github.com/julienschmidt/httprouter"> HttpRouter </a>，这意味着它可以比大多数框架更快地浏览您的API路径。创作者还声称，它的运行速度比与杜松子酒相对类似的<a href="https://github.com/go-martini/martini">马提尼</a>快40倍。你可以在<a href="https://github.com/gin-gonic/gin/blob/master/BENCHMARKS.md">这个基准</a>中看到更详细的对比。</p>
+<p>然而，Gin是一个微框架，并不具备开箱即用的丰富功能。它只为您提供构建API的基本工具，如路由、表单验证等。</p>
+<p>对于认证用户、上传文件和发送电子邮件等任务，您需要安装另一个第三方库或自己实现。</p>
+<p>这可能不太适合需要在很短时间内发布大量特性的小型开发团队。另一个web框架，如<a href="https://laravel.com/"> Laravel </a>和<a href="https://rubyonrails.org/"> Ruby on Rails </a>，可能更适合这样的团队。这种框架固执己见，更容易学习，并提供了许多现成的特性，这使您能够在瞬间开发一个功能完整的web应用程序。</p>
+<p>如果你是一个小团队的一员，这一堆可能是多余的。但是如果你有兴趣做长期投资，你可以利用Gin非凡的性能和灵活性。</p>
+<h2 id="building-rest-api-go-gin-gorm">使用Gin和Gorm在Go中构建REST API</h2>
+<p>在本教程中，我们将演示如何构建一个书店REST API来提供图书数据并执行CRUD操作。</p>
+<p>在我们开始之前，我假设您:</p>
+<ul>
+<li>在你的机器上安装Go</li>
+<li>了解Go语言的基础知识</li>
+<li>对RESTful API有一个大致的了解</li>
+</ul>
+<p>让我们首先初始化一个新的<a href="https://blog.golang.org/using-go-modules"> Go模块</a>来管理我们项目的依赖项。确保在您的<a href="https://github.com/golang/go/wiki/GOPATH"> Go环境文件夹</a>中运行这个命令:</p>
+<pre class="language-go hljs">$ go mod init
+</pre>
+<p>现在让我们安装<a href="https://github.com/gin-gonic/gin">轧棉</a>和<a href="https://github.com/jinzhu/gorm">轧棉</a>:</p>
+<pre class="language-go hljs">go get github.com/gin-gonic/gin gorm.io/gorm
+</pre>
+<p>安装完成后，您的文件夹应该包含两个文件:<code>go.mod</code>和<code>go.sum</code>。这两个文件都包含关于您安装的包的信息，这在与其他开发人员合作时很有帮助。如果有人想参与这个项目，他们需要做的就是在他们的终端上运行<code>go mod download</code>命令，在他们的机器上安装所有需要的依赖项。</p>
+<p>供参考，<a href="https://gist.github.com/Goodnessuc/314604e369497774a85f14c0ce6c485f"> GitHub </a>上这个项目的全部源代码。请随意探索并使用代码。</p>
+<pre class="language-go hljs">$ git clone https://github.com/rahmanfadhil/gin-bookstore.git
+</pre>
+<h2 id="setting-up-server">设置服务器</h2>
+<p>让我们从在<code>main.go</code>文件中创建一个Hello World服务器开始:</p>
+<pre class="language-go hljs">package main
+
+import (
+  "net/http"
+  "github.com/gin-gonic/gin"
+)
+
+func main() {
+  r := gin.Default()
+
+  r.GET("/", func(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{"data": "hello world"})    
+  })
+
+  r.Run()
+}
+</pre>
+<p>我们首先需要声明无论何时运行我们的应用程序都会被触发的<code>main</code>函数。在这个函数中，我们将在<code>r</code>变量中初始化一个新的Gin路由器。我们使用<code>Default</code>路由器，因为Gin提供了一些有用的中间件，我们可以用它们来调试我们的服务器。</p>
+<p>接下来，我们将定义到<code>/</code>端点的<code>GET</code>路由。如果你曾经使用过其他框架，比如<a href="https://expressjs.com/"> Express.js </a>、<a href="https://www.palletsprojects.com/p/flask"> Flask </a>或者<a href="http://sinatrarb.com/"> Sinatra </a>，你应该熟悉这个模式。</p>
+<p>要定义路由，我们需要指定两件事:端点和处理程序。端点是客户端想要获取的路径。例如，如果用户想要获取我们书店中的所有书籍，他们可以获取<code>/books</code>端点。另一方面，处理程序决定我们如何向客户机提供数据。这是我们放置业务逻辑的地方，比如从数据库获取数据，验证用户输入，等等。</p>
+<p>我们可以向客户端发送几种类型的响应，但是RESTful APIs通常以JSON格式给出响应。在Gin中要做到这一点，我们可以使用请求上下文提供的<code>JSON</code>方法。这个方法需要一个<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status"> HTTP状态代码</a>和一个JSON响应作为参数。<br/>最后，我们可以通过简单地调用Gin实例的<code>Run</code>方法来运行我们的服务器。</p>
+<p>为了进行测试，我们将通过运行以下命令来启动我们的服务器:</p>
+<pre class="language-go hljs">$ go run main.go
+</pre>
+<h2 id="setting-up-database">设置数据库</h2>
+<p>我们需要做的下一件事是建立我们的数据库模型。</p>
+<p>Model是一个类(或Go中的结构),它允许我们与数据库中的特定表进行通信。在Gorm中，我们可以通过定义Go结构来创建模型。该模型将包含表示数据库表中字段的属性。因为我们试图构建一个书店API，所以让我们创建一个<code>Book</code>模型:</p>
+<pre class="language-go hljs">// models/book.go
+
+package models
+
+type Book struct {
+  ID     uint   `json:"id" gorm:"primary_key"`
+  Title  string `json:"title"`
+  Author string `json:"author"`
+}
+</pre>
+<p>我们的模型非常简单。每本书都应该有一个标题和一个字符串数据类型的作者姓名，以及一个ID，这是在我们的数据库中区分每本书的唯一数字。</p>
+<p>我们还使用反勾标注在每个字段上指定了<a href="https://golang.org/ref/spec#Struct_types">标签</a>。由于JSON和Go有不同的命名约定，这允许我们在发送响应时将每个字段映射到不同的名称。<br/>为了稍微组织一下我们的代码，我们可以把代码放在一个叫做模型的独立模块中。</p>
+<p>接下来，我们需要创建一个名为<code>ConnectDatabase</code>的实用函数，它允许我们创建到数据库的连接，并迁移模型的模式。我们可以把它放在我们的<code>models</code>模块的<code>setup.go</code>文件中:</p>
+<pre class="language-go hljs">// models/setup.go
+
+package models
+
+import (
+  "gorm.io/gorm"
+  _ "gorm.io/driver/sqlite"
+)
+
+var DB *gorm.DB
+
+func ConnectDatabase() {
+
+        database, err := gorm.Open(sqlite.Open("test.db"), &amp;gorm.Config{})
+
+        if err != nil {
+                panic("Failed to connect to database!")
+        }
+
+        err = database.AutoMigrate(&amp;Book{})
+        if err != nil {
+                return
+        }
+
+        DB = database
+}
+</pre>
+<p>在这个函数中，我们用<code>gorm.Open</code>方法创建了一个新的连接。在这里，我们指定我们计划使用哪种数据库以及如何访问它。目前，Gorm只支持四种类型的SQL数据库。出于学习目的，我们将使用<a href="https://www.sqlite.org/index.html"> SQLite </a>并将我们的数据存储在<code>test.db</code>文件中。为了将我们的服务器连接到数据库，我们需要导入数据库的驱动程序，它位于<code>gorm.io/driver/sqlite</code>模块中。</p>
+<p>我们还需要检查连接是否创建成功。如果没有，它会将错误打印到控制台并终止服务器。</p>
+<p>接下来，我们使用<code>AutoMigrate</code>迁移数据库模式。确保在您创建的每个模型上调用此方法。</p>
+<p>最后，我们用数据库实例填充<code>DB</code>变量。我们将在控制器中使用这个变量来访问我们的数据库。</p>
+<p>在<code>main.go</code>中，我们需要在运行应用程序之前调用以下函数:</p>
+<pre class="language-go hljs">package main
+
+import (
+  "github.com/gin-gonic/gin"
+
+  "github.com/rahmanfadhil/gin-bookstore/models" // new
+)
+
+func main() {
+  r := gin.Default()
+
+  models.ConnectDatabase() // new
+
+  r.Run()
+}
+</pre>
+<h2 id="setting-up-restful-routes">设置RESTful路线</h2>
+<p>我们快到了！</p>
+<p>我们需要做的最后一件事是实现我们的控制器。在上一节中，我们学习了如何在我们的<code>main.go</code>文件中创建一个路由处理器(即控制器)。然而，这种方法使得我们的代码更难维护。代替这样做，我们可以把我们的控制器放在一个叫做<code>controllers</code>的独立模块中。</p>
+<h3 id="read-handler-function"><code>Read</code>处理函数</h3>
+<p>首先，让我们实现<code>FindBooks</code>控制器:</p>
+<pre class="language-go hljs">// controllers/books.go
+
+package controllers
+
+import (
+"net/http"
+
+"github.com/gin-gonic/gin"
+"github.com/rahmanfadhil/gin-bookstore/models"
+)
+
+// GET /books
+// Get all books
+func FindBooks(c *gin.Context) {
+var books []models.Book
+models.DB.Find(&amp;books)
+
+c.JSON(http.StatusOK, gin.H{"data": books})
+}</pre>
+<p>这里，我们有一个<code>FindBooks</code>函数，它将从我们的数据库中返回所有的书籍。为了访问我们的模型和<code>DB</code>实例，我们需要在顶部导入我们的<code>models</code>模块。</p>
+<p>接下来，我们可以在<code>main.go</code>中将我们的函数注册为路由处理器:</p>
+<pre class="language-go hljs">package main
+
+import (
+  "github.com/gin-gonic/gin"
+
+  "github.com/rahmanfadhil/gin-bookstore/models"
+  "github.com/rahmanfadhil/gin-bookstore/controllers" // new
+)
+
+func main() {
+  r := gin.Default()
+
+  models.ConnectDatabase()
+
+  r.GET("/books", controllers.FindBooks) // new
+
+  r.Run()
+}
+</pre>
+<p>现在，让我们运行我们的服务器并点击<code>/books</code>端点:</p>
+<pre class="language-go hljs">{
+  "data": []
+}
+</pre>
+<p>如果您看到一个空数组，这意味着您的应用程序正在工作。我们得到这个是因为我们还没有创作出一本书。为此，让我们创建一个create book控制器。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="create-handler-function"><code>Create</code>处理函数</h3>
+<p>要创建一本书，我们需要一个可以验证用户输入的模式，以防止我们获得无效数据:</p>
+<pre class="language-go hljs">type CreateBookInput struct {
+  Title  string `json:"title" binding:"required"`
+  Author string `json:"author" binding:"required"`
+}
+</pre>
+<p>该模式与我们的模型非常相似。我们不需要<code>ID</code>属性，因为它将由数据库自动生成。</p>
+<p>现在我们可以在控制器中使用该模式:</p>
+<pre class="language-go hljs">// POST /books
+// Create new book
+func CreateBook(c *gin.Context) {
+  // Validate input
+  var input CreateBookInput
+  if err := c.ShouldBindJSON(&amp;input); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+
+  // Create book
+  book := models.Book{Title: input.Title, Author: input.Author}
+  models.DB.Create(&amp;book)
+
+  c.JSON(http.StatusOK, gin.H{"data": book})
+}
+</pre>
+<p>我们首先使用<code>ShouldBindJSON</code>方法验证请求体，并传递模式。如果数据无效，它会向客户端返回一个<code>400</code>错误，告诉他们哪些字段无效。否则，它将创建一本新书，保存到数据库中，并返回该书。</p>
+<p>现在，我们可以在<code>main.go</code>中添加<code>CreateBook</code>控制器:</p>
+<pre class="language-go hljs">func main() {
+  // ...
+
+  r.GET("/books", controllers.FindBooks)
+  r.POST("/books", controllers.CreateBook) // new
+
+  r.Run()
+}
+</pre>
+<p>因此，如果我们试图用这个请求体向<code>/books</code>端点发送一个POST请求:</p>
+<pre class="language-go hljs">{
+  "title": "Start with Why",
+  "author": "Simon Sinek"
+}
+</pre>
+<p>响应应该是这样的:</p>
+<pre class="language-go hljs">{
+  "data": {
+    "id": 1,
+    "title": "Start with Why",
+    "author": "Simon Sinek"
+  }
+}
+</pre>
+<h3 id="create-handler-function-single-data">用于单个数据的<code>Create</code>处理函数</h3>
+<p>我们已经成功创作了我们的第一本书。让我们添加一个可以读取单本书的控制器:</p>
+<pre class="language-go hljs">// GET /books/:id
+// Find a book
+func FindBook(c *gin.Context) {  // Get model if exist
+  var book models.Book
+
+  if err := models.DB.Where("id = ?", c.Param("id")).First(&amp;book).Error; err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
+    return
+  }
+
+  c.JSON(http.StatusOK, gin.H{"data": book})
+}
+</pre>
+<p>我们的<code>FindBook</code>控制器与<code>FindBooks</code>控制器非常相似。然而，我们只得到第一本书，它与我们从请求参数中得到的ID相匹配。我们还需要通过简单地将这本书包装在一个<code>if</code>语句中来检查它是否存在。</p>
+<p>接下来，将其注册到您的<code>main.go</code>:</p>
+<pre class="language-go hljs">func main() {
+  // ...
+
+  r.GET("/books", controllers.FindBooks)
+  r.POST("/books", controllers.CreateBook)
+  r.GET("/books/:id", controllers.FindBook) // new
+
+  r.Run()
+}
+</pre>
+<p>要获得<code>id</code>参数，我们需要从route path中指定它，如上所示。</p>
+<p>让我们运行服务器并获取<code>/books/1</code>来获取我们刚刚创建的书:</p>
+<pre class="language-go hljs">{
+  "data": {
+    "id": 1,
+    "title": "Start with Why",
+    "author": "Simon Sinek"
+  }
+}
+</pre>
+<h3 id="update-handler-function"><code>Update</code>处理函数</h3>
+<p>到目前为止，一切顺利。现在让我们添加<code>UpdateBook</code>控制器来更新现有的书籍。但是在此之前，我们需要首先定义用于验证用户输入的模式:</p>
+<pre class="language-go hljs">type struct UpdateBookInput {
+  Title  string `json:"title"`
+  Author string `json:"author"`  
+}
+</pre>
+<p><code>UpdateBookInput</code>模式与我们的<code>CreateBookInput</code>非常相似，除了我们不需要让这些字段成为必填字段，因为用户不需要填写书的所有属性。</p>
+<p>要添加控制器:</p>
+<pre class="language-go hljs">// PATCH /books/:id
+// Update a book
+func UpdateBook(c *gin.Context) {
+  // Get model if exist
+  var book models.Book
+  if err := models.DB.Where("id = ?", c.Param("id")).First(&amp;book).Error; err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
+    return
+  }
+
+  // Validate input
+  var input UpdateBookInput
+  if err := c.ShouldBindJSON(&amp;input); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+
+  models.DB.Model(&amp;book).Updates(input)
+
+  c.JSON(http.StatusOK, gin.H{"data": book})
+}
+</pre>
+<p>首先，我们可以从<code>FindBook</code>控制器复制代码来抓取单本书，并确保它存在。找到书后，我们需要用<code>UpdateBookInput</code>模式验证用户输入。最后，我们使用<code>Updates</code>方法更新图书模型，并将更新后的图书数据返回给客户端。</p>
+<p>将其注册到您的<code>main.go</code>:</p>
+<pre class="language-go hljs">func main() {
+  // ...
+
+  r.GET("/books", controllers.FindBooks)
+  r.POST("/books", controllers.CreateBook)
+  r.GET("/books/:id", controllers.FindBook)
+  r.PATCH("/books/:id", controllers.UpdateBook) // new
+
+  r.Run()
+}
+</pre>
+<p>让我们来测试一下！向<code>/books/:id</code>端点发出一个<code>PATCH</code>请求来更新书名:</p>
+<pre class="language-go hljs">{
+  "title": "The Infinite Game"
+}
+</pre>
+<p>结果应该如下所示:</p>
+<pre class="language-go hljs">{
+  "data": {
+    "id": 1,
+    "title": "The Infinite Game",
+    "author": "Simon Sinek"
+  }
+}
+</pre>
+<h3 id="delete-handler-function"><code>Delete</code>处理函数</h3>
+<p>最后一步是实现<code>DeleteBook</code>功能:</p>
+<pre class="language-go hljs">// DELETE /books/:id
+// Delete a book
+func DeleteBook(c *gin.Context) {
+  // Get model if exist
+  var book models.Book
+  if err := models.DB.Where("id = ?", c.Param("id")).First(&amp;book).Error; err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
+    return
+  }
+
+  models.DB.Delete(&amp;book)
+
+  c.JSON(http.StatusOK, gin.H{"data": true})
+}
+</pre>
+<p>就像更新控制器一样，我们从请求参数中获取图书模型(如果它存在的话),并使用<code>Delete</code>方法从我们的数据库实例中删除它，这是我们从中间件中获取的。然后，返回<code>true</code>作为结果，因为没有理由将删除的图书数据返回给客户端:</p>
+<pre class="language-go hljs">func main() {
+        // ...
+        r := gin.Default()
+        models.ConnectDatabase()
+
+        r.GET("/books", controllers.FindBooks)
+        r.POST("/books", controllers.CreateBook)
+        r.GET("/books/:id", controllers.FindBook)
+        r.PATCH("/books/:id", controllers.UpdateBook)
+        r.DELETE("/books/:id", controllers.DeleteBook) // new
+
+        err := r.Run()
+        if err != nil {
+                return
+        }
+}
+</pre>
+<p>让我们通过向<code>/books/1</code>端点发送一个<code>DELETE</code>请求来测试一下:</p>
+<pre class="language-go hljs">{
+  "data": true
+}
+</pre>
+<p>如果我们获取<code>/books</code>中的所有书籍，我们将再次看到一个空数组:</p>
+<pre class="language-go hljs">{
+  "data": []
+}
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>Go提供了两个所有开发人员都渴望并且所有编程语言都致力于实现的主要品质:简单性和性能。虽然这项技术可能不是每个开发团队的最佳选择，但它仍然是一个非常可靠的解决方案和一项值得学习的技能。</p>
+<p>通过从头构建这个项目，我希望您对如何使用Gin和Gorm开发RESTful API、它们如何协同工作以及如何实现CRUD特性有了基本的了解。仍然有很大的改进空间，比如用JWT认证用户，实现单元测试，用Docker容器化你的应用，如果你想更深入地挖掘，你可以尝试许多其他很酷的东西。</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

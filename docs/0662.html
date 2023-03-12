@@ -1,0 +1,247 @@
+<html>
+<head>
+<title>Virtual scrolling: Core principles and basic implementation in React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>虚拟滚动:React - LogRocket博客的核心原理和基本实现</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/#0001-01-01">https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>什么是虚拟滚动，我们为什么需要它？假设您有一个包含100，000或更多项的数据集，您希望将它显示为不带分页的可滚动列表。渲染这么多行将污染DOM，消耗太多内存，并降低应用程序的性能。</p>
+<p>相反，您希望在给定时间只向用户显示一小部分数据。其他项目应该通过顶部和底部填充元素进行模拟(虚拟化)，这些填充元素是空的，但具有提供一致的滚动条参数所需的高度。每当用户滚动出可见项目集时，内容都被重建:新的项目被获取和呈现，旧的被销毁，填充元素被重新计算，等等。</p>
+<p>简而言之，这就是虚拟滚动核心原理。在本教程中，我们将复习基础知识，学习如何创建一个可重用的React组件来解决最简单的虚拟滚动问题。</p>
+<p>你可以在我的<a href="https://github.com/dhilt/react-virtual-scrolling/tree/basics" target="_blank" rel="noopener noreferrer"> GitHub </a>上查看完整的演示库，我已经在<a href="https://codesandbox.io/s/react-virtual-scrolling-basics-u1svg" target="_blank" rel="noopener noreferrer"> CodeSandbox </a>中同步了一个应用程序，以便在运行时使用它。</p>
+<h2 id="part1infrastructure">第1部分:基础设施</h2>
+<p>虽然虚拟滚动有无数的使用案例和需求，但今天我们将重点了解核心原则，并构建一个小组件来满足一些非常基本的需求。让我们定义开始的条件:</p>
+<ul>
+<li>我们想要虚拟化的数据集中的项目数量是已知且固定的</li>
+<li>单行的高度是恒定的</li>
+<li>从我们的应用程序到scroller组件的同步数据流是有保证的</li>
+</ul>
+<p>任何界面开发的第一步都是想象它最终会如何被使用。假设我们已经有了一个名为<code>VirtualScroller</code> <strong>的组件。</strong>要使用它，我们需要做三件事:</p>
+<ol>
+<li>传递虚拟化设置</li>
+<li>提供数据流机制</li>
+<li>定义行模板</li>
+</ol>
+<pre>&lt;VirtualScroller settings={SETTINGS} get={getData} row={rowTemplate}/&gt;</pre>
+<h3 id="settings">设置</h3>
+<p>我们可以将设置作为一组单独的HTML属性来提供，但是我们将定义一个单独的静态对象。它的字段应该确定期望的行为并反映初始条件。让我们从最小值开始(我们总是可以将<code>maxIndex</code>增加到100，000)。</p>
+<pre>const SETTINGS = {
+  minIndex: 1,
+  maxIndex: 16,
+  startIndex: 6,
+  itemHeight: 20,
+  amount: 5,
+  tolerance: 2
+}
+</pre>
+<p><code>amount</code>和<code>tolerance</code>需要特别注意。<code>amount</code>定义我们希望在视口中可见的项目数量。<code>tolerance</code>确定视口的出口，其中包含将被渲染但对用户不可见的附加项目。下图显示了<code>SETTINGS</code>对象的选定值，动画gif演示了滚动时初始状态如何变化。</p>
+<p/><center><img data-attachment-id="13699" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scrolling-settings-object-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png" data-orig-size="267,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selected values of the settings object in a virtual scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value-199x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png" decoding="async" class="size-full wp-image-13699 jetpack-lazy-image" src="../Images/fd0495a97048a82a6e2cc633328f55c9.png" alt="Selected Values of the Settings Object in a Virtual Scroll" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png 267w, https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value-199x300.png 199w" data-lazy-sizes="(max-width: 267px) 100vw, 267px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13699" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scrolling-settings-object-value/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png" data-orig-size="267,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Selected values of the settings object in a virtual scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value-199x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png" decoding="async" loading="lazy" class="size-full wp-image-13699" src="../Images/fd0495a97048a82a6e2cc633328f55c9.png" alt="Selected Values of the Settings Object in a Virtual Scroll" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png 267w, https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value-199x300.png 199w" sizes="(max-width: 267px) 100vw, 267px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-settings-object-value.png"/></noscript> <img data-attachment-id="13700" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scrolling-initial-state-change/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif" data-orig-size="179,404" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Initial state change when scrolling" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change-133x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif" decoding="async" class="size-full wp-image-13700 jetpack-lazy-image" src="../Images/3fe124f6b9972a701759a896aab3d2d0.png" alt="Diagram Showing How the Initial State Can Change When Scrolling" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="13700" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scrolling-initial-state-change/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif" data-orig-size="179,404" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Initial state change when scrolling" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change-133x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif" decoding="async" loading="lazy" class="size-full wp-image-13700" src="../Images/3fe124f6b9972a701759a896aab3d2d0.png" alt="Diagram Showing How the Initial State Can Change When Scrolling" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scrolling-initial-state-change.gif"/></noscript></center> 
+<p>彩色窗口包含实际数据行(最初从4到12)。深蓝色区域表示视口的可见部分；其高度是固定的，等于<code>amount</code> * <code>itemHeight</code>。浅蓝色插座具有真实但不可见的行，因为它们在视口之外。上方和下方的白色区域是两个空容器；它们的高度对应于我们不希望出现在DOM中的虚拟化行。我们可以如下计算虚拟行的初始数量。</p>
+<pre>(maxIndex - minIndex + 1) - (amount + 2 * tolerance) = 16 - 9 = 7
+</pre>
+<p>Seven分为顶部的三个虚拟行和底部的四个虚拟行。</p>
+<p>每次我们上下滚动时，图像都会改变。例如，如果我们滚动到最顶端(零)位置，视口的可见部分将有1到5行，底部出口将有6到7行，底部填充容器将虚拟化8到16行，顶部填充容器将接受零高度，顶部出口将不存在。这种转换的逻辑将在下面讨论，我们将在第二部分讨论<code>VirtualScroller</code>组件。</p>
+<h3 id="dataflow">数据流</h3>
+<p>我们定义了<code>get</code>属性，并将其传递给带有<code>getData</code>值的<code>VirtualScroller</code>组件。什么是<code>getData</code>？这是一种向<code>VirtualScroller</code>提供部分数据集的方法。滚动器将通过这个方法请求数据，所以我们需要用适当的参数对它进行参数化。姑且称之为<code>offset</code>和<code>limit</code>。</p>
+<pre>const getData = (offset, limit) =&gt; {
+  const data = []
+  const start = Math.max(SETTINGS.minIndex, offset)
+  const end = Math.min(offset + limit - 1, SETTINGS.maxIndex)
+  if (start &lt;= end) {
+    for (let i = start; i &lt;= end; i++) {
+      data.push({ index: i, text: `item ${i}` })
+    }
+  }
+  return data
+}
+</pre>
+<p><code>getData(4, 9)</code>调用意味着我们想要接收从索引4开始的9个项目。这个特定的调用与上图相关联:需要4到12个项目来在开始时用插座填充视口。在<code>Math.min</code>和<code>Math.max</code>的帮助下，我们将把请求的数据部分限制在由最大/最小索引设置定义的数据集边界内。这也是我们生成项目的地方；一个项目是具有<code>index</code>和<code>text</code>属性的对象。<code>index</code>是唯一的，因为这些属性将参与行模板。</p>
+<p>我们可以从其他地方请求数据，甚至从远程数据源请求数据，而不是生成项目。我们可以返回<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank" rel="noopener noreferrer"> <code>Promise</code> </a>来处理异步数据源请求，但是现在我们将关注虚拟化而不是数据流，以保持实现尽可能简单。</p>
+<h3 id="rowtemplate">行模板</h3>
+<p>一个仅显示<code>text</code>属性的非常简单的模板可能如下所示:</p>
+<pre>const rowTemplate = item =&gt;
+  &lt;div className="item" key={item.index}&gt;
+    { item.text }
+  &lt;/div&gt;
+</pre>
+<p>行模板取决于应用程序的独特需求。复杂度可能不同，但必须与<code>getData</code>返回的内容一致。行模板的<code>item</code>必须与每个<code>data</code>列表项具有相同的结构。还需要<a href="https://reactjs.org/docs/lists-and-keys.html#keys" target="_blank" rel="noopener noreferrer"> <code>key</code> </a>属性，因为<code>VirtualScroller</code>创建行列表，我们需要为元素提供稳定的标识。</p>
+<p>让我们再看一看:</p>
+<pre>&lt;VirtualScroller settings={SETTINGS} get={getData} row={rowTemplate}/&gt;
+</pre>
+<p>我们已经成功地传递了我们想要传递给<code>VirtualScroller</code>的三样东西。通过这种方式，<code>VirtualScroller</code>不需要知道它正在处理的数据的任何信息。这些信息将通过<code>get</code>和<code>row</code>属性来自滚动器的外部，这是组件可重用性的关键。我们也可以将刚刚建立的scroller属性协议视为我们未来的组件API。</p>
+
+<p>现在已经完成了一半的工作，进入第二阶段:构建一个虚拟滚动组件来满足我们在上一节中开发的API。这听起来有点像<a href="https://www.reddit.com/r/pics/comments/d3zhx/how_to_draw_an_owl/" target="_blank" rel="noopener noreferrer">如何画猫头鹰</a>，但是我保证，我们真的已经成功了一半。</p>
+<h3 id="render">提供；给予</h3>
+<p>回到上一节的图片，显然我们需要以下DOM元素:</p>
+<ul>
+<li>具有受约束的<code>height</code>和<code>overflow-y: auto</code>样式的视口元素</li>
+<li>两个无内容但具有动态<code>height</code>的填充元素</li>
+<li>用行模板包装的缓冲的<code>data</code>项的列表</li>
+</ul>
+<pre>render() {
+  const { viewportHeight, topPaddingHeight, bottomPaddingHeight, data } = this.state
+  return (
+    &lt;div className='viewport' style={{ height: viewportHeight }}&gt;
+      &lt;div style={{ height: topPaddingHeight }}&gt;&lt;/div&gt;
+      { data.map(this.props.row) }
+      &lt;div style={{ height: bottomPaddingHeight }}&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  )
+}</pre>
+<p>这就是render方法可能的样子。四个状态属性反映了我们为DOM结构设置的需求:三个高度和数据的当前部分。此外，我们看到<code>this.props.row</code>，它只是从外部传递的行模板，因此<code>data.map(this.props.row)</code>将根据我们的API呈现当前数据项的列表。在添加滚动之前，我们需要定义状态属性。</p>
+<h3 id="state">状态</h3>
+<p>现在该初始化内部组件的状态了。让我们尝试基于第一部分中讨论的<code>settings</code>对象实现一个返回初始状态对象的纯函数。除了渲染中的四个状态属性，我们还需要一些其他的滚动属性，这样当状态对象的属性比渲染所需的多一点时，我们就不会感到惊讶了。话虽如此，我们这一部分的主要目标是强制第一个渲染绘制初始图片。</p>
+<pre>const setInitialState = ({
+  minIndex, maxIndex, startIndex, itemHeight, amount, tolerance
+}) =&gt; {
+  // 1) height of the visible part of the viewport (px)
+  const viewportHeight = amount * itemHeight
+  // 2) total height of rendered and virtualized items (px)
+  const totalHeight = (maxIndex - minIndex + 1) * itemHeight
+  // 3) single viewport outlet height, filled with rendered but invisible rows (px)
+  const toleranceHeight = tolerance * itemHeight
+  // 4) all rendered rows height, visible part + invisible outlets (px)
+  const bufferHeight = viewportHeight + 2 * toleranceHeight
+  // 5) number of items to be rendered, buffered dataset length (pcs)
+  const bufferedItems = amount + 2 * tolerance
+  // 6) how many items will be virtualized above (pcs)
+  const itemsAbove = startIndex - tolerance - minIndex
+  // 7) initial height of the top padding element (px)
+  const topPaddingHeight = itemsAbove * itemHeight
+  // 8) initial height of the bottom padding element (px)
+  const bottomPaddingHeight = totalHeight - topPaddingHeight
+  // 9) initial scroll position (px)
+  const initialPosition = topPaddingHeight + toleranceHeight
+  // initial state object
+  return {
+    settings,
+    viewportHeight,
+    totalHeight,
+    toleranceHeight,
+    bufferHeight,
+    bufferedItems,
+    topPaddingHeight,
+    bottomPaddingHeight,
+    initialPosition,
+    data: []
+  }
+}
+</pre>
+<p>让我们来看看更新后的图片:</p>
+<p><img data-attachment-id="13701" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scroll-component-updated/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png" data-orig-size="562,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Updated state of virtual scroll component in React" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated-300x215.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png" decoding="async" class="aligncenter size-full wp-image-13701 jetpack-lazy-image" src="../Images/9296567b4e2c61d5d6087cc85f3f0c1a.png" alt="Updated State of Virtual Scroll Component in React" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png 562w, https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated-300x215.png 300w" data-lazy-sizes="(max-width: 562px) 100vw, 562px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="13701" data-permalink="https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/virtual-scroll-component-updated/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png" data-orig-size="562,403" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Updated state of virtual scroll component in React" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated-300x215.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-13701" src="../Images/9296567b4e2c61d5d6087cc85f3f0c1a.png" alt="Updated State of Virtual Scroll Component in React" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png 562w, https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated-300x215.png 300w" sizes="(max-width: 562px) 100vw, 562px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/virtual-scroll-component-updated.png"/></noscript>
+<p>计算式(8)和(9)不在图上。scroller在初始化时不会在缓冲区中有任何项目；缓冲区保持为空，直到第一个<code>get</code>方法调用返回非空结果。这也是为什么我们看到一个空数组<code>[]</code>作为<code>data</code>状态属性的初始值。因此，最初，视口应该只包含两个空白填充元素，底部的元素应该填充顶部元素之后剩余的所有空间。因此，320–60 = 260(px)将是我们示例中<code>bottomPaddingHeight</code>的初始值。</p>
+<p>最后，<code>initialPosition</code>决定开始时滚动条的位置。它应该与<code>startIndex</code>值一致，所以在我们的示例中滚动条的位置应该固定在第六行，顶部坐标。这相当于60 + 40 = 100 (px)的值。</p>
+<h3 id="initialization">初始化</h3>
+<p>状态的初始化放在scroller组件构造函数中，同时创建viewport <a href="https://reactjs.org/docs/refs-and-the-dom.html" target="_blank" rel="noopener noreferrer">元素引用</a>，这是手动设置滚动位置所必需的。</p>
+<pre>constructor(props) {
+  super(props)
+  this.state = setInitialState(props.settings)
+  this.viewportElement = React.createRef()
+}
+</pre>
+<p>这使我们能够用两个填充元素初始化我们的视口，其中累积高度对应于我们将要显示/虚拟化的所有数据的量。此外，应该更新render方法以分配viewport元素引用。</p>
+<pre>  return (
+    &lt;div className='viewport'
+         style={{ height: viewportHeight }}
+         ref={this.viewportElement}
+    &gt; ... &lt;/div&gt;
+  )
+</pre>
+<p>在第一次渲染完成并且填充元素初始化之后，将视口滚动条位置设置为初始值。<a href="https://reactjs.org/docs/state-and-lifecycle.html#adding-lifecycle-methods-to-a-class" target="_blank" rel="noopener noreferrer"> <code>DidMount</code>生命周期方法</a>是最合适的地方。</p>
+<pre>componentDidMount() {
+  this.viewportElement.current.scrollTop = this.state.initialPosition
+}
+</pre>
+
+<p>现在我们必须处理滚动。<code>runScroller</code>方法将负责获取<code>data</code>项并调整填充元素。我们将立即实现它，但是首先让我们<a href="https://reactjs.org/docs/handling-events.html" target="_blank" rel="noopener noreferrer">将它与渲染时viewport元素的滚动事件</a>绑定。</p>
+<pre>  return (
+    &lt;div className='viewport'
+         style={{ height: viewportHeight }}
+         ref={this.viewportElement}
+         onScroll={this.runScroller}
+    &gt; ... &lt;/div&gt;
+  )
+</pre>
+<p>第一次渲染完成后，调用<code>DidMount</code>方法。将<code>initialPosition</code>值赋给视口的<code>scrollTop</code>属性将隐式调用<code>runScroller</code>方法。这样，初始数据请求将被自动触发。</p>
+<p>还有一种边缘情况，初始滚动位置为0，<code>scrollTop</code>不变；这在技术上与<code>minIndex</code>等于<code>startIndex</code>的情况相关。在这种情况下，应该显式调用<code>runScroller</code>。</p>
+<pre>componentDidMount() {
+  this.viewportElement.current.scrollTop = this.state.initialPosition
+  if (!this.state.initialPosition) {
+    this.runScroller({ target: { scrollTop: 0 } })
+  }
+}
+</pre>
+<p>我们需要模拟<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/Event/target" target="_blank" rel="noopener noreferrer">event</a></code>对象，但是<code>scrollTop</code>是<code>runScroller</code>处理程序唯一要处理的东西。现在我们已经到了最后一条逻辑。</p>
+
+<pre>runScroller = ({ target: { scrollTop } }) =&gt; {
+  const { totalHeight, toleranceHeight, bufferedItems, settings: { itemHeight, minIndex }} = this.state
+  const index = minIndex + Math.floor((scrollTop - toleranceHeight) / itemHeight)
+  const data = this.props.get(index, bufferedItems)
+  const topPaddingHeight = Math.max((index - minIndex) * itemHeight, 0)
+  const bottomPaddingHeight = Math.max(totalHeight - topPaddingHeight - data.length * itemHeight, 0)
+
+  this.setState({
+    topPaddingHeight,
+    bottomPaddingHeight,
+    data
+  })
+}
+</pre>
+<p><code>runScroller</code>是scroller组件的一个<a href="https://reactjs.org/docs/faq-functions.html#how-do-i-bind-a-function-to-a-component-instance" target="_blank" rel="noopener noreferrer">类属性</a>(参见我在<a href="https://github.com/tc39/proposal-class-fields/issues/293" target="_blank" rel="noopener noreferrer"> TC39 repo </a>中创建的这个问题)，它通过<code>this</code>访问它的<code>state</code>和<code>props</code>。它根据作为参数传递的当前滚动位置和在正文第一行中构造的当前状态进行一些计算。</p>
+<p>第2行和第3行用于获取数据集的新部分，这将是一个新的滚动数据项缓冲区。第4行和第5行用于获取顶部和底部填充元素的新高度值。结果转到<code>state</code>，然后<code>render</code>更新视图。</p>
+<p>数学上的几句话。根据我们在第一部分中开发的API，<code>get</code>方法需要两个参数来回答下面的问题。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<ul>
+<li>应该请求多少项(<code>limit</code>自变量，也就是<code>bufferedItems</code>)？</li>
+<li>什么索引应该是结果数组的第一个(<code>offset</code>自变量，也就是<code>index</code>)？</li>
+</ul>
+<p>计算<code>index</code>时要记住顶部出口，这样会减去之前设置的<code>toleranceHeight</code>值。除以<code>itemHeight</code>会在<code>index</code>之前给我们留下一些行，我们希望它们是缓冲区中的第一个。添加的<code>minIndex</code>将行数转换为索引。滚动位置(<code>scrollTop</code>)可以出现在随机行的中间，这样，可能不是<code>itemHeight</code>的倍数。这就是为什么我们需要对除法的结果进行四舍五入— <code>index</code>必须是整数。</p>
+<p>顶部填充元素的高度是在<code>index</code>乘以行的已知高度之前通过许多行获得的。<code>Math.max</code>表达式确保结果不是负的。我们可以将这种保护转移到<code>index</code>步骤(比如，<code>index</code>不能小于<code>minIndex</code>)，但结果是一样的。同样值得注意的是，我们已经在<code>getData</code>实现中加入了这样的限制。</p>
+<p>底部填充元素的高度考虑了为scroller缓冲区(<code>data.length</code> <em> * </em> <code>itemHeight</code>)检索的新项目的高度。我不相信在这个实现中它会是负的，但是我们现在不用担心这个。逻辑是非常基本的，我们试图专注于方法本身。因此，一些细节可能不是100%完美。</p>
+<h2 id="summary">摘要</h2>
+<p>虚拟卷轴工程在前端开发中的历史可以追溯到2010年代早期，可能更早。我的个人虚拟滚动之旅始于2014年。今天，我维护了两个角度宇宙回复——<code><a href="https://github.com/angular-ui/ui-scroll" target="_blank" rel="noopener noreferrer">angular-ui-scroll</a></code>和<a href="https://github.com/dhilt/ngx-ui-scroll" target="_blank" rel="noopener noreferrer"><code>ngx-ui-scroll</code></a>——我用React开发了这个简单的演示。</p>
+<p>假设行高不变，我们刚刚实现的<code>VirtualScroller</code>组件可以虚拟化固定大小的数据集。它使用开发人员负责实现的特殊方法来消费数据。它还接受影响视图和行为的模板和静态设置属性。</p>
+<p>这篇文章并不自称是绝对真理的来源；这只是一种方法，适合最简单情况的许多可能的解决方案之一。在这个或那个框架的基础上构建了许多包罗万象的解决方案，包括React，但它们都有其局限性，没有一个真正涵盖所有可能的需求。一个图书馆总能做一些另一个图书馆做不到的事情——这是常见的情况。</p>
+<p>从零开始构建解决方案的选项增强了我们应用虚拟滚动技术的能力。这不是神圣的知识，但它是我们可以继续前进的东西。</p>
+<p>说到需求，我们还能提出什么其他的发展来使我们的实现更好呢？</p>
+<ul>
+<li>检查所有输入参数，抛出有意义的错误</li>
+<li>默认设置:一个普通的lib用户为什么要考虑<code>tolerance</code>？</li>
+<li>缓存:不要两次请求相同的数据</li>
+<li>允许无限数据集:<code>min</code>和<code>max</code>索引可以是未知的</li>
+<li>异步数据流:滚动器在更新状态之前必须等待数据</li>
+<li>动态数据源设置:比如我们决定数据源准备多提供100项，为什么不增加<code>maxIndex</code> <em>？</em></li>
+<li>动态视口设置:我们可能想要在飞行中改变视口的高度</li>
+<li><span class="ace-line-pocket-zws" data-faketext="" data-contentcollector-ignore-space-at="end"> </span> <span class="ace-line-pocket-zws" data-faketext="" data-contentcollector-ignore-space-at="start"> </span> <span class="added"/></li>
+<li>让应用程序访问一些只读数据:当前在缓冲区中有多少项，以及第一个/最后一个可见项，滚动器正在加载(如果是异步数据源)？</li>
+<li>提供操作滚动器运行时的方法:按需删除或添加项目(无需滚动)，重新加载视口，滚动到边框，滚动到特定索引，重新加载到索引</li>
+<li><span class="ace-line-pocket-zws" data-faketext="" data-contentcollector-ignore-space-at="end"> </span> <span class="ace-line-pocket-zws" data-faketext="" data-contentcollector-ignore-space-at="start"> </span> <span class="added"> N </span> <span class="added"> ew设置:s </span> <span class="added"> croll事件潜伏期</span> <span class="added s-lparen"> </span> <span class="added h-lparen"> (do </span> <span class="added">不会过于频繁地触发scroller逻辑)、</span> <span class="added"> </span> <span class="added">反向选项</span> <span class="added s-lparen"> </span> <span class="added h-lparen">(滚动</span> <span class="added">排名靠前的结果以指数递增)</span> <span class="added longkeep">、</span> <span class="added longkeep">无剪辑选项</span></li>
+<li>允许水平滚动模式</li>
+<li>动画挂钩</li>
+</ul>
+<p>这绝不是一个完整的列表，上面的大多数特性都有自己的边缘情况、各种实现方法以及性能和可用性问题。我们甚至不要开始测试。</p>
+<p>此外，每个单独的鼠标、触摸板、电话和浏览器可能会有不同的行为，特别是在惯性领域。有时候我就想哭。但是，尽管虚拟滚动令人沮丧，开发它还是很有趣，也很有收获。因此，今天就开始吧，帮助将虚拟滚动的旗帜带入一个新时代！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

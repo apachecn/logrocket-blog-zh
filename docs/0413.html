@@ -1,0 +1,184 @@
+<html>
+<head>
+<title>Accessing the virtual DOM using render functions in Vue JS - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Vue JS - LogRocket博客中的渲染函数访问虚拟DOM</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/#0001-01-01">https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在这篇文章中，我们将通过使用<a href="https://blog.logrocket.com/hooks-are-coming-to-vue/" target="_blank" rel="noopener noreferrer"> Vue </a>中的模板来看看如何使用渲染函数来释放JavaScript的力量。</p>
+<h2>开始之前</h2>
+<p>这篇文章适合所有阶段的开发者，包括初学者。在阅读本文之前，这里有一些你应该已经具备的东西。</p>
+<p>您需要在您的电脑上安装以下设备:</p>
+<ul>
+<li><a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer"> Node.js版本10.x </a>及以上安装。您可以通过在终端/命令提示符下运行以下命令来验证您是否知道:</li>
+</ul>
+<pre>node -v</pre>
+<ul>
+<li>代码编辑器:强烈推荐使用Visual Studio代码</li>
+<li><a href="https://vuejs.org/" target="_blank" rel="noopener noreferrer"> Vue的最新版本</a>，全球安装在您的机器上</li>
+<li>安装在您机器上的Vue CLI 3.0 。为此，请先卸载旧版本的CLI:</li>
+</ul>
+<pre>npm uninstall -g vue-cli</pre>
+<p>然后安装新的:</p>
+<pre>npm install -g @vue/cli</pre>
+<ul>
+<li>在这里下载一个Vue starter项目<a href="https://github.com/viclotana/vue-canvas" target="_blank" rel="noopener noreferrer"/></li>
+<li>解压缩下载的项目</li>
+<li>导航到解压缩后的文件，并运行命令以保持所有依赖项最新:</li>
+</ul>
+<pre>npm install</pre>
+<h2>简介:Vue如何在浏览器中工作</h2>
+<p>Vue JS关注于JavaScript项目的视图层，这就是为什么提供模板来显示你的演示(标记语言)。节点是<a href="https://blog.logrocket.com/8-dom-features-you-didnt-know-existed-ec2a0a28fd89/" target="_blank" rel="noopener noreferrer"> DOM </a>中最小的构造单元，所以当像这样的模板代码被发送到DOM时，浏览器会将其分解为节点:</p>
+<pre>&lt;div&gt; 
+ &lt;h1&gt;My first heading is this &lt;/h1&gt;
+ &lt;p&gt;The paragraph text stays here &lt;/p&gt;
+&lt;/div&gt;</pre>
+<p>因此，标题是一个节点，标题文本是标题节点内的子节点，就像段落是一个节点，其中的文本是子节点一样。为了更新这些节点，Vue在组装节点时提供了一个模板来编写表示代码。</p>
+<p>所以对于像上面这样的段落，你只需在模板部分写下:</p>
+<pre>&lt;p&gt;The paragraph text stays here &lt;/p&gt;</pre>
+<p>或者使用渲染函数来创建它，如下所示:</p>
+<pre>render: function (createElement) {
+  return createElement('p', 'The paragraph text stays here')
+}</pre>
+<p>在比较这两种方法时，您可以很快注意到Vue的抽象程度。然而，render函数更接近编译器，因为模板代码仍然需要转录成JavaScript。</p>
+<h2>vue管理器节点如何</h2>
+<p>为了监控和正确管理这些节点，Vue JS构建了一个虚拟DOM，它在这个虚拟DOM中做一些脏活来跟踪节点，以及它们如何从挂载点<code>onInit</code>变化到卸载时(在<code>onDestroy</code>)成为虚拟节点。虚拟DOM只是所有虚拟节点的组件树。</p>
+<h2>渲染功能</h2>
+<p>这是在Vue组件内部使用的JavaScript函数，用于执行创建元素之类的任务。这里我们看到上面显示的函数:</p>
+<pre>render: function (createElement) {
+      return createElement('p', 'The paragraph text stays here')
+    }</pre>
+<p>您会看到参数createElement用于在DOM中创建新的元素，在幕后它返回一个虚拟节点。虚拟节点在Vue JS中被称为VNodes。</p>
+<p>渲染函数的<code>createElement</code>最多接受三个参数:</p>
+<ol>
+<li>第一个参数称为<strong>呈现元素</strong>，它是createElement工作所必需的，它可以是一个字符串，甚至是一个函数。它通常是一个HTML标记名、一个组件选项或一个解析为标记名的函数。</li>
+<li>第二个参数是组件的<strong>定义或者最后一个参数中的HTML标记名</strong>。它通常是一个对象，并且是一个可选参数。它是一个数据对象，对应于将在DOM中创建的参数。</li>
+<li>第三个参数是<strong>的子参数</strong>，它可以是第一个参数的数据值或子节点的字符串或数组。</li>
+</ol>
+<h2>演示</h2>
+<p>为了说明渲染功能，让我们看一个例子，如果你从一开始就阅读这篇文章，你将已经下载了<a href="https://github.com/viclotana/vue-canvas" target="_blank" rel="noopener noreferrer">启动项目</a>，解压并在你的VS代码应用程序中打开它。打开您的<code>App.vue</code>文件，确保它看起来像这样:</p>
+<pre>&lt;template&gt;
+  &lt;div id="app"&gt;
+    &lt;p&gt;{{greetings}} &lt;/p&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+import Test from './components/Test.vue'
+export default {
+  name: 'app',
+  components: {
+    Test
+  },
+  data(){
+    return {
+      greetings: 'The paragraph text stays here'
+    }
+  }
+}
+&lt;/script&gt;
+&lt;style&gt;
+#app {
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+}
+&lt;/style&gt;</pre>
+<p>这正是我们在本文开始时的第一个代码样本。要使用渲染函数方法，请记住它是Vue中的一个纯JavaScript概念，因此打开main.js文件，它应该如下所示:</p>
+<pre>import Vue from 'vue'
+import App from './App.vue'
+Vue.config.productionTip = false
+new Vue({
+  render: h =&gt; h(App),
+}).$mount('#app')</pre>
+<p>这是Vue保存默认挂载语句的地方，也是app.vue文件成为根组件的原因。将此代码块添加到新的Vue代码块之前，紧接在第三行之后:</p>
+<pre>import Vue from 'vue'
+import App from './App.vue'
+Vue.config.productionTip = false
+Vue.component('Hello', {
+   render(createElement){
+    return createElement('p', 'The rendered paragraph text stays here');
+ }
+})
+new Vue({
+  render: h =&gt; h(App),
+}).$mount('#app')</pre>
+<p>这将创建一个名为Hello的新Vue组件，然后在其中创建一个段落元素。该段落看起来就像您打开了一个新的。vue文件类似于项目目录中的测试组件。要测试它，返回到<code>app.vue</code>文件，在模板中添加Hello组件，并观察它出现在浏览器中。</p>
+<pre>&lt;template&gt;
+  &lt;div id="app"&gt;
+    &lt;p&gt;{{greetings}} &lt;/p&gt;
+    &lt;Hello /&gt;
+  &lt;/div&gt;
+&lt;/template&gt;</pre>
+<p>下面是它在浏览器中的样子:</p>
+<p><img data-attachment-id="4922" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/renderedparagraphvue/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png" data-orig-size="730,100" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="renderedparagraphvue" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue-300x41.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png" decoding="async" class="aligncenter wp-image-4922 jetpack-lazy-image" src="../Images/dac8e62c0463f4804c421cad7e360a64.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue-300x41.png 300w" data-lazy-sizes="(max-width: 2000px) 100vw, 2000px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="4922" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/renderedparagraphvue/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png" data-orig-size="730,100" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="renderedparagraphvue" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue-300x41.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png" decoding="async" loading="lazy" class="aligncenter wp-image-4922" src="../Images/dac8e62c0463f4804c421cad7e360a64.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue-300x41.png 300w" sizes="(max-width: 2000px) 100vw, 2000px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/renderedparagraphvue.png"/></noscript>
+<h2>利用JavaScript的力量</h2>
+<p>您可以利用您的JavaScript知识来真正控制虚拟DOM，因为您已经知道使用render函数可以直接控制Vue虚拟DOM。您可以添加带有值的数据对象，然后用它来引用它，如下所示:</p>
+<pre>Vue.component('Hello', {
+  render(createElement){
+    return createElement('p', this.greetings);
+  },
+  data(){
+    return {
+      greetings: 'The paragraph text stays here'
+    }
+  }
+})</pre>
+<p>这将使用数据对象中指定的文本显示创建的段落。</p>
+<h2>使用道具</h2>
+<p>你也可以使用你最喜欢的Vue JS构造，比如道具。如果您的<code>app.vue</code>模板部分有这样一个汽车属性:</p>
+<pre>&lt;template&gt;
+  &lt;div id="app"&gt;
+    &lt;p&gt;{{greetings}} &lt;/p&gt;
+    &lt;Hello car=" driving a Ferari"/&gt;
+  &lt;/div&gt;
+&lt;/template&gt;</pre>
+<p>您可以像这样使用<code>main.js</code>文件中的props来引用它:</p>
+<pre>Vue.component('Hello', {
+  render(createElement){
+    return createElement('p', this.greetings + this.car);
+  },
+  data(){
+    return {
+      greetings: 'The paragraph text stays here'
+    }
+  },
+  props: ['car']
+})</pre>
+<p>下面是它在浏览器中的样子:<br/> <img data-attachment-id="4926" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/rendercreateelement/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png" data-orig-size="730,140" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="rendercreateelement" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement-300x58.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png" decoding="async" class="aligncenter wp-image-4926 size-full jetpack-lazy-image" src="../Images/1d6fa80b48b02905cd09b876b7fd9a7b.png" alt="render createElement " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement-300x58.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="4926" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/rendercreateelement/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png" data-orig-size="730,140" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="rendercreateelement" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement-300x58.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png" decoding="async" loading="lazy" class="aligncenter wp-image-4926 size-full" src="../Images/1d6fa80b48b02905cd09b876b7fd9a7b.png" alt="render createElement " srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement-300x58.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/rendercreateelement.png"/></noscript>
+<h2>创建嵌套组件</h2>
+<p>您还可以使用render函数嵌套元素，如下所示:</p>
+<pre>Vue.component('Hello', {
+      render(createElement){
+        return createElement('ul', 
+          [createElement('li',[createElement('p', 'I am a nested list item')])]);
+      },
+      data(){
+        return {
+          greetings: 'The paragraph text stays here'
+        }
+      },
+      props: ['car']
+    })</pre>
+<p>下面是它在浏览器中的样子:</p>
+<p><img data-attachment-id="4928" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/nestedlistitem/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png" data-orig-size="730,156" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="nestedlistitem" data-image-description="&lt;p&gt;nest item list ui &lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem-300x64.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png" decoding="async" class="aligncenter wp-image-4928 size-full jetpack-lazy-image" src="../Images/9602ec38c2797076131c9ac490233019.png" alt="nested item list ui" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem-300x64.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="4928" data-permalink="https://blog.logrocket.com/accessing-the-virtual-dom-using-render-functions-in-vue-js/nestedlistitem/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png" data-orig-size="730,156" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="nestedlistitem" data-image-description="&lt;p&gt;nest item list ui &lt;/p&gt;&#10;" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem-300x64.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png" decoding="async" loading="lazy" class="aligncenter wp-image-4928 size-full" src="../Images/9602ec38c2797076131c9ac490233019.png" alt="nested item list ui" srcset="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem-300x64.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/08/nestedlistitem.png"/></noscript>
+<p>这里可以看到<a href="https://vuejs.org/v2/api/#Instance-Properties" target="_blank" rel="noopener noreferrer"> Vue实例API </a>和渲染函数文档<a href="https://vuejs.org/v2/guide/render-function.html" target="_blank" rel="noopener noreferrer">。</a></p>
+<h2>结论</h2>
+<p>这很好地介绍了如何使用渲染函数访问Vue虚拟DOM。这是与DOM交流的一种非常直接的方式，有了Vue和JavaScript本身的知识，您可以轻松地完全控制DOM。黑客快乐！</p>
+<p> </p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p>
+<p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

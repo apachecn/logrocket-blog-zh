@@ -1,0 +1,499 @@
+<html>
+<head>
+<title>Building Figma plugins with React - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用React - LogRocket博客构建Figma插件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/building-figma-plugins-with-react/#0001-01-01">https://blog.logrocket.com/building-figma-plugins-with-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>本文将介绍如何用webpack建立一个Figma插件项目来实现使用React的UI。该插件的目的是生成三种随机颜色，并让用户选择一种颜色分配给Figma文档中选定的元素。</p>
+<p>这个示例插件将演示如何在UI和插件代码之间建立通信，然后如何使用API来完成给定的基本任务。</p>
+<h2>创建插件项目</h2>
+<p>你需要做的第一件事是通过Figma应用程序创建一个Figma插件。这将生成一个带有<code>manifest.json</code>文件的模板项目，其中包含您的插件及其ID的信息。为了创建一个项目，你需要点击左侧菜单中的<strong>社区</strong>部分，然后，在<strong>插件</strong>选项卡下，你可以找到<strong>创建新插件</strong>按钮。</p>
+<p>一旦你创建了你的插件，它将生成所有需要的文件，但是为了集成TypeScript和Sass编译器并捆绑所有的资产，比如JavaScript、样式文件，可能还有SVG，我们需要一个捆绑器。为此，我们将使用webpack。</p>
+<p>在配置webpack之前，我们需要对源文件进行一些整理。创建一个<code>/src</code>文件夹，移动该文件夹中的<code>ui.html</code>和<code>code.ts</code>文件。您可以删除预先生成的<code>code.js</code>文件。现在我们需要一个<code>ui.tsx</code>文件，它将包含用TypeScript编写的React代码。同样在<code>/src</code>文件夹下创建这个文件。</p>
+<p>我们需要做的最后一件事是编辑<code>ui.html</code>文件。这个文件已经包含了一些HTML和JavaScript，但是我们只需要一个HTML元素，它将由React填充。因此，用下面一行替换<code>ui.html</code>的全部内容:</p>
+<pre>&lt;div id="root"&gt;&lt;/div&gt;</pre>
+<p>最终，<code>/src</code>文件夹应该是这样的:</p>
+<pre>-- src
+ |- ui.tsx
+ |- code.ts
+ |- ui.html</pre>
+<p>我们需要的最后一件事是相应地配置<code>manifest.json</code>文件。</p>
+<p>在那里，你可以看到<code>main</code>和<code>ui</code>键。它们分别告诉Figma在哪里寻找包含插件代码和UI代码的文件。由于webpack默认将捆绑文件放在<code>/dist</code>文件夹下，我们需要为<code>main</code>和<code>ui</code>键指向该文件夹下的特定文件。</p>
+<p><code>./dist/code.js</code>是来自<code>code.ts</code>的编译文件，<code>./dist/ui.html</code>是HTML文件，它将包含<code>&lt;script&gt;&lt;/script&gt;</code>标记之间的内联JavaScript代码。</p>
+<p>请注意，Figma接受一个单一的UI文件，这意味着您不能让带有<code>src</code>属性的<code>&lt;script&gt;</code>标签指向一个JavaScript文件。这就是为什么<code>ui.html</code>应该包含内嵌的JavaScript代码；稍后，这将是我们特别告诉webpack要做的事情。</p>
+<pre>{
+  ...
+  "main": "./dist/code.js",
+  "ui": "./dist/ui.html"
+}</pre>
+<h3>配置webpack</h3>
+<p>首要任务是安装<code>react</code>和<code>react-dom</code>作为依赖项。一旦你在你的依赖树中有了它们，安装<code>webpack</code>、<code>webpack-cli</code>和<code>typescript</code>作为<code>devDependencies</code>。如果已经全局安装了<code>typescript</code>，可以跳过。</p>
+<p>现在，在插件项目的根目录下创建<code>webpack.config.js</code>文件，最初应该是这样的，我们在这里定义了<code>mode</code>和<code>devtool</code>。请注意，根据Figma文档，由于Figma的<code>eval</code>与普通<code>eval</code>的工作方式不同，因此需要<code>devtool</code>定义。</p>
+<pre>const webpack = require('webpack');
+const path = require('path');
+
+module.exports = (env, argv) =&gt; ({
+  mode: argv.mode === 'production' ? 'production' : 'development',
+  devtool: argv.mode === 'production' ? false : 'inline-source-map',
+})</pre>
+<p>现在我们将定义入口点，它将告诉webpack要捆绑什么。</p>
+<pre>module.exports = (env, argv) =&gt; ({
+  mode: argv.mode === 'production' ? 'production' : 'development',
+  devtool: argv.mode === 'production' ? false : 'inline-source-map',
+
+  entry: {
+    ui: './src/ui.tsx',
+    code: './src/code.ts',
+  },
+})</pre>
+<p>接下来，我们将定义检查特定文件的规则，并用加载器加载它们。我们需要<code>tsx</code>加载器和用于样式化的加载器，因为您可能想要在UI中包含SVG文件，所以拥有一个SVG加载器也是很好的。</p>
+<p>以<code>devDependencies</code>的身份安装以下npm软件包:</p>
+<pre>ts-loader
+style-loader
+css-loader
+sass-loader
+@svgr/webpack
+node-sass</pre>
+<p>添加加载程序后，配置文件应该如下所示:</p>
+<pre>module.exports = (env, argv) =&gt; ({
+  mode: argv.mode === 'production' ? 'production' : 'development',
+  devtool: argv.mode === 'production' ? false : 'inline-source-map',
+
+  entry: {
+    ui: './src/ui.tsx',
+    code: './src/code.ts',
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/
+      },
+      {
+        test: /\.sass$/,
+        use: [
+          'style-loader',
+          'css-loader',
+          'sass-loader',
+        ],
+      },
+      {
+        test: /.svg$/,
+        use: '@svgr/webpack',
+      },
+    ]
+  },
+})</pre>
+<p>现在我们将告诉webpack使用什么插件。我们需要<code>html-webpack-inline-source-plugin</code>和<code>html-webpack-plugin</code>插件。</p>
+<p>将它们作为<code>devDependencies</code>安装，然后要求它们位于<code>webpack.config.js</code>文件的顶部。</p>
+<pre>const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin')</pre>
+<p>第一个创建一个HTML文件，为捆绑的文件提供服务。例如，如果您捆绑了JavaScript和CSS文件，这些文件会自动添加到您提供的模板HTML文件中。在我们的例子中，样式已经包含在JavaScript中，因此，我们只需要包含一个JavaScript文件。然而，我们需要内联JavaScript，这就是第二个插件所做的。</p>
+<p>我们将<code>template</code>指向<code>src/ui.html</code>，我们希望输出被命名为<code>ui.html</code>。我们还希望只有<code>js</code>文件是内联的，这就是为什么我们有<code>inlineSource: '.(js)$'</code>。注意这个键需要<code>HtmlWebpackInlineSourcePlugin</code>。最后，<code>chunks: ['ui']</code>指示webpack在<code>ui.html</code>中只包含<code>ui.js</code>文件，因为我们在<code>ui.html</code>中不需要<code>code.js</code>。</p>
+<p>这是<code>webpack.config.js</code>文件的最终形状:</p>
+<pre>const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+const path = require('path');
+
+module.exports = (env, argv) =&gt; ({
+  mode: argv.mode === 'production' ? 'production' : 'development',
+  devtool: argv.mode === 'production' ? false : 'inline-source-map',
+
+  entry: {
+    ui: './src/ui.tsx',
+    code: './src/code.ts',
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/
+      },
+      {
+        test: /\.sass$/,
+        use: [
+          'style-loader',
+          'css-loader',
+          'sass-loader',
+        ],
+      },
+      {
+        test: /.svg$/,
+        use: '@svgr/webpack',
+      },
+    ]
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './src/ui.html',
+      filename: 'ui.html',
+      inlineSource: '.(js)$',
+      chunks: ['ui'],
+    }),
+    new HtmlWebpackInlineSourcePlugin(),
+  ],
+})</pre>
+<h3>进一步的文件调整</h3>
+<p>为了能够包含SVG作为React组件，我们需要一个自定义类型。在根目录下创建一个名为<code>typings-custom</code>的文件夹，然后在其中创建一个名为<code>svg.d.ts</code>的文件。该文件的内容应该是:</p>
+<pre>declare module '*.svg' {
+  const content: any;
+  export default content;
+}</pre>
+<p>现在我们需要在<code>tsconfig.json</code>中包含<code>typings-custom</code>文件夹的内容。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>{
+  ...
+  "include": [
+    "./typings-custom/**/*.ts"
+  ]
+}</pre>
+<p>由于我们与JSX合作，我们也需要在<code>tsconfig.json</code>中指出这一点。只需将下面的键值对添加到<code>compilerOptions</code>:</p>
+<pre>"jsx": "react"</pre>
+<p><code>tsconfig.json</code>的最终版本应该是这样的:</p>
+<pre>{
+  "compilerOptions": {
+    "target": "es6",
+    "jsx": "react",
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@figma"
+    ]
+  },
+  "include": [
+    "./typings-custom/**/*.ts"
+  ]
+}</pre>
+<h3>运行webpack</h3>
+<p>在添加<code>build</code>和<code>watch</code>脚本之前，我们需要安装React和Figma的类型。以<code>devDependencies</code>的身份安装以下npm软件包:</p>
+<pre>@figma/plugin-typings
+@types/react
+@types/react-dom</pre>
+<p>现在，在<code>package.json</code>文件中，您可以添加以下脚本来构建产品或观察开发中的变化:</p>
+<pre>"scripts": {
+  "build": "webpack --mode production",
+  "watch": "webpack --mode development --watch"
+}</pre>
+<p>尝试在您的控制台中运行<code>npm run watch</code>；您可能会遇到一些错误。据我检查，这是由于最新版本的<code>html-webpack-plugin</code>。要解决这个问题，请在您的<code>package.json</code>文件中将这个包的版本更改为<code>3.2.0</code>，然后运行<code>npm install</code>来获取这个特定的版本。</p>
+<pre>"html-webpack-plugin": "3.2.0"</pre>
+<p>这应该可以解决问题。</p>
+<p>要测试一切是否正常，只需在<code>ui.tsx</code>文件中添加一个日志行，比如<code>console.log('test')</code>，然后运行<code>npm run watch</code>。去Figma，在<code>Plugins&gt;Development</code>下，找到你的插件并运行它。它应该显示一个空窗口。再次进入同一菜单，点击<code>Open Console</code>。您应该会在控制台中看到<code>test</code>消息。</p>
+<h2>UI和插件代码通信</h2>
+<p>我们基本上有两个源文件:<code>ui.tsx</code>和<code>code.ts</code>。您可以将它们分别视为前端和后端代码。<code>ui.tsx</code>生成用户界面并向<code>code.ts</code>发送消息，<code>code.ts</code>监听这些消息并做相应的事情，利用API控制Figma文档，并可能发回消息通知UI。</p>
+<p>这个双向消息传递系统是唯一将这两个文件相互连接起来的东西，所以从这个意义上来说，如果你的插件有一个用户界面是很重要的。从UI发送消息的过程如下:</p>
+<pre>parent.postMessage({ pluginMessage: 'MESSAGE' }, '*');</pre>
+<p>同样，从插件代码向UI发送消息也非常相似:</p>
+<pre>figma.ui.postMessage('MESSAGE');</pre>
+<h2>构建用户界面</h2>
+<p>为了使本文简短并专注于实际主题，我将提供一个具有所有功能的React组件。</p>
+<p>当用户点击<strong>生成颜色</strong>按钮时，该组件生成三种随机颜色。单击这些颜色中的任何一种都会设置Figma文档中所选元素的填充颜色。如果没有选择任何元素，UI显示消息<strong>选择一个项目！</strong>警告用户。</p>
+<figure id="attachment_26437" aria-describedby="caption-attachment-26437" class="wp-caption aligncenter"><img data-attachment-id="26437" data-permalink="https://blog.logrocket.com/building-figma-plugins-with-react/plugin-ui/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Figma plugin UI" data-image-description="" data-image-caption="&lt;p&gt;UI of our plugin.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png" decoding="async" class="size-full wp-image-26437 jetpack-lazy-image" src="../Images/27f00380a3fc5d21d863a7fd64b25416.png" alt="Figma Plugin UI" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="26437" data-permalink="https://blog.logrocket.com/building-figma-plugins-with-react/plugin-ui/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Figma plugin UI" data-image-description="" data-image-caption="&lt;p&gt;UI of our plugin.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png" decoding="async" loading="lazy" class="size-full wp-image-26437" src="../Images/27f00380a3fc5d21d863a7fd64b25416.png" alt="Figma Plugin UI" srcset="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/10/plugin-ui.png"/></noscript><figcaption id="caption-attachment-26437" class="wp-caption-text">UI of our plugin.</figcaption></figure>
+<pre>import * as React from 'react';
+import * as ReactDOM from 'react-dom';
+import randomColor from 'randomcolor';
+import './styles.sass';
+
+interface Props {
+}
+
+interface State {
+  colors: string[],
+  isItemSelected: boolean,
+  isColorGenerated: boolean
+}
+
+class App extends React.Component&lt;Props, State&gt; {
+  constructor(props) {
+    super(props);
+    this.state = {
+      colors: ['#fff', '#fff', '#fff'],
+      isItemSelected: false,
+      isColorGenerated: false
+    }
+  }
+
+  componentDidMount() {
+    window.onmessage = (msg) =&gt; {
+      const { type } = msg.data.pluginMessage;
+      if (type === "ITEM_SELECTED") {
+        this.setState({ isItemSelected: true })
+      } else if (type === "ITEM_NOT_SELECTED") {
+        this.setState({ isItemSelected: false })
+      }
+    };
+  }
+
+  sendMessage = (type, data = null) =&gt; {
+    parent.postMessage({
+      pluginMessage:
+      {
+        type,
+        data,
+      },
+    }, '*');
+  }
+
+  mapValues = (x) =&gt; {
+    return (x - 0) * (1 - 0) / (255 - 0) + 0;
+  }
+
+  getRGBValues = (str) =&gt; {
+  var vals = str.substring(str.indexOf('(') +1, str.length -1).split(', ');
+    return {
+      'r': this.mapValues(parseInt(vals[0])),
+      'g': this.mapValues(parseInt(vals[1])),
+      'b': this.mapValues(parseInt(vals[2]))
+    };
+  }
+
+  generateColors = () =&gt; {
+    const colors = randomColor({ count: 3, format: 'rgb', hue: 'random' });
+    this.setState({ colors, isColorGenerated: true });
+  }
+
+  assignColor = (color) =&gt; {
+    this.sendMessage('ASSIGN_COLOR', this.getRGBValues(color));
+  }
+
+  render() {
+    const { isItemSelected, isColorGenerated, colors } = this.state;
+    return (
+      &lt;div className="app"&gt;
+        &lt;div className="colors"&gt;
+          {colors.map((color, i) =&gt; (
+            &lt;button
+              key={`${i}-${color}`}
+              type="button"
+              className="color"
+              onClick={
+                (isItemSelected &amp;&amp; isColorGenerated)
+                ? () =&gt; this.assignColor(color) 
+                : null}
+              style={{backgroundColor: color}}
+            /&gt;
+          ))}
+        &lt;/div&gt;
+        &lt;button
+          type="button"
+          onClick={this.generateColors}
+        &gt;
+          Generate color
+        &lt;/button&gt;
+        {!isItemSelected &amp;&amp; &lt;div className="alert"&gt;Select an Item!&lt;/div&gt;}
+      &lt;/div&gt;
+    );
+  }
+}
+
+ReactDOM.render(&lt;App /&gt;, document.getElementById('root'));</pre>
+<p>重要的是UI和插件代码之间的通信。发送带有可选数据的消息由<code>sendMessage</code>实用函数处理。注意<code>assignColor</code>函数是如何调用<code>sendMessage</code>来提醒插件代码的。</p>
+<pre>sendMessage = (type, data = null) =&gt; {
+  parent.postMessage({
+    pluginMessage:
+    {
+      type,
+      data,
+    },
+  }, '*');
+}</pre>
+<p>并且当插件代码发送消息时，UI应该能够捕捉到它。这就是为什么我们在<code>componentDidMount</code>生命周期钩子中有了<code>window.onmessage</code>——开始在组件挂载时监听任何传入的消息。</p>
+<h3>从用户界面发送的消息</h3>
+<p>从UI发送到插件代码的唯一消息发生在单击生成的颜色时。UI发送一条<code>ASSIGN_COLOR</code>消息和一个对象，如下所示:</p>
+<pre>{
+  r: 0.3,
+  g: 0,
+  b: 1,
+}</pre>
+<p>这是Figma在设置颜色时接受的有效对象，这也是为什么还有一些其他的效用函数，比如<code>getRGBValues</code>和<code>mapValues</code>，它们将生成的颜色转换成<code>{r,g,b}</code>形式的对象，并将<code>0-255</code>范围分别映射到<code>0-1</code>范围。</p>
+<h3>从插件代码发送的消息</h3>
+<p>插件代码发送了两条消息来通知UI fig ma文档中的某个元素是否被选中。然后，该组件相应地设置一个状态变量来更新UI。</p>
+<h2>基本API特性</h2>
+<p>在开始之前，<a href="https://www.figma.com/plugin-docs/api/api-overview/">这个文档页面</a>是API中所有可用内容的参考。每当你需要弄清楚一些事情时，一定要检查这个文档。</p>
+<p>在<code>code.ts</code>文件中，已经有一个创建项目时生成的示例代码。这对于开始和理解如何使用API是一个很好的参考。</p>
+<p>您可以删除<code>code.ts</code>中的所有内容，并以下面的代码为起点</p>
+<pre>figma.showUI(__html__);
+
+figma.ui.onmessage = msg =&gt; {};</pre>
+<p><code>figma.showUI(__html__)</code>是显示<code>ui.html</code>内容所必需的，<code>figma.ui.onmessage</code>用于开始监听来自UI的即将到来的消息。</p>
+<p>该插件在插件代码端有两个基本功能:</p>
+<ol>
+<li>检测是否选择了Figma文档中的元素，如果是，则通知UI</li>
+<li>监听来自UI的<code>ASSIGN_COLOR</code>消息，以便将所选元素的fills属性设置为与该消息一起发送的颜色</li>
+</ol>
+<h3>选择检测</h3>
+<p>为了检测选择，我们可以通过<code>figma.on</code>函数监听<code>selectionchange</code>，该函数将事件类型作为第一个参数，将回调函数作为第二个参数。</p>
+<pre>figma.on('selectionchange', () =&gt; {
+  detectSelection();
+});</pre>
+<p>其中<code>detectSelection()</code>函数为:</p>
+<pre>const detectSelection = () =&gt; {
+  const { selection } = figma.currentPage;
+  if (selection.length) {
+    figma.ui.postMessage({ type: 'ITEM_SELECTED' });
+  } else {
+    figma.ui.postMessage({ type: 'ITEM_NOT_SELECTED' });
+  }
+}</pre>
+<p><code>figma.currentPage.selection</code>返回选定节点的数组。通过检查数组的长度，我们可以断定是否发生了选择。如果长度大于<code>0</code>，我们可以向UI发送一条<code>ITEM_SELECTED</code>消息；否则，我们发送一个<code>ITEM_NOT_SELECTED</code>消息。</p>
+<p>请注意，这种机制不会检测单个元素的选择。同样，也不能保证选中的元素会有一个<code>fills</code>属性要设置(例如，<code>GroupNode</code>没有一个<code>fills</code>属性)。</p>
+<p>为了简单起见，这个例子假设用户选择了一个具有<code>fills</code>属性的元素。在一个生产就绪的插件中，这显然应该被自动处理，并且UI应该被相应地通知以显示适当的消息来警告用户。</p>
+<p>此外，还需要在主作用域中调用<code>detectSelection()</code>,以便在插件初始化之前检测任何选中的元素。否则，<code>selectionchange</code>不会触发，直到用户做出选择。</p>
+<p>选择检测就绪后，<code>code.ts</code>如下所示:</p>
+<pre>figma.showUI(__html__);
+figma.ui.onmessage = msg =&gt; {};
+
+figma.on('selectionchange', () =&gt; {
+  detectSelection();
+});
+
+const detectSelection = () =&gt; {
+  const { selection } = figma.currentPage;
+  console.log(selection)
+  if (selection.length) {
+    figma.ui.postMessage({ type: 'ITEM_SELECTED' });
+  } else {
+    figma.ui.postMessage({ type: 'ITEM_NOT_SELECTED' });
+  }
+}
+
+detectSelection();</pre>
+<h3>设置<code>fills</code>属性</h3>
+<p>如前所述，当在UI上单击一种颜色时，UI会发送一条<code>ASSIGN_COLOR</code>消息和一个颜色数据对象。所以，我们要做的第一件事就是在<code>figma.ui.onmessage =</code> <code>*msg*</code> <code>=&gt; {}</code>函数中监听这条消息。</p>
+<pre>figma.ui.onmessage = msg =&gt; {
+  const { type } = msg;
+  if (type === 'ASSIGN_COLOR') {
+    const { selection } = figma.currentPage;
+    const { data } = msg;
+  }
+};</pre>
+<p><code>const { selection } = figma.currentPage;</code>返回选定元素的数组。如前所述，我们假设只选择了一个有效元素。因为我们随消息一起发送数据，所以我们也可以析构<code>msg</code>并获得<code>data</code>。</p>
+<p>注意，<code>data</code>的键名来自于<code>sendMessage</code>实用函数中的定义。</p>
+<pre>sendMessage = (type, data = null) =&gt; {
+  parent.postMessage({
+    pluginMessage:
+    {
+      type,
+      data,
+    },
+  }, '*');
+}</pre>
+<p>如果您使用<code>console.log(selection)</code>，您会看到您选择的元素是一个数组中的对象，并且它具有<code>fills</code>属性，这是另一个数组，其中有一个对象。该对象具有<code>color</code>属性，如前所述，其格式如下:</p>
+<pre>{
+  r: 0,
+  g: 0,
+  b: 0,
+}</pre>
+<p>因此，您可能首先尝试通过执行以下操作来设置该对象:</p>
+<pre>selection[0].fills[0].color = data</pre>
+<p>然而，更复杂的属性如<code>fills</code>中有<code>readonly</code>对象，原因在<a href="https://www.figma.com/plugin-docs/editing-properties/"> Figma文档</a>中解释得很清楚。</p>
+<p>因为属性本身不是<code>readonly</code>而是它的内容，Figma告诉我们克隆属性，并在将它赋回属性之前对克隆的属性进行修改。在上面链接的文档中，有两种克隆的建议方法。最简单的方法是将对象字符串化，然后解析回对象。</p>
+<pre>const clone = (val) =&gt; {
+  return JSON.parse(JSON.stringify(val))
+}</pre>
+<p><code>if</code>语句的其余部分现在看起来像这样:</p>
+<pre>figma.ui.onmessage = msg =&gt; {
+  const { type } = msg;
+  if (type === 'ASSIGN_COLOR') {
+    const { selection } = figma.currentPage;
+    const { data } = msg;
+    const fills = clone((selection[0] as any).fills)
+
+    fills[0].color = data;
+    (selection[0] as any).fills = fills;
+  }
+};</pre>
+<p>由于克隆的属性只是一个对象，我们可以做<code>fills[0].color</code>并分配我们的<code>data</code>，它是包含与Figma相同格式的颜色信息的对象。</p>
+<p><code>code.ts</code>的最终版本如下:</p>
+<pre>figma.showUI(__html__);
+
+figma.ui.onmessage = msg =&gt; {
+  const { type } = msg;
+  if (type === 'ASSIGN_COLOR') {
+    const { selection } = figma.currentPage;
+    const { data } = msg;
+    const fills = clone((selection[0] as any).fills)
+    fills[0].color = data;
+    (selection[0] as any).fills = fills;
+  }
+};
+
+figma.on('selectionchange', () =&gt; {
+  detectSelection();
+});
+
+const detectSelection = () =&gt; {
+  const { selection } = figma.currentPage;
+  console.log(selection)
+  if (selection.length) {
+    figma.ui.postMessage({ type: 'ITEM_SELECTED' });
+  } else {
+    figma.ui.postMessage({ type: 'ITEM_NOT_SELECTED' });
+  }
+}
+
+const clone = (val) =&gt; {
+  return JSON.parse(JSON.stringify(val))
+}
+
+detectSelection();</pre>
+<p>对于那些想要有合适的样式的人，这里是<code>styles.sass</code>文件的内容:</p>
+<pre>*
+  outline: none
+body
+  font-family: Arial, Helvetica, sans-serif
+.app
+  display: flex
+  flex-direction: column
+  align-items: center
+  button
+    border: 1px solid black
+    text-align: center
+    border-radius: 4px
+    font-size: 14px
+    padding: 4px 8px
+    margin-bottom: 10px
+  .colors
+    margin: 30px 0
+    width: 60%
+    display: flex
+    justify-content: space-between
+    .color
+      border: none
+      width: 50px
+      height: 50px
+      border-radius: 50%
+      cursor: pointer
+      border: 1px solid black
+  .alert
+    font-size: 12px
+    color: rgba(red, 0.7)</pre>
+<h2>结论</h2>
+<p>通过阅读本教程，您现在应该了解了如何使用webpack将React集成到Figma插件开发中。通过通读Figma的文档，或者检查GitHub或其他平台上其他插件的源代码，您可以熟悉这个API，并开始为Figma构建自己的插件。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

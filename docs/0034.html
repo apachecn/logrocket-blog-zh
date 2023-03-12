@@ -1,0 +1,261 @@
+<html>
+<head>
+<title>Using web workers for safe, concurrent JavaScript - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用web workers实现安全、并发的JavaScript - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-webworkers-for-safe-concurrent-javascript-3f33da4eb0b2/#0001-01-01">https://blog.logrocket.com/using-webworkers-for-safe-concurrent-javascript-3f33da4eb0b2/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Web workers提供了一种在浏览器的单线程执行之外运行JavaScript代码的方法。单线程处理显示内容的请求以及通过键盘、鼠标点击和其他设备的用户交互，还处理对AJAX请求的响应。</p>
+<p>事件处理和AJAX请求是异步的，可以被认为是在通用浏览器显示的代码路径之外运行一些代码的一种方式，但它们仍然在这个单线程中运行，并且确实必须相当快地完成。</p>
+<p>否则，浏览器中的交互性会停止。</p>
+<p>Web workers允许JavaScript代码在一个单独的线程中运行，完全独立于浏览器线程及其通常的活动。</p>
+<p>近年来，关于网络工作者到底有什么用处，有很多争论。如今，CPU的速度非常快，几乎每个人的个人电脑都有几千兆字节的内存。类似地，移动设备的处理器速度和内存大小已经接近台式机。</p>
+<p>曾经被认为是“计算密集型”的应用程序现在被认为没有那么糟糕。</p>
+<h2>你说这不是真空是什么意思？</h2>
+<p>但是很多时候，在决定如何高效地执行代码时，我们只考虑在开发环境中测试的一个应用程序的执行。在用户手中的现实生活系统中，许多事情可能同时执行。</p>
+<p>因此，在隔离状态下运行的应用程序可能不需要使用工作线程，但却有必要使用它们来为广大用户提供最佳体验。</p>
+<p>启动一个新的worker就像指定一个包含JavaScript代码的文件一样简单:</p>
+<pre>new Worker(‘worker-script.js’)</pre>
+<p>一旦创建了工作线程，它就在独立于主浏览器线程的单独线程中运行，执行脚本中提供给它的任何代码。浏览器相对于指定JavaScript文件的当前HTML页面的位置进行查找。</p>
+<p>使用JavaScript代码中的两个互补特性在工作线程和主JavaScript线程之间传递数据:</p>
+<ul>
+<li>发送端的<code>postMessage()</code>功能</li>
+<li>接收端的消息事件处理程序</li>
+</ul>
+<p>与其他事件处理程序一样，消息事件处理程序接收一个事件参数；这个事件有一个“数据”属性，它包含从另一端传来的任何数据。</p>
+<p>这可以是双向通信:主线程中的代码可以调用<code>postMessage()</code>向工作线程发送消息，工作线程可以使用在工作线程环境中全局可用的<code>postMessage()</code>函数的实现将消息发送回主线程。</p>
+<p>web worker中的一个非常简单的流程如下所示:在页面的HTML中，向worker发送一条消息，页面等待响应:</p>
+<pre>var worker = new Worker("demo1-hello-world.js");
+
+// Receive messages from postMessage() calls in the Worker
+worker.onmessage = (evt) =&gt; {
+    console.log("Message posted from webworker: " + evt.data);
+}
+
+// Pass data to the WebWorker
+worker.postMessage({data: "123456789"});</pre>
+<p>工作代码等待一条消息:</p>
+<pre>// demo1-hello-world.js
+postMessage('Worker running');
+onmessage = (evt) =&gt; {
+    postMessage("Worker received data: " + JSON.stringify(evt.data));
+};</pre>
+<p>上面的代码将把它打印到控制台:</p>
+<pre>Message posted from webworker: Worker running
+Message posted from webworker: Worker received data: {“data”:”123456789"}</pre>
+<h2>工人被期望长寿，而不是停止和开始</h2>
+<p>在工作者的生命周期中，浏览器和工作者之间可以发送和接收多条消息。</p>
+<p>web workers的实现以两种方式确保了安全、无冲突的执行:</p>
+<ul>
+<li>工作线程的独特、隔离的全局环境，独立于浏览器环境</li>
+<li>在<code>postMessage()</code>调用中主线程和工作线程之间的数据传递交换</li>
+</ul>
+<p>每个工作线程都有一个独立的全局环境，不同于浏览器页面的JavaScript环境。工作人员根本无权访问页面的JavaScript环境中的任何内容——无论是DOM，还是<code>window</code>或<code>document</code>对象。</p>
+<p>Workers对某些东西有自己的版本，比如用于将消息记录到开发人员控制台的<code>console</code>对象，以及用于发出AJAX请求的<code>XMLHttpRequest</code>对象。但是除此之外，在worker中运行的JavaScript代码应该是自包含的；主窗口想要使用的来自工作线程的任何输出都必须通过<code>postMessage()</code>函数作为数据传回。</p>
+<p>此外，任何通过<code>postMessage()</code>传递的数据在被传递之前都会被<em>复制</em>，所以改变主窗口线程中的数据不会导致工作线程中的数据改变。这为在主线程和工作线程之间传递的数据的冲突并发更改提供了内在的保护。</p>
+<h2>网络工作者的使用案例</h2>
+<p>web worker的典型用例是任何在其执行过程中可能变得计算昂贵的任务，要么消耗大量CPU时间，要么花费不可预测的大量时钟时间来访问数据。</p>
+<p>网络工作者的一些可能的使用案例:</p>
+<ul>
+<li>预取和/或缓存数据以备后用</li>
+<li>轮询和处理来自web服务的数据</li>
+<li>大型数据集的处理和显示(想想基因组学)</li>
+<li>游戏中与移动相关的计算</li>
+<li>图像处理和过滤</li>
+<li>处理文本数据(代码语法、拼写检查、字数统计)</li>
+</ul>
+<p>CPU时间是简单的用例，但是对资源的网络访问也非常重要。很多时候，互联网上的网络通信可以在几毫秒内执行，但有时网络资源变得不可用，直到网络恢复或请求超时(可能需要1-2分钟才能清除)才停止。</p>
+<p>即使在开发环境中单独测试时，一些代码可能不需要很长时间就能运行，但当多个项目同时运行时，在用户环境中运行可能会成为一个问题。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>下面的例子演示了使用web workers的几种方法。</p>
+<h2>演示:游戏碰撞检测</h2>
+<p>(系好安全带。这是个很长的例子。)</p>
+<p>现在，在网络浏览器中运行的基于HTML5的游戏随处可见。游戏的一个核心方面是计算游戏环境各部分之间的运动和交互。一些游戏有相对较少的活动部分，并且相当容易制作动画(<a class="markup--anchor markup--p-anchor" href="http://supermarioemulator.com/mario.php" target="_blank" rel="noopener noreferrer" data-href="http://supermarioemulator.com/mario.php">超级马里奥模拟器</a>克隆，有人吗？).但是让我们考虑一个计算量更大的情况。</p>
+<p>这个例子包括大量的彩色球在一个矩形的边界上弹跳。目标是将球保持在游戏的边界内，并且检测球之间的碰撞并使它们相互弹开。</p>
+<p>边界检测相对简单且执行速度快，但碰撞检测的计算要求更高，因为它大致随球数的平方增长——对于“n”个球，每个球必须与其他球进行比较，以查看它们的路径是否相交并需要被反弹(导致n乘以n，或n的平方比较)。</p>
+<p>因此，对于50个球，大约需要进行2500次检查；对于100个球，需要进行10，000次检查(实际上略少于这个数量的一半:如果你检查球n和球m，你不需要稍后检查球m和球n，但是仍然会涉及大量的计算)。</p>
+<p>对于这个例子，边界和碰撞检测是在一个单独的工作线程中完成的，这个线程以浏览器动画的速度执行，每秒60次(每次调用<code>requestAnimationFrame()</code>)。定义了一个<code>World</code>对象，它保存了一个<code>Ball</code>对象的列表；每个<code>Ball</code>对象都知道它当前的位置和速度(以及半径和颜色，以允许它被绘制)。</p>
+<p>在当前位置绘制球发生在主浏览器线程中(它可以访问画布及其绘制上下文)；更新球的位置发生在工作线程中。如果球碰到游戏边界或与另一个球碰撞，速度(特别是球的运动方向)会更新。</p>
+<p><code>World</code>对象在浏览器中的客户端代码和工作线程之间传递。即使对于几百个球来说，这也是一个相对较小的对象(100乘以每个球大约64字节的数据= 6400字节的数据)。所以这里的问题是计算量。</p>
+<p>这个例子的完整代码可以在代码栏<a class="markup--anchor markup--p-anchor" href="https://codepen.io/bwilln/pen/VXYRay" target="_blank" rel="noopener noreferrer" data-href="https://codepen.io/bwilln/pen/VXYRay">这里</a>找到。有一个<code>Ball</code>类来表示被动画化的对象，还有一个<code>World</code>类实现制作动画的<code>move()</code>和<code>draw()</code>方法。</p>
+<p>如果我们在不使用工人的情况下制作纯动画，主要代码将如下所示:</p>
+<pre>const canvas = $('#democanvas').get(0),
+    canvasBounds = {'left': 0, 'right': canvas.width,
+        'top': 0, 'bottom': canvas.height},
+    ctx = canvas.getContext('2d');
+
+const numberOfBalls = 150,
+    ballRadius = 15,
+    maxVelocity = 10;
+
+// Create the World
+const world = new World(canvasBounds), '#FFFF00', '#FF00FF', '#00FFFF'];
+
+// Add Ball objects to the World
+for(let i=0; i &lt; numberOfBalls; i++) {
+    world.addObject(new Ball(ballRadius, colors[i % colors.length])
+            .setRandomLocation(canvasBounds)
+            .setRandomVelocity(maxVelocity));
+}
+...
+// The animation loop
+function animationStep() {
+    world.move();
+    world.draw(ctx);
+    requestAnimationFrame(animationStep);
+}
+animationStep();</pre>
+<p>代码使用<code>requestAnimationFrame()</code>在显示器的刷新周期内每秒运行<code>animationStep()</code>函数60次。动画步骤包括<code>move</code>，更新每个球的位置(可能还有方向)，然后<code>draw</code>，用新位置的球重新绘制画布。</p>
+<p>为了在这个应用程序中使用一个工作线程，游戏动画循环的<code>move</code>部分(<code>World.move()</code>中的代码)将被移动到工作线程中。通过<code>postMessage()</code>调用，<code>World</code>对象将作为数据传递给工作线程，这样就可以在那里进行<code>move()</code>调用。<code>World</code>对象显然是要被传递的东西，因为它有<code>Ball</code>的显示列表和它们应该待在其中的矩形边界，并且每个球保留关于其位置和速度的所有信息。</p>
+<p>由于使用了worker，修改后的动画循环如下所示:</p>
+<pre>let worker = new Worker('collider-worker.js');
+
+// Watch for the draw event
+worker.addEventListener("message", (evt) =&gt; {
+    if ( evt.data.message === "draw") {
+        world = evt.data.world;
+        world.draw(ctx);
+        requestAnimationFrame(animationStep);
+    }
+});
+
+// The animation loop
+function animationStep() {
+    worker.postMessage(world);  // world.move() in worker
+}
+animationStep();</pre>
+<p>工作线程本身看起来就像这样:</p>
+<pre>// collider-worker.js
+importScripts("collider.js");
+
+this.addEventListener("message", function(evt) {
+    var world = evt.data;
+    world.move();
+    // Tell the main thread to update display
+    this.postMessage({message: "draw", world: world});
+});</pre>
+<p>这里的代码依赖工作线程从主代码接受<code>postMessage()</code>中的W <code>orld</code>对象，然后将<code>world</code>传递回主代码，并更新位置和速度。</p>
+<p>请记住，当<code>World</code>对象传入传出工作线程时，浏览器会制作一份副本——这里的假设是，制作<code>World</code>对象副本的时间明显少于<code>O(n**2)</code>碰撞计算的时间(这实际上是保存在<code>World</code>中的数据的相对较小的一部分)。</p>
+<p>但是，运行基于新工作线程的代码会导致意外错误:</p>
+<pre>Uncaught TypeError: world.move is not a function
+at collider-worker.js:10</pre>
+<p>原来在<code>postMessage()</code>调用中复制一个对象的过程将复制对象<em>上的数据属性，而不是对象</em>的原型。当复制并传递给worker时，<code>World</code>对象的方法被从原型中剥离。这是<a class="markup--anchor markup--p-anchor" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm" target="_blank" rel="noopener noreferrer" data-href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm">“结构化克隆算法”</a>的一部分，这是在主线程和web worker之间复制对象的标准方式，也称为<a class="markup--anchor markup--p-anchor" href="https://www.w3.org/TR/html5/infrastructure.html#safe-passing-of-structured-data" target="_blank" rel="noopener noreferrer" data-href="https://www.w3.org/TR/html5/infrastructure.html#safe-passing-of-structured-data">序列化</a>。</p>
+<p>为了解决这个问题，我将向<code>World</code>类添加一个方法来创建它自己的新实例(它将具有包含这些方法的原型),并从消息中传递的数据中重新分配数据属性:</p>
+<pre>static restoreFromData(data) {
+    // Restore from data that's been serialized to a worker thread
+    let world = new World(data.bounds);
+    world.displayList = data.displayList;
+    return world;
+}</pre>
+<p>尝试使用此修复运行动画会导致另一个类似的错误…在<code>World</code>的显示列表中的底层<code>Ball</code>对象也必须被恢复:</p>
+<pre>Uncaught TypeError: obj1.getRadius is not a function
+at World.checkForCollisions (collider.js:60)
+at World.move (collider.js:36)</pre>
+<p>必须增强<code>World</code>类的实现，以便从数据中恢复显示列表中的每个<code>Ball</code>，以及<code>World</code>类本身。</p>
+<p>现在，在<code>World</code>类中:</p>
+<pre>static restoreFromData(data) {
+    // Restore from data that's been serialized to a worker thread
+    let world = new World(data.bounds);
+    world.animationStep = data.animationStep;
+    world.displayList = [];
+    data.displayList.forEach((obj) =&gt; {
+        // Restore each Ball object as well
+        let ball = Ball.restoreFromData(obj);
+        world.displayList.push(ball);
+    });
+    return world;
+}</pre>
+<p>以及在<code>Ball</code>类中实现的类似的<code>restoreFromData()</code>方法:</p>
+<pre>static restoreFromData(data) {
+    // Restore from data that's been serialized to a worker thread
+    const ball = new Ball(data.radius, data.color);
+    ball.position = data.position;
+    ball.velocity = data.velocity;
+    return ball;
+}</pre>
+<p>这样，动画就能正确运行，计算工作线程中数百个球中每个球的<code>move</code>,并在浏览器中以每秒60次的速度显示它们的更新位置。</p>
+<p>这个工作线程的例子是计算受限的，而不是内存受限的。如果记忆也是一个问题呢？</p>
+<h2>演示:阈值图像</h2>
+<p>最后一个例子，让我们看一个CPU和内存都很密集的应用程序:获取HTML5画布图像中的像素并转换它们，生成并显示另一个图像。</p>
+<p>这个演示将使用Ilmari Heikkinen在2012年编写的<a class="markup--anchor markup--p-anchor" href="https://www.html5rocks.com/en/tutorials/canvas/imagefilters/" target="_blank" rel="noopener noreferrer" data-href="https://www.html5rocks.com/en/tutorials/canvas/imagefilters/">图像处理库</a>。它将获取一幅彩色图像，并将其转换为二进制黑白图像，以中间灰度值为阈值:灰度值小于该值的像素显示为黑色；大于该值显示为白色。</p>
+<p>阈值代码遍历每个(rgb)值，使用一个公式将其转换为灰度值:</p>
+<pre>Filters.threshold = function(pixels, threshold) {
+    var d = pixels.data;
+    for (var i=0; i &lt; d.length; i+=4) {
+        var r = d[i];
+        var g = d[i+1];
+        var b = d[i+2];
+        var v = (0.2126*r + 0.7152*g + 0.0722*b &gt;= threshold) ? 255 : 0;
+        d[i] = d[i+1] = d[i+2] = v
+    }
+    return pixels;
+};</pre>
+<p>对于最初看起来像这样的图像:</p>
+<p><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/23f46354a77ba1eea67913bb4061d7bf.png" data-image-id="1*amhA820xUBT0Stc8c7umpw.jpeg" data-width="350" data-height="263" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*amhA820xUBT0Stc8c7umpw.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*amhA820xUBT0Stc8c7umpw.jpeg"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/23f46354a77ba1eea67913bb4061d7bf.png" data-image-id="1*amhA820xUBT0Stc8c7umpw.jpeg" data-width="350" data-height="263" data-original-src="https://storage.googleapis.com/blog-images-backup/1*amhA820xUBT0Stc8c7umpw.jpeg"/></noscript>
+<p>阈值算法会产生一个双色调的黑白图像，如下所示:</p>
+<p><img decoding="async" class="graf-image jetpack-lazy-image" src="../Images/727e5ba68d1fd861927799fd1197bacf.png" data-image-id="1*cCw35ziRauVMzBbDv9NJ6w.png" data-width="350" data-height="263" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*cCw35ziRauVMzBbDv9NJ6w.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://storage.googleapis.com/blog-images-backup/1*cCw35ziRauVMzBbDv9NJ6w.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" class="graf-image" src="../Images/727e5ba68d1fd861927799fd1197bacf.png" data-image-id="1*cCw35ziRauVMzBbDv9NJ6w.png" data-width="350" data-height="263" data-original-src="https://storage.googleapis.com/blog-images-backup/1*cCw35ziRauVMzBbDv9NJ6w.png"/></noscript>
+<p>这个演示的代码笔可以在<a class="markup--anchor markup--p-anchor" href="https://codepen.io/bwilln/pen/RMKwMX" target="_blank" rel="noopener noreferrer" data-href="https://codepen.io/bwilln/pen/RMKwMX">这里</a>找到。</p>
+<p>即使对于小图像，数据以及所涉及的计算也可能很大。一个640×480的图像有307，200个像素，每个像素有四个字节的RGBA数据(“A”代表alpha，或透明数据)，使图像数据的大小达到1.2MB。计划是使用一个web worker迭代每个像素，并将它们转换为新的RGB值。图像的像素数据将从浏览器传递到工作线程，修改后的图像将被返回。每次在客户端和工作线程之间来回传递数据时，最好不要复制这些数据。</p>
+<p>对<code>postMessage()</code>调用的扩展提供了一种方式来指定与消息一起传递的数据的一个或多个属性，该消息应该通过引用传递而不是复制。看起来是这样的:</p>
+<pre>&lt;div style="margin: 50px 100px"&gt;
+    &lt;img id="original" src="images/flmansion.jpg" width="500" height="375"&gt;
+    &lt;canvas id="output" width="500" height="375" style="border: 1px solid;"&gt;&lt;/canvas&gt;
+&lt;/div&gt;
+...
+&lt;script type="text/javascript"&gt;
+const image = document.getElementById('original');
+...
+// Use a temporary HTML5 canvas object to extract the image data
+const tempCanvas = document.createElement('canvas'),
+    tempCtx = tempCanvas.getContext('2d');
+tempCanvas.width = image.width;
+tempCanvas.height = image.height;
+tempCtx.drawImage(image, 0, 0, image.width, image.height);
+const imageDataObj = tempCtx.getImageData(0, 0, image.width, image.height);
+...
+worker.addEventListener('message', (evt) =&gt; {
+    console.log("Received data back from worker");
+    const results = evt.data;
+    ctx.putImageData(results.newImageObj, 0, 0);
+});
+worker.postMessage(imageDataObj, [imageDataObj.data.buffer]);
+&lt;/script&gt;</pre>
+<p>任何实现可转移接口的对象都可以在这里指定。一个<code>ImageData</code>对象的<code>data.buffer</code>符合这个要求——它的类型是<code>Uint8ClampedArray</code>(一种用于存储8位图像数据的数组类型)。<code>ImageData</code>是HTML5 canvas context对象的<code>getImageData()</code>方法返回的内容。</p>
+<p>一般来说，几种标准数据类型实现了可转移接口:<code>ArrayBuffer</code>、<code>MessagePort</code>和<code>ImageBitmap</code>。<code>ArrayBuffer</code>依次由多个特定的数组类型实现:<code>Int8Array</code>、<code>Uint8Array</code>、<code>Uint8ClampedArray</code>、<code>Int16Array</code>、<code>Uint16Array</code>、<code>Int32Array</code>、<code>Uint32Array</code>、<code>Float32Array</code>、<code>Float64Array</code>。</p>
+<p>因此，如果现在数据是通过引用而不是通过值在线程之间传递的，那么数据可以在两个线程中同时被修改吗？这些标准防止了这一点:当数据被<code>postMessage()</code>传递时，发送端对数据的访问被禁用(规范中实际上使用了“阉割”一词)，使其不可用。通过<code>postMessage()</code>将数据再次传递回来，在工作线程端“中和”它，但在浏览器中可以访问它。这个“阉割”特性是在JavaScript引擎中实现的。</p>
+<h2>总结和最终想法</h2>
+<p>HTML5 web workers提供了一种方法，可以将繁重的计算卸载到一个单独的执行线程中，而不会停止浏览器的主事件线程。</p>
+<p>两个例子展示了网络工作者的一些特征:</p>
+<ul>
+<li>通过<code>postMessage()</code>调用和消息事件监听器的基本双向消息传递</li>
+<li>计算密集型示例:HTML5动画中的边界和碰撞检测</li>
+<li>最后一个例子:图像阈值处理(计算和数据密集型)，演示在<code>postMessage()</code>函数中通过引用传递大量数据</li>
+</ul>
+<p>在此过程中，所演示的示例探讨了web workers的几个问题和实现细节:</p>
+<ul>
+<li>在<code>postMessage()</code>中传递JavaScript对象时应用的序列化过程不会复制对象原型中的方法——必须设计一些代码来恢复这些方法</li>
+<li>当从<code>getImageData()</code>方法传递像素数据数组时，像素数据对象的buffer属性必须传递给<code>postMessage()</code>调用(像<code>imageData.data.buffer</code>，而不是<code>imageData.data</code>)。实现可转移的是缓冲区</li>
+</ul>
+<p>目前大多数主流浏览器都支持Web workers。Chrome、Safari和Firefox大约从2009年开始支持它们；MSEdge支持它们，从IE10开始，Internet Explorer也支持它们。</p>
+<p>为了与浏览器兼容，对<code>if (typeof Worker !== "undefined")</code>的简单检查可以保护创建和使用worker的代码，同时在worker之外执行相同的代码(在超时或动画帧中)。</p><div class="code-block code-block-27">
+<div class="blog-plug inline-plug vanilla-javascript-cta"><h2>通过理解上下文，更容易地调试JavaScript错误</h2>
+<p>调试代码总是一项单调乏味的任务。但是你越了解自己的错误，就越容易改正。</p>
+<p>LogRocket 让你以新的独特的方式理解这些错误。我们的前端监控解决方案跟踪用户与您的JavaScript前端的互动，让您能够准确找出导致错误的用户行为。</p>
+<a href="https://lp.logrocket.com/blg/javascript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/cbfed9be3defcb505e662574769a7636.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/06/reproduce-javascript-errors.gif"/></noscript></a>
+<p>LogRocket记录控制台日志、页面加载时间、堆栈跟踪、慢速网络请求/响应(带有标题+正文)、浏览器元数据和自定义日志。理解您的JavaScript代码的影响从来没有这么简单过！</p>
+<a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

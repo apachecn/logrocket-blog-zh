@@ -1,0 +1,995 @@
+<html>
+<head>
+<title>Authentication in React with AWS Cognito and Amplify - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>与AWS Cognito和Amplify - LogRocket Blog一起进行身份验证</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/#0001-01-01">https://blog.logrocket.com/authentication-react-aws-amplify-cognito/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按:</em> </strong> <em>本文于2022年6月9日更新，以反映AWS Cognito和Amplify的最新版本。</em></p>
+<p>当你开始一个新项目时，授权是你应该做的第一件事，不管你是为电子商务、游戏、物流还是任何其他项目领域而建。</p>
+<p>在任何给定的组织中，都可能有您可以重用的现有解决方案。但是如果您没有那么幸运，那么您可以选择构建您自己的实现或者构建现有的解决方案，这是我们强烈推荐的，可以节省您大量的时间。</p>
+<p>在本教程中，我们将介绍如何使用AWS Cognito用户池和<a href="https://aws-amplify.github.io/docs/" target="_blank" rel="noopener"> Amplify框架</a>为您未来(甚至当前)的React应用添加身份验证。</p>
+<h3>内容</h3>
+
+<h2 id="what-aws-cognito-user-pools">什么是AWS Cognito用户池？</h2>
+<p>根据文档中的定义，<a href="https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-identity-pools.html" target="_blank" rel="noopener"> Amazon Cognito用户池</a>是全功能的用户目录服务，用于处理用户注册、认证和帐户恢复。</p>
+<p>用户池是Amazon Cognito中的一个用户目录。借助用户池，您的用户可以通过Amazon Cognito登录您的web或移动应用程序。您的用户也可以通过脸书或亚马逊等社交身份提供商以及SAML身份提供商登录。</p>
+<p>无论您的用户是直接登录还是通过第三方登录，用户池的所有成员都有一个目录配置文件，您可以通过SDK访问它。</p>
+<h2 id="what-amplify-framework">什么是Amplify框架？</h2>
+<p>Amplify Framework是一个全面的库，用于在AWS上灵活、可扩展、可靠的无服务器后端上构建复杂的云计算应用。Amplify允许您访问AWS提供的一系列云服务。</p>
+<h2 id="amplify-cli-setup">放大CLI设置</h2>
+<p>为了访问Amplify，您需要有一个AWS帐户。如果你已经有了一个，那么你就可以开始了；如果你没有，你可以在这里注册AWS免费层。</p>
+<p>要安装Amplify CLI，请运行以下命令:</p>
+<pre class="language-shell hljs">$ npm install -g @aws-amplify/cli
+</pre>
+<p>成功安装后，我们现在可以通过运行以下命令来配置CLI:</p>
+<pre class="language-shell hljs">$ amplify configure
+</pre>
+<p>这将带你完成一系列解释清楚、简单明了的步骤，登录你的AWS账户，选择一个用户名，设置一个新的管理员用户，并生成一个<code>secret access key</code>和<code>access key id</code>，它们保存在位于<code>~/.aws/credentials</code>的AWS配置文件中。</p>
+<p>成功设置后，您将收到一条确认消息，表明新用户已成功设置:</p>
+<h2 id="react-app-setup">React应用程序设置</h2>
+<p>我更喜欢在我的所有项目中使用TypeScript，因此要开始一个新的TypeScript/React项目，我们将使用Create React App通过运行以下命令来引导我们的应用程序:</p>
+<pre class="language-shell hljs">$ yarn create react-app my-app --template typescript
+</pre>
+<p>启动应用程序需要几分钟的时间来完成，所以如果你不耐烦了，你可以给自己倒杯咖啡。</p>
+<p>为了启动我们的Amplify项目，我们运行以下命令来初始化和配置项目:</p>
+<pre class="language-shell hljs">$ amplify init
+</pre>
+<p>这将引导您逐步选择最适合您项目的设置。在我们的案例中，我们将采用以下选项。</p>
+<p><img data-attachment-id="115563" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/react-app-settings/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png" data-orig-size="730,270" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-app-settings" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings-300x111.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png" decoding="async" class="size-full wp-image-115563 aligncenter jetpack-lazy-image" src="../Images/5f5e8655905d419f760c52d4848ba2b6.png" alt="react-app-settings" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings-300x111.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115563" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/react-app-settings/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png" data-orig-size="730,270" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="react-app-settings" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings-300x111.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png" decoding="async" loading="lazy" class="size-full wp-image-115563 aligncenter" src="../Images/5f5e8655905d419f760c52d4848ba2b6.png" alt="react-app-settings" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings-300x111.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/react-app-settings.png"/></noscript>
+<p>部署应该立即开始，之后您应该会得到一条与以下内容相匹配的成功消息。</p>
+<p><img data-attachment-id="115565" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/ouxfa-fsaws-deployment-success-notification/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png" data-orig-size="730,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="OuXfa-FsAWS Deployment Success Notification" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification-300x121.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png" decoding="async" class="size-full wp-image-115565 aligncenter jetpack-lazy-image" src="../Images/b5e8f87066c1248eab2d62aefe6ab48b.png" alt="AWS Deployment Success Notification" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification-300x121.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115565" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/ouxfa-fsaws-deployment-success-notification/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png" data-orig-size="730,294" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="OuXfa-FsAWS Deployment Success Notification" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification-300x121.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png" decoding="async" loading="lazy" class="size-full wp-image-115565 aligncenter" src="../Images/b5e8f87066c1248eab2d62aefe6ab48b.png" alt="AWS Deployment Success Notification" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification-300x121.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/OuXfa-FsAWS-Deployment-Success-Notification.png"/></noscript>
+<p>部署完成后，一个名为<code>aws-exports.js</code>的生成文件将出现在您的<code>src</code>文件夹中。您不应该修改这个文件，因为每当您部署您的更改时，它都会发生变化。</p>
+<p>接下来，我们需要向我们的应用程序添加身份验证资源。运行以下命令，为我们的Cognito池选择配置选项:</p>
+<pre class="language-shell hljs">$ amplify add auth
+</pre>
+<p>要为您的应用程序提供最佳配置选项，请选择手动配置，然后从菜单中选择以下选项。</p>
+<p><img data-attachment-id="115567" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/aws-deployment-configuration-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png" data-orig-size="730,324" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="AWS deployment configuration options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png" decoding="async" class="size-full wp-image-115567 aligncenter jetpack-lazy-image" src="../Images/7e6d6422556a4f0081b1648943ea0a5d.png" alt="AWS deployment configuration options" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options-300x133.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115567" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/aws-deployment-configuration-options/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png" data-orig-size="730,324" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="AWS deployment configuration options" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options-300x133.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png" decoding="async" loading="lazy" class="size-full wp-image-115567 aligncenter" src="../Images/7e6d6422556a4f0081b1648943ea0a5d.png" alt="AWS deployment configuration options" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options-300x133.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/AWS-deployment-configuration-options.png"/></noscript>
+<p>为了将新的资源更改部署到云，运行:</p>
+<pre class="language-shell hljs">$ amplify push
+</pre>
+<p>现在我们的Amplify和Cognito设置已经完全完成，我们可以继续安装依赖项了。</p>
+<p>为此，请运行以下命令:</p>
+<pre class="language-shell hljs">$ yarn add aws-amplify react-router-dom styled-components antd password-validator jwt-decode
+</pre>
+<h2 id="dem-aws-cognito-amplify">AWS认知和放大演示</h2>
+<p>接下来，让我们来看看示例应用程序的源代码。我们将逐个处理这些文件，同时分解每个文件中的逻辑。</p>
+<h3 id="signupcontainer-tsx"><code>SignUpContainer.tsx</code></h3>
+<p>该组件包含注册新用户所需的逻辑。我们将为UI组件使用<a href="https://blog.logrocket.com/data-visualization-with-react-ant-design/"> Ant Design </a>，为了验证用户密码，我们将使用密码验证器。</p>
+<p>我们在设置用户池时添加了密码要求，如下所示:</p>
+<ul>
+<li>最少八个字符</li>
+<li>至少有一个大写字母</li>
+<li>至少有一个小写字母</li>
+<li>至少有一个符号</li>
+<li>至少有一位数字</li>
+</ul>
+<p>在成功验证所有必需的用户详细信息之后，我们将有效负载发送到<code>Cognito API</code>，它将验证码发送到用户的电子邮件，并在<code>UserPool</code>中创建一个新用户。</p>
+<p>代码如下:</p>
+<pre class="language-js hljs">import * as React from "react";
+import { Link, Redirect } from 'react-router-dom';
+import { Auth } from 'aws-amplify';
+import { Form, Input, Icon, Button, notification, Popover, Spin, Col, Row } from 'antd';
+
+// Presentational 
+import FormWrapper from '../../Components/Styled/FormWrapper';
+
+// App theme 
+import { colors } from '../../Themes/Colors';
+
+type Props = {
+  form: any;
+};
+
+type State = {
+  confirmDirty: boolean;
+  redirect: boolean;
+  loading: boolean;
+  email: string;
+};
+
+type UserFormData = {
+  fname: string;
+  lname: string;
+  password: string;
+  email: string;
+  phoneNumber: number;
+};
+
+const passwordValidator = require('password-validator');
+
+// create a password schema
+const schema = new passwordValidator();
+
+schema
+  .is()
+  .min(8)
+  .has()
+  .uppercase()
+  .has()
+  .lowercase()
+  .has()
+  .digits()
+  .has()
+  .symbols();
+
+class SignUpContainer extends React.Component&lt;Props, State&gt; {
+  state = {
+    confirmDirty: false,
+    redirect: false,
+    loading: false,
+    email: ''
+  };
+
+  handleSubmit = (event: React.FormEvent) =&gt; {
+    event.preventDefault();
+
+    this.props.form.validateFieldsAndScroll((err: Error, values: UserFormData) =&gt; {
+      if (!err) {
+        let { fname, lname, password, email, phoneNumber } = values;
+
+        // show loader
+        this.setState({ loading: true });
+
+        Auth.signUp({
+          username: email,
+          password,
+          attributes: {
+            email,
+            name: ${fname} ${lname},
+            phone_number: phoneNumber
+          }
+        })
+          .then(() =&gt; {
+            notification.success({
+              message: 'Succesfully signed up user!',
+              description: 'Account created successfully, Redirecting you in a few!',
+              placement: 'topRight',
+              duration: 1.5,
+              onClose: () =&gt; {
+                this.setState({ redirect: true });
+              }
+            });
+
+            this.setState({ email });
+          })
+          .catch(err =&gt; {
+            notification.error({
+              message: 'Error',
+              description: 'Error signing up user',
+              placement: 'topRight',
+              duration: 1.5
+            });
+
+            this.setState({
+              loading: false
+            });
+          });
+      }
+    });
+  };
+
+  handleConfirmBlur = (event: React.FormEvent) =&gt; {
+    const { value } = event.currentTarget;
+
+    this.setState({ confirmDirty: this.state.confirmDirty || !!value });
+  };
+
+  compareToFirstPassword = (rule: object, value: string, callback: (message?: string) =&gt; void) =&gt; {
+    const { form } = this.props;
+
+    if (value &amp;&amp; value !== form.getFieldValue('password')) {
+      callback('Two passwords that you enter is inconsistent!');
+    } else {
+      callback();
+    }
+  };
+
+  validateToNextPassword = (rule: object, value: string, callback: (message?: string) =&gt; void) =&gt; {
+    const form = this.props.form;
+    const validationRulesErrors = schema.validate(value, { list: true });
+
+    if (value &amp;&amp; this.state.confirmDirty) {
+      form.validateFields(['confirm'], { force: true });
+    }
+    if (validationRulesErrors.length &gt; 0) {
+      callback(this.formatPasswordValidateError(validationRulesErrors));
+    }
+    callback();
+  };
+
+  formatPasswordValidateError = (errors: Array) =&gt; {
+    for (let i = 0; i &lt; errors.length; i++) {
+      if (errors[i] === 'min') {
+        return 'password length should be a at least 8 characters';
+      } else if (errors[i] === 'lowercase') {
+        return 'password should contain lowercase letters';
+      } else if (errors[i] === 'uppercase') {
+        return 'password should contain uppercase letters';
+      } else if (errors[i] === 'digits') {
+        return 'password should contain digits';
+      } else if (errors[i] === 'symbols') {
+        return 'password should contain symbols';
+      }
+    }
+  };
+
+  render() {
+    const { getFieldDecorator } = this.props.form;
+    const { redirect, loading } = this.state;
+
+    const title = 'Password Policy';
+    const passwordPolicyContent = (
+      &lt;React.Fragment&gt;
+        &lt;h4&gt;Your password should contain: &lt;/h4&gt;
+        &lt;ul&gt;
+          &lt;li&gt;Minimum length of 8 characters&lt;/li&gt;
+          &lt;li&gt;Numerical characters (0-9)&lt;/li&gt;
+          &lt;li&gt;Special characters&lt;/li&gt;
+          &lt;li&gt;Uppercase letter&lt;/li&gt;
+          &lt;li&gt;Lowercase letter&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/React.Fragment&gt;
+    );
+     return (
+      &lt;React.Fragment&gt;
+        &lt;FormWrapper onSubmit={this.handleSubmit}&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('fname', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your first name!'
+                }
+              ]
+            })(
+              &lt;Input
+                prefix={&lt;Icon type="user" style={{ color: colors.transparentBlack }} /&gt;}
+                placeholder="First Name"
+              /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('lname', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your last name!'
+                }
+              ]
+            })(
+              &lt;Input prefix={&lt;Icon type="user" style={{ color: colors.transparentBlack }} /&gt;} placeholder="Last Name" /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('email', {
+              rules: [{ required: true, message: 'Please input your email!' }]
+            })(&lt;Input prefix={&lt;Icon type="user" style={{ color: colors.transparentBlack }} /&gt;} placeholder="Email" /&gt;)}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('phoneNumber', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your phone number!'
+                }
+              ]
+            })(
+              &lt;Input
+                prefix={&lt;Icon type="phone" style={{ color: colors.transparentBlack }} /&gt;}
+                placeholder="Phone Number"
+              /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            &lt;Popover placement="right" title={title} content={passwordPolicyContent} trigger="focus"&gt;
+              {getFieldDecorator('password', {
+                rules: [
+                  { required: true, message: 'Please input your Password!' },
+                  {
+                    validator: this.validateToNextPassword
+                  }
+                ]
+              })(
+                &lt;Input
+                  prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                  type="password"
+                  placeholder="Password"
+                /&gt;
+              )}
+            &lt;/Popover&gt;
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('confirm', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please confirm your password!'
+                },
+                {
+                  validator: this.compareToFirstPassword
+                }
+              ]
+            })(
+              &lt;Input
+                prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                type="password"
+                placeholder="Confirm Password"
+                onBlur={this.handleConfirmBlur}
+              /&gt;
+            )}
+          &lt;/Form.Item&gt;
+
+          &lt;Form.Item className="text-center"&gt;
+            &lt;Row&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Button style={{ width: '100%' }} type="primary" disabled={loading} htmlType="submit"&gt;
+                  {loading ? &lt;Spin indicator={&lt;Icon type="loading" style={{ fontSize: 24 }} spin /&gt;} /&gt; : 'Register'}
+                &lt;/Button&gt;
+              &lt;/Col&gt;
+              &lt;Col lg={24}&gt;
+                Or &lt;Link to="/login"&gt;login to your account!&lt;/Link&gt;
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+        &lt;/FormWrapper&gt;
+        {redirect &amp;&amp; (
+          &lt;Redirect
+            to={{
+              pathname: '/verify-code',
+              search: `?email=${this.state.email}`
+            }}
+          /&gt;
+        )}
+      &lt;/React.Fragment&gt;
+    );
+  }
+}
+
+export default Form.create()(SignUpContainer);
+</pre>
+<p>您现在应该有类似这样的东西。</p>
+<p><img data-attachment-id="115571" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-signup-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png" data-orig-size="651,625" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Signup Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container-300x288.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png" decoding="async" class="size-full wp-image-115571 aligncenter jetpack-lazy-image" src="../Images/6d3ecd8ab96a33eddb1592c148044cb4.png" alt="Our App's Signup Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png 651w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container-300x288.png 300w" data-lazy-sizes="(max-width: 651px) 100vw, 651px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115571" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-signup-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png" data-orig-size="651,625" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Signup Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container-300x288.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png" decoding="async" loading="lazy" class="size-full wp-image-115571 aligncenter" src="../Images/6d3ecd8ab96a33eddb1592c148044cb4.png" alt="Our App's Signup Container" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png 651w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container-300x288.png 300w" sizes="(max-width: 651px) 100vw, 651px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Signup-Container.png"/></noscript>
+<p>注册后，您的用户池您现在应该有一个新用户的列表。</p>
+<p><img data-attachment-id="115573" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-user-pool-list/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png" data-orig-size="730,187" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s User Pool List" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List-300x77.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png" decoding="async" class="size-full wp-image-115573 aligncenter jetpack-lazy-image" src="../Images/0e3308335785e84dfbde920c4f1bdb79.png" alt="Our App's User Pool List" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List-300x77.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115573" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-user-pool-list/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png" data-orig-size="730,187" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s User Pool List" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List-300x77.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png" decoding="async" loading="lazy" class="size-full wp-image-115573 aligncenter" src="../Images/0e3308335785e84dfbde920c4f1bdb79.png" alt="Our App's User Pool List" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List-300x77.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-User-Pool-List.png"/></noscript>
+<h3 id="confirmemailcontainer-tsx"><code>ConfirmEmailContainer.tsx</code></h3>
+<p>注册成功后，确认码会发送到用户的电子邮件中。为了验证它，添加下面的代码，这样我们就有了一个带有提交按钮的基本输入。</p>
+<p>当提交确认码时，我们调用<code>Cognito API</code>来检查它的有效性，之后我们重定向到成功验证的登录页面:</p>
+<pre class="language-js hljs">import * as React from 'react';
+import { Redirect, RouteComponentProps } from 'react-router-dom';
+import { Spin, Icon, Button, Form, notification, Input, Col } from 'antd';
+
+// amplify
+import { Auth } from 'aws-amplify';
+
+/** Presentational */
+import FullWidthWrapper from '../../Components/Styled/FullWidthWrapper';
+import EmailConfirmFormWrapper from '../../Components/Styled/EmailConfirmFormWrapper';
+
+type State = {
+  username: string;
+  loading: boolean;
+  redirect: boolean;
+  confirmationCode: string;
+  error: string;
+};
+
+class ConfirmEmailContainer extends React.Component&lt;RouteComponentProps, State&gt; {
+  state = {
+    username: '',
+    loading: false,
+    redirect: false,
+    confirmationCode: '',
+    error: ''
+  };
+
+  componentDidMount() {
+    if (this.props.location.search) {
+      // get username from url params
+      let username = this.props.location.search.split('=')[1];
+
+      this.setState({ username });
+    }
+  }
+
+  handleSubmit = (event: React.FormEvent) =&gt; {
+    event.preventDefault();
+
+    const { confirmationCode } = this.state;
+
+    // show progress spinner
+    this.setState({ loading: true });
+
+    Auth.confirmSignUp(this.state.username, confirmationCode)
+      .then(() =&gt; {
+        this.handleOpenNotification('success', 'Succesfully confirmed!', 'You will be redirected to login in a few!');
+      })
+      .catch(err =&gt; {
+        this.handleOpenNotification('error', 'Invalid code', err.message);
+        this.setState({
+          loading: false
+        });
+      });
+  };
+
+  /**
+   * @param  {string} - type
+   * @param  {string} - title
+   * @param  {string} - message
+   *
+   * @returns {void} - no value returned
+   */
+  handleOpenNotification = (type: string, title: string, message: string): void =&gt; {
+    switch (type) {
+      case 'success':
+        notification['success']({
+          message: title,
+          description: message,
+          placement: 'topRight',
+          duration: 1.5,
+          onClose: () =&gt; {
+            this.setState({ redirect: true });
+          }
+        });
+        break;
+
+      case 'error':
+        notification['error']({
+          message: title,
+          description: message,
+          placement: 'topRight',
+          duration: 1.5
+        });
+        break;
+    }
+  };
+
+  handleOnPaste = (event: React.ClipboardEvent) =&gt; {
+    event.preventDefault();
+
+    let code = event.clipboardData.getData('Text').trim();
+
+    /** Update input */
+    this.setState({ confirmationCode: code });
+
+    // regex to check if string is numbers only
+    const reg = new RegExp('^[0-9]+$');
+
+    if (reg.test(code) &amp;&amp; code.length === 6) {
+      // code is a valid number
+
+      this.setState({ loading: true });
+
+      Auth.confirmSignUp(this.state.username, code)
+        .then(() =&gt; {
+          this.handleOpenNotification('success', 'Succesfully confirmed!', 'You will be redirected to login in a few!');
+        })
+        .catch(err =&gt; {
+          this.handleOpenNotification('error', 'Invalid code', err.message);
+          this.setState({
+            loading: false
+          });
+        });
+    }
+  };
+
+  handleChange = (event: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+    this.setState({ confirmationCode: event.currentTarget.value });
+  };
+
+  render() {
+    const { loading, error, confirmationCode, redirect } = this.state;
+
+    return (
+      &lt;FullWidthWrapper align="center"&gt;
+        &lt;EmailConfirmFormWrapper onSubmit={this.handleSubmit}&gt;
+          &lt;Col md={24} lg={18}&gt;
+            &lt;div className="full-width"&gt;
+              &lt;h2&gt;Check your email&lt;/h2&gt;
+              &lt;p&gt;We've sent a six­ digit confirmation code&lt;/p&gt;
+            &lt;/div&gt;
+            &lt;Form.Item validateStatus={error &amp;&amp; 'error'} help={error} label="Confirmation Code"&gt;
+              &lt;Input
+                size="large"
+                type="number"
+                placeholder="Enter confirmation code"
+                onChange={this.handleChange}
+                onPaste={this.handleOnPaste}
+                value={confirmationCode}
+              /&gt;
+            &lt;/Form.Item&gt;
+          &lt;/Col&gt;
+          &lt;Col md={24} lg={12}&gt;
+            &lt;Button type="primary" disabled={loading} htmlType="submit" size="large"&gt;
+              {loading ? &lt;Spin indicator={&lt;Icon type="loading" style={{ fontSize: 24 }} spin /&gt;} /&gt; : 'Confirm Email'}
+            &lt;/Button&gt;
+          &lt;/Col&gt;
+        &lt;/EmailConfirmFormWrapper&gt;
+        {redirect &amp;&amp; &lt;Redirect to={{ pathname: '/login' }} /&gt;}
+      &lt;/FullWidthWrapper&gt;
+    );
+  }
+}
+
+export default ConfirmEmailContainer;
+</pre>
+<p>上面的代码应该会产生这样的结果。</p>
+<p><img data-attachment-id="115576" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/password-reset-confirmation-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png" data-orig-size="730,136" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Password Reset Confirmation Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container-300x56.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png" decoding="async" class="alignnone size-full wp-image-115576 jetpack-lazy-image" src="../Images/4cee40b2e9daca1b0d201d9ee250b901.png" alt="Password Reset Confirmation Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container-300x56.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115576" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/password-reset-confirmation-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png" data-orig-size="730,136" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Password Reset Confirmation Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container-300x56.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png" decoding="async" loading="lazy" class="alignnone size-full wp-image-115576" src="../Images/4cee40b2e9daca1b0d201d9ee250b901.png" alt="Password Reset Confirmation Container" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container-300x56.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Password-Reset-Confirmation-Container.png"/></noscript>
+<h3 id="logincontainer-tsx"><code>LoginContainer.tsx</code></h3>
+<p>成功确认用户代码后，我们重定向到登录页面。下面，我们将创建一个由Ant Design提供的具有强大验证功能的表单。</p>
+<p>验证通过后，我们使用AWS SDK中包含的<code>Auth</code>模块提交用户名和密码有效载荷，然后调用<code>Cognito API</code>并返回成功或错误有效载荷。如果用户凭证通过，我们将令牌保存到<code>localStorage</code>，并重定向到仪表板登录页面。</p>
+<p>代码如下:</p>
+<pre class="language-js hljs">import * as React from 'react';
+import { Link, RouteComponentProps } from 'react-router-dom';
+import { Auth } from 'aws-amplify';
+import { Form, Icon, Spin, Input, Button, notification, Col, Row } from 'antd';
+
+/** Presentational */
+import FormWrapper from '../../Components/Styled/FormWrapper';
+
+/** App theme */
+import { colors } from '../../Themes/Colors';
+
+/** App constants */
+import { AUTH_USER_TOKEN_KEY } from '../../Utils/constants';
+
+type Props = RouteComponentProps &amp; {
+  form: any;
+};
+
+type State = {
+  loading: boolean;
+};
+
+class LoginContainer extends React.Component&lt;Props, State&gt; {
+  state = {
+    loading: false
+  };
+
+  handleSubmit = (event: React.FormEvent) =&gt; {
+    event.preventDefault();
+
+    this.props.form.validateFields((err: Error, values: { username: string; password: string }) =&gt; {
+      if (!err) {
+        let { username, password } = values;
+
+        this.setState({ loading: true });
+
+        Auth.signIn(username, password)
+          .then(user =&gt; {
+            const { history, location } = this.props;
+            const { from } = location.state || {
+              from: {
+                pathname: '/dashboard'
+              }
+            };
+
+            localStorage.setItem(AUTH_USER_TOKEN_KEY, user.signInUserSession.accessToken.jwtToken);
+
+            notification.success({
+              message: 'Succesfully logged in!',
+              description: 'Logged in successfully, Redirecting you in a few!',
+              placement: 'topRight',
+              duration: 1.5
+            });
+
+            history.push(from);
+          })
+          .catch(err =&gt; {
+            notification.error({
+              message: 'Error',
+              description: err.message,
+              placement: 'topRight'
+            });
+
+            console.log(err);
+
+            this.setState({ loading: false });
+          });
+      }
+    });
+  };
+
+  render() {
+    const { getFieldDecorator } = this.props.form;
+    const { loading } = this.state;
+
+    return (
+      &lt;React.Fragment&gt;
+        &lt;FormWrapper onSubmit={this.handleSubmit} className="login-form"&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('username', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your username!'
+                }
+              ]
+            })(
+              &lt;Input prefix={&lt;Icon type="user" style={{ color: colors.transparentBlack }} /&gt;} placeholder="Username" /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('password', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your password!'
+                }
+              ]
+            })(
+              &lt;Input
+                prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                type="password"
+                placeholder="Password"
+              /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item className="text-center"&gt;
+            &lt;Row type="flex" gutter={16}&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Link style={{ float: 'right' }} className="login-form-forgot" to="/forgot-password"&gt;
+                  Forgot password
+                &lt;/Link&gt;
+              &lt;/Col&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Button
+                  style={{ width: '100%' }}
+                  type="primary"
+                  disabled={loading}
+                  htmlType="submit"
+                  className="login-form-button"
+                &gt;
+                  {loading ? &lt;Spin indicator={&lt;Icon type="loading" style={{ fontSize: 24 }} spin /&gt;} /&gt; : 'Log in'}
+                &lt;/Button&gt;
+              &lt;/Col&gt;
+              &lt;Col lg={24}&gt;
+                Or &lt;Link to="/signup"&gt;register now!&lt;/Link&gt;
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+        &lt;/FormWrapper&gt;
+      &lt;/React.Fragment&gt;
+    );
+  }
+}
+
+export default Form.create()(LoginContainer);
+</pre>
+<p>您最终应该会看到下面的视图。</p>
+<p><img data-attachment-id="115583" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-login-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png" data-orig-size="403,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Login Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container-289x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png" decoding="async" class="size-full wp-image-115583 aligncenter jetpack-lazy-image" src="../Images/c9e78111c1b520c70258a04d91e9929f.png" alt="Our App's Login Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png 403w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container-289x300.png 289w" data-lazy-sizes="(max-width: 403px) 100vw, 403px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115583" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-login-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png" data-orig-size="403,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Login Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container-289x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png" decoding="async" loading="lazy" class="size-full wp-image-115583 aligncenter" src="../Images/c9e78111c1b520c70258a04d91e9929f.png" alt="Our App's Login Container" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png 403w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container-289x300.png 289w" sizes="(max-width: 403px) 100vw, 403px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Login-Container.png"/></noscript>
+<h3 id="forgotpasswordcontainer-tsx"><code>ForgotPasswordContainer.tsx</code></h3>
+<p>万一用户忘记了密码，我们需要一种方法让他们找回密码。使用Amplify时，这非常容易。</p>
+<p>我们将通过添加以下逻辑来实现这一点，该逻辑接受用户名有效负载并向用户的电子邮件发送验证码，然后我们将使用该验证码来重置他们的密码:</p>
+<pre class="language-js hljs">import * as React from 'react';
+import { Link, Redirect } from 'react-router-dom';
+import { Auth } from 'aws-amplify';
+import { Form, Icon, Spin, Input, Button, notification, Row, Col } from 'antd';
+
+/** Presentational */
+import FormWrapper from '../../Components/Styled/FormWrapper';
+
+/** App theme */
+import { colors } from '../../Themes/Colors';
+
+type Props = {
+  form: any;
+};
+
+type State = {
+  username: string;
+  redirect: boolean;
+  loading: boolean;
+};
+
+class ForgotPasswordContainer extends React.Component&lt;Props, State&gt; {
+  state = {
+    username: '',
+    redirect: false,
+    loading: false
+  };
+
+  handleSubmit = (event: React.FormEvent) =&gt; {
+    event.preventDefault();
+
+    this.props.form.validateFields((err: { message: string }, values: { username: string }) =&gt; {
+      if (!err) {
+        let { username } = values;
+
+        this.setState({
+          loading: true,
+          username
+        });
+
+        Auth.forgotPassword(username)
+          .then(data =&gt; {
+            notification.success({
+              message: 'Redirecting you in a few!',
+              description: 'Account confirmed successfully!',
+              placement: 'topRight',
+              duration: 1.5,
+              onClose: () =&gt; {
+                this.setState({ redirect: true });
+              }
+            });
+          })
+          .catch(err =&gt; {
+            notification.error({
+              message: 'User confirmation failed',
+              description: err.message,
+              placement: 'topRight',
+              duration: 1.5
+            });
+            this.setState({ loading: false });
+          });
+      }
+    });
+  };
+
+  render() {
+    const { getFieldDecorator } = this.props.form;
+    const { loading, redirect, username } = this.state;
+
+    return (
+      &lt;React.Fragment&gt;
+        &lt;FormWrapper onSubmit={this.handleSubmit} className="login-form"&gt;
+          &lt;Form.Item&gt;
+            {getFieldDecorator('username', {
+              rules: [
+                {
+                  required: true,
+                  message: 'Please input your username!'
+                }
+              ]
+            })(
+              &lt;Input prefix={&lt;Icon type="user" style={{ color: colors.transparentBlack }} /&gt;} placeholder="Username" /&gt;
+            )}
+          &lt;/Form.Item&gt;
+          &lt;Form.Item className="text-center"&gt;
+            &lt;Row&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Button style={{ width: '100%' }} type="primary" htmlType="submit" className="login-form-button"&gt;
+                  {loading ? (
+                    &lt;Spin indicator={&lt;Icon type="loading" style={{ fontSize: 24 }} spin /&gt;} /&gt;
+                  ) : (
+                    'Confirm username'
+                  )}
+                &lt;/Button&gt;
+              &lt;/Col&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Link to="/login"&gt;Ooh! Wait! I've remembered!&lt;/Link&gt;
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+        &lt;/FormWrapper&gt;
+        {redirect &amp;&amp; (
+          &lt;Redirect
+            to={{
+              pathname: '/reset-password',
+              search: `?username=${username}`
+            }}
+          /&gt;
+        )}
+      &lt;/React.Fragment&gt;
+    );
+  }
+}
+
+export default Form.create()(ForgotPasswordContainer);
+</pre>
+<p>该表单将如下所示:</p>
+<p><img data-attachment-id="115585" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-forgot-password-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png" data-orig-size="404,315" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Forgot Password Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png" decoding="async" class="size-full wp-image-115585 aligncenter jetpack-lazy-image" src="../Images/c29b773109bf748182f1cfc584b8456c.png" alt="Our App's Forgot Password Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png 404w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container-300x234.png 300w" data-lazy-sizes="(max-width: 404px) 100vw, 404px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115585" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-forgot-password-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png" data-orig-size="404,315" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Forgot Password Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container-300x234.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png" decoding="async" loading="lazy" class="size-full wp-image-115585 aligncenter" src="../Images/c29b773109bf748182f1cfc584b8456c.png" alt="Our App's Forgot Password Container" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png 404w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container-300x234.png 300w" sizes="(max-width: 404px) 100vw, 404px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Forgot-Password-Container.png"/></noscript>
+<h3 id="passwordresetcontainer-tsx"><code>PasswordResetContainer.tsx</code></h3>
+<p>发送验证码后，我们将重定向到密码重置组件。在那里，用户输入验证码和新密码，该密码被发送到<code>Cognito API</code>。如果验证码匹配，新密码将被设置为当前密码，用户现在可以使用该密码登录。</p>
+<p>代码如下:</p>
+<pre class="language-js hljs">import * as React from 'react';
+import { Redirect, RouteComponentProps } from 'react-router-dom';
+import { Auth } from 'aws-amplify';
+import { Form, Input, Icon, Button, notification, Popover, Spin, Row, Col } from 'antd';
+
+/** App theme */
+import { colors } from '../../Themes/Colors';
+import FormWrapper from '../../Components/Styled/FormWrapper';
+
+type Props = RouteComponentProps &amp; {
+  form: any;
+};
+
+type State = {
+  confirmDirty: boolean;
+  redirect: boolean;
+  loading: boolean;
+};
+
+class PasswordResetContainer extends React.Component&lt;Props, State&gt; {
+  state = {
+    confirmDirty: false,
+    redirect: false,
+    loading: false
+  };
+
+  handleBlur = (event: React.FormEvent&lt;HTMLInputElement&gt;) =&gt; {
+    const value = event.currentTarget.value;
+
+    this.setState({ confirmDirty: this.state.confirmDirty || !!value });
+  };
+
+  compareToFirstPassword = (rule: object, value: string, callback: (message?: string) =&gt; void) =&gt; {
+    const form = this.props.form;
+
+    if (value &amp;&amp; value !== form.getFieldValue('password')) {
+      callback('Two passwords that you enter is inconsistent!');
+    } else {
+      callback();
+    }
+  };
+
+  validateToNextPassword = (rule: object, value: string, callback: (message?: string) =&gt; void) =&gt; {
+    const form = this.props.form;
+    if (value &amp;&amp; this.state.confirmDirty) {
+      form.validateFields(['confirm'], { force: true });
+    }
+    callback();
+  };
+
+  handleSubmit = (event: React.FormEvent) =&gt; {
+    event.preventDefault();
+
+    this.props.form.validateFieldsAndScroll((err: Error, values: { password: string; code: string }) =&gt; {
+      if (!err) {
+        let { password, code } = values;
+        let username = this.props.location.search.split('=')[1];
+
+        Auth.forgotPasswordSubmit(username.trim(), code.trim(), password.trim())
+          .then(() =&gt; {
+            notification.success({
+              message: 'Success!',
+              description: 'Password reset successful, Redirecting you in a few!',
+              placement: 'topRight',
+              duration: 1.5,
+              onClose: () =&gt; {
+                this.setState({ redirect: true });
+              }
+            });
+          })
+          .catch(err =&gt; {
+            notification['error']({
+              message: 'Error reseting password',
+              description: err.message,
+              placement: 'topRight',
+              duration: 1.5
+            });
+
+            this.setState({ loading: false });
+          });
+
+        // show loader
+        this.setState({ loading: true });
+      }
+    });
+  };
+
+  render() {
+    const { getFieldDecorator } = this.props.form;
+    const { redirect, loading } = this.state;
+
+    const title = 'Password Policy';
+    const passwordPolicyContent = (
+      &lt;React.Fragment&gt;
+        &lt;h4&gt;Your password should contain: &lt;/h4&gt;
+        &lt;ul&gt;
+          &lt;li&gt;Minimum length of 8 characters&lt;/li&gt;
+          &lt;li&gt;Numerical characters (0-9)&lt;/li&gt;
+          &lt;li&gt;Special characters&lt;/li&gt;
+          &lt;li&gt;Uppercase letter&lt;/li&gt;
+          &lt;li&gt;Lowercase letter&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/React.Fragment&gt;
+    );
+
+    return (
+      &lt;React.Fragment&gt;
+        &lt;FormWrapper onSubmit={this.handleSubmit}&gt;
+          &lt;div className="text-center"&gt;
+            &lt;p&gt;Check your email for the confirmation code&lt;/p&gt;
+          &lt;/div&gt;
+          &lt;Form.Item&gt;
+            &lt;Row&gt;
+              &lt;Col lg={24}&gt;
+                {getFieldDecorator('code', {
+                  rules: [
+                    {
+                      required: true,
+                      message: 'Please input your confirmation code!'
+                    }
+                  ]
+                })(
+                  &lt;Input
+                    prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                    placeholder="Enter your verification code"
+                  /&gt;
+                )}
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+
+          &lt;Form.Item&gt;
+            &lt;Popover placement="right" title={title} content={passwordPolicyContent} trigger="focus"&gt;
+              {getFieldDecorator('password', {
+                rules: [
+                  { required: true, message: 'Please input your Password!' },
+                  {
+                    validator: this.validateToNextPassword
+                  }
+                ]
+              })(
+                &lt;Input
+                  prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                  type="password"
+                  placeholder="New Password"
+                /&gt;
+              )}
+            &lt;/Popover&gt;
+          &lt;/Form.Item&gt;
+
+          &lt;Form.Item&gt;
+            &lt;Row&gt;
+              &lt;Col lg={24}&gt;
+                {getFieldDecorator('confirm', {
+                  rules: [
+                    {
+                      required: true,
+                      message: 'Please confirm your password!'
+                    },
+                    {
+                      validator: this.compareToFirstPassword
+                    }
+                  ]
+                })(
+                  &lt;Input
+                    prefix={&lt;Icon type="lock" style={{ color: colors.transparentBlack }} /&gt;}
+                    type="password"
+                    placeholder="Confirm Password"
+                    onBlur={this.handleBlur}
+                  /&gt;
+                )}
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+
+          &lt;Form.Item className="text-center"&gt;
+            &lt;Row&gt;
+              &lt;Col lg={24}&gt;
+                &lt;Button style={{ width: '100%' }} type="primary" htmlType="submit" className="login-form-button"&gt;
+                  {loading ? (
+                    &lt;Spin indicator={&lt;Icon type="loading" style={{ fontSize: 24 }} spin /&gt;} /&gt;
+                  ) : (
+                    'Confirm username'
+                  )}
+                &lt;/Button&gt;
+              &lt;/Col&gt;
+            &lt;/Row&gt;
+          &lt;/Form.Item&gt;
+        &lt;/FormWrapper&gt;
+        {redirect &amp;&amp; &lt;Redirect to={{ pathname: '/login' }} /&gt;}
+      &lt;/React.Fragment&gt;
+    );
+  }
+}
+
+export default Form.create()(PasswordResetContainer);
+</pre>
+<p>该组件将显示如下所示的视图。</p>
+<p><img data-attachment-id="115589" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-password-reset-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png" data-orig-size="662,437" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Password Reset Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png" decoding="async" class="size-full wp-image-115589 aligncenter jetpack-lazy-image" src="../Images/fc0bb0c52b24c286b55a4768afde0255.png" alt="Our App's Password Reset Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png 662w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container-300x198.png 300w" data-lazy-sizes="(max-width: 662px) 100vw, 662px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="115589" data-permalink="https://blog.logrocket.com/authentication-react-aws-amplify-cognito/attachment/our-apps-password-reset-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png" data-orig-size="662,437" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Our App’s Password Reset Container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container-300x198.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png" decoding="async" loading="lazy" class="size-full wp-image-115589 aligncenter" src="../Images/fc0bb0c52b24c286b55a4768afde0255.png" alt="Our App's Password Reset Container" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png 662w, https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container-300x198.png 300w" sizes="(max-width: 662px) 100vw, 662px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/Our-Apps-Password-Reset-Container.png"/></noscript>
+<h2>结论</h2>
+<p>我们已经介绍了如何使用AWS Cognito和Amplify进行注册、登录和密码重置，这是一个高度可靠的组合，可以让开发人员的工作更加轻松。您可以专注于实现您的业务逻辑，而不用担心应用程序的身份验证。</p>
+<p>AWS Cognito和Amplify还可以集成到您拥有的任何架构模式中，无论是整体架构还是微服务架构。你可以在这里访问代码<a href="https://github.com/brayoh/react-amplify" target="_blank" rel="noopener">，也可以在这里</a>试用演示app <a href="http://react-amplify-20191127160520-hostingbucket-dev.s3-website-eu-west-1.amazonaws.com" target="_blank" rel="noopener">。</a></p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

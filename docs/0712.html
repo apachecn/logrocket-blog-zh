@@ -1,0 +1,138 @@
+<html>
+<head>
+<title>Why you should use refs sparingly in production - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>为什么在生产日志博客中应该谨慎使用引用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/why-you-should-use-refs-sparingly-in-production/#0001-01-01">https://blog.logrocket.com/why-you-should-use-refs-sparingly-in-production/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>React引用使您可以在React中直接访问DOM。这是一个很重要的特性，因为在开发React应用程序时，您有时需要对DOM执行某些操作。在本帖中，我们将仔细研究React refs，并试图理解为什么在生产级应用中使用它们可能不是一个好主意。</p>
+<h2>用例</h2>
+<p>使用ref属性给了您执行某些操作和直接操作DOM的能力。除非万不得已，否则避免使用refs是一条通用的经验法则。官方React文档仅概述了三种可能的用例，在这些用例中，由于缺乏更好的替代方案，ref被完全认为是有用的:</p>
+<ul>
+<li>管理焦点、文本选择或媒体播放</li>
+<li>触发命令式动画</li>
+<li>与第三方DOM库集成</li>
+</ul>
+<p>在第一种情况下，ref属性使您能够与DOM API交互并执行一些操作，比如获取输入元素的值、管理用户焦点以及管理媒体元素。</p>
+<p>命令式动画需要访问负责的DOM节点来操作目标元素。这就是ref属性通过在应用程序的不同部分对选定的元素执行操作来帮助您实现的。</p>
+<p>最后，一些库严重依赖DOM运行。例如地图、编辑器、图像处理工具等。这些组件需要完全访问DOM，并且只能通过React中的ref属性获得这样的访问权限。</p>
+<h2>参考文献如何在发展中发挥作用</h2>
+<p>在此之前，我们使用<code>this.ref</code>对象与DOM交互，这个特性现在已经被弃用，取而代之的是<a href="https://reactjs.org/blog/2018/03/29/react-v-16-3.html" target="_blank" rel="noopener noreferrer"> React 16.3 </a>附带的新<code>createRef</code>。使用它，您可以通过调用<code>React.createRef()</code>并使用元素上的<code>ref</code>属性将一个React元素附加到它来创建一个ref:</p>
+<pre>import React, { Component } from 'react';
+class RefDemo extends Component {
+  constructor(props) {
+    super(props);
+    this.nameInput = React.createRef(); 
+  }
+  render() {
+    return (
+      &lt;input ref={this.nameInput}/&gt;
+    );
+  }
+}</pre>
+<p>通过上面的实现，我们可以像这样访问刚刚创建的ref的DOM节点:</p>
+<pre>this.nameInput.current</pre>
+<p>然后可以在该节点上执行后续操作。例如，为了获得输入元素的值，我们将做:</p>
+<pre>import React, { Component } from 'react';
+class RefDemo extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { value: "" }
+    this.nameInput = React.createRef(); 
+  }
+  handleSubmit = e =&gt; {
+    e.preventDefault();
+    this.setState({ value: this.nameInput.current.value})
+  };
+  render() {
+    return (
+        &lt;form onSubmit={this.handleSubmit} /&gt;
+          &lt;input type="text" ref={this.nameInput}/&gt;
+        &lt;/form&gt;
+    );
+  }
+}</pre>
+<p>当您试图关注输入DOM节点时，情况也是如此。您需要对前面的代码片段做一个小的更新:</p>
+<pre>import React, { Component } from 'react';
+class RefDemo extends Component {
+  constructor(props) {
+    super(props);
+    this.nameInput = React.createRef();
+  }
+  handleSubmit = () =&gt; {
+    this.nameInput.current.focus();
+  };
+  render() {
+    return (
+          &lt;input type="text" ref={this.nameInput}/&gt;
+          &lt;button onClick={this.handleSubmit}&gt;
+            focus!
+          &lt;/button&gt;
+    );
+  }
+}</pre>
+<p>这些是在构建React应用程序时使用refs的几种方法，但是，根据您的特定用例，可以使用refs执行更多操作。就像我之前提到的，refs可以帮助你做很多事情，包括减少组件中重新渲染的次数。</p>
+<h2>生产中的参考</h2>
+<p>如果您正在构建一个生产级应用程序，前面的实现将不被推荐。这是因为你不是在构建应用程序<code><a href="https://reactjs.org/docs/thinking-in-react.html" target="_blank" rel="noopener noreferrer">The React Way</a></code>。React要求您通过props(而不是refs)在组件之间进行通信。这就是反应，反应。</p>
+<p>具有先前功能的生产就绪型React应用程序将采用不同的方法。例如，当一个组件像我们在前面的实现中那样托管一个输入元素时，React将期望您设置一个事件处理程序来跟踪该输入元素的更改。</p>
+<p>这样，当用户在输入字段中键入字符时，事件处理程序将触发并用新值更新您的状态。考虑一下这个:</p>
+<pre>import React from 'react';
+class RefDemo extends React.Component {
+    state = {
+      inputValue: ""
+    }
+    handleChange = (e) =&gt; {
+      this.setState({
+        inputValue: e.target.value
+      })
+    }
+    render() {
+        const { inputValue } = this.state
+        return (
+          &lt;div&gt;
+            &lt;input value={inputValue} onChange={this.handleChange}} /&gt;
+          &lt;/div&gt;
+       )
+  }
+}</pre>
+<p>对状态的更改将导致父组件重新呈现自身，以及带有新值的输入元素。从上面的实现中可以注意到，只要输入值发生变化，就会调用处理程序。处理程序然后调用<code>setState({ })</code>，这又重新呈现了组件。这就是React方式，也是React应用程序在生产中的预期实现。</p>
+<h2>为什么应该谨慎使用引用</h2>
+<p>也就是说，这里还有一些你应该谨慎使用引用的理由。</p>
+<h3>它打破了封装</h3>
+<p>React要求您只能通过props在组件之间进行通信。引用建议您可以使用ref属性与其他组件进行通信。这将使信息到达期望的目的地，但是，您将丢失应用程序中的数据驱动操作，因为refs不能确保数据同步。状态不会更新，组件也不会重新呈现。应用程序状态不会跟踪DOM中的变化，这当然会破坏封装。</p>
+<h3>它不遵循反应模式</h3>
+<p>React有一个特定的思维模式，一种在构建React应用程序时思考的方式。它指定您用状态和组件层次结构来控制应用程序UI的每一部分。使用React refs来传递数据违背了React的思维模式。React按照设计是由状态驱动的。这意味着每个组件都是有状态的。它有不同的状态(想想不同的UI表示)，我们可以改变状态来改变UI的外观，不一定只是在事件发生时。</p>
+<h3>它鼓励事件驱动的开发</h3>
+<p>React是由数据驱动的设计。使用React refs鼓励您根据事件而不是数据变化来更新应用程序UI。使用React refs，我们可以在事件发生时更新应用程序UI(用户单击某个东西)。然而，React更喜欢状态驱动的实现，其中每个组件都是有状态的，并且可以改变状态来修改UI的外观。</p>
+<h3>倾向于覆盖React提供的API</h3>
+<p>React为某些功能提供了本地API，如条件CSS类、条件渲染等。用refs构建React应用程序会影响你对React应用程序的看法，让你忽略这些原生API，转而提倡使用Refs来实现那些功能。这些特性(React为其提供了本机API)不应该通过使用本机DOM元素来实现，因为它可以在React API中完全处理。也就是说，有些事情不能纯粹在React中完成(比如以编程方式聚焦输入)，这正是refs应该出现的地方。</p>
+<h2>参考文献的可能替代方案及建议</h2>
+<ul>
+<li>使用状态控制所有应用程序UI更新</li>
+<li>使用props处理组件层次关系</li>
+<li>道具链乱了就用Redux</li>
+</ul>
+<h2>结论</h2>
+<p>在这篇文章中，我们讨论了React引用以及如何使用它们。最重要的是，我们已经解释了它的缺点。</p>
+<p>一般的经验法则是，在考虑裁判之前，要考虑在道具和状态上做你想做的事情的可能性有多大。如果你没有找到一个合理的实现，那么你应该考虑使用refs。就我个人而言，我只在需要调用DOM元素上的特定函数时使用refs，到目前为止，<a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus" target="_blank" rel="noopener noreferrer"> <code>focus()</code> </a>是我的应用程序中最常见的用法。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

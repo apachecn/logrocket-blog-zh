@@ -1,0 +1,321 @@
+<html>
+<head>
+<title>How to use Redis as a database with go-redis - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何使用Redis作为go-redis - LogRocket博客的数据库</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-use-redis-as-a-database-with-go-redis/#0001-01-01">https://blog.logrocket.com/how-to-use-redis-as-a-database-with-go-redis/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="http://redis.io" target="_blank" rel="noopener"> Redis </a>是一个内存中的数据存储，用作数据库、缓存或消息代理。<a href="https://github.com/go-redis/redis" target="_blank" rel="noopener"> Go-redis/redis </a>是一个类型安全的redis客户端库，支持像<a href="https://redis.io/topics/pubsub" target="_blank" rel="noopener"> Pub/Sub </a>、<a href="https://redis.io/topics/sentinel" target="_blank" rel="noopener"> sentinel </a>和<a href="https://redis.io/topics/pipelining" target="_blank" rel="noopener">流水线</a>这样的特性。</p>
+<blockquote><p>注意:我们将客户端库称为“go-redis ”,以帮助将其与redis本身区分开来。</p></blockquote>
+<p>在本文中，我们将探索go-redis，并使用它的管道特性来构建一个排行榜API。API将使用<a href="https://github.com/gin-gonic/gin" target="_blank" rel="noopener"> Gin </a>和Redis’<a href="https://redis.io/commands/zadd" target="_blank" rel="noopener">排序集合</a>。它将公开以下端点:</p>
+<ul>
+<li><code>GET /points/:username</code> —获取用户的分数及其在总排行榜中的排名</li>
+<li><code>POST /points</code> —添加或更新用户及其分数。该端点还将返回用户的新排名</li>
+<li><code>GET /leaderboard</code> —返回当前排行榜，用户按排名升序排序</li>
+</ul>
+<h2>先决条件</h2>
+<p>要跟进这篇文章，你需要:</p>
+<ul>
+<li>支持模块的Go安装</li>
+<li>Redis安装在您的本地计算机上(或者，如果您安装了Docker，您可以使用<a href="http://hub.docker.com/_/redis" target="_blank" rel="noopener"> Docker映像</a>)</li>
+<li>体验写围棋</li>
+</ul>
+<h2>入门指南</h2>
+<p>首先，在您的首选位置为项目创建一个文件夹，并初始化Go模块:</p>
+<pre>$ mkdir rediboard &amp;&amp; cd rediboard
+$ go mod init gitlab.com/idoko/rediboard</pre>
+<p>使用以下命令安装应用程序依赖项(gin-gonic/gin和go-redis/redis ):</p>
+<pre>$ go get github.com/gin-gonic/gin github.com/go-redis/redis</pre>
+<p>接下来，创建一个<code>main.go</code>文件作为项目的入口点。与此同时，我们还将在项目根目录下创建一个db文件夹来保存负责与Redis交互的代码:</p>
+<pre>$ touch main.go
+$ mkdir db</pre>
+<h2>熟悉go-redis</h2>
+<p>有了我们的应用程序框架，让我们复习一些go-redis的基础知识。到Redis数据库的连接由“客户端”处理——一个可以由多个<a href="https://tour.golang.org/concurrency/1" target="_blank" rel="noopener"> goroutines </a>共享的<a href="https://github.com/go-redis/redis/issues/166" target="_blank" rel="noopener">线程安全</a>值，通常存在于应用程序的整个生命周期中。下面的代码创建了一个新的客户端:</p>
+<pre>client := redis.NewClient(&amp;redis.Options{
+   Addr:     "localhost:6379", // host:port of the redis server
+   Password: "", // no password set
+   DB:       0,  // use default DB
+})</pre>
+<p>Go-redis通过<code>redis.Options</code>参数提供了许多配置选项。一些选项包括设置最大连接数的<code>PoolSize</code>和连接到受<a href="https://en.wikipedia.org/wiki/Transport_Layer_Security" target="_blank" rel="noopener"> TLS保护的</a> Redis服务器的<code>TLSConfig</code>。</p>
+<p>然后，客户端将命令公开为<a href="https://tour.golang.org/methods/4" target="_blank" rel="noopener">接收器方法</a>。例如，代码显示了我们如何设置和获取Redis数据库中的值:</p>
+<pre>ctx := context.TODO()
+client.Set(ctx, "language", "Go", 0)
+language := client.Get(ctx, "language")
+year := client.Get(ctx, "year")
+
+fmt.Println(language.Val()) // "Go"
+fmt.Println(year.Val()) // ""</pre>
+<p>该库需要一个<a href="https://golang.org/pkg/context/#Context" target="_blank" rel="noopener">上下文</a>参数，以允许像基于上下文取消正在运行的命令这样的事情。因为我们不需要它在这里提供的好处，所以我们用<code>context.TODO()</code>创建一个空的上下文。接下来，我们将语言设置为“Go ”,并且不给它设置截止日期(通过传入一个值0)。我们继续获取语言和年份的值，但是因为我们没有为<code>year</code>设置值，所以它是<code>nil</code>，并且<code>year.Val()</code>返回一个空字符串。</p>
+<h2>用Go连接到Redis</h2>
+<p>要为我们的应用程序创建Redis客户端，在我们之前创建的<code>db</code>文件夹中创建一个新的<code>db.go</code>文件，并将下面的代码片段添加到其中:</p>
+<pre>package db
+
+import (
+   "context"
+   "errors"
+   "github.com/go-redis/redis/v8"
+)
+
+type Database struct {
+   Client *redis.Client
+}
+
+var (
+   ErrNil = errors.New("no matching record found in redis database")
+   Ctx    = context.TODO()
+)
+
+func NewDatabase(address string) (*Database, error) {
+   client := redis.NewClient(&amp;redis.Options{
+      Addr: address,
+      Password: "",
+      DB: 0,
+   })
+   if err := client.Ping(Ctx).Err(); err != nil {
+      return nil, err
+   }
+   return &amp;Database{
+      Client: client,
+   }, nil
+}</pre>
+<p>上面的代码创建了一个<code>Database</code>结构来包装redis客户端，并将其暴露给应用程序的其他部分(路由器等)。).它还设置了两个包级变量——<code>ErrNil</code>,用于告诉调用代码Redis操作返回了<code>nil</code>和<code>Ctx</code>,这是一个供客户端使用的空上下文。我们还创建了一个<code>NewDatabase</code>函数，使用<a href="https://redis.io/commands/ping" target="_blank" rel="noopener"> PING </a>命令设置客户端并检查连接是否活跃。</p>
+<p>打开<code>main.go</code>文件，调用<code>NewDatabase()</code>函数，如下面的代码所示:</p>
+<pre>package main
+
+import (
+   "github.com/gin-gonic/gin"
+   "gitlab.com/idoko/rediboard/db"
+   "log"
+   "net/http"
+)
+
+var (
+   ListenAddr = "localhost:8080"
+   RedisAddr = "localhost:6379"
+)
+func main() {
+   database, err := db.NewDatabase(RedisAddr)
+   if err != nil {
+      log.Fatalf("Failed to connect to redis: %s", err.Error())
+   }
+
+   router := initRouter(database)
+   router.Run(ListenAddr)
+}</pre>
+<p>上面的代码片段试图连接到数据库，并打印在此过程中遇到的任何错误。它也指一个<code>initRouter</code>函数。我们将在下一节中进行设置。</p>
+<h2>含杜松子酒的API路线</h2>
+<p>接下来，创建用于创建和注册应用程序路由的<code>initRouter</code>函数。将main.go中的代码添加到现有的<code>main</code>函数下:</p>
+<pre>func initRouter(database *db.Database) *gin.Engine {
+   r := gin.Default()
+   return r
+}</pre>
+<p>目前，该函数返回一个<code>gin.Engine</code>的实例。稍后我们将添加特定于路由的处理程序。</p>
+<h2>go-redis中的交易管道</h2>
+<p>一个<a href="https://redis.io/topics/transactions" target="_blank" rel="noopener"> Redis事务</a>对操作进行排队，并保证要么执行所有操作，要么不执行任何操作。Redis的另一个有趣的特性是<a href="https://redis.io/topics/pipelining" target="_blank" rel="noopener">管道化，</a>一种网络优化，它允许Redis客户机向服务器发送多个请求，而无需等待回复并一次读取所有请求。</p>
+<p>Go-redis在<a href="https://pkg.go.dev/github.com/go-redis/redis/v8#example-Client-TxPipeline" target="_blank" rel="noopener"> TxPipeline </a>方法中包装了事务和管道。下面是在redis-cli上执行的一组事务命令示例:</p>
+<pre>127.0.0.1:6379&gt; MULTI
+OK
+127.0.0.1:6379&gt; SET language "golang"
+QUEUED
+127.0.0.1:6379&gt; SET year 2009
+QUEUED
+127.0.0.1:6379&gt; EXEC
+1) OK
+2) OK
+127.0.0.1:6379&gt;</pre>
+<p>上面的命令可以翻译成下面的Go代码:</p>
+<pre>pipe := db.Client.TxPipeline()
+pipe.Set(Ctx, "language", "golang")
+pipe.Set(Ctx, "year", 2009)
+results, err := pipe.Exec()</pre>
+<h2>将用户保存到已排序的集合</h2>
+<p>在<code>db</code>文件夹中创建一个<code>user.go</code>文件，并将下面的代码添加到其中:</p>
+<pre>package db
+
+import (
+   "fmt"
+   "github.com/go-redis/redis/v8"
+)
+
+type User struct {
+   Username string `json:"username" binding:"required"`
+   Points   int `json:"points" binding:"required"`
+   Rank     int    `json:"rank"`
+}
+
+func (db *Database) SaveUser(user *User) error {
+   member := &amp;redis.Z{
+      Score: float64(user.Points),
+      Member: user.Username,
+   }
+   pipe := db.Client.TxPipeline()
+   pipe.ZAdd(Ctx, "leaderboard", member)
+   rank := pipe.ZRank(Ctx, leaderboardKey, user.Username)
+   _, err := pipe.Exec(Ctx)
+   if err != nil {
+      return err
+   }
+   fmt.Println(rank.Val(), err)
+   user.Rank = int(rank.Val())
+   return nil
+}</pre>
+<p>上面的代码创建了一个<code>User</code>结构来包装排行榜中的用户。该结构包括我们希望字段在转换成JSON时如何表示，以及在使用Gin的<a href="https://github.com/gin-gonic/gin/blob/master/binding/binding.go" target="_blank" rel="noopener">绑定</a>从HTTP请求转换过来时如何表示。然后，它利用管道将新成员添加到已排序的集合中，并获得该成员的新排名。因为<code>user</code>参数是一个指针，所以当我们从<code>SaveUser()</code>函数中改变<code>Rank</code>值时，它会被全面更新。</p>
+<p>接下来，修改<code>main.go</code>以在收到对<code>/points</code>的POST请求时调用上面声明的<code>SaveUser</code>函数。打开<code>main.go</code>并将下面的路线处理器添加到<code>initRouter</code>功能中(就在<code>return r</code>线之前):</p>
+<pre>r.POST("/points", func (c *gin.Context) {
+   var userJson db.User
+   if err := c.ShouldBindJSON(&amp;userJson); err != nil {
+      c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+      return
+   }
+   err := database.SaveUser(&amp;userJson)
+   if err != nil {
+      c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+      return
+   }
+   c.JSON(http.StatusOK, gin.H{"user": userJson})
+})</pre>
+<h2>获取用户的分数和排名</h2>
+<p>类似地，将下面的代码添加到<code>user.go</code>中，以获取单个用户的排名及其分数:</p>
+<pre>func (db *Database) GetUser(username string) (*User, error) {
+   pipe := db.Client.TxPipeline()
+   score := pipe.ZScore(Ctx, leaderboardKey, username)
+   rank := pipe.ZRank(Ctx, leaderboardKey, username)
+   _, err := pipe.Exec(Ctx)
+   if err != nil {
+      return nil, err
+   }
+   if score == nil {
+      return nil, ErrNil
+   }
+   return &amp;User{
+      Username: username,
+      Points: int(score.Val()),
+      Rank: int(rank.Val()),
+   }, nil
+}</pre>
+<p>这里，我们还利用管道来获取用户的分数和排名，以他们的用户名作为关键字。</p>
+<p>如果没有找到匹配的记录，我们也向调用者发出信号(使用<code>ErrNil</code>)，以便由调用者单独处理这种情况(例如，他们可以选择显示404响应)。</p>
+<p>接下来，在<code>main.go</code>中添加相应的路线处理程序，如下所示:</p>
+<pre>r.GET("/points/:username", func (c *gin.Context) {
+   username := c.Param("username")
+   user, err := database.GetUser(username)
+   if err != nil {
+      if err == db.ErrNil {
+         c.JSON(http.StatusNotFound, gin.H{"error": "No record found for " + username})
+         return
+      }
+      c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+      return
+   }
+   c.JSON(http.StatusOK, gin.H{"user": user})
+})</pre>
+<p>上面的代码片段检索用户名路径参数，并将其传递给前面声明的<code>GetUser</code>函数。它还检查返回的错误类型为<code>ErrNil</code>的情况，并在这种情况下显示404响应。</p>
+<h2>使用<code>ZRangeWithScores</code>获取完整的排行榜</h2>
+<p>为了获得完整的排行榜，Redis提供了ZRange命令，用于按照分数的升序检索排序集合的成员。ZRange还接受一个可选的<code>WITHSCORES</code>参数，告诉它返回每个成员的分数。另一方面，Go-redis将命令一分为二，分别提供ZRange和ZRangeWithScores。</p>
+<p>在<code>db</code>文件夹中创建一个名为<code>leaderboard.go</code>的新文件，内容如下:</p>
+<pre>package db
+
+var leaderboardKey = "leaderboard"
+
+type Leaderboard struct {
+   Count int `json:"count"`
+   Users []*User
+}
+
+func (db *Database) GetLeaderboard() (*Leaderboard, error) {
+   scores := db.Client.ZRangeWithScores(Ctx, leaderboardKey, 0, -1)
+   if scores == nil {
+      return nil, ErrNil
+   }
+   count := len(scores.Val())
+   users := make([]*User, count)
+   for idx, member := range scores.Val() {
+      users[idx] = &amp;User{
+         Username: member.Member.(string),
+         Points: int(member.Score),
+         Rank: idx,
+      }
+   }
+   leaderboard := &amp;Leaderboard{
+      Count: count,
+      Users: users,
+   }
+   return leaderboard, nil
+}</pre>
+<p><code>leaderboardKey</code>表示用于识别Redis数据库中集合的键。因为我们现在只运行一个命令(<code>ZRangeWithScores</code>)，所以不再需要用事务管道批处理命令，所以我们将结果直接存储在<code>scores</code>变量中。存储在<code>scores</code>中的值包含一个Go maps切片，其长度是存储在集合中的成员数。</p>
+<p>要运行我们的应用程序，请确保您已经安装并运行了Redis。或者，您可以获取Redis Docker映像，并使用下面的命令运行它:</p>
+<pre>$ docker run --name=rediboard -p 6379:6379 redis</pre>
+<p>现在，您可以使用下面的命令构建并运行(或直接运行)该<code>main.go</code>文件，以测试示例项目:</p>
+<pre>$ go build ./main.go
+$ ./main</pre>
+<p>下面是一些示例cURL命令及其响应。</p>
+<blockquote><p>请随意使用cURL、Postman、HTTPie或您最喜欢的API客户端来尝试这个API。</p></blockquote>
+<h4>卷曲命令:</h4>
+<pre>$ curl -H "Content-type: application/json" -d '{"username": "isa", "points": 25}' localhost:8080/points</pre>
+<h4>回应:</h4>
+<pre>{
+  "user": {
+    "username": "isa",
+    "points": 25,
+    "rank": 3
+  }
+}</pre>
+<h4>卷曲命令:</h4>
+<pre>$ curl -H "Content-type: application/json" localhost:8080/points/mchl</pre>
+<h4>回应:</h4>
+<pre>{
+  "user": {
+    "username": "jude",
+    "points": 22,
+    "rank": 0
+  }
+}</pre>
+<h4>卷曲命令:</h4>
+<pre>$ curl -H "Content-type: application/json" localhost:8080/leaderboard</pre>
+<h4>回应:</h4>
+<pre>{
+  "leaderboard": {
+    "count": 7,
+    "Users": [
+      {
+        "username": "ene",
+        "points": 22,
+        "rank": 0
+      },
+      {
+        "username": "ben",
+        "points": 23,
+        "rank": 2
+      },
+      {
+        "username": "isa",
+        "points": 25,
+        "rank": 3
+      },
+      {
+        "username": "jola",
+        "points": 39,
+        "rank": 5
+      }
+    ]
+  }
+}</pre>
+<p>下面是终端中运行的应用和cURL响应的截图:<img data-attachment-id="30737" data-permalink="https://blog.logrocket.com/how-to-use-redis-as-a-database-with-go-redis/s_f95ff86a2cadd063fa35ed2113ab093500ce08a6e8aca31d659d295fa0db8265_1608027386872_file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg" data-orig-size="730,585" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Outputofunningmain.go" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file-300x240.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg" decoding="async" class="aligncenter size-full wp-image-30737 jetpack-lazy-image" src="../Images/dac204a1841b34717c1cee061d2f80bb.png" alt="Output of running main.go in the terminal." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file-300x240.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="30737" data-permalink="https://blog.logrocket.com/how-to-use-redis-as-a-database-with-go-redis/s_f95ff86a2cadd063fa35ed2113ab093500ce08a6e8aca31d659d295fa0db8265_1608027386872_file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg" data-orig-size="730,585" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Outputofunningmain.go" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file-300x240.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-30737" src="../Images/dac204a1841b34717c1cee061d2f80bb.png" alt="Output of running main.go in the terminal." srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file-300x240.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/s_F95FF86A2CADD063FA35ED2113AB093500CE08A6E8ACA31D659D295FA0DB8265_1608027386872_file.jpeg"/></noscript>
+<h2>结论</h2>
+<p>如果你想进一步探索，Redis和Go-redis文档是你的起点。对于不支持的命令，go-redis还提供了通用的<code>Send()</code>和<code>Do()</code>方法。</p>
+<p>在本文中，我们讨论了如何使用go-redis库与Redis数据库进行交互。示例项目的代码可在<a href="http://gitlab.com/idoko/rediboard" target="_blank" rel="noopener"> GitLab </a>上获得。</p><div class="code-block code-block-1">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

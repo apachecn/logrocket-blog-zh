@@ -1,0 +1,411 @@
+<html>
+<head>
+<title>Reactivity with RxJS: force press - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>与RxJS的反应:force press - LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/reactivity-with-rxjs-force-press-63bfc907f295/#0001-01-01">https://blog.logrocket.com/reactivity-with-rxjs-force-press-63bfc907f295/#0001-01-01</a></blockquote><div><article class="article-post">
+  <figure><img decoding="async" src="../Images/07c93d725699ab4844bd5c5b62de29b5.png" data-height="960" data-width="1600" data-lazy-src="https://storage.googleapis.com/blog-images-backup/1*jmVuNDbK13wDp5EY4ERb8w.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/1*jmVuNDbK13wDp5EY4ERb8w.jpeg"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/07c93d725699ab4844bd5c5b62de29b5.png" data-height="960" data-width="1600" data-original-src="https://storage.googleapis.com/blog-images-backup/1*jmVuNDbK13wDp5EY4ERb8w.jpeg"/></noscript></figure>
+<p><a href="http://reactivex.io/rxjs" target="_blank" rel="noopener noreferrer"> <strong> RxJS </strong> </a>是一个用于JavaScript的反应式编程库，它利用可观察的序列来组成异步或基于事件的程序。作为<a href="http://reactivex.io/" target="_blank" rel="noopener noreferrer">反应式扩展</a>项目的一部分，RxJS的架构结合了来自<a href="https://en.wikipedia.org/wiki/Observer_pattern" target="_blank" rel="noopener noreferrer"> <em>观察者</em> </a>模式、<a href="https://en.wikipedia.org/wiki/Iterator_pattern" target="_blank" rel="noopener noreferrer"> <em>迭代器</em> </a>模式和<em>函数式编程</em>的最佳部分。</p>
+<p/>
+<p>如果您以前使用过类似于<a href="https://lodash.com/" target="_blank" rel="noopener noreferrer"> Lodash </a>的JavaScript实用程序库，那么您可以将RxJS视为事件的Lodash。</p>
+<p><a href="https://github.com/ReactiveX/rxjs" target="_blank" rel="noopener noreferrer"> RxJS </a>不再是新的JavaScript库。事实上，在撰写本文时，该库的最新版本是<code>6.3.3</code>，这是超过105个版本中的最新版本。</p>
+<p>在本教程中，我们将利用使用RxJS的反应式编程来实现常规DOM鼠标事件的压力检测和处理。</p>
+<p>下面是<a href="https://codesandbox.io/s/z2pz3l222l" target="_blank" rel="noopener noreferrer"> <strong>代码沙箱</strong> </a>上的force press演示。<em>导航到链接，按住音量控制键，查看原力按下的效果。</em></p>
+<figure/>
+<p>本教程不应该被用来代替一本合适的RxJS初学者指南，即使它简要地解释了一些反应式编程的概念和操作符。</p>
+<figure/>
+<h3>可观测量和算子</h3>
+<p><strong>可观测量是RxJS架构的核心</strong>。一个可观察对象可以被比作从一个源发出的可调用的值流或事件流。来源可以是时间间隔、AJAX请求、DOM事件等。</p>
+<p>可观察到的:</p>
+<ul>
+<li><em>是懒惰的</em>(它直到被订阅才发出任何值)</li>
+<li>可能有一个或多个<em>观察者</em>监听其值</li>
+<li>可以通过一连串<em>操作符</em>转换成另一个可观察值</li>
+</ul>
+<p><strong>算子是纯函数，可以从一个可观察的</strong>返回一个新的可观察的。这种模式使得链操作符成为可能，因为一个可观察对象总是在最后返回。</p>
+<p>事实上，RxJS的最新版本在<code>&lt;Observable&gt;</code>类上公开了一个<code>.pipe()</code>实例方法，可用于将操作符链接成函数调用。</p>
+<p>一个操作符基本上监听来自源可观察对象的值，在接收到的值上实现一些定义的逻辑，并基于该逻辑返回一个新的可观察对象发射值。</p>
+<figure><img decoding="async" src="../Images/18f1f092a532b924f93ec53904c67889.png" data-height="534" data-width="1628" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*ngvYNnk9OlvyBZWo.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*ngvYNnk9OlvyBZWo.png"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/18f1f092a532b924f93ec53904c67889.png" data-height="534" data-width="1628" data-original-src="https://storage.googleapis.com/blog-images-backup/0*ngvYNnk9OlvyBZWo.png"/></noscript></figure>
+<h3>压力压力机</h3>
+<p><strong> <em> Force press </em> </strong>简单来说就是指像<code>keydown</code>和<code>mousedown</code>这样的DOM press事件，在相应的DOM release事件被激活之前持续一段时间，比如本例中的<code>keyup</code>和<code>mouseup</code>。</p>
+<blockquote><p>简单来说，压力与按住同义。</p></blockquote>
+<p>在用户界面中有许多地方可以应用压力。想象一下，一个音乐播放器部件有一组音量控件，您想将音量从30增加到70。</p>
+<p>基本上，您可以通过两种方式实现这一点:</p>
+<ol>
+<li><strong>按下音量增加按钮</strong>几次，直到您达到所需的音量——这个按钮可能要按40次</li>
+<li><strong>用力按下<em>(按住)</em>音量调高按钮</strong>直到达到或接近所需音量，然后调整直到达到所需音量</li>
+</ol>
+<p>下面是这个例子的一个简单演示:</p>
+<figure class="wp-caption"><img decoding="async" src="../Images/6ba1f9bf639190b8bfd8ea893f71badf.png" data-height="300" data-width="480" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*7X00He6Dh9ldxyyd.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*7X00He6Dh9ldxyyd.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/6ba1f9bf639190b8bfd8ea893f71badf.png" data-height="300" data-width="480" data-original-src="https://storage.googleapis.com/blog-images-backup/0*7X00He6Dh9ldxyyd.gif"/></noscript><figcaption class="wp-caption-text">Comparing multiple presses to force press</figcaption></figure>
+<h3>用普通JavaScript强制按下</h3>
+<p>用普通的JavaScript实现force press，类似于我们上面所做的，并不是一项艰巨的任务。这一实施将需要:</p>
+<ul>
+<li>监听音量控制按钮上的<code>mousedown</code>事件</li>
+<li>使用<code>setInterval()</code>连续调节音量，直到发生<code>mouseup</code>事件</li>
+</ul>
+<p>假设音量控件的标记如下所示:</p>
+<figure>
+<pre><code>
+&lt;div id="volume-control"&gt;
+  &lt;button type="button" data-volume="decrease" aria-label="Decrease Volume"&gt; - &lt;/button&gt;
+  &lt;button type="button" data-volume="increase" aria-label="Increase Volume"&gt; + &lt;/button&gt;
+&lt;/div&gt;
+</code></pre>
+</figure>
+<p>下面的代码片段展示了使用普通JavaScript实现force press的样子。<em>为简洁起见，省略了</em> <code><em>increaseVolume()</em></code> <em>和</em> <code><em>decreaseVolume()</em></code> <em>函数的实现:</em></p>
+<figure>
+<pre><code>const control = document.getElementById('volume-control');
+const buttons = control.querySelectorAll('button');
+
+let timeout = null;
+let interval = null;
+
+buttons.forEach($button =&gt; {
+  const increase = $button.getAttribute('data-volume') === 'increase';
+  const fn = increase ? increaseVolume : decreaseVolume;
+  
+  $button.addEventListener('mousedown', evt =&gt; {
+    evt.preventDefault();
+    fn();
+    
+    timeout = setTimeout(() =&gt; {
+      interval = setInterval(fn, 100);
+    }, 500);
+    
+    document.addEventListener('mouseup', resetForcePress);
+  });
+});
+
+function resetForcePress(evt) {
+  evt.preventDefault();
+  timeout &amp;&amp; clearTimeout(timeout);
+  interval &amp;&amp; clearInterval(interval);
+  
+  timeout = null;
+  interval = null;
+  
+  document.removeEventListener('mouseup', resetForcePress);
+}</code></pre>
+</figure>
+<p>这个使用普通JavaScript的force press实现看起来非常简单，因此，像RxJS这样的库似乎没有必要。</p>
+<p>对代码片段的快速观察将显示，音量将以相等的时间间隔连续调整相等的量，直到触发<code>mouseup</code>事件。这是一个<em>线性级数</em>。</p>
+<p>然而，当我们想要对压力进行更高级的控制时，实现就变得复杂了。例如，假设我们想要体积的某种形式的指数级数。这意味着压力越大，音量变化越快。</p>
+<p>下面是一个简单的例子来说明两者的区别:</p>
+<figure><img decoding="async" src="../Images/b3729c21514dd483a70c40d939ce6148.png" data-height="300" data-width="480" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*on9zDQ6NOJiOAkAf.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*on9zDQ6NOJiOAkAf.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/b3729c21514dd483a70c40d939ce6148.png" data-height="300" data-width="480" data-original-src="https://storage.googleapis.com/blog-images-backup/0*on9zDQ6NOJiOAkAf.gif"/></noscript></figure>
+<p>使用普通的JavaScript，像指数音量级数这样的实现将是非常具有挑战性的，因为您可能必须跟踪压力持续多长时间，以便确定音量应该变化得多快。</p>
+<p>像这样的情况最适合RxJS库。RxJS带来了更强大的能力来组合可观察序列，以处理复杂的异步任务。</p>
+<h3>用RxJS强制按压</h3>
+<p>让我们继续使用RxJS使用线性体积级数重新实现压力。下面是它的样子:</p>
+<figure>
+<pre><code>import { fromEvent, timer } from 'rxjs';
+import { map, switchMap, startWith, takeUntil } from 'rxjs/operators';
+
+const control = document.getElementById('volume-control');
+const buttons = control.querySelectorAll('button');
+
+const documentMouseup$ = fromEvent(document, 'mouseup');
+
+const forcepress = fn =&gt; {
+  return timer(500, 100).pipe(
+    startWith(fn()),
+    takeUntil(documentMouseup$),
+    map(fn)
+  );
+};
+
+buttons.forEach($button =&gt; {
+  const increase = $button.getAttribute('data-volume') === 'increase';
+  const fn = increase ? increaseVolume : decreaseVolume;
+  
+  fromEvent($button, 'mousedown').pipe(
+    switchMap(evt =&gt; {
+      evt.preventDefault();
+      return forcepress(fn);
+    })
+  ).subscribe();
+});</code></pre>
+</figure>
+<p>仔细观察这段代码会发现，我们从RxJS库中导入了一些函数和操作符。假设您已经安装了RxJS作为项目的依赖项。</p>
+<p>代码片段中有一些重要的部分值得强调。</p>
+<p><strong>第7行</strong></p>
+<pre><code>const documentMouseup$ = fromEvent(document, 'mouseup');</code></pre>
+<p><code>fromEvent</code> helper函数创建一个新的observable，每当指定的事件在DOM节点上被触发时，这个observable就会发出。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>例如，在上面的代码行中，<code>fromEvent</code>创建了一个observable，每当在<code>document</code>节点上触发一个<code>mouseup</code>时，该observable就会发出一个事件对象。<code>fromEvent</code>功能在<code>Line 21</code>中也用于监听音量控制按钮上的<code>mousedown</code>事件。</p>
+<p>注意，可观察值存储在一个名为<code>documentMouseup$</code>的常数中。通常的做法是在用于存储可观察变量的名称后附加一个<code>$</code>。</p>
+<p><strong>第9–15行</strong></p>
+<pre>const forcepress = fn =&gt; {
+  return timer(500, 100).pipe(
+    startWith(fn()),
+    takeUntil(documentMouseup$),
+    map(fn)
+  );
+};</pre>
+<p><code>forcepress()</code>函数将处理函数<code>fn</code>作为其参数，并返回一个可观察值。使用<code>timer()</code>函数从计时器中创建返回的可观察值，并使用一系列操作符对其进行转换。</p>
+<p>让我们一行一行地分解代码:</p>
+<pre><code>timer(500, 100)</code></pre>
+<p>这个<code>timer()</code>函数调用创建了一个新的可观察对象，它发出一个从零开始的计数整数(<code>0</code>)。在<code>500ms</code>之后发出第一个整数，然后以<code>100ms</code>的间隔发出后续整数。</p>
+<p>通过从左到右将操作符作为常规函数应用，可观察对象的<code>.pipe()</code>方法用于链接操作符。</p>
+<p><strong>从</strong>开始</p>
+<pre>timer(500, 100).pipe(
+  startWith(fn())
+)</pre>
+<p><code>startWith()</code>操作符接收一个值作为参数，该参数应该由可观察对象首先发出。这对于从可观察值中得出初始值很有用。</p>
+<p>这里，<code>startWith()</code>操作符用于执行处理程序<code>fn</code>并发出返回值。</p>
+<p><strong>持续到</strong></p>
+<pre>timer(500, 100).pipe(
+  takeUntil(documentMouseup$)
+)</pre>
+<p><code>takeUntil()</code>运算符用于根据另一个可观察对象停止从源可观察对象发出值。它接收一个可观察值作为它的参数。当这个可观察对象发出它的第一个值时，源可观察对象不再发出更多的值。</p>
+<p>在我们的代码片段中，<code>documentMouseup$</code>可观察值被传递给了<code>takeUntil()</code>操作符。这确保了在<code>document</code>节点上触发<code>mouseup</code>事件时，计时器不会发出更多的值。</p>
+<p><strong>地图</strong></p>
+<pre>timer(500, 100).pipe(
+  map(fn)
+)</pre>
+<p>对于JavaScript数组来说，<code>map()</code>操作符与<code>Array.map()</code>非常相似。它将一个映射函数作为其参数，该函数从源可观察对象接收发出的值，并返回一个转换后的值。</p>
+<p>这里，我们简单地将<code>fn</code>函数作为映射函数传递给<code>map()</code>操作符。</p>
+<p><strong>第21–26行</strong></p>
+<pre>fromEvent($button, 'mousedown').pipe(
+  switchMap(evt =&gt; {
+    evt.preventDefault();
+    return forcepress(fn);
+  })
+).subscribe();</pre>
+<p>这些行只是使用<code>switchMap()</code>操作符将音量控制按钮上的<code>mousedown</code>事件映射到force press动作。</p>
+<p>它首先在按钮元素上创建一个可观察的<code>mousedown</code>事件。接下来，它使用<code>switchMap()</code>操作符将发出的值映射到其值将被发出的内部可观察对象。在我们的代码片段中，内部可观察对象是从执行<code>forcepress()</code>函数返回的。</p>
+<p>注意，我们按照定义将<code>fn</code>传递给了<code>forcepress()</code>函数。同样重要的是要注意，我们使用<code>subscribe()</code>方法订阅了可观察值。记住，可观察的是懒惰的。如果它们没有被认购，就不会产生任何价值。</p>
+<h3>改进压力</h3>
+<p>使用RxJS操作符可以做一些事情来提高压力。一个改进将是实现指数体积级数，而不是我们之前看到的线性级数。</p>
+<h3>指数体积级数</h3>
+<p>用RxJS做到这一点非常简单。让我们假设音量调节功能的当前实现如下所示:</p>
+<figure>
+<pre><code>let VOLUME = 0;
+
+const boundedVolume = volume =&gt; {
+  return Math.max(0, Math.min(volume, 100));
+};
+
+const increaseVolume = () =&gt; {
+  VOLUME = boundedVolume(VOLUME + 1);
+  return VOLUME;
+};
+
+const decreaseVolume = () =&gt; {
+  VOLUME = boundedVolume(VOLUME - 1);
+  return VOLUME;
+};</code></pre>
+</figure>
+<p>我们可以稍微修改音量调节功能，以接受音量步长因子。这些修改将使我们有可能达到指数级数，我们马上就会看到。</p>
+<p>以下代码片段显示了这些修改:</p>
+<figure>
+<pre><code>const increaseVolume = (factor = 1) =&gt; {
+  VOLUME = boundedVolume(VOLUME + 1 * factor);
+  return VOLUME;
+};
+
+const decreaseVolume = (factor = 1) =&gt; {
+  VOLUME = boundedVolume(VOLUME - 1 * factor);
+  return VOLUME;
+};</code></pre>
+</figure>
+<p>经过这些修改，我们现在可以向音量调节函数传递一个<code>factor</code>来指定音量应该调节多少。调用这些函数而不传递一个<code>factor</code>只会一步一步地调整音量。</p>
+<p>现在，我们可以修改之前创建的<code>forcepress()</code>函数，如下所示:</p>
+<figure>
+<pre><code>import { fromEvent, timer } from 'rxjs';
+import { map, switchMap, startWith, takeUntil, withLatestFrom } from 'rxjs/operators';
+
+const computedFactor = n =&gt; Math.round(
+  Math.pow(1.25 + n / 10, 1 + n / 5)
+);
+
+const forcepress = fn =&gt; {
+  return timer(500, 100).pipe(
+    startWith(fn()),
+    takeUntil(documentMouseup$),
+    withLatestFrom(
+      timer(1000, 500).pipe(startWith(0))
+    ),
+    map(([t, n]) =&gt; fn(computedFactor(n)))
+  );
+};</code></pre>
+</figure>
+<p>通过这种修改，我们已经成功地在音量控制按钮上实现了具有指数音量级数的强制按压。</p>
+<p><strong> computedFactor </strong></p>
+<p>这里我们添加了一个名为<code>computedFactor</code>的简单函数来计算音量调节因子。这个函数使用一个整数参数<code>n</code>来计算因子。</p>
+<p>我们只是计算这个表达式:</p>
+<pre><code>Math.round(Math.pow(1.25 + n / 10, 1 + n / 5));</code></pre>
+<p>这里，我们使用<code>Math.pow()</code>根据<code>n</code>的值逐步计算指数。这个表达式可以修改，以适应所需的指数级数。例如，它可以像这样简单:</p>
+<pre><code>Math.pow(2, n);</code></pre>
+<p>另外，请注意，我们在这里使用<code>Math.round()</code>来确保我们得到一个整数因子，因为计算涉及到许多浮点数。</p>
+<p>下面是由<code>computedFactor()</code>函数返回的前十个值的汇总。这似乎是计算因子的完美函数:</p>
+<pre>0 =&gt; Math.round(Math.pow(1.25, 1.0)) =&gt; 1
+1 =&gt; Math.round(Math.pow(1.35, 1.2)) =&gt; 1
+2 =&gt; Math.round(Math.pow(1.45, 1.4)) =&gt; 2
+3 =&gt; Math.round(Math.pow(1.55, 1.6)) =&gt; 2
+4 =&gt; Math.round(Math.pow(1.65, 1.8)) =&gt; 2
+5 =&gt; Math.round(Math.pow(1.75, 2.0)) =&gt; 3
+6 =&gt; Math.round(Math.pow(1.85, 2.2)) =&gt; 4
+7 =&gt; Math.round(Math.pow(1.95, 2.4)) =&gt; 5
+8 =&gt; Math.round(Math.pow(2.05, 2.6)) =&gt; 6
+9 =&gt; Math.round(Math.pow(2.15, 2.8)) =&gt; 9</pre>
+<p><strong>与来自</strong>的最新消息</p>
+<p>仔细观察<code>forcepress()</code>函数会发现这一行:</p>
+<pre><code>map(fn)</code></pre>
+<p>已被替换为以下几行:</p>
+<pre>withLatestFrom(
+  timer(1000, 500).pipe(startWith(0))
+),
+map(([t, n]) =&gt; fn(computedFactor(n)))</pre>
+<p>这里，我们介绍了另一个RxJS运算符<code>withLatestFrom()</code>。它将另一个可观测值作为它的第一个参数。该运算符对于将多个可观察值作为一个值数组发出来很有用。</p>
+<p>但是，它只在源可观测值每次发出时发出，每次按顺序发出所有可观测值的最新值。</p>
+<p>在我们的例子中，我们将另一个用<code>timer()</code>函数创建的可观察对象传递给了<code>withLatestFrom()</code>操作符。</p>
+<p>计时器observable在<code>1000ms</code>之后首先发出一个整数，然后每隔<code>500ms</code>发出一个整数。<code>startWith()</code>操作符通过管道传递给可观察计时器，使其以初始值<code>0</code>开始。</p>
+<p>传递给<code>map()</code>操作符的mapper函数期望一个数组作为它的第一个参数，因为<code>withLatestFrom()</code>操作符发出一个值数组。</p>
+<p>这里又是地图操作符:</p>
+<pre><code>map(([t, n]) =&gt; fn(computedFactor(n)))</code></pre>
+<p>在这个代码片段中，<code>t</code>表示第一个可观察对象发出的值，在本例中是源可观察对象。<code>n</code>代表第二个可观察对象发出的值，也就是计时器。</p>
+<p>最后，我们像以前一样调用<code>fn()</code>，只是这一次我们传递一个通过用<code>n</code>调用<code>computedFactor()</code>函数得到的计算的音量调整因子。</p>
+<p>下面是线性级数和指数级数之间的比较，显示了从<code>0</code>到<code>100</code>音量增加的持续时间:</p>
+<figure><img decoding="async" src="../Images/861b3c7762d952423bacbc07ea2f2ba1.png" data-height="300" data-width="480" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*ywiOmMdv7kY5agAk.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*ywiOmMdv7kY5agAk.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/861b3c7762d952423bacbc07ea2f2ba1.png" data-height="300" data-width="480" data-original-src="https://storage.googleapis.com/blog-images-backup/0*ywiOmMdv7kY5agAk.gif"/></noscript></figure>
+<h3>增强压力终止</h3>
+<p>到目前为止，一旦在<code>document</code>节点上触发了<code>mouseup</code>事件，我们就终止强制按下音量调整。然而，我们可以进一步增强它，以允许当音量达到任何限制时终止压力，无论是<code>0</code>还是<code>100</code>。</p>
+<p>我们可以创建一个自定义的操作符函数，我们可以通过管道将它连接到源可观察对象，以防止它在发生以下任何情况时发出:</p>
+<ul>
+<li>在<code>document</code>节点上触发一个<code>mouseup</code>事件</li>
+<li>音量达到<code>0</code>或<code>100</code></li>
+</ul>
+<p>下面是名为<code>limitVolume()</code>的自定义运算符函数:</p>
+<figure>
+<pre><code>import { timer } from 'rxjs';
+import { takeUntil, takeWhile, zip, last } from 'rxjs/operators';
+
+const timerUntilMouseup$ = timer(10, 10).pipe(
+  takeUntil(documentMouseup$)
+);
+
+const timerWithinLimits$ = timer(10, 10).pipe(
+  takeWhile(() =&gt; VOLUME &gt; 0 &amp;&amp; VOLUME &lt; 100)
+);
+
+const volumeStop$ = timerUntilMouseup$.pipe(
+  zip(timerWithinLimits$),
+  last()
+);
+
+const limitVolume = () =&gt; source$ =&gt; {
+  return source$.pipe(
+    takeUntil(volumeStop$)
+  );
+};</code></pre>
+</figure>
+<p>这里，我们创建了两个计时器观察值，即<code>timerUntilMouseup$</code>和<code>timerWithinLimits$</code>，它们分别基于我们所述的两个条件终止。</p>
+<p>然后，我们使用<code>zip()</code>和<code>last()</code>操作符从两个可观测量中合成<code>volumeStop$</code>可观测量，以确保这个可观测量只为终止的两个可观测量中的第一个发出一个值。</p>
+<p>最后，我们在<code>limitVolume()</code>自定义操作符函数中使用<code>takeUntil()</code>操作符来确保当<code>volumeStop$</code>可观察值发出第一个值时<code>source$</code>可观察值终止。</p>
+<p>请注意，<code>limitVolume()</code>返回一个函数，该函数将一个可观察对象作为其参数，并返回另一个可观察对象。这个实现对于将其用作RxJS操作符是至关重要的。</p>
+<p>使用<code>limitVolume()</code>自定义操作符，我们现在可以如下修改<code>forcepress()</code>:</p>
+<figure>
+<pre><code>const forcepress = fn =&gt; {
+  return timer(500, 100).pipe(
+    startWith(fn()),
+    limitVolume(),
+    withLatestFrom(
+      timer(1000, 500).pipe(startWith(0))
+    ),
+    map(([t, n]) =&gt; fn(computedFactor(n)))
+  );
+};</code></pre>
+</figure>
+<h3>日历的压力越来越大</h3>
+<p>在实施压力方面已经做了很多工作。然而，让我们考虑另一个涉及日历月和日历年循环的force press演示。</p>
+<p>假设您正在构建一个日历小部件，并希望用户在日历上循环显示月份和年份。这听起来像是一个很好的压力用例。</p>
+<p>以下是演示的截图:</p>
+<figure><img decoding="async" src="../Images/8fd3ff3453e907554da6d96879c6bb6f.png" data-height="180" data-width="480" data-lazy-src="https://storage.googleapis.com/blog-images-backup/0*HW5PNJPXrU0dbBxC.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://storage.googleapis.com/blog-images-backup/0*HW5PNJPXrU0dbBxC.gif"/><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/8fd3ff3453e907554da6d96879c6bb6f.png" data-height="180" data-width="480" data-original-src="https://storage.googleapis.com/blog-images-backup/0*HW5PNJPXrU0dbBxC.gif"/></noscript></figure>
+<p>在这个演示中，在force press中加入了一点香料来实现按键检测。请注意，无论何时按下<code>SHIFT</code>键，周期都会从几个月切换到几年。</p>
+<p>此外，请注意，几个月的循环速度比几年的循环速度更快。</p>
+<p>用<code>setTimeout()</code>和普通的JavaScript实现这样的东西会非常复杂。然而，使用RxJS要容易得多。</p>
+<p>下面的代码片段显示了实现。<em>为简洁起见，省略了月和年循环功能:</em></p>
+<figure>
+<pre><code>import { fromEvent, timer, merge } from 'rxjs';
+import { map, switchMap, startWith, takeUntil, filter, distinctUntilChanged } from 'rxjs/operators';
+
+const control = document.getElementById('calendar-month-control');
+const buttons = control.querySelectorAll('button');
+
+const documentMouseup$ = fromEvent(document, 'mouseup');
+
+const documentKeydownShifting$ = fromEvent(document, 'keydown').pipe(
+  map(evt =&gt; {
+    evt.preventDefault();
+    return evt.shiftKey ? true : null;
+  })
+);
+
+const documentKeyupShifting$ = fromEvent(document, 'keyup').pipe(
+  map(evt =&gt; {
+    evt.preventDefault();
+    return evt.shiftKey ? null : false;
+  })
+);
+
+const shifting = (initial = false) =&gt; {
+  return merge(documentKeydownShifting$, documentKeyupShifting$).pipe(
+    startWith(initial),
+    filter(pressed =&gt; typeof pressed === 'boolean')
+  );
+};
+
+const forcepress = evt =&gt; {
+  evt.preventDefault();
+  const next = evt.target.getAttribute('data-direction') === 'next';
+  
+  return shifting(evt.shiftKey).pipe(
+    distinctUntilChanged(),
+    switchMap(shift =&gt; {
+      const period = shift ? 200 : 150;
+      
+      const fn = shift
+        ? next ? nextYear : previousYear
+        : next ? nextMonth : previousMonth;
+      
+      return timer(100, period).pipe(
+        map(fn)
+      );
+    }),
+    takeUntil(documentMouseup$)
+  );
+};
+
+buttons.forEach($button =&gt; {
+  fromEvent($button, 'mousedown').pipe(
+    switchMap(forcepress)
+  ).subscribe();
+});</code></pre>
+</figure>
+<p>我将让您来弄清楚这个示例中的代码片段是如何工作的。不过可以在<a href="https://codesandbox.io/s/ly84kp7y4q" target="_blank" rel="noopener noreferrer"> <strong>代码沙箱</strong> </a>上获得现场演示。</p>
+<figure/>
+<h3>结论</h3>
+<p>RxJS是一个非常强大的库，用于编写异步事件和序列。它可以用来构建复杂的异步程序，而仅仅使用普通的JavaScript无法轻松构建这些程序。</p>
+<p>在本教程中，我们已经学习了如何使用RxJS实现改进的压力按压(<em>按住</em>)。尽管我们关注的是鼠标事件上的强制按下，但同样的情况也可以在键盘事件上实现。</p>
+<h4>鼓掌并跟随</h4>
+<p>如果你觉得这篇文章很有见地，如果你不介意的话，请随意鼓掌。</p>
+<p>你也可以在Medium ( <a href="https://medium.com/u/ddcd0e9719e5" target="_blank" rel="noopener noreferrer"> Glad Chinda </a>)上关注我，获取更多对你有帮助的有见地的文章。你也可以在推特上关注我(<a href="https://twitter.com/@gladchinda" target="_blank" rel="noopener noreferrer"> @gladchinda </a>)。</p>
+<p><strong> <em>享受编码……</em></strong></p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

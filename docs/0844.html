@@ -1,0 +1,186 @@
+<html>
+<head>
+<title>Frustrations with Node.js - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Node.js - LogRocket博客的挫折</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/frustrations-with-node-js/#0001-01-01">https://blog.logrocket.com/frustrations-with-node-js/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>只是澄清一下，我并不讨厌Node.js，我其实很喜欢Node.js，也很享受做一个<a href="https://www.smashingmagazine.com/2013/11/introduction-to-full-stack-javascript/" target="_blank" rel="noopener noreferrer">全栈JavaScript开发者</a>。然而，这并不意味着我不会因此而沮丧。在我对Node.js感到沮丧之前，让我先说Node.js最擅长的一些事情:</p>
+
+<p>但是，您应该知道Node.js的一些奇怪之处:</p>
+<ul>
+<li>类型检查— Node.js从JavaScript继承了动态类型检查。但是，有时在现实生活的应用程序中编写Node.js代码会让您希望进行更严格的类型检查，以便更快地发现错误。您可能使用过静态类型检查工具之一，如<a href="https://flow.org/" target="_blank" rel="noopener noreferrer"> Flow </a>或<a href="https://www.typescriptlang.org/" target="_blank" rel="noopener noreferrer"> TypeScript </a>，但是Flow因<a href="https://medium.com/inato/migrating-from-flow-to-typescript-why-how-worth-it-5b7703d12089" target="_blank" rel="noopener noreferrer">性能、兼容性和智能感知问题</a>和TypeScript(尽管它在社区中很受欢迎)而令许多开发人员感到沮丧，尽管TypeScript在社区中很受欢迎，但它往往很笨重，并且<a href="https://dev.to/ryansolid/the-trouble-with-typescript-4fpp" target="_blank" rel="noopener noreferrer">会在您意想不到的地方引起问题</a></li>
+<li>调试——我不是这方面的专家，但我总是在正确调试Node.js应用程序时遇到问题。我并不是说调试不被支持或不可能，但是代码检查和断点往往会被忽略，与其他框架相比，您可能会因为缺乏对这项重要任务的支持而感到沮丧。为此，我通常会在代码中放置<code>console.log</code>和<code>debugger</code>语句，这并不理想</li>
+</ul>
+<p>以上痛点绝不仅限于Node.js。然而，在我今天使用Node.js的经验中，我发现了两个突出的问题，我认为需要更详细地澄清。如果您对Node.js有类似或更多的不满，以及您是如何应对的，请发表评论。</p>
+<h2>错误处理</h2>
+<h3>挫折</h3>
+<p>Node.js中抛出错误不像其他语言(和框架)那么直接。我们在Node.js中有许多异步代码,它要求你在回调和承诺中传递错误，而不是抛出异常或简单地使用try/catch块。当你不得不深入进行几次回调，或者无法弄清楚一个<a href="https://2ality.com/2016/04/unhandled-rejections.html" target="_blank" rel="noopener noreferrer">未处理的异常是如何导致你的应用程序无声地失败</a>时，调试错误的真实性质就变得更加困难，这时你就希望有一个更平稳的错误处理过程。</p>
+<h3>背景</h3>
+<p>在开始错误处理之前，我们需要定义一些基础知识。</p>
+<p>Node.js构建在单线程语言JavaScript之上。当进行函数调用时，你会得到一个叫做<a href="https://developer.mozilla.org/en-US/docs/Glossary/Call_stack" target="_blank" rel="noopener noreferrer">调用栈</a>的东西。如果您的任何函数调用需要时间来解决，我们必须在等待结果返回时阻塞整个线程，这在我们必须在浏览器中与web应用程序交互的场景中并不理想。在我们等待一些数据返回给我们的同时，用户仍然希望使用应用程序。</p>
+<p>在这里我们得到了<a href="https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Asynchronous" target="_blank" rel="noopener noreferrer">异步JavaScript </a>的概念，它帮助我们处理阻塞代码。简而言之，这是一种在解析注册的函数调用时分配要执行的回调的机制。有几种方法可以解决这个问题:</p>
+<ul>
+<li><strong>使用函数回调</strong> —这个想法很简单。您将名为callback的函数传递给异步函数调用。当异步函数调用的结果返回时，我们触发回调。async <code><a href="https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener" target="_blank" rel="noopener noreferrer">addEventListener</a></code>就是一个很好的例子，它将回调作为第二个参数:</li>
+</ul>
+<pre>function clickHandler {
+  alert('Button is clicked');
+}
+
+btn.addEventListener('click', clickHandler);</pre>
+<ul>
+<li><strong>使用promise </strong> —当在异步函数上使用<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank" rel="noopener noreferrer">promise</a></code>时，你得到一个表示操作状态的对象。我们不知道承诺什么时候会带着结果或错误回到我们身边，但是我们有处理任何一种情况的机制。例如，调用<code><a href="https://www.npmjs.com/package/node-fetch" target="_blank" rel="noopener noreferrer">node-fetch</a></code>会生成一个promise对象，我们可以用它的方法来处理它:</li>
+</ul>
+<pre>const fetch = require("node-fetch");
+
+fetch("https://jsonplaceholder.typicode.com/todos/1")
+  .then(res =&gt; res.json())
+  .then(json =&gt; console.log(json))
+  .catch(error =&gt; console.log("error", error));
+
+// { userId: 1, id: 1, title: 'delectus aut autem', completed: false }</pre>
+<p>我们还有其他选项，如<a href="https://javascript.info/async-iterators-generators" target="_blank" rel="noopener noreferrer">异步迭代器和生成器</a>或<a href="https://node.green/" target="_blank" rel="noopener noreferrer"> ES2017 </a>中的<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function" target="_blank" rel="noopener noreferrer">新异步/等待</a>功能，它只是<code>promise</code>之上的<em>语法糖</em>。但是为了简单起见，我们只坚持上面的选项。让我们看看如何为回调和承诺维护错误处理。</p>
+<h2>异步错误处理</h2>
+<p>函数回调——这种方法的错误处理是使用<code><a href="https://nodejs.org/api/errors.html#errors_error_first_callbacks" target="_blank" rel="noopener noreferrer">Error First Callback</a></code>方法完成的。当async函数返回一个结果时，回调被调用，第一个参数是<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error" target="_blank" rel="noopener noreferrer">Error Object</a></code>。如果我们没有错误，这将被设置为空。让我们看一个例子:</p>
+<pre>// setTimeout is faking an async call which returns an error after 0.5 seconds
+const asyncFunction = (callback) =&gt; {
+  setTimeout(() =&gt; {
+    callback(new Error('I got an error'))
+  }, 500)
+}
+
+// callback for our async function
+const callbackFunction = (err, data) =&gt; {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log(data);
+}
+
+asyncFunction(callbackFunction);</pre>
+<p>当我们调用上面的<code>asyncFunction</code>时，它首先接近<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout" target="_blank" rel="noopener noreferrer">setTimeout</a></code>，不能同步处理。因此，它要求<a href="https://developer.mozilla.org/en-US/docs/Web/API/Window" target="_blank" rel="noopener noreferrer"> <code>window API</code> </a>解决它并继续程序。当结果返回时(在本例中是一个<code>Error Object</code>)，它将调用函数回调。令人沮丧的部分来了。</p>
+<p>我们不能在异步函数调用的上下文中使用<code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch" target="_blank" rel="noopener noreferrer">try/catch</a></code>来捕捉错误。所以我们不能仅仅是在我们的<code>Error First Callback</code>方法中的<code>throw</code>一个错误:</p>
+<pre>const callbackFunction = (err, data) =&gt; {
+  if (err) {
+    throw err;
+  }
+  console.log(data);
+}
+
+try {
+  asyncFunction(callbackFunction);
+} catch(err) {
+  // we are not catching the error here
+  // and the Node.js process will crash
+  console.error(err);
+}</pre>
+<ul>
+<li>在我们的回调函数中忘记<code>return</code>会让程序继续，导致更多的错误。这里的要点是，这里有太多需要记住和处理的问题，可能会导致代码进入难以推理和调试的状态</li>
+</ul>
+<pre>if (err) {
+    console.error(err);
+    return;
+  }</pre>
+<p>Promises非常擅长将多个异步函数链接在一起，并帮助您避免使用前面的方法可能导致的<a href="http://callbackhell.com/" target="_blank" rel="noopener noreferrer"> <code>callback hell</code> </a>。对于错误处理，promises使用链中的<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch" target="_blank" rel="noopener noreferrer"> <code>.catch</code> </a>方法来处理异常。然而，在其中处理错误仍然会带来一些问题:</p>
+<ul>
+<li>如果你忘记在你的承诺链中使用<code>.catch</code>方法，你可能会被错误吞噬。这将导致这样的错误被归类为<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch" target="_blank" rel="noopener noreferrer"> <code>unhandled error</code> </a>。在这种情况下，我们需要在Node.js中有一个机制来处理没有被处理的承诺拒绝。这是在Node.js中发出<code><a href="https://nodejs.org/api/process.html#process_event_rejectionhandled" target="_blank" rel="noopener noreferrer">unhandledRejection event</a></code>时完成的:</li>
+</ul>
+<pre>const fetch = require("node-fetch");
+const url = "https://wrongAPI.github.com/users/github";
+
+const unhandledRejections = new Map();
+process.on("unhandledRejection", (reason, promise) =&gt; {
+  unhandledRejections.set(promise, reason);
+  console.log("unhandledRejections", unhandledRejections);
+});
+
+const asyncFunction = () =&gt; fetch(url);
+
+asyncFunction()
+  .then(res =&gt; res.json())
+  .then(json =&gt; console.log(json))</pre>
+<ul>
+<li>另一个问题是大型异步函数链的可跟踪性。简而言之，抛出错误的来源、起源和上下文是什么？例如，如果您有一个很长的异步函数调用链来处理一个API获取请求和几个依赖于它的高级组件。这些更高级别的组件下面还有几个子组件。其中任何一个错误都会使问题的可追溯性变得困难</li>
+</ul>
+<p>在Node.js中如何处理这一点并不简单，但一个常见的模式是在更高级别的组件中向异步任务添加一个立即<code>.catch</code>方法，并在其中再次抛出错误。这极大地有助于在错误发生在它们的任何子节点时跟踪错误，因为我们将另一个<code>.catch</code>链接到调用更高级异步任务的实例。让我们看一个例子:</p>
+<pre>const fetch = require("node-fetch");
+const url = "https://wrongAPI.github.com/users/github";
+
+// higher level async task
+const asynFunction = () =&gt; {
+  return fetch(url).catch(error =&gt; {
+    // re-throwing the error
+    throw new Error(error);
+  });
+};
+
+// error thrown in this intacen 1 is much bette traceable
+// returns: instace 1 error: invalid json response body at https://wrongapi.github.com/users/github reason: Unexpected token &lt; in JSON at position 0
+try {
+ return await asyncFunction();
+} catch(error) {
+  console.error("instace 1 error:", error.message)
+}</pre>
+<h2>包管理器</h2>
+<h3>挫折</h3>
+<p>Node.js中有几个用于包管理的工具，比如<a href="https://www.npmjs.com/" target="_blank" rel="noopener noreferrer"> npm </a>、<a href="https://pnpm.js.org/" target="_blank" rel="noopener noreferrer"> yarn </a>和<a href="https://pnpm.js.org/" target="_blank" rel="noopener noreferrer"> pnpm </a>，它们可以帮助你为你的应用安装工具、包和依赖项，使软件开发过程更快更简单。</p>
+<p>然而，与其他语言和框架相比，JavaScript社区定义良好的通用标准的情况越来越少。仅仅在谷歌上搜索“JavaScript标准”就显示出缺乏标准，因为人们倾向于不同意如何处理JavaScript，除了在少数情况下像<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank" rel="noopener noreferrer"> Mozilla JS参考</a>——这是非常可靠的。因此，很容易对需要为Node.js中的项目选择哪个包管理器感到困惑。</p>
+<p>此外，Node.js社区中有关于<a href="https://www.reddit.com/r/typescript/comments/dds6wk/i_am_concerned_about_the_low_quality_of_npm/" target="_blank" rel="noopener noreferrer">低质量包的抱怨，这使得开发人员更难决定他们是否需要重新发明轮子并自己构建所需的工具，或者他们是否可以信任维护的包。</a></p>
+<p>最后，随着<a href="https://medium.com/@madasamy/javascript-brief-history-and-ecmascript-es6-es7-es8-features-673973394df4" target="_blank" rel="noopener noreferrer"> JavaScript的快速变化</a>，我们的应用程序所依赖的许多包也在变化也就不足为奇了。这需要Node.js中更平滑的包版本管理，这有时会很麻烦。</p>
+<p>这绝不意味着Node.js在包和包管理方面比其他框架差，而仅仅是Node.js包管理器带来的一些挫折的反映。我们将更详细地讨论这些挫折，比如缺乏标准、包的质量和版本管理，但是首先，我们需要了解一些最著名的Node.js包管理器的背景。</p>
+<h3>背景</h3>
+<ul>
+<li><strong>NPM</strong>——这是Node.js的<a href="https://nodejs.org/en/knowledge/getting-started/npm/what-is-npm/" target="_blank" rel="noopener noreferrer">官方包管理器</a>，通过<a href="https://www.npmjs.com/" target="_blank" rel="noopener noreferrer">它的库</a>，你可以发布、搜索、安装包。具体来说，在Node.js项目的上下文中，它还可以帮助您使用<a href="https://docs.npmjs.com/cli/npm" target="_blank" rel="noopener noreferrer"> CLI命令</a>和<code><a href="https://docs.npmjs.com/files/package.json" target="_blank" rel="noopener noreferrer">package.json</a></code>文档来管理您的项目依赖项，并为它们处理版本管理</li>
+<li><strong> yarn </strong> —将yarn视为NPM CLI的改进版本，具有相同的包安装模型。此外，它还有其他一些优点:<ul>
+<li>比较靠谱。与NPM不同，它默认使用双注册中心(<a href="https://www.npmjs.com/" target="_blank" rel="noopener noreferrer">npmjs.com</a>和<a href="https://bower.io/search/" target="_blank" rel="noopener noreferrer">https://bower.io/search/</a>)，以确保如果任何一个注册中心关闭，服务仍然可用</li>
+<li>它更快。它可以在并行实例中下载包，并缓存所有已安装的包，因此下次想要下载时可以更快地检索它们。尽管NPM也通过<a href="https://docs.npmjs.com/cli-commands/cache.html" target="_blank" rel="noopener noreferrer"> NPM缓存</a>做了一些性能改进</li>
+</ul>
+</li>
+<li><strong> pnpm </strong> —这是三人中最新的玩家。PNPM官方将自己描述为<a href="https://pnpm.js.org/" target="_blank" rel="noopener noreferrer">“快速、磁盘高效的包管理器”</a>，通过只使用符号链接构建一次依赖项并重用它们，它似乎比其他两个更有效</li>
+</ul>
+<h2>与包管理器打交道</h2>
+<ul>
+<li><strong>缺乏标准</strong>——正如我们在上面看到的，对于包管理器有多种选择。当你想开始一个项目时，你可能会对选择哪一个有点困惑，这是很常见的。它们在99%的场景中都有相似之处，但在1%的情况下也有一些小的怪癖，这些怪癖会导致项目维护过程中出现问题。在生产应用程序中使用了上述所有选项后，我希望在这方面有更多的一致性</li>
+<li><strong>包的质量</strong>——尽管你可以在Node.js中找到很多有用的包，但是还有相当数量的<a href="https://npms.io/search?q=is%3Adeprecated" target="_blank" rel="noopener noreferrer">选项是过时的、测试不佳的或者没有维护的</a>。因为在NPM注册表中发布包并不困难，所以我们开发者要确保为我们的项目选择正确的包。我们可以简单地通过检查它的GitHub repo来检查一个包，并检查它的整体状态和维护。这可以是检查许多问题和开放拉取请求之间的良好平衡，在报告的问题中来自维护者的良好沟通，以及在许多星星和叉子中反映的软件包的整体使用和它的受欢迎程度。为了使这项工作更加容易，你可以在<a href="https://npms.io/" target="_blank" rel="noopener noreferrer"> NPMS、</a>输入你的包裹名称，你就可以看到它的整体概况</li>
+<li><strong>版本管理</strong> —包管理者使用<code><a href="https://semver.org/" target="_blank" rel="noopener noreferrer">semver</a></code>来处理包的版本控制。用这种方法，一个样例包版本看起来像这个<code>Major.Minor.Patch</code>，例如<code>1.0.0</code>。让我们来看一个实际的<code>package.json</code>和依赖项列表以及它们的运行版本:</li>
+</ul>
+<pre>{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "Node.js example",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "node-fetch": "~2.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.4"
+  },
+}</pre>
+<p>这已经很混乱了，因为我们在包版本前面有两个不同的符号。它们是什么意思？</p>
+<p><code>~</code>或<em>波浪号</em>显示了一个软件包可接受的补丁版本范围。例如，我们将为从<code>2.6.0</code>到<code>2.7.0</code>的<code>node-fetch</code>更新所有未来的补丁</p>
+<p><code>^</code>或<em>插入符号</em>显示了一个包可接受的次要/补丁版本的范围。例如，我们将为从<code>1.18.4</code>到<code>2.0.0</code>的<code>nodemon</code>更新所有未来的补丁</p>
+<p><a href="https://hackernoon.com/inconsistency-as-a-feature-f5f1a28356d4" target="_blank" rel="noopener noreferrer">对于这样一个简单的任务来说，这似乎已经是一大堆麻烦了。此外，我们需要考虑这样一个事实，即在定义依赖版本的正确范围时犯了一个错误可能会在某个时候破坏应用程序。然而，像<code><a href="https://docs.npmjs.com/configuring-npm/package-lock-json.html" target="_blank" rel="noopener noreferrer">package.json.lock</a></code>或</a><a href="https://classic.yarnpkg.com/en/docs/yarn-lock/" target="_blank" rel="noopener noreferrer"> <code>yarn.lock</code> </a>这样的概念的形成是为了通过帮助跨机器进行一致的依赖安装来帮助避免犯这样的错误。然而，我希望有更多的标准方法来确保不会因为Node.js中有缺陷的版本控制和管理系统而发生严重的问题。</p>
+<h2>结论</h2>
+<p>这些是我在Node.js上经历的一些挫折。但是，这里有一些事情需要记住:</p>
+<ul>
+<li>Node.js的大部分挫折来自于不熟悉作为底层语言的JavaScript。让自己更加熟悉<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank" rel="noopener noreferrer">的基本和高级主题</a>，作为Node.js开发人员的生活将会更加轻松</li>
+<li>确保Node.js应用程序的用例是有效的。例如，聊天应用程序是使用Node.js的绝佳选择，但CPU密集型计算应用程序则不然。<a href="https://medium.com/the-node-js-collection/why-the-hell-would-you-use-node-js-4b053b94ab8e" target="_blank" rel="noopener noreferrer">熟悉常见用例</a></li>
+<li>最后，要知道任何框架都有一定的痛点。使用本文和参考列表中的类似文章来了解常见问题以及处理这些问题的最佳方法</li>
+</ul>
+<p> </p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

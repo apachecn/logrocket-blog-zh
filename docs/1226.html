@@ -1,0 +1,366 @@
+<html>
+<head>
+<title>Easy guide to JSON input validation in Rust web services - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Rust web服务中JSON输入验证的简单指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/json-input-validation-in-rust-web-services/#0001-01-01">https://blog.logrocket.com/json-input-validation-in-rust-web-services/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当使用稍微复杂的域对象构建web服务时，良好的输入验证至关重要。用户输入的验证不仅在安全性方面非常重要——永远不要相信外部输入——而且在可用性方面也非常重要。</p>
+<p/>
+<p>如果REST端点的调用者遇到错误，您希望能够告诉他们哪里出错了，而不是简单地显示<code>400 Bad Request</code>。最佳的输入错误处理是以这样一种方式完成的，如果您得到无效的JSON，您可以告诉用户错误大致位于请求有效负载中的什么位置。</p>
+<p>如果请求负载是有效的JSON，下一步就是确保它符合您的规范。Rust和奇妙的<a href="https://blog.logrocket.com/json-and-rust-why-serde_json-is-the-top-choice/" target="_blank" rel="noopener noreferrer"> serde </a>机箱在这里很有帮助，因为如果使用了错误的数据类型，对结构的反序列化将会失败。同样，如果发生这种情况，你需要告诉用户，例如，<code>name</code>需要是一个<code>String</code>而不是一个<code>Object</code>，而不是简单地回复<code>JSON Parse Error</code>。</p>
+<p>但是我们还没有完成。一旦传入的JSON被正确地验证并解析为一个结构，我们自己的验证就开始了——基于我们的业务逻辑的验证。例如，您可能想要验证一个<code>email</code>实际上是一个符合规范的电子邮件，或者一个<code>username</code>不包含禁止的字符，有一定的长度，等等。这一部分比其他部分更容易处理，但是它经常导致许多小的、容易出错的验证函数，这些函数很难组合并提炼出清晰的错误消息。</p>
+<p>在本教程中，我们将解释如何在一个<a href="https://github.com/seanmonstar/warp" target="_blank" rel="noopener noreferrer"> warp </a> web服务中解决Rust中的这些问题。我们的解决方案将是直观和用户友好的，而不会损害代码的可维护性。</p>
+<p>我们开始吧！</p>
+<h2 id="setup">设置</h2>
+<p>接下来，您需要的只是一个相当新的Rust安装(1.39+)和一个发出HTTP请求的工具，比如cURL。</p>
+<p>首先，创建一个新的Rust项目。</p>
+<pre>cargo new rust-json-validation-example
+cd rust-json-validation-example
+</pre>
+<p>接下来，编辑<code>Cargo.toml</code>文件并添加您需要的依赖项。</p>
+<pre>tokio = { version = "0.2", features = ["macros", "sync", "rt-threaded"] }
+warp = "0.2"
+serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+validator = "0.10"
+validator_derive = "0.10"
+serde_path_to_error = "0.1"
+thiserror = "1.0.20"
+bytes = "0.5.6"
+</pre>
+<p>您将需要warp和用于web服务器的<a href="https://github.com/tokio-rs/tokio" target="_blank" rel="noopener noreferrer"> tokio </a>以及用于反序列化传入主体的<a href="https://github.com/serde-rs/serde" target="_blank" rel="noopener noreferrer"> serde </a>。<code>serde_path_to_error</code>库将是你改进验证的第一站，而<code>validator</code>和<code>validator_derive</code>箱将有助于稍后的数据验证。</p>
+<h2 id="jsonbodyvalidation">JSON主体验证</h2>
+<p>为了演示在warp中发送无效JSON或无法成功反序列化的内容时的默认行为，让我们创建一个具有单一路由的小型web服务器。</p>
+<pre>type Result&lt;T&gt; = std::result::Result&lt;T, Rejection&gt;;
+
+#[derive(Deserialize, Debug)]
+struct CreateRequest {
+    pub email: String,
+    pub address: Address,
+    pub pets: Vec&lt;Pet&gt;,
+}
+
+#[derive(Deserialize, Debug)]
+struct Address {
+    pub street: String,
+    pub street_no: usize,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct Pet {
+    pub name: String,
+}
+
+#[tokio::main]
+async fn main() {
+    let basic = warp::path!("create-basic")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and_then(create_handler);
+
+    let routes = basic
+        .recover(handle_rejection);
+
+    println!("Server started at localhost:8080!");
+    warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
+}
+
+async fn create_handler(body: CreateRequest) -&gt; Result&lt;impl Reply&gt; {
+    Ok(format!("called with: {:?}", body))
+}
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    message: String,
+    errors: Option&lt;Vec&lt;FieldError&gt;&gt;,
+}
+
+#[derive(Serialize)]
+struct FieldError {
+    field: String,
+    field_errors: Vec&lt;String&gt;,
+}
+
+pub async fn handle_rejection(err: Rejection) -&gt; std::result::Result&lt;impl Reply, Infallible&gt; {
+    let (code, message, errors) = if err.is_not_found() {
+        (StatusCode::NOT_FOUND, "Not Found".to_string(), None)
+    } else if let Some(e) = err.find::&lt;warp::filters::body::BodyDeserializeError&gt;() {
+        (
+            StatusCode::BAD_REQUEST,
+            e.source()
+                .map(|cause| cause.to_string())
+                .unwrap_or_else(|| "BAD_REQUEST".to_string()),
+            None,
+        )
+    } else {
+        eprintln!("unhandled error: {:?}", err);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal Server Error".to_string(),
+            None,
+        )
+    };
+
+    let json = warp::reply::json(&amp;ErrorResponse {
+        message: message.into(),
+        errors,
+    });
+    Ok(warp::reply::with_status(json, code))
+}
+</pre>
+<p>这样，我们就创建了我们的请求对象——在本例中，我们可以对一些字段进行有趣的验证，比如<code>email</code>、一个地址和一个<code>Pets</code>列表。</p>
+<p>然后，我们创建了一个最小的处理程序，它将这个作为JSON主体，并在被调用时打印出来。</p>
+<p>接下来，我们在<code>handle_rejection</code>助手中定义了一些基本的错误处理。这是warp处理错误的方式，在warp的术语中，这被称为<code>Rejections</code>。你现在可以忽略<code>FieldError</code>；我们将在稍后进行数据验证时再次讨论它。</p>
+<p>还有一种预定义的在主体反序列化期间发生错误的情况:<code>warp::filters::body::BodyDeserializeError</code>。如果我们遇到这样的错误，我们将返回400错误，并将错误原因转换为字符串。</p>
+<p>从呼叫者的角度来看，情况是这样的。让我们用cURL发送一个错误的有效载荷:</p>
+<pre>curl -X POST http://localhost:8080/create-basic -H "Content-Type: application/json" -d '{ "email": 1, "address": { "street": "warpstreet", "street_no": 1 }, "pets": [{ "name": "nacho" }] }'
+</pre>
+<p>我们得到下面的错误。</p>
+<pre>{"message":"invalid type: integer `1`, expected a string at line 1 column 13","errors":null}
+</pre>
+<p>这还不算太糟——至少，它告诉我们错误所在的行和列(email是我们错误的有效负载中的一个数字)——但是让错误真正告诉您<code>email</code>是问题所在会好得多。</p>
+<p>无论如何，这比没有<code>BodyDeserializeError</code>处理程序要好得多。在这种情况下，答案应该是:</p>
+<pre>{"message":"Internal Server Error","errors":null}
+</pre>
+<h2 id="betterjsonvalidation">更好的JSON验证</h2>
+<p>为了改善错误，我们将使用<code>serde_path_to_error</code> crate，顾名思义，它将serde错误转换为JSON中发生错误的路径。</p>
+<p>让我们为它创建另一个处理程序，看看有什么变化。</p>
+<pre>#[tokio::main]
+async fn main() {
+...
+    let basic_path = warp::path!("create-path")
+        .and(warp::post())
+        .and(warp::body::aggregate())
+        .and_then(create_handler_path);
+
+    let routes = basic
+        .or(basic_path)
+        .recover(handle_rejection);
+...
+}
+
+async fn create_handler_path(buf: impl Buf) -&gt; Result&lt;impl Reply&gt; {
+    let des = &amp;mut serde_json::Deserializer::from_reader(buf.reader());
+    let body: CreateRequest = serde_path_to_error::deserialize(des)
+        .map_err(|e| reject::custom(Error::JSONPathError(e.to_string())))?;
+    Ok(format!("called with: {:?}", body))
+}
+
+#[derive(Error, Debug)]
+enum Error {
+    #[error("JSON path error: {0}")]
+    JSONPathError(String),
+}
+
+impl warp::reject::Reject for Error {}
+
+pub async fn handle_rejection(err: Rejection) -&gt; std::result::Result&lt;impl Reply, Infallible&gt; {
+...
+    } else if let Some(e) = err.find::&lt;Error&gt;() {
+        match e {
+            Error::JSONPathError(_) =&gt; (StatusCode::BAD_REQUEST, e.to_string(), None),
+        }
+...
+}
+</pre>
+<p>如您所见，我们在路径<code>create-path</code>处添加了另一个处理程序。这里最大的不同是我们使用了<code>warp::body::aggregate()</code>而不是<code>warp::body::json()</code>，这将在我们有机会干预之前自动反序列化负载和错误。</p>
+<p>在这种情况下，我们希望使用有效负载的聚合字节缓冲区。在实践中，如果您要重复使用这个模式，您可能会编写自己的自定义<code>json()</code>过滤器。</p>
+<p>在处理程序中，我们创建了一个反序列化器，并使用<code>serde_path_to_error::deserialize</code>函数将传入的JSON缓冲区反序列化为一个<code>CreateRequest</code>结构。如果失败，它会触发一个<code>JSONPathError</code>——一个实现warp的<code>Reject</code>特征的自定义错误类型，该特征在它下面定义。这是在warp中执行自定义错误处理的简单方法。</p>
+<p>让我们看看现在的反应是什么样的。我们会发送和以前一样的有效载荷。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>{"message":"JSON path error: email: invalid type: integer `1`, expected a string at line 1 column 13","errors":null}
+</pre>
+<p>如果结构中有更深层次的错误，比如宠物的名字，该怎么办？</p>
+<pre>curl -X POST http://localhost:8080/create-path -H "Content-Type: application/json" -d '{ "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3954584b505679434c49434c4917564b5e">[email protected]</a>", "address": { "street": "warpstreet", "street_no": 1 }, "pets": [{ "name": 1 }] }'
+</pre>
+<p>这将产生以下错误。</p>
+<pre>{"message":"JSON path error: pets[0].name: invalid type: integer `1`, expected a string at line 1 column 107","errors":null}
+</pre>
+<p>那好多了。现在，错误告诉调用者哪个字段有问题，甚至提供了如何修复它的提示。在处理反序列化错误方面，我不认为我们能做得更好。</p>
+<p>另一种方法是将响应放入一个更容易解析的数据结构中——例如，GUI可以从中创建一个清晰的错误消息。但是因为我们讨论的是直接的无效请求，所以在这种情况下这并不重要。当我们进入数据验证阶段时，它变得更加相关。</p>
+<h2 id="datavalidation">数据有效性</h2>
+<p>在这种情况下，数据验证仅仅意味着确保提供的数据符合我们对值应该是什么样子的规范——例如，<code>email</code>或<code>url</code>是有效的，或者我们只想接受<code>https://</code>URL。</p>
+<p>要实现这一点，您可以简单地为每个字段和每个传入的结构编写一个验证函数，但这很繁琐。也很难在一个更大的应用程序中结合许多不同的、复杂的领域对象，导致代码，尤其是容易出错的逻辑重复。</p>
+<p>在Rust生态系统中的其他库当中，<a href="https://github.com/Keats/validator"> validator </a> crate在这里非常有用。这个基于宏的库使您能够以声明方式定义结构和字段的验证规则。这种方法听起来可能很熟悉，因为在其他语言中有很多这样的库，比如marshmallow、Java Spring等。</p>
+<p>让我们看看它在实践中是如何工作的:</p>
+<pre>use validator::{Validate, ValidationErrors, ValidationErrorsKind};
+
+#[derive(Deserialize, Debug, Validate)]
+struct CreateRequest {
+    #[validate(email)]
+    pub email: String,
+    #[validate]
+    pub address: Address,
+    #[validate]
+    pub pets: Vec&lt;Pet&gt;,
+}
+
+#[derive(Deserialize, Debug, Validate)]
+struct Address {
+    #[validate(length(min = 2, max = 10))]
+    pub street: String,
+    #[validate(range(min = 1))]
+    pub street_no: usize,
+}
+
+#[derive(Deserialize, Serialize, Debug, Validate)]
+struct Pet {
+    #[validate(length(min = 3, max = 20))]
+    pub name: String,
+}
+
+#[tokio::main]
+async fn main() {
+...
+    let basic_path_validator = warp::path!("create-validator")
+        .and(warp::post())
+        .and(warp::body::aggregate())
+        .and_then(create_handler_validator);
+
+    let routes = basic
+        .or(basic_path)
+        .or(basic_path_validator)
+        .recover(handle_rejection);
+...
+}
+
+async fn create_handler_validator(buf: impl Buf) -&gt; Result&lt;impl Reply&gt; {
+    let des = &amp;mut serde_json::Deserializer::from_reader(buf.reader());
+    let body: CreateRequest = serde_path_to_error::deserialize(des)
+        .map_err(|e| reject::custom(Error::JSONPathError(e.to_string())))?;
+
+    body.validate()
+        .map_err(|e| reject::custom(Error::ValidationError(e)))?;
+    Ok(format!("called with: {:?}", body))
+}
+
+#[derive(Error, Debug)]
+enum Error {
+    #[error("JSON path error: {0}")]
+    JSONPathError(String),
+    #[error("validation error: {0}")]
+    ValidationError(ValidationErrors),
+}
+
+...
+</pre>
+<p>我们添加了另一个处理程序<code>create-validator</code>，它使用了我们用于<code>create-path</code>的相同方法。所以我们建立了良好的JSON输入处理，然后非常简单地调用<code>body.validate()</code>来验证传入的数据，传播带有任何错误的新的自定义错误。</p>
+<p>然而，真正的问题在于我们的数据结构的定义。在那里，我们为我们的结构派生了<code>Validate</code>特征，并且对于每个字段，使用<code>validate</code>宏来定义关于是否以及如何验证该字段的规则。这可以是诸如电子邮件验证之类的花哨东西，也可以是诸如字符串长度之类的基本东西，甚至可以是定制的验证函数。查看<a href="https://github.com/Keats/validator">文档</a>查看更多示例；功能相当强大，可定制。</p>
+<p>在上面的例子中，省略了对<code>ValidationError</code>的错误处理，因为它有点复杂。我们从<code>validator</code>箱子中得到的<code>ValidationErrors</code>对象包含了我们想要的所有信息，甚至可以被字符串化以给出一个有用的错误。但是在我们的例子中，我们想把它解析成我们定制的<code>FieldError</code>结构，在那里我们可以把错误映射到发生错误的字段。</p>
+<p>让我们来看看实现这一点的基本方法。</p>
+<pre>pub async fn handle_rejection(err: Rejection) -&gt; std::result::Result&lt;impl Reply, Infallible&gt; {
+...
+    } else if let Some(e) = err.find::&lt;Error&gt;() {
+        match e {
+            Error::JSONPathError(_) =&gt; (StatusCode::BAD_REQUEST, e.to_string(), None),
+            Error::ValidationError(val_errs) =&gt; {
+                let errors: Vec&lt;FieldError&gt; = val_errs
+                    .errors()
+                    .iter()
+                    .map(|error_kind| FieldError {
+                        field: error_kind.0.to_string(),
+                        field_errors: match error_kind.1 {
+                            ValidationErrorsKind::Struct(struct_err) =&gt; {
+                                validation_errs_to_str_vec(struct_err)
+                            }
+                            ValidationErrorsKind::Field(field_errs) =&gt; field_errs
+                                .iter()
+                                .map(|fe| format!("{}: {:?}", fe.code, fe.params))
+                                .collect(),
+                            ValidationErrorsKind::List(vec_errs) =&gt; vec_errs
+                                .iter()
+                                .map(|ve| {
+                                    format!(
+                                        "{}: {:?}",
+                                        ve.0,
+                                        validation_errs_to_str_vec(ve.1).join(" | "),
+                                    )
+                                })
+                                .collect(),
+                        },
+                    })
+                    .collect();
+
+                (
+                    StatusCode::BAD_REQUEST,
+                    "field errors".to_string(),
+                    Some(errors),
+                )
+            }
+        }
+...
+}
+
+fn validation_errs_to_str_vec(ve: &amp;ValidationErrors) -&gt; Vec&lt;String&gt; {
+    ve.field_errors()
+        .iter()
+        .map(|fe| {
+            format!(
+                "{}: errors: {}",
+                fe.0,
+                fe.1.iter()
+                    .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+                    .collect::&lt;Vec&lt;String&gt;&gt;()
+                    .join(", ")
+            )
+        })
+        .collect()
+}
+</pre>
+<p>如您所见，这比您预期的要复杂一些。理论上，对于任意深度嵌套的结构，您也可以任意深度嵌套结果字段错误结构。我们需要做一个决定，定义分界点是<code>1</code>级。在深度的<code>1</code>级别之外，我们简单地将底层字段错误的整个字符串添加到顶层字段错误中。</p>
+<p>实际上，这可以用递归很好地解决，但是我们在这里保持简单。</p>
+<p>让我们检查一下代码，看看这里发生了什么。如上所述，我们从库中获得一个<code>ValidationErrors</code>对象，我们希望将它解析成一个<code>Vec&lt;FieldError</code>。到目前为止，一切顺利。</p>
+<p>如果我们使用<code>errors()</code>迭代器迭代<code>ValidationErrors</code>，我们会得到一个<code>ValidationErrorKinds</code>的集合。有三种错误类型:</p>
+<ol>
+<li><strong>字段</strong>表示一个字段中发生的错误，如<code>email</code> —简单</li>
+<li><strong> Struct </strong>表示错误发生在嵌套结构中</li>
+<li><strong>列表</strong>表示错误发生在嵌套列表中</li>
+</ol>
+<p>对于每种错误，我们得到一个字段名和实际错误的元组。我们可以简单地将字段名放入<code>FieldError</code>上的<code>field</code>属性中。既然我们得到了一个<code>&amp;&amp;str</code>并且想要一个<code>String</code>，我们需要调用<code>to_string()</code>。</p>
+<p>现场误差有点棘手。我们需要匹配上面提到的三个案例。如果我们遇到一个<code>ValidationErrorsKind::Field</code>，这很简单，我们只需将错误格式化成一个字符串。</p>
+<p>如果我们遇到一个<code>ValidationErrorsKind::Struct</code>，我们调用<code>validation_errs_to_str_vec</code>助手，它遍历这个结构中的所有错误，将它们格式化为字符串，并用一个<code>,</code>将它们连接起来，返回这个结构中这些连接起来的错误的列表。</p>
+<p>对于最后一种情况，<code>ValidationErrorsKind::List</code>，我们将两者结合起来，因为列表中的每一项本身也可能是一个结构体。我们为每个字段调用<code>validation_errs_to_str_vec</code>，在字符串中用发生错误的列表索引标记它。</p>
+<p>如果你在最后一点上有困难，不要太担心。实际上，返回的验证错误会根据具体情况以不同的方式进行解析和传递。这只是一种简化的，不可否认的，不完美的方法。</p>
+<p>也就是说，让我们看看如果我们违反了一些数据验证规则，我们会得到什么样的错误。</p>
+<p>首先，让我们看看无效邮件会发生什么。</p>
+<pre>curl -X POST http://localhost:8080/create-validator -H "Content-Type: application/json" -d '{ "email": "chipexample.com", "address": { "street": "warpstreet", "street_no": 1 }, "pets": [{ "name": "nacho" }] }'
+</pre>
+<p>=&gt;</p>
+<pre>{"message":"field errors","errors":[{"field":"email","field_errors":["email: {\"value\": String(\"chipexample.com\")}"]}]}
+</pre>
+<p>我们得到一个错误数组，字段设置正确，在字段中，字段错误还包含显示错误值的无效电子邮件错误。</p>
+<p>现在，让我们添加另一个错误，并使用一个街道名称，这对于我们的规则来说太长了。</p>
+<pre>curl -X POST http://localhost:8080/create-validator -H "Content-Type: application/json" -d '{ "email": "chipexample.com", "address": { "street": "warpstreetistoolonghere", "street_no": 1 }, "pets": [{ "name": "nacho" }] }'
+</pre>
+<p>=&gt;</p>
+<pre>{"message":"field errors","errors":[{"field":"address","field_errors":["street: errors: length: {\"max\": Number(10), \"min\": Number(2), \"value\": String(\"warpstreetistoolonghere\")}"]},{"field":"email","field_errors":["email: {\"value\": String(\"chipexample.com\")}"]}]}%
+</pre>
+<p>第二个错误被正确添加，我们得到了一些关于长度的信息，这是这里所期望的。正如您在格式化的内部错误字符串中看到的，我们可以更进一步，创建一个漂亮的结构化错误，为用户字段提供<code>max</code>和<code>min</code>。</p>
+<p>最后，我们来试试嵌套的情况，发一个太短的宠物名。</p>
+<pre>curl -X POST http://localhost:8080/create-validator -H "Content-Type: application/json" -d '{ "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593a313029193c21383429353c773a3634">[email protected]</a>", "address": { "street": "warpstreet", "street_no": 1 }, "pets": [{ "name": "" }, {"name": "a"}] }'
+</pre>
+<p>=&gt;</p>
+<pre>{"message":"field errors","errors":[{"field":"pets","field_errors":["0: \"name: errors: length: {\\\"value\\\": String(\\\"\\\"), \\\"min\\\": Number(3), \\\"max\\\": Number(20)}\"","1: \"name: errors: length: {\\\"value\\\": String(\\\"a\\\"), \\\"max\\\": Number(20), \\\"min\\\": Number(3)}\""]}]}
+</pre>
+<p>因为这些是列表中的错误，并且因为我们以非常简单的方式实现了这一点，所以这些错误只是连接在<code>field_errors</code>数组中，我们只是获得了索引<code>0</code>和<code>1</code>的错误字符串，显示名称太短。</p>
+<p>你可以在<a href="https://github.com/zupzup/example-rust-json-input-validation" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到本教程的完整代码。</p>
+<h2 id="conclusion">结论</h2>
+<p>JSON输入验证是任何现代web应用程序的核心问题，Rust生态系统已经有了一些很好的工具来处理它。</p>
+<p>在本例中，我们研究了如何处理JSON反序列化错误，并在下一步中验证数据。有很多方法可以做到这一点——我们刚刚讨论了展示生态系统中两个特定库的无数方法中的一种——但我希望它能帮助您了解如何解决Rust中的类似问题。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,584 @@
+<html>
+<head>
+<title>Building a responsive camera component with React Hooks - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用React钩子构建一个响应式相机组件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/responsive-camera-component-react-hooks/#0001-01-01">https://blog.logrocket.com/responsive-camera-component-react-hooks/#0001-01-01</a></blockquote><div><article class="article-post">
+<h2>介绍</h2>
+<p>我最近的任务是构建一个前端相机组件，允许用户将他们的身份证图像上传到后端服务。在本文中，我将通过解释如何配置实时媒体流、如何用React钩子捕获快照以及如何使用样式化组件设置元素的样式和位置来演示我是如何创建该组件的。</p>
+<p>因此，本文假设您对React 16.x中的功能组件和样式组件库有一定的了解。下面，你可以看到一个运行中的组件的演示，并且在你阅读的时候，可以随意地在我的<a href="https://codesandbox.io/s/react-camera-component-with-hooks-mf1i2"> CodeSandbox </a>上玩完整的解决方案。尽情享受吧！</p>
+<p><img data-attachment-id="9410" data-permalink="https://blog.logrocket.com/responsive-camera-component-react-hooks/camera-component-final-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app.gif" data-orig-size="500,1083" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Preview of our final app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app-473x1024.gif" decoding="async" class="aligncenter size-full wp-image-9410 jetpack-lazy-image" src="../Images/728c6cd150846022eeed94f439b4104f.png" alt="Preview Of Our Final App" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9410" data-permalink="https://blog.logrocket.com/responsive-camera-component-react-hooks/camera-component-final-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app.gif" data-orig-size="500,1083" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Preview of our final app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app-139x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app-473x1024.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-9410" src="../Images/728c6cd150846022eeed94f439b4104f.png" alt="Preview Of Our Final App" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/camera-component-final-app.gif"/></noscript>
+<h2>配置</h2>
+<p>让我们从访问浏览器导航器并调用<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia" target="_blank" rel="noopener noreferrer">getUserMedia()</a></code>方法来显示来自用户摄像机的实时视频提要开始。</p>
+<p>由于该组件是为拍摄身份证照片而设计的，所以我们可以传递一个不需要音频的配置对象，默认为移动设备上的后置摄像头。通过向video属性传递一个options对象，video被假定为<code>true</code>。</p>
+<pre>const CAPTURE_OPTIONS = {
+    audio: false,
+    video: { facingMode: "environment" },
+};</pre>
+<p><code>getUserMedia()</code>方法请求用户允许访问配置中定义的媒体。然后它返回一个承诺，要么解析并返回一个可以存储在本地状态的<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStream" target="_blank" rel="noopener noreferrer">MediaStream</a></code>对象，要么拒绝并返回一个错误。</p>
+<p>使用React的一个<code><a href="https://reactjs.org/docs/hooks-effect.html" target="_blank" rel="noopener noreferrer">useEffect()</a></code>钩子，我们创建并存储所请求的流(如果不存在的话)(例如，我们的本地状态为空),或者返回一个清理函数，以防止组件卸载时任何潜在的内存泄漏。清理通过<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStream/getTracks" target="_blank" rel="noopener noreferrer">getTracks()</a></code>方法循环并停止存储在本地状态的每个媒体轨道。</p>
+<p>当流存储在本地状态中时，它可以被绑定到一个<code>&lt;video /&gt;</code>元素。由于React <a href="https://github.com/facebook/react/pull/9146#issuecomment-355584767">不支持<code>srcObject</code>属性</a>，我们使用一个ref来定位视频并将流分配给<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/srcObject">srcObject</a></code>属性。有了有效的来源，视频将触发一个<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/canplay_event" target="_blank" rel="noopener noreferrer">onCanPlay()</a></code>事件，我们可以开始视频回放。</p>
+<p>这个实现是必要的，因为video <code>autoPlay</code>属性不能在所有平台上一致地工作。我们可以将所有这些逻辑抽象到一个自定义钩子中，该钩子将配置对象作为参数，创建清理函数，并将流返回给camera组件。</p>
+<pre>import { useState, useEffect } from "react";
+
+export function useUserMedia(requestedMedia) {
+  const [mediaStream, setMediaStream] = useState(null);
+
+  useEffect(() =&gt; {
+    async function enableStream() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(requestedMedia);
+        setMediaStream(stream);
+      } catch(err) {
+        // Removed for brevity
+      }
+    }
+
+    if (!mediaStream) {
+      enableStream();
+    } else {
+      return function cleanup() {
+        mediaStream.getTracks().forEach(track =&gt; {
+          track.stop();
+        });
+      }
+    }
+  }, [mediaStream, requestedMedia]);
+
+  return mediaStream;
+}</pre>
+<pre>import React, { useRef, useState } from 'react';
+import { useUserMedia } from './useUserMedia';
+
+const CAPTURE_OPTIONS = {
+    audio: false,
+    video: { facingMode: "environment" },
+};
+
+function Camera() {
+  const videoRef = useRef();
+  const mediaStream = useUserMedia(CAPTURE_OPTIONS);
+
+  if (mediaStream &amp;&amp; videoRef.current &amp;&amp; !videoRef.current.srcObject) {
+    videoRef.current.srcObject = mediaStream;
+  }
+
+  function handleCanPlay() {
+    videoRef.current.play();
+  }
+
+  return (
+    &lt;video ref={videoRef} onCanPlay={handleCanPlay} autoPlay playsInline muted /&gt;
+  );
+}</pre>
+<h2>配置</h2>
+<p>配置好媒体流后，我们可以开始在组件中定位视频。为了增强用户体验，摄像头馈送应该类似于身份证。这要求预览容器保持一个横向比例，而不管相机的原生分辨率(桌面相机通常具有方形或横向比例，并且我们假设移动设备将纵向捕获图像)。</p>
+<p>这是通过总是除以最大尺寸来计算≥ 1的比率来实现的。一旦视频可用于回放(即，当调用<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/canplay_event" target="_blank" rel="noopener noreferrer">onCanPlay()</a></code>事件时)，我们可以评估摄像机的本地分辨率，并使用它来计算父容器的期望纵横比。</p>
+<p>为了使组件能够响应，每当父容器的宽度发生变化时，都需要通知它，以便重新计算高度。<code><a href="%22https://www.npmjs.com/package/react-measure">react-measure</a></code>导出一个<code><a href="https://www.npmjs.com/package/react-measure#measure-component">&lt;Measure /&gt;</a></code>组件，该组件提供被引用元素的边界作为一个<code><a href="https://www.npmjs.com/package/react-measure#onresize--proptypesfunc">onResize()</a></code>回调中的参数。每当容器装载或调整大小时，参数的<code>contentRect.bounds.width</code>属性通过除以计算的比率来确定容器的高度。</p>
+<p>与之前类似，比率计算被抽象到一个自定义钩子中，并返回计算出的比率和setter函数。由于比率将保持不变，我们可以利用React的<code><a href="https://reactjs.org/docs/hooks-reference.html#usecallback">useCallback()</a></code>钩子来防止任何不必要的重新计算。</p>
+<pre>import { useState, useCallback } from "react";
+
+export function useCardRatio(initialRatio) {
+  const [aspectRatio, setAspectRatio] = useState(initialRatio);
+
+  const calculateRatio = useCallback((height, width) =&gt; {
+    if (height &amp;&amp; width) {
+      const isLandscape = height &lt;= width;
+      const ratio = isLandscape ? width / height : height / width;
+
+      setAspectRatio(ratio);
+    }
+  }, []);
+
+  return [aspectRatio, calculateRatio];
+}</pre>
+<pre>import React, { useRef, useState } from 'react';
+import { Measure } from 'react-measure';
+import { useUserMedia } from './useUserMedia';
+import { useCardRatio } from './useCardRatio';
+
+const CAPTURE_OPTIONS = {
+    audio: false,
+    video: { facingMode: "environment" },
+};
+
+function Camera() {
+  const videoRef = useRef();
+  const mediaStream = useUserMedia(CAPTURE_OPTIONS);
+  const [container, setContainer] = useState({ height: 0 });
+  const [aspectRatio, setAspectRatio] = useCardRatio(1.586); // default card ratio
+
+  if (mediaStream &amp;&amp; videoRef.current &amp;&amp; !videoRef.current.srcObject) {
+    videoRef.current.srcObject = mediaStream;
+  }
+
+  function handleCanPlay() {
+    calculateRatio(videoRef.current.videoHeight, videoRef.current.videoWidth);
+    videoRef.current.play();
+  }
+
+  function handleResize(contentRect) {
+    setContainer({
+      height: Math.round(contentRect.bounds.width / aspectRatio)
+    });
+  }
+
+  function handleCanPlay() {
+    setAspectRatio(videoRef.current.videoHeight, videoRef.current.videoWidth);
+    videoRef.current.play();
+  }
+
+  return (
+    &lt;Measure bounds onResize={handleResize}&gt;
+      {({ measureRef }) =&gt; (
+        &lt;div ref={measureRef} style={{ height: `${container.height}px` }}&gt;
+          &lt;video ref={videoRef} onCanPlay={handleCanPlay} autoPlay playsInline muted /&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/Measure&gt;
+  );
+</pre>
+<p>如果视频元素小于父容器，当前的解决方案可以很好地工作，但是如果本地分辨率较大，它将溢出并导致布局问题。将<code>overflow: hidden</code>和<code>position: relative</code>添加到父视频中，将<code>position : absolute</code>添加到视频中，这样可以防止布局中断，但是视频对用户来说会偏离中心。</p>
+<p>为了弥补这一点，我们通过计算轴偏移量来使提要居中，该偏移量从父容器中减去视频元素的尺寸，并将结果值减半。</p>
+<pre>const offsetX = Math.round((videoWidth - containerWidth) / 2);
+const offsetY = Math.round((videoHeight - containerHeight) / 2);</pre>
+<p>我们只想在视频(<code>v</code>)大于父容器(<code>c</code>)的情况下应用偏移量。我们可以创建另一个自定义挂钩，它使用一个效果来评估是否需要一个偏移量，并在任何值发生变化时返回更新后的结果。</p>
+<pre>import { useState, useEffect } from "react";
+
+export function useOffsets(vWidth, vHeight, cWidth, cHeight) {
+  const [offsets, setOffsets] = useState({ x: 0, y: 0 });
+
+  useEffect(() =&gt; {
+    if (vWidth &amp;&amp; vHeight &amp;&amp; cWidth &amp;&amp; cHeight) {
+      const x = vWidth &gt; cWidth
+        ? Math.round((vWidth - cWidth) / 2)
+        : 0;
+
+      const y = vHeight &gt; cHeight
+        ? Math.round((vHeight - cHeight) / 2)
+        : 0;
+
+      setOffsets({ x, y });
+    }
+  }, [vWidth, vHeight, cWidth, cHeight]);
+
+  return offsets;
+}
+</pre>
+<pre>import React, { useRef, useState } from 'react';
+import { Measure } fropm 'react-measure';
+import { useUserMedia } from './useUserMedia ';
+import { useCardRatio } from './useCardRatio';
+import { useOffsets } from './useOffsets';
+
+const CAPTURE_OPTIONS = {
+    audio: false,
+    video: { facingMode: "environment" },
+};
+
+function Camera() {
+  const videoRef = useRef();
+  const mediaStream = useUserMedia(CAPTURE_OPTIONS);
+  const [container, setContainer] = useState({ height: 0, width: 0 });
+  const [aspectRatio, calculateRatio] = useCardRatio(1.586);
+  const offsets = useOffsets(
+    videoRef.current &amp;&amp; videoRef.current.videoWidth,
+    videoRef.current &amp;&amp; videoRef.current.videoHeight,
+    container.width,
+    container.height
+  );
+
+  if (mediaStream &amp;&amp; videoRef.current &amp;&amp; !videoRef.current.srcObject) {
+    videoRef.current.srcObject = mediaStream;
+  }
+
+  function handleResize(contentRect) {
+    setContainer({
+      height: Math.round(contentRect.bounds.width / aspectRatio),
+      width: contentRect.bounds.width
+    });
+  }
+
+  function handleCanPlay() {
+    calculateRatio(videoRef.current.videoHeight, videoRef.current.videoWidth);
+    videoRef.current.play();
+  }
+
+  return (
+    &lt;Measure bounds onResize={handleResize}&gt;
+      {({ measureRef }) =&gt; (
+        &lt;div ref={measureRef} style={{ height: `${container.height}px` }}&gt;
+          &lt;video 
+            ref={videoRef}
+            onCanPlay={handleCanPlay}
+            style={{ top: `-${offsets.y}px`, left: `-${offsets.x}px` }}
+            autoPlay 
+            playsInline 
+            muted
+          /&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/Measure&gt;
+  );
+};</pre>
+<h2>捕获/清除</h2>
+<p>为了模拟相机快照，一个<code>&lt;canvas/&gt;</code>元素被放置在视频的顶部，具有匹配的尺寸。每当用户开始捕获时，提要中的当前帧将被绘制到画布上，并导致视频暂时隐藏。</p>
+<p>这是通过在画布上创建二维渲染上下文，将视频的当前帧绘制为图像，然后将结果<code>Blob</code>导出为<code>handleCapture()</code>回调中的参数来实现的。</p>
+<pre>function handleCapture() {
+  const context = canvasRef.current.getContext("2d");
+  context.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+  canvasRef.current.toBlob(blob =&gt; onCapture(blob), "image/jpeg", 1);
+}</pre>
+<p>提供给<code><a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage">drawImage()</a></code>方法的参数大致分为三组:源图像、源图像参数<em> (s) </em>，以及目标画布参数<em> (d) </em>。在绘制画布时，我们需要考虑潜在的轴偏移，因为我们只想拍摄父容器中可见的视频提要部分。</p>
+<p>我们将向源图像的起始轴坐标添加偏移量，并使用父容器的宽度和高度作为源和目标边界。因为我们想要在整个画布上绘制快照，所以不需要目标偏移。</p>
+<pre>context.drawImage(
+  videoRef.current, // source
+  offsets.x,        // sx  
+  offsets.y,        // sy
+  container.width,  // sWidth
+  container.height, // sHeight
+  0,                // dx
+  0,                // dy
+  container.width,  // dWidth
+  container.height  // dHeight
+);</pre>
+<p>为了丢弃图像，画布通过一个<code>handleClear()</code>回调函数恢复到初始状态。调用<code>handleClear()</code>将检索之前在<code>handleCapture()</code>函数中返回的相同绘图上下文实例。</p>
+<p>然后，我们将画布的宽度和高度传递给context <code><a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/clearRect">clearRect()</a></code>函数，将请求的像素转换为透明的，并继续显示视频提要。</p>
+<pre>function handleClear() {
+  const context = canvasRef.current.getContext("2d");
+  context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  onClear();
+}</pre>
+<pre>import React, { useRef, useState } from 'react';
+import { Measure } fropm 'react-measure';
+import { useUserMedia } from './useUserMedia ';
+import { useCardRatio } from './useCardRatio';
+import { useOffsets } from './useOffsets';
+
+const CAPTURE_OPTIONS = {
+    audio: false,
+    video: { facingMode: "environment" },
+};
+
+function Camera() {
+  const videoRef = useRef();
+  const mediaStream = useUserMedia(CAPTURE_OPTIONS);
+  const [container, setContainer] = useState({ height: 0, width: 0 });
+  const [aspectRatio, calculateRatio] = useCardRatio(1.586);
+  const [isCanvasEmpty, setIsCanvasEmpty] = useState(true);
+  const offsets = useOffsets(
+    videoRef.current &amp;&amp; videoRef.current.videoWidth,
+    videoRef.current &amp;&amp; videoRef.current.videoHeight,
+    container.width,
+    container.height
+  );
+
+  if (mediaStream &amp;&amp; videoRef.current &amp;&amp; !videoRef.current.srcObject) {
+    videoRef.current.srcObject = mediaStream;
+  }
+
+  function handleResize(contentRect) {
+    setContainer({
+      height: Math.round(contentRect.bounds.width / aspectRatio),
+      width: contentRect.bounds.width
+    });
+  }
+
+  function handleCanPlay() {
+    calculateRatio(videoRef.current.videoHeight, videoRef.current.videoWidth);
+    videoRef.current.play();
+  }
+
+  function handleCapture() {
+    const context = canvasRef.current.getContext("2d");
+
+    context.drawImage(
+      videoRef.current,
+      offsets.x,
+      offsets.y,
+      container.width,
+      container.height,
+      0,
+      0,
+      container.width,
+      container.height
+    );
+
+    canvasRef.current.toBlob(blob =&gt; onCapture(blob), "image/jpeg", 1);
+    setIsCanvasEmpty(false);
+  }
+
+  function handleClear() {
+    const context = canvasRef.current.getContext("2d");
+    context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    onClear();
+    setIsCanvasEmpty(true);
+  }
+
+  return (
+    &lt;Measure bounds onResize={handleResize}&gt;
+      {({ measureRef }) =&gt; (
+        &lt;div&gt;
+            &lt;div ref={measureRef} style={{ height: `${container.height}px` }}&gt;
+              &lt;video 
+                ref={videoRef}
+                onCanPlay={handleCanPlay}
+                style={{ top: `-${offsets.y}px`, left: `-${offsets.x}px` }} 
+                autoPlay 
+                playsInline 
+                muted
+              /&gt;
+            &lt;/div&gt;
+
+          &lt;button onClick={isCanvasEmpty ? handleCapture : handleClear}&gt;
+            {isCanvasEmpty ? "Take a picture" : "Take another picture"}
+          &lt;/button&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/Measure&gt;
+  );</pre>
+<h2>式样</h2>
+<p>有了捕捉图像的能力，剩下的工作就是实现卡片辅助覆盖、捕捉时的flash动画，并使用<a href="https://www.styled-components.com/"> styled-components </a>对元素进行样式化。</p>
+<p>覆盖组件是一个白色的圆形边框，覆盖在视频的顶部，以鼓励用户将他们的身份证放在边框内，外部的方框阴影区域作为安全区，以防止剪切。</p>
+<p>flash组件有一个纯白的背景，也分层在视频之上，但由于默认的不透明度为零，它最初看起来是隐藏的。</p>
+<p>每当用户捕捉图像时，它的关键帧动画就会触发，它会将不透明度短暂地设置为0.75，然后快速将其降低为零以模拟闪光效果。</p>
+<p>我们可以将相机的分辨率作为道具传递给父容器，以确定其最大宽度和高度，添加一个本地状态变量— <code>isVideoPlaying</code> —以隐藏视频和覆盖元素，直到相机开始流式传输，最后将<code>display: none</code>添加到<code>-webkit-media-controls-play-button</code>以隐藏视频在iOS设备上的播放符号。💥</p>
+<pre>import styled, { css, keyframes } from 'styled-components';
+
+const flashAnimation = keyframes`
+  from {
+    opacity: 0.75;
+  }
+
+  to {
+    opacity: 0;
+  }
+`;
+
+export const Wrapper = styled.div`
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  width: 100%;
+`;
+
+export const Container = styled.div`
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: ${({ maxWidth }) =&gt; maxWidth &amp;&amp; `${maxWidth}px`};
+  max-height: ${({ maxHeight }) =&gt; maxHeight &amp;&amp; `${maxHeight}px`};
+`;
+
+export const Canvas = styled.canvas`
+  position: absolute;
+  top: 0;
+  left: 0;
+`;
+
+export const Video = styled.video`
+  position: absolute;
+
+  &amp;::-webkit-media-controls-play-button {
+    display: none !important;
+    -webkit-appearance: none;
+  }
+`;
+
+export const Overlay = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  left: 20px;
+  box-shadow: 0px 0px 20px 56px rgba(0, 0, 0, 0.6);
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+`;
+
+export const Flash = styled.div`
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+  background-color: #ffffff;
+
+  ${({ flash }) =&gt; {
+    if (flash) {
+      return css`
+        animation: ${flashAnimation} 750ms ease-out;
+      `;
+    }
+  }}
+`;
+
+export const Button = styled.button`
+  width: 75%;
+  min-width: 100px;
+  max-width: 250px;
+  margin-top: 24px;
+  padding: 12px 24px;
+  background: silver;
+`;</pre>
+<pre>import React, { useState, useRef } from "react";
+import Measure from "react-measure";
+import { useUserMedia } from "../hooks/use-user-media";
+import { useCardRatio } from "../hooks/use-card-ratio";
+import { useOffsets } from "../hooks/use-offsets";
+import {
+  Video,
+  Canvas,
+  Wrapper,
+  Container,
+  Flash,
+  Overlay,
+  Button
+} from "./styles";
+
+const CAPTURE_OPTIONS = {
+  audio: false,
+  video: { facingMode: "environment" }
+};
+
+export function Camera({ onCapture, onClear }) {
+  const canvasRef = useRef();
+  const videoRef = useRef();
+
+  const [container, setContainer] = useState({ width: 0, height: 0 });
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isCanvasEmpty, setIsCanvasEmpty] = useState(true);
+  const [isFlashing, setIsFlashing] = useState(false);
+
+  const mediaStream = useUserMedia(CAPTURE_OPTIONS);
+  const [aspectRatio, calculateRatio] = useCardRatio(1.586);
+  const offsets = useOffsets(
+    videoRef.current &amp;&amp; videoRef.current.videoWidth,
+    videoRef.current &amp;&amp; videoRef.current.videoHeight,
+    container.width,
+    container.height
+  );
+
+  if (mediaStream &amp;&amp; videoRef.current &amp;&amp; !videoRef.current.srcObject) {
+    videoRef.current.srcObject = mediaStream;
+  }
+
+  function handleResize(contentRect) {
+    setContainer({
+      width: contentRect.bounds.width,
+      height: Math.round(contentRect.bounds.width / aspectRatio)
+    });
+  }
+
+  function handleCanPlay() {
+    calculateRatio(videoRef.current.videoHeight, videoRef.current.videoWidth);
+    setIsVideoPlaying(true);
+    videoRef.current.play();
+  }
+
+  function handleCapture() {
+    const context = canvasRef.current.getContext("2d");
+
+    context.drawImage(
+      videoRef.current,
+      offsets.x,
+      offsets.y,
+      container.width,
+      container.height,
+      0,
+      0,
+      container.width,
+      container.height
+    );
+
+    canvasRef.current.toBlob(blob =&gt; onCapture(blob), "image/jpeg", 1);
+    setIsCanvasEmpty(false);
+    setIsFlashing(true);
+  }
+
+  function handleClear() {
+    const context = canvasRef.current.getContext("2d");
+    context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    setIsCanvasEmpty(true);
+    onClear();
+  }
+
+  if (!mediaStream) {
+    return null;
+  }
+
+  return (
+    &lt;Measure bounds onResize={handleResize}&gt;
+      {({ measureRef }) =&gt; (
+        &lt;Wrapper&gt;
+          &lt;Container
+            ref={measureRef}
+            maxHeight={videoRef.current &amp;&amp; videoRef.current.videoHeight}
+            maxWidth={videoRef.current &amp;&amp; videoRef.current.videoWidth}
+            style={{
+              height: `${container.height}px`
+            }}
+          &gt;
+            &lt;Video
+              ref={videoRef}
+              hidden={!isVideoPlaying}
+              onCanPlay={handleCanPlay}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                top: `-${offsets.y}px`,
+                left: `-${offsets.x}px`
+              }}
+            /&gt;
+
+            &lt;Overlay hidden={!isVideoPlaying} /&gt;
+
+            &lt;Canvas
+              ref={canvasRef}
+              width={container.width}
+              height={container.height}
+            /&gt;
+
+            &lt;Flash
+              flash={isFlashing}
+              onAnimationEnd={() =&gt; setIsFlashing(false)}
+            /&gt;
+          &lt;/Container&gt;
+
+          {isVideoPlaying &amp;&amp; (
+            &lt;Button onClick={isCanvasEmpty ? handleCapture : handleClear}&gt;
+              {isCanvasEmpty ? "Take a picture" : "Take another picture"}
+            &lt;/Button&gt;
+          )}
+        &lt;/Wrapper&gt;
+      )}
+    &lt;/Measure&gt;
+  );
+}</pre>
+<h2>结论</h2>
+<p>目前，该组件用于提供图像作为真实性的证明，并与用户手动输入身份证字段信息的表单一起使用。我希望在这篇文章之后，与OCR技术整合，从图像中去除字段，并完全消除对表单的需求。</p>
+<p>感谢您的阅读，特别感谢<a href="https://twitter.com/petecorreia"> Pete Correia </a>花时间查看组件代码。喜欢这篇文章吗？<a href="https://twitter.com/phunkren">在推特上说谢谢</a>🐦</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

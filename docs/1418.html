@@ -1,0 +1,327 @@
+<html>
+<head>
+<title>localForage: Managing offline browser storage - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>local feed:管理离线浏览器存储</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/localforage-managing-offline-browser-storage/#0001-01-01">https://blog.logrocket.com/localforage-managing-offline-browser-storage/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>用<a href="https://blog.logrocket.com/javascript-cache-api/" target="_blank" rel="noopener">缓存API </a>缓存静态的基于文件的资源，这样那些静态的页面在没有互联网连接的情况下也是可导航的，这是大多数人认为渐进式web应用(PWAs)的全部意义。然而，PWAs可以通过浏览器存储实现更多功能。借助浏览器存储，我们可以构建功能全面的交互式离线应用，这些应用可以:</p>
+<ul>
+<li>当互联网连接不良或没有互联网连接时，将用户输入(如向日历web应用程序添加新任务)存储在浏览器中，然后在检测到连接时立即同步到远程数据库。这样，即使用户从不同的设备登录，也会提供最新的数据</li>
+<li>存储API响应数据，以便更快地进行初始加载，然后在连接恢复时，如果有任何更改，则按照过时但重新验证的策略进行更新</li>
+<li>在服务器端存储很少改变的API数据，这样应用程序就不必一直为这些数据进行服务器调用</li>
+</ul>
+<p>为了满足这种需求，浏览器提供了两种主要的存储机制:localStorage和IndexedDB。</p>
+<p>然而，这两个有一对夫妇的缺点。</p>
+<h2>使用localStorage作为脱机存储机制</h2>
+<p>一方面，localStorage通过其简单的获取和设置API非常容易使用。但是，它只能存储字符串类型的数据。这意味着其他数据类型在存储时必须用<code>JSON.stringify()</code>转换成字符串，然后在从存储器读取时用<code>JSON.parse()</code>转换回来，这不是很安全。此外，localStorage提供非常有限的存储大小，大约5MB，是同步的，不能从web工作人员那里访问，因此不支持后台同步。</p>
+<h2>使用IndexedDB作为离线存储机制</h2>
+<p>另一方面，IndexedDB几乎正是我们所需要的。它是异步的，因此不会阻塞主线程。它接受不同的数据类型，包括blobs、文件和图像，具有更高的存储限制，有时高达1GB，具体取决于用户的磁盘空间和操作系统，并且可以由web工作者访问。</p>
+<p>但是，使用本机indexedDB API完全是一场噩梦。有时候，仅仅为了存储数据，你就不得不写超过10行的代码。</p>
+<h2>什么是local feed？</h2>
+<p>这就是<a href="https://github.com/localForage/localForage" target="_blank" rel="noopener">本地饲料</a>的用武之地。(如果你不熟悉离线存储的概念，我建议你在继续之前阅读<a href="https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Client-side_web_APIs/Client-side_storage" target="_blank" rel="noopener">这篇</a>。</p>
+<p>用它的创造者的话说，local feed是离线存储的改进。通过方便地在离线存储上提供一个抽象层，使得离线存储的工作变得更加容易。它结合了indexedDB的灵活性和一个简单的异步localStorage类API。这意味着我们可以使用我们都喜欢的async-await语法。</p>
+<p>local feed设计用于将数据存储在indexedDB中，如果不支持indexedDB，则返回到localStorage。(但是，这可能会对性能和存储产生相当大的副作用，因为所有数据都将在保存时序列化，并且只有可以通过<code>JSON.stringify()</code>转换为字符串的数据才会被保存)。</p>
+<p>因为indexedDB目前受到所有主流浏览器的支持，而且，如果你正在构建一个PWA，旧的浏览器将不支持你需要使用的大多数特性，你可以明智地决定只支持现代的浏览器。</p>
+<p>在我目前的公司，我们只支持我们PWA产品的Chrome，这是一个面向小型企业的一体化SaaS平台。我们使用local feed来存储无论互联网连接如何都应该可用的数据，因为该应用程序主要由销售代理使用，他们有时可能在互联网连接不良的非常规地方。</p>
+<p>在本文的其余部分，我将带您了解如何设置local feed并使用它执行基本的CRUD操作，就像使用任何其他数据库一样。我们将编写函数来构建一个假想的CRM销售应用程序的各个部分，销售代表使用该应用程序来整理潜在客户的联系信息——通常在连接可能有问题的地方。让我们开始吧。</p>
+<h2>1.设置一个HTML页面</h2>
+<p>首先，让我们建立一个简单的HTML页面，其中包含一个用于收集客户数据的表单和一个显示所有客户详细信息的表格:</p>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;LocalForage Demo&lt;/title&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div&gt;
+       &lt;label&gt;Client Name:
+           &lt;input id="clientName" type="text" name='clientName' value=""&gt;
+       &lt;/label&gt;
+       &lt;label&gt;Phone Number:
+           &lt;input id="clientPhone" type="number" name='clientPhone' value=""&gt;
+       &lt;/label&gt;
+       &lt;label&gt;Needs:
+           &lt;input id="clientNeed" type="text" name='clientNeed' value=""&gt;
+       &lt;/label&gt;
+       &lt;button type="submit" id="submit"&gt;Save&lt;/button&gt;
+    &lt;/div&gt;
+
+    &lt;div&gt;
+        &lt;table&gt;
+            &lt;thead&gt;
+                &lt;tr&gt;
+                    &lt;th&gt;Client Name&lt;/th&gt;
+                    &lt;th&gt;Phone Number&lt;/th&gt;
+                    &lt;th&gt;Needs&lt;/th&gt;
+                    &lt;th&gt;Actions&lt;/th&gt;
+                    &lt;th&gt;Actions&lt;/th&gt;
+                    &lt;th&gt;Actions&lt;/th&gt;
+                &lt;/tr&gt;
+            &lt;/thead&gt;
+            &lt;tbody&gt;
+
+            &lt;/tbody&gt;
+        &lt;/table&gt;
+    &lt;/div&gt;
+
+   &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js"&gt;&lt;/script&gt;
+   &lt;script src="index.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>为了保持本教程框架和工具的独立性，我们将通过CDN链接使用local feed，但是您可以选择通过npm或yarn安装它。</p>
+<p>接下来，让我们稍微配置一下我们的离线数据库:</p>
+<pre>//in index.js
+const ContactTable = localforage.createInstance({
+    name: "CRMApp",
+    storeName: "ContactTable"
+});
+</pre>
+<p>这里，我们使用local feed<a href="https://localforage.github.io/localForage/#multiple-instances-createinstance" target="_blank" rel="noopener">create instance</a>方法为我们的应用程序创建一个新的数据库(<code>CRMApp</code>)和一个商店(<code>ContactTable</code>)。local feed中的存储就像indexedDB中的对象存储一样，可以认为是数据库中的一个单独的表。</p>
+<p>对于您希望存储的不同类别的数据，最好有不同的存储。如果您不这样做，local feed将默认设置一个名为“local feed”的数据库和一个名为“keyvaluepairs”的存储，它将为您存储所有数据。</p>
+<h2>2.添加新客户</h2>
+<p>现在我们已经完成了基本的设置，让我们开始编写CRUD函数。例如，当销售代表在输入中输入新的客户详细信息并单击save按钮时，我们需要从所有输入中获取值并将其组织到一个对象中。</p>
+<pre>const getClientDetails = () =&gt; {
+    const clientName = document.getElementById("clientName").value;
+    const clientPhone = document.getElementById("clientPhone").value;
+    const clientNeed = document.getElementById("clientNeed").value;
+
+    return {
+        clientName: clientName,
+        clientPhone: clientPhone,
+        clientNeed: clientNeed,
+    }
+}
+
+</pre>
+<p>然后，我们需要在浏览器存储中存储新的客户详细信息对象，并在表中显示它:</p>
+<pre>const addInput = async () =&gt; {
+    const inputValues = getClientDetails();
+    const dbLength = await ContactTable.length();
+    let id = dbLength === 0 ? 1 : dbLength + 1;
+    try{
+        let row = `&lt;tr id="${id}"&gt;
+                        &lt;td&gt;${inputValues.clientName}&lt;/td&gt;
+                        &lt;td&gt;${inputValues.clientPhone}&lt;/td&gt;
+                        &lt;td&gt;${inputValues.clientNeed}&lt;/td&gt;
+                        &lt;td&gt;&lt;button class="edit"&gt;Edit&lt;/button&gt;&lt;/td&gt;
+                        &lt;td&gt;&lt;button class="delete"&gt; Delete&lt;/button&gt;&lt;/td&gt;
+                    &lt;/tr&gt;`
+        document.querySelector('tbody').insertAdjacentHTML('afterbegin', row);
+        await ContactTable.setItem(id, inputValues);
+        alert('contact added successfully');
+    }catch(e){
+        console.log(err.message);
+    }}
+document.getElementById('submit').addEventListener('click', async(e) =&gt; {
+    e.preventDefault();
+    await addInput();
+})
+</pre>
+<p>使用<code>addInput</code>函数，当单击save按钮时，我们调用<code>getClientDetails</code>函数来获取customer detail对象，然后使用ES6模板文本将包含这些细节的新行添加到HTML表的顶部。</p>
+<p>我们还使用local feed的<a href="https://localforage.github.io/localForage/#data-api-length" target="_blank" rel="noopener"> length </a>方法来生成一个惟一的ID，它将用于检索单个条目。最后，我们使用<a href="https://localforage.github.io/localForage/#data-api-setitem" target="_blank" rel="noopener"> setItem </a>方法将客户详细信息对象添加到<code>contactTable</code>商店。</p>
+<p>您可以打开chrome dev tools的应用程序面板来查看它的运行情况:</p>
+<p><img data-attachment-id="31027" data-permalink="https://blog.logrocket.com/localforage-managing-offline-browser-storage/chrome-dev-tools-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png" data-orig-size="730,292" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chrome dev tools page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png" decoding="async" class="aligncenter size-full wp-image-31027 jetpack-lazy-image" src="../Images/4bf67a9776c706c1ae80df8ab0a31fb1.png" alt="Chrome Dev Tools Page" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page-300x120.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="31027" data-permalink="https://blog.logrocket.com/localforage-managing-offline-browser-storage/chrome-dev-tools-page/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png" data-orig-size="730,292" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chrome dev tools page" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-31027" src="../Images/4bf67a9776c706c1ae80df8ab0a31fb1.png" alt="Chrome Dev Tools Page" srcset="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page-300x120.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/12/chrome-dev-tools-page.png"/></noscript>
+<h2>3.加载所有客户数据</h2>
+<p>接下来，每当应用程序被刷新、重新加载或在另一个选项卡上打开时，我们需要能够读取所有客户详细信息数据并将其显示在表格上:</p>
+<pre>const loadContactsFromStorage = async () =&gt; {
+    try {
+        await ContactTable.iterate((value, key, iterationNumber) =&gt; {
+            let newContact = `&lt;tr id="${key}"&gt;
+                                &lt;td&gt;${value.clientName}&lt;/td&gt;
+                                &lt;td&gt;${value.clientPhone}&lt;/td&gt;
+                                &lt;td&gt;${value.clientNeed}&lt;/td&gt;
+                                &lt;td&gt;&lt;button class="edit"&gt;Edit&lt;/button&gt;&lt;/td&gt;
+                                &lt;td&gt;&lt;button class="delete"&gt; Delete&lt;/button&gt;&lt;/td&gt;
+                                &lt;td&gt;&lt;button class="view"&gt;View&lt;/button&gt;&lt;/td&gt;
+                           &lt;/tr&gt;`
+            document.querySelector('tbody').insertAdjacentHTML('afterbegin', newContact);
+        })
+    } catch (err) {
+        console.log(err)
+    }
+
+}
+
+window.addEventListener('load', async() =&gt; {
+    await loadContactsFromStorage();
+})
+</pre>
+<p>这里我们使用local feed<a href="https://localforage.github.io/localForage/#data-api-iterate" target="_blank" rel="noopener">iterate</a>方法遍历离线数据库中的所有条目。<code>iterate</code>方法接受一个回调函数，它在每次迭代时调用这个函数，就像ES6 <code>map</code>函数一样。</p>
+<p>这个回调函数接收iteration和iterationNumber中当前数据的值和键作为参数。我们使用模板文字将每个对象键的值添加到表中。之后，我们监听load事件并调用<code>loadContactsFromStorage</code>。</p>
+<p>如果用户通过新设备访问应用程序，这是使用length属性检查存储中是否存在数据的好地方，然后尝试从远程数据库加载数据并将其存储在浏览器存储中以供离线访问。</p>
+<h2>4.删除客户</h2>
+<p>下一个特性是让销售代表能够从表中删除客户的联系信息。这意味着当点击删除按钮时，我们需要从应用程序界面和离线数据库中删除联系人。</p>
+<pre>const deleteContact = async(e) =&gt; {
+    const row = e.target.parentElement.parentElement;
+    const key = row.id;
+    row.remove();
+    try{
+        await ContactTable.removeItem(key);
+        alert('Contact deleted successfully');
+    }catch(err){
+        console.log(err.message);
+    }
+
+}
+
+window.addEventListener('load', async() =&gt; {
+     await loadContactsFromStorage();
+     document.querySelectorAll('.delete').forEach(button =&gt;{
+        button.addEventListener('click', async(e) =&gt; {
+          await deleteContact(e);
+        })
+    });
+  })
+</pre>
+<p>这里，我们使用HTML <code>parentElement</code>属性获取包含被点击的删除按钮的行。然后，我们使用HTML <code>remove</code>方法从UI中移除该行。</p>
+<p>为了从离线存储中移除，我们使用local feed<a href="https://localforage.github.io/localForage/#data-api-removeitem" target="_blank" rel="noopener">remove item</a>方法，将目标行的ID作为键传入。我们还将click事件侦听器附加到<code>loadContactFromStorage</code>函数下的load事件中的所有delete按钮上，因为在附加事件侦听器之前，必须先将行加载到DOM中。</p>
+<h2>5.更新客户</h2>
+<p>客户的电话号码或需求很可能会改变。我们希望让销售代表能够编辑和更新客户的详细信息，即使他们离线。为了实现这一点，当单击编辑按钮时，我们需要显示一个模态，该模态将具有一个包含目标个人客户详细信息的输入和一个更新按钮的表单。当单击模式中的update按钮时，我们需要更新离线数据库和表上的目标客户详细信息条目。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>让我们首先给HTML添加一个模态:</p>
+<pre>&lt;div id="modal"&gt;
+        &lt;div class="backdrop"&gt;
+            &lt;div class="form"&gt;
+                &lt;label&gt;&lt;span&gt;Client Name:&lt;/span&gt;
+                    &lt;input id="editName" type="text" name='editName' value=""&gt;
+                &lt;/label&gt;
+                &lt;label&gt;&lt;span&gt;Phone Number:&lt;/span&gt;
+                    &lt;input id="editPhone" type="number" name='editPhone' value=""&gt;
+                &lt;/label&gt;
+                &lt;label&gt;&lt;span&gt;Needs:&lt;/span&gt;
+                    &lt;input id="editNeed" type="text" name='editNeed' value=""&gt;
+                &lt;/label&gt;
+                &lt;button type="submit" id="update"&gt;Update&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+
+    &lt;/div&gt;
+</pre>
+<p>让我们也添加一些CSS样式的模态，并隐藏它在初始加载:</p>
+<pre>css
+
+#modal{
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+}
+
+#modal .backdrop{
+    background-color: rgba(43, 40, 40, 0.5);
+    width: 100vw;
+    height: 100vh;
+}
+
+#modal .form{
+    background-color: #fff;
+    padding: 40px;
+    border: 1px solid blue;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+</pre>
+<p>现在，让我们编写一个函数来处理更新任务的第一部分，即在单击编辑按钮时检索信息:</p>
+<pre>let updateKey;
+
+const viewContact = async(e) =&gt; {
+    updateKey =  e.target.parentElement.parentElement.id;
+
+    const editName = document.getElementById("editName");
+    const editPhone = document.getElementById("editPhone");
+    const editNeed = document.getElementById("editNeed");
+
+    try{
+        const contact = await ContactTable.getItem(updateKey);
+
+        editName.value = contact.clientName;
+        editPhone.value = contact.clientPhone;
+        editNeed.value = contact.clientNeed;
+
+        document.getElementById("modal").style.display= "block";
+
+    }catch(err){
+        console.log(err.message);
+    }
+
+}
+
+window.addEventListener('load', async() =&gt; {
+    await loadContactsFromStorage();
+    ....
+    document.querySelectorAll('.edit').forEach(button =&gt;{
+        button.addEventListener('click', async(e) =&gt; {
+          await viewContact(e);
+        })
+    })
+})
+</pre>
+<p>这里，我们创建一个全局变量:<code>updateKey</code>，因为我们将在多个函数中使用它。<code>viewContact</code>函数获取包含被点击按钮的表格行的ID。</p>
+<p>然后，它使用local feed<a href="https://localforage.github.io/localForage/#data-api-getitem" target="_blank" rel="noopener">getItem</a>方法从与离线数据库中提供的键相匹配的单个键-值对条目中检索值。然后，它将返回值显示为模态输入的值，并将模态显示设置为阻塞。</p>
+<p>出于与上一步相同的原因，我们还为load事件中的所有编辑按钮附加了click事件侦听器。</p>
+<p>接下来，我们需要编写一个函数来处理更新任务的第二部分，这是在单击模型上的update按钮时发生的:</p>
+<pre>const updateContact = async() =&gt; {
+
+    try{
+        const updatedClient ={
+            clientName: document.getElementById("editName").value,
+            clientPhone: document.getElementById("editPhone").value,
+            clientNeed: document.getElementById("editNeed").value,
+        }
+
+        let updatedRow = `&lt;tr id="${updateKey}"&gt;
+                        &lt;td&gt;${updatedClient.clientName}&lt;/td&gt;
+                        &lt;td&gt;${updatedClient.clientPhone}&lt;/td&gt;
+                        &lt;td&gt;${updatedClient.clientNeed}&lt;/td&gt;
+                        &lt;td&gt;&lt;button class="edit"&gt;Edit&lt;/button&gt;&lt;/td&gt;
+                        &lt;td&gt;&lt;button class="delete"&gt; Delete&lt;/button&gt;&lt;/td&gt;
+                    &lt;/tr&gt;`
+
+        document.getElementById(`${updateKey}`).remove();
+        document.querySelector('tbody').insertAdjacentHTML('afterbegin', updatedRow);
+
+        await ContactTable.setItem(updateKey, updatedClient);
+
+        document.getElementById("modal").style.display= "none";
+
+        alert('Contact updated successfully');
+    }catch(err){
+        console.log(err.message);
+    }
+}
+
+
+document.getElementById('update').addEventListener('click', async(e) =&gt; {
+    e.preventDefault();
+    await updateContact();
+})
+</pre>
+<p><code>updateContact</code>函数从模态输入中获取更新的客户详细信息，然后使用模板文字用这些详细信息形成一个HTML表行。然后，在从表中删除包含以前数据的行后，将创建的行追加到表的开头。</p>
+<p>咻！给自己一个鼓励。您已经使用local feed成功构建了一个功能齐全的离线CRUD应用程序。</p>
+<p>为了帮助理解，我们的代码中有一些重复。你可以试着把它弄干。此外，你可以看看这个<a href="https://github.com/Linda-Ikechukwu/Blog-Posts-Demo-Apps/tree/master/Localforage-demo" target="_blank" rel="noopener"> github repo </a>的完整代码库，并在这里查看一个现场演示<a href="https://linda-ikechukwu.github.io/Blog-Posts-Demo-Apps/Localforage-demo/" target="_blank" rel="noopener">。</a></p>
+<p>下一步是在存储流中实现后台同步。根据您决定使用的远程数据库，您的方法模式会有所不同。别担心，我在下面添加了一些文章来帮助你开始。</p>
+<p>如果你想看一个演示项目，把这里讨论的所有概念都付诸实践，可以看看这个<a href="https://linda-ikechukwu.github.io/MoneyPaddy/dist/index.html" target="_blank" rel="noopener">支出和收入跟踪器PWA </a>，它是我不久前用indexedDB构建的。它完全离线工作。</p>
+<p>看看<a href="https://github.com/Linda-Ikechukwu/MoneyPaddy/blob/master/src/js/controller.js" target="_blank" rel="noopener"> controller.js文件</a>，第56行和<a href="https://github.com/Linda-Ikechukwu/MoneyPaddy/blob/master/src/sw.js" target="_blank" rel="noopener"> sw.js </a>，第98行，看看我是如何实现远程firebase数据库的后台同步的。</p>
+<h2>结论</h2>
+<p>在本文中，我向您介绍了浏览器离线存储的强大功能和令人难以置信的实用性，以及local feed库如何使使用和管理它们变得更加容易。我还展示了如何使用local feed在浏览器存储上执行基本的CRUD功能。现在，用这些新获得的知识去建造一些令人敬畏的东西吧！</p>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

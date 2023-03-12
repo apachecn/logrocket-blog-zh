@@ -1,0 +1,832 @@
+<html>
+<head>
+<title>A complete guide to the useEffect React Hook - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>一个完整的使用效果反应钩-日志火箭博客指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/useeffect-hook-complete-guide/#0001-01-01">https://blog.logrocket.com/useeffect-hook-complete-guide/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本文最后更新于2023年2月9日。关于React钩子的更多信息，请查看这个<a href="https://blog.logrocket.com/react-hooks-cheat-sheet-unlock-solutions-to-common-problems-af4caf699e70/">备忘单</a>。</em></p>
+<p>理解<a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#useeffect"> <code>useEffect</code>钩子如何工作</a>是今天掌握React最重要的概念之一。假设您已经使用React好几年了。在这种情况下，理解使用<code>useEffect</code>与使用基于类的组件的生命周期方法有什么不同尤为重要。</p>
+<p>完全理解效应是一个复杂的问题。React团队的丹·阿布拉莫夫(Dan Abramov)表示，你可能需要忘记一些事情才能完全掌握效果。</p>
+<p>使用<code>useEffect</code>，您可以从功能组件内部调用副作用，这在React Hooks时代是一个需要理解的重要概念。起初，处理由<code>useEffect</code>钩子调用的副作用可能看起来很麻烦，但是最终你会发现一切都有意义。</p>
+<p>本文的目标是收集关于<code>useEffect</code>的基本概念的信息，此外，提供我自己使用<code>useEffect</code>钩子的经验。提供的代码片段是我的同伴<a href="https://github.com/doppelmutzi/useeffect-showcase"> GitHub项目</a>的一部分。</p>
+<p><iframe loading="lazy" title="YouTube video player" src="https://www.youtube.com/embed/Yl0hbt_kK_I" frameborder="0" allowfullscreen="allowfullscreen">视频</iframe></p>
+<p><em>向前跳跃</em>:</p>
+
+<h2 id="core-concepts-useeffect"><code>useEffect</code>的核心概念</h2>
+<p>有什么影响，真的？例如:</p>
+<ul>
+<li>获取数据</li>
+<li>从本地存储器读取</li>
+<li>注册和取消注册事件侦听器</li>
+</ul>
+<p>React的效果与基于类的组件的生命周期方法完全不同。抽象层次也不同。</p>
+<blockquote><p>“我发现钩子是一个非常强大的抽象——可能有点太强大了。俗话说，权力越大，责任越大。”布莱恩·马努埃尔</p></blockquote>
+<p>值得称赞的是，生命周期方法确实给了组件一个可预测的结构。与效果相比，代码更加明确，因此开发人员可以根据在特定生命周期阶段(例如，在组件卸载时)执行的任务，直接找出相关的部分(例如，<code>componentDidMount</code>)。</p>
+<p>正如我们将在后面看到的，<code>useEffect</code>钩子促进了关注点的分离，减少了代码重复。例如，官方的React文档显示，您可以用一条<code>useEffect</code>语句<a href="https://reactjs.org/docs/hooks-effect.html#example-using-classes">避免生命周期方法产生的重复代码</a>。</p>
+<h2 id="key-concepts-using-effects">使用效果的关键概念</h2>
+<p>在我们继续之前，我们应该总结一下掌握<code>useEffect</code>需要理解的主要概念。在整篇文章中，我将非常详细地强调不同的方面:</p>
+<ul>
+<li>您必须彻底了解组件何时(重新)渲染，因为效果会在每个渲染周期后运行</li>
+<li>效果总是在渲染后执行，但是您可以选择退出此行为</li>
+<li>您必须了解关于值的基本JavaScript概念，才能选择退出或跳过效果。如果自上一个渲染周期以来，至少有一个指定为效果依赖关系一部分的值发生了更改，则仅重新运行效果</li>
+<li>您应该确保组件不会被不必要地重新呈现。这构成了跳过不必要的效果重播的另一个策略。</li>
+<li>你必须明白在你的函数组件体中定义的函数在每个渲染周期都会被重新创建。如果你在你的效果中使用它，这会产生影响。有一些应对策略(将它们提升到组件外部，在效果内部定义它们，使用<code>useCallback</code>)</li>
+<li>你必须理解基本的JavaScript概念，比如<a href="https://dmitripavlutin.com/react-hooks-stale-closures/">陈旧的闭包</a>，否则，你可能很难处理效果中过时的道具或状态值的问题。有一些策略可以解决这个问题，比如用一个效果的依赖数组或者用<a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#useref"> <code>useRef</code> </a>钩子</li>
+<li>你不应该忽视React Hooks ESLint插件的建议。不要盲目移除依赖或不小心使用ESLint的禁用注释；你很可能引入了一个bug。你可能仍然缺乏对一些重要概念的理解</li>
+<li>不要模仿基于类的组件的生命周期方法。这种思维方式弊大于利。相反，更多地考虑与效果相关的数据流和状态，因为您是基于渲染周期中的状态变化来运行效果的</li>
+</ul>
+<p>以下推文为思考最后一点提供了一个很好的方法:</p>
+<blockquote><p>“问题不是‘这个效果什么时候运行’，问题是‘这个效果与哪个状态同步？’"<br/>–<a href="https://twitter.com/ryanflorence/status/1125041041063665666">瑞安·弗洛伦斯</a></p></blockquote>
+<h2 id="using-useeffect-asynchronous-tasks">将<code>useEffect</code>用于异步任务</h2>
+<p>对于你的开发伙伴来说，代码块是异步任务的清晰指示器。当然，不使用<code>useEffect</code>也可以编写异步代码，但是这不是“反应方式”，并且它增加了复杂性和引入错误的可能性。</p>
+<p>利用<code>useEffect</code>而不是编写没有<code>useEffect</code>的异步代码(这可能会阻塞UI ),是React社区中的一种已知模式——尤其是React团队设计它来执行副作用的方式。</p>
+<p>使用<code>useEffect</code>的另一个好处是，开发者可以很容易地<a href="https://medium.com/better-programming/understanding-the-useeffect-dependency-array-2913da504c44">浏览代码</a>，并快速识别“在控制流之外”执行的代码，这些代码只有在第一个渲染周期之后才变得相关。</p>
+<p>最重要的是，<code>useEffect</code>块是提取到可重用甚至更多语义定制钩子的候选者。</p>
+<h2 id="using-multiple-effects-separate-concerns">使用多重效果来分离关注点</h2>
+<p>不要害怕在你的组件中使用多个<code>useEffect</code>语句。虽然<code>useEffect</code>被设计成只处理一个问题，但有时你需要不止一个效果。</p>
+<p>当你试图将一种效果用于多种目的时，会降低代码的可读性，而且有些用例<a href="https://stackoverflow.com/a/54004148">无法实现</a>。</p>
+<h2 id="when-effects-executed-within-component-lifecycle">在组件生命周期中什么时候执行效果？</h2>
+<p>首先，提醒一下:不要再用生命周期方法思考了！不要试图模仿这些方法！稍后我会更详细地介绍动机。</p>
+<p>这个<a href="https://projects.wojtekmaj.pl/react-lifecycle-methods-diagram/">交互图</a>显示了执行某些生命周期方法(例如<code>componentDidMount</code>)的反应阶段:</p>
+<p><img data-attachment-id="160750" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/common-react-lifecycle-methods-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png" data-orig-size="730,267" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A diagram of React’s most common lifecycle methods" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1-300x110.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png" decoding="async" class="aligncenter size-full wp-image-160750 jetpack-lazy-image" src="../Images/14b5400d647501f413959aee62c7ac78.png" alt="A Diagram Of React's Most Common Lifecycle Methods" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1-300x110.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160750" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/common-react-lifecycle-methods-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png" data-orig-size="730,267" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A diagram of React’s most common lifecycle methods" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1-300x110.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160750" src="../Images/14b5400d647501f413959aee62c7ac78.png" alt="A Diagram Of React's Most Common Lifecycle Methods" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1-300x110.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/common-react-lifecycle-methods-1.png"/></noscript>
+<p>相比之下，下一个<a href="https://wavez.github.io/react-hooks-lifecycle/">图</a>显示了在功能组件的环境中事情是如何工作的:</p>
+<p><img data-attachment-id="160752" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/react-hooks-lifecycle-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png" data-orig-size="730,503" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A Diagram of the React Hooks Lifecycle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1-300x207.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png" decoding="async" class="aligncenter size-full wp-image-160752 jetpack-lazy-image" src="../Images/e6ee86e5306ebd3bd453c9ae52364657.png" alt="A Diagram Of The React Hooks Lifecycle" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1-300x207.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160752" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/react-hooks-lifecycle-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png" data-orig-size="730,503" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="A Diagram of the React Hooks Lifecycle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1-300x207.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160752" src="../Images/e6ee86e5306ebd3bd453c9ae52364657.png" alt="A Diagram Of The React Hooks Lifecycle" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1-300x207.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-lifecycle-1.png"/></noscript>
+<p> </p>
+<p>起初这听起来可能很奇怪，但是用<code>useEffect</code>定义的效果在渲染后被调用。更具体地说，它在第一次渲染后和每次更新后都运行。与生命周期方法相比，<a href="https://reactjs.org/docs/hooks-effect.html#detailed-explanation">效果不会阻塞UI </a>，因为它们是异步运行的。</p>
+<p>如果您是React新手，我建议您忽略基于类的组件和生命周期方法，而是学习如何开发功能组件以及如何解读效果的强大可能性。基于类的组件在最近的React开发项目中很少使用。</p>
+<p>如果您是一名经验丰富的React开发人员，并且熟悉基于类的组件，那么您今天必须在项目中做一些与几年前没有钩子时相同的事情。</p>
+<p>例如，当组件第一次呈现时“做一些事情”是很常见的。这里钩子的区别是微妙的:组件安装后你不做任何事情；在组件第一次呈现给用户之后，您做了一些事情。正如其他人所指出的，钩子迫使你更多地从用户的角度考虑问题。</p>
+<h2 id="useeffect-control-flow-glance"><code>useEffect</code>控制流程一览</h2>
+<p>本节简要描述效果的控制流。如果定义了至少一个效果，则对功能性反应组件执行以下步骤:</p>
+<ol>
+<li>该组件将基于状态、属性或上下文变化而被重新呈现</li>
+<li>如果组件存在一个或多个<code>useEffect</code>声明，React检查每个<code>useEffect</code>以确定它是否满足执行实现的条件(回调函数的主体作为第一个参数提供)。在这种情况下，“条件”意味着自上一个渲染周期以来，一个或多个依赖关系已发生变化</li>
+</ol>
+<p>依赖项是数组项，作为<code>useEffect</code>调用的可选第二个参数提供。数组值必须来自组件范围(即属性、状态、上下文或从上述内容派生的值):</p>
+<ol>
+<li>在每个效果执行之后，新效果的调度基于每个效果的依赖性而发生。如果一个效果根本没有指定依赖数组，这意味着这个效果在每个渲染周期后执行</li>
+<li>如果<code>useEffect</code>回调函数(第一个参数)的主体返回一个所谓的“清理回调函数”，清理是每个效果的可选步骤在这种情况下，从第二个调度周期开始，在执行效果之前调用清理函数。这也意味着，如果没有第二次执行预定的效果，则在React组件被销毁之前调用清理函数。</li>
+</ol>
+<p>我很确定，如果你对效果没有什么经验，你就不会完全清楚这个生命周期。这就是为什么我在整篇文章中详细解释了每个方面。我鼓励你以后再回到这一节——我相信你下次阅读时会完全明白。</p>
+<h2 id="how-to-execute-side-effects-useeffect">如何用<code>useEffect</code>执行副作用</h2>
+<p><code>useEffect</code>钩子的签名看起来像这样:</p>
+<pre class="language-javascript hljs">useEffect(
+    () =&gt; {
+        // execute side effect
+    },
+    // optional dependency array
+    [
+        // 0 or more entries
+    ] 
+)
+</pre>
+<p>因为第二个参数是可选的，所以下面的执行非常好:</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; { 
+    // execute side effect
+})
+</pre>
+<p>让我们看一个例子。用户可以通过输入字段更改文档标题:</p>
+<pre class="language-javascript hljs">import React, { useState, useRef, useEffect } from "react";
+function EffectsDemoNoDependency() {
+  const [title, setTitle] = useState("default title");
+  const titleRef = useRef();
+  useEffect(() =&gt; {
+    console.log("useEffect");
+    document.title = title;
+  });
+  const handleClick = () =&gt; setTitle(titleRef.current.value);
+  console.log("render");
+  return (
+    &lt;div&gt;
+      &lt;input ref={titleRef} /&gt;
+      &lt;button onClick={handleClick}&gt;change title&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p><code>useEffect</code>语句只定义了一个强制参数来实现要执行的实际效果。在我们的例子中，我们使用表示标题的状态变量，并将其值赋给<code>document.title</code>。</p>
+<p>因为我们跳过了第二个参数，这个<code>useEffect</code>在每次渲染后都会被调用。因为我们在<code>useRef</code>钩子的帮助下实现了一个<a href="https://reactjs.org/docs/uncontrolled-components.html">非受控</a>输入字段，<code>handleClick</code>只有在用户点击按钮后才会被调用。这导致重新渲染，因为<code>setTitle</code>执行状态改变。</p>
+<p>在每个渲染周期后，<code>useEffect</code>被再次执行。为了演示这一点，我添加了两个<code>console.log</code>语句:</p>
+<p><img data-attachment-id="160754" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/useeffect-executed-after-render-cycle/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif" data-orig-size="703,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing that useEffect is executed after every render cycle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif" decoding="async" class="aligncenter size-full wp-image-160754 jetpack-lazy-image" src="../Images/ff8285ec026bed37fe85c2c06215650a.png" alt="Recording Showing That UseEffect Is Executed After Every Render Cycle" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160754" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/useeffect-executed-after-render-cycle/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif" data-orig-size="703,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing that useEffect is executed after every render cycle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160754" src="../Images/ff8285ec026bed37fe85c2c06215650a.png" alt="Recording Showing That UseEffect Is Executed After Every Render Cycle" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/useeffect-executed-after-render-cycle.gif"/></noscript>
+<p>前两个日志输出是由于组件安装后的初始呈现。让我们向示例中添加另一个状态变量，以便在复选框的帮助下切换黑暗模式:</p>
+<pre class="language-javascript hljs">function EffectsDemoTwoStates() {
+  const [title, setTitle] = useState("default title");
+  const titleRef = useRef();
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() =&gt; {
+    console.log("useEffect");
+    document.title = title;
+  });
+  console.log("render");
+  const handleClick = () =&gt; setTitle(titleRef.current.value);
+  const handleCheckboxChange = () =&gt; setDarkMode((prev) =&gt; !prev);
+  return (
+    &lt;div className={darkMode ? "dark-mode" : ""}&gt;
+      &lt;label htmlFor="darkMode"&gt;dark mode&lt;/label&gt;
+      &lt;input
+        name="darkMode"
+        type="checkbox"
+        checked={darkMode}
+        onChange={handleCheckboxChange}
+      /&gt;
+      &lt;input ref={titleRef} /&gt;
+      &lt;button onClick={handleClick}&gt;change title&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>然而，当您切换<code>darkMode</code>状态变量时，这个例子会导致不必要的影响:</p>
+<p><img data-attachment-id="160756" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/unnecessary-effects-toggling-dark-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif" data-orig-size="703,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Unnecessary Effects on Toggling Dark Mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode-300x140.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif" decoding="async" class="aligncenter size-full wp-image-160756 jetpack-lazy-image" src="../Images/e50debe0efadf38f3a7c39a75755defa.png" alt="Unnecessary Effects On Toggling Dark Mode" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160756" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/unnecessary-effects-toggling-dark-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif" data-orig-size="703,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Unnecessary Effects on Toggling Dark Mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode-300x140.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160756" src="../Images/e50debe0efadf38f3a7c39a75755defa.png" alt="Unnecessary Effects On Toggling Dark Mode" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unnecessary-effects-toggling-dark-mode.gif"/></noscript>
+<p>当然，在这个例子中这没什么大不了的，但是您可以想象更多有问题的用例，它们会导致bug，或者至少是性能问题。让我们来看看下面的代码，并尝试从本地存储中读取初始标题，如果可用的话，在一个附加的<code>useEffect</code>块中:</p>
+<pre class="language-javascript hljs">function EffectsDemoInfiniteLoop() {
+  const [title, setTitle] = useState("default title");
+  const titleRef = useRef();
+  useEffect(() =&gt; {
+    console.log("useEffect title");
+    document.title = title;
+  });
+  useEffect(() =&gt; {
+    console.log("useEffect local storage");
+    const persistedTitle = localStorage.getItem("title");
+    setTitle(persistedTitle || []);
+  });
+  console.log("render");
+  const handleClick = () =&gt; setTitle(titleRef.current.value);
+  return (
+    &lt;div&gt;
+      &lt;input ref={titleRef} /&gt;
+      &lt;button onClick={handleClick}&gt;change title&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>正如你所看到的，我们有一个效果的无限循环，因为每一个用<code>setTitle</code>改变的状态都会触发另一个效果，这个效果会再次更新状态:</p>
+<p><img data-attachment-id="160758" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/infinite-loop-effects-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif" data-orig-size="703,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing an infinite loop of effects" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif" decoding="async" class="aligncenter size-full wp-image-160758 jetpack-lazy-image" src="../Images/ed37c8a752bd8c574f4b76967059faf5.png" alt="Recording Showing An Infinite Loop Of Effects" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160758" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/infinite-loop-effects-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif" data-orig-size="703,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing an infinite loop of effects" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160758" src="../Images/ed37c8a752bd8c574f4b76967059faf5.png" alt="Recording Showing An Infinite Loop Of Effects" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/infinite-loop-effects-1.gif"/></noscript>
+<h2 id="importance-dependency-array">依赖数组的重要性</h2>
+<p>让我们回到上一个有两种状态(标题和黑暗模式)的例子。为什么我们会有不必要影响的问题？</p>
+<p>同样，如果不提供依赖数组，每个调度的<code>useEffect</code>都会被执行。这意味着在每个渲染周期之后，在相应组件中定义的每个效果都会根据源代码中的位置依次执行。</p>
+<p>所以效果定义的顺序很重要。在我们的例子中，每当一个状态变量改变时，我们的单个<code>useEffect</code>语句就被执行。</p>
+<p>你有能力选择退出这种行为。这是通过您作为数组条目提供的依赖项来管理的。在这些情况下，如果自上次运行以来至少有一个提供的依赖关系发生了变化，React只执行<code>useEffect</code>语句。换句话说，使用依赖数组，可以使执行依赖于某些条件。</p>
+<p>往往，这就是我们想要的；我们通常希望在特定的条件下执行副作用，例如，数据改变了，道具改变了，或者用户第一次看到我们的组件。另一个跳过不必要的效果的策略是首先防止不必要的重新渲染，例如使用<a href="https://reactjs.org/docs/react-api.html#reactmemo"> <code>React.memo</code> </a>，我们将在后面看到。</p>
+<p>回到我们的例子，我们希望在重新渲染后跳过不必要的效果。我们只需要添加一个依赖于<code>title</code>的数组。这样，仅当渲染周期之间的值不同时，才执行效果:</p>
+<pre class="language-javascript hljs">  useEffect(() =&gt; {
+    console.log("useEffect");
+    document.title = title;
+  }, [title]);
+</pre>
+<p>以下是完整的代码片段:</p>
+<pre class="language-javascript hljs">function EffectsDemoTwoStatesWithDependeny() {
+  const [title, setTitle] = useState("default title");
+  const titleRef = useRef();
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() =&gt; {
+    console.log("useEffect");
+    document.title = title;
+  }, [title]);
+  console.log("render");
+  const handleClick = () =&gt; setTitle(titleRef.current.value);
+  const handleCheckboxChange = () =&gt; setDarkMode((prev) =&gt; !prev);
+  return (
+    &lt;div className={darkMode ? "view dark-mode" : "view"}&gt;
+      &lt;label htmlFor="darkMode"&gt;dark mode&lt;/label&gt;
+      &lt;input
+        name="darkMode"
+        type="checkbox"
+        checked={darkMode}
+        onChange={handleCheckboxChange}
+      /&gt;
+      &lt;input ref={titleRef} /&gt;
+      &lt;button onClick={handleClick}&gt;change title&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>正如您在录音中看到的，只有按下按钮时，才会按预期调用效果:</p>
+<p><img data-attachment-id="160760" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/demonstrating-how-skip-unnecessary-effects/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif" data-orig-size="703,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example demonstrating how to skip unnecessary effects" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects-300x140.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif" decoding="async" class="aligncenter size-full wp-image-160760 jetpack-lazy-image" src="../Images/1997f006dfb2ce5503d2de170634eff2.png" alt="Example Demonstrating How To Skip Unnecessary Effects" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160760" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/demonstrating-how-skip-unnecessary-effects/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif" data-orig-size="703,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example demonstrating how to skip unnecessary effects" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects-300x140.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160760" src="../Images/1997f006dfb2ce5503d2de170634eff2.png" alt="Example Demonstrating How To Skip Unnecessary Effects" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/demonstrating-how-skip-unnecessary-effects.gif"/></noscript>
+<p>也可以添加一个空的依赖数组。在这种情况下，效果只执行一次；它类似于<code><a href="https://reactjs.org/docs/react-component.html#componentdidmount">componentDidMount()</a></code>生命周期方法。为了证明这一点，让我们来看看前面的无限循环效果的例子:</p>
+<pre class="language-javascript hljs">function EffectsDemoEffectOnce() {
+  const [title, setTitle] = useState("default title");
+  const titleRef = useRef();
+  useEffect(() =&gt; {
+    console.log("useEffect title");
+    document.title = title;
+  });
+  useEffect(() =&gt; {
+    console.log("useEffect local storage");
+    const persistedTitle = localStorage.getItem("title");
+    setTitle(persistedTitle || []);
+  }, []);
+  console.log("render");
+  const handleClick = () =&gt; setTitle(titleRef.current.value);
+  return (
+    &lt;div&gt;
+      &lt;input ref={titleRef} /&gt;
+      &lt;button onClick={handleClick}&gt;change title&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>我们刚刚添加了一个空数组作为第二个参数。因此，该效果仅在第一次渲染后执行一次，并在随后的渲染周期中跳过:</p>
+<p><img data-attachment-id="160762" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/executing-effect-only-once-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif" data-orig-size="703,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing that the infinite loop of effects is fixed by executing the effect only once" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif" decoding="async" class="aligncenter size-full wp-image-160762 jetpack-lazy-image" src="../Images/5c204b46736cb97ad6e3d4543a6b77cc.png" alt="Recording Showing That The Infinite Loop Of Effects Is Fixed By Executing The Effect Only Once" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160762" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/executing-effect-only-once-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif" data-orig-size="703,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Recording showing that the infinite loop of effects is fixed by executing the effect only once" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1-300x176.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160762" src="../Images/5c204b46736cb97ad6e3d4543a6b77cc.png" alt="Recording Showing That The Infinite Loop Of Effects Is Fixed By Executing The Effect Only Once" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/executing-effect-only-once-1.gif"/></noscript>
+<p>仔细想想，这种行为是有道理的。原则上，依赖数组说，“在下一个渲染周期后，每当其中一个参数发生变化时，执行第一个参数提供的效果。”但是，我们没有任何争论，所以依赖关系在未来永远不会改变。</p>
+<p>这就是为什么使用空依赖数组会使React只调用一次效果——在第一次渲染之后。第二次渲染和第二次<code>useEffect title</code>是由于我们从本地存储中读取值后<code>setTitle()</code>调用的状态变化。</p>
+<h2 id="rules-hooks">钩子的规则</h2>
+<p>在我们继续更多的例子之前，我们必须谈谈钩子的一般规则。这些并不是<code>useEffect</code>钩子独有的，但是理解在代码中的哪些地方可以定义效果是很重要的。你需要遵循<a href="https://reactjs.org/docs/hooks-rules.html">规则来使用钩子</a>:</p>
+<ol>
+<li>挂钩只能从构成函数式React组件的顶级函数中调用</li>
+<li>不能从嵌套代码(例如，循环、条件或另一个函数体)中调用钩子</li>
+<li>然而，定制钩子是特殊的函数，钩子可以从定制钩子的顶层函数中调用。此外，规则二也是如此</li>
+</ol>
+
+<p>有一个方便的<a href="https://www.npmjs.com/package/eslint-plugin-react-hooks"> ESLint插件</a>可以帮助你遵循钩子的规则。如果你违反了其中一条规则，它会让你知道:</p>
+<p><img data-attachment-id="160764" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/react-hooks-estlint-plugin-warning/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png" data-orig-size="730,564" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React Hooks ESLint plugin warning" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning-300x232.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png" decoding="async" class="aligncenter wp-image-160764 size-full jetpack-lazy-image" src="../Images/8c666b10de2d163e1f5fa6dfb149f243.png" alt="React Hooks ESLint Plugin Warns About Violations Of Hooks Rules" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning-300x232.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160764" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/react-hooks-estlint-plugin-warning/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png" data-orig-size="730,564" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="React Hooks ESLint plugin warning" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning-300x232.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png" decoding="async" loading="lazy" class="aligncenter wp-image-160764 size-full" src="../Images/8c666b10de2d163e1f5fa6dfb149f243.png" alt="React Hooks ESLint Plugin Warns About Violations Of Hooks Rules" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning-300x232.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/react-hooks-estlint-plugin-warning.png"/></noscript>In addition, it helps you to provide a correct dependency array for effects in order to prevent bugs:
+<p><img data-attachment-id="160766" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/hooks-eslint-plugin-prevents-missing-dependencies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png" data-orig-size="730,419" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The React Hooks ESLint plugin can help to avoid missing dependencies and thus bugs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png" decoding="async" class="aligncenter size-full wp-image-160766 jetpack-lazy-image" src="../Images/78271c450a83df68a8c33ff52752eb7a.png" alt="The React Hooks ESLint Plugin Can Help To Avoid Missing Dependencies And Thus Bugs" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160766" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/hooks-eslint-plugin-prevents-missing-dependencies/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png" data-orig-size="730,419" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The React Hooks ESLint plugin can help to avoid missing dependencies and thus bugs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160766" src="../Images/78271c450a83df68a8c33ff52752eb7a.png" alt="The React Hooks ESLint Plugin Can Help To Avoid Missing Dependencies And Thus Bugs" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/hooks-eslint-plugin-prevents-missing-dependencies.png"/></noscript>
+<p>这个插件很棒，因为在实践中，你可能会错过向列表添加依赖项的机会；起初这并不总是显而易见的。我喜欢这个插件，因为它的信息促进了对特效如何工作的学习。</p>
+<p>如果你不明白插件为什么要你添加特定的依赖，请不要过早的忽略它！你这样做至少应该有一个很好的解释。我最近发现，在某些情况下，如果您忽略了依赖项，您很可能会遇到一个bug</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    // ...
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+</pre>
+<p>最后，要注意插件不是全知的。您必须接受ESLint插件无法理解您代码的运行时行为。它只能应用静态代码分析。当然也有插件不能帮助你的情况。</p>
+<p>然而，我不反对将插件集成到您的项目设置中。它减少了出错的可能性，增加了健壮性。另外，仔细看看提供的建议；它们可能会让你对尚未完全理解的概念有新的见解。</p>
+<p>也就是说，你不应该像往常一样教条地去满足插件。查看本文的<a href="https://github.com/doppelmutzi/useeffect-showcase">配套项目</a>中的设置。</p>
+<h2 id="dependency-array-items">什么是依赖数组项？</h2>
+<p>这就给我们带来了一个重要的问题:依赖数组中应该包含哪些项？根据<a href="https://reactjs.org/docs/hooks-effect.html#tip-optimizing-performance-by-skipping-effects"> React文档</a>，您必须包含组件范围内的所有值，这些值在重新渲染之间会发生变化。</p>
+<p>这到底意味着什么？在<code>useEffect</code>回调函数中引用的所有外部值，如道具、状态变量或上下文变量，都是效果的依赖项。引用容器(即你直接从<code>useRef()</code>而不是<code>current</code>属性中获得的东西)也是<a href="https://github.com/facebook/react/issues/16121#issuecomment-511369830">有效的依赖</a>。甚至从上述值中导出的<a href="https://reactjs.org/docs/hooks-faq.html#is-it-safe-to-omit-functions-from-the-list-of-dependencies">局部变量</a>也必须在依赖数组中列出。</p>
+<p>理解效果的概念思维是必不可少的；React团队希望您将效果中使用的每个值<a href="https://github.com/facebook/react/issues/14920#issuecomment-471070149">都视为动态的。因此，即使您在效果中使用了一个非函数值，并且非常确定这个值不太可能改变，您也应该将这个值包含在依赖数组中。</a></p>
+<p>因此，请确保将组件范围内的每个值都添加到依赖项列表中，因为您应该将每个值都视为可变的。请记住，如果数组中至少有一个依赖关系不同于先前的渲染，效果将重新运行。</p>
+<h2 id="utilizing-cleanup-functions">利用清理功能</h2>
+<p>下一个片段展示了一个例子来说明一个有问题的问题:</p>
+<pre class="language-javascript hljs">function Counter() {
+  const [count, setCount] = useState(0);
+  useEffect(() =&gt; {
+    const interval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, 1000);
+  }, []);
+  return &lt;p&gt;and the counter counts {count}&lt;/p&gt;;
+}
+function EffectsDemoUnmount() {
+  const [unmount, setUnmount] = useState(false);
+  const renderDemo = () =&gt; !unmount &amp;&amp; &lt;Counter /&gt;;
+  return (
+    &lt;div&gt;
+      &lt;button onClick={() =&gt; setUnmount(true)}&gt;Unmount child component&lt;/button&gt;
+      {renderDemo()}
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>这段代码实现了一个代表计数器的React组件，该计数器每秒增加一个数字。父组件呈现计数器，并允许您通过单击按钮来销毁计数器。看一下录音，看看当用户点击那个按钮时会发生什么:</p>
+<p><img data-attachment-id="160768" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/unmounting-child-component-leads-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif" data-orig-size="703,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Unmounting the child component leads to an error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif" decoding="async" class="aligncenter size-full wp-image-160768 jetpack-lazy-image" src="../Images/35dbd7aab10381b928d535da417329cb.png" alt="Unmounting The Child Component Leads To An Error" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160768" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/unmounting-child-component-leads-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif" data-orig-size="703,374" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Unmounting the child component leads to an error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160768" src="../Images/35dbd7aab10381b928d535da417329cb.png" alt="Unmounting The Child Component Leads To An Error" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/unmounting-child-component-leads-error.gif"/></noscript>
+<p>子组件已经注册了每秒调用一个函数的时间间隔。但是，该组件在未注销间隔的情况下被销毁。在组件被销毁之后，间隔仍然是活动的，并且想要更新组件的状态变量(<code>count</code>)，该状态变量不再存在。</p>
+<p>解决方案是在卸载之前取消注册时间间隔。这可以通过清理功能来实现。因此，必须在效果的回调体中返回一个回调函数:</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    const interval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, 1000);
+    // return optional function for cleanup
+    // in this case acts like componentWillUnmount
+    return () =&gt; clearInterval(interval);
+}, []);
+</pre>
+<p>我想强调的是，清理函数不仅仅是在销毁React组件之前调用的。每次在执行下一个预定效果之前，效果的清理功能都会被调用。</p>
+<p>让我们仔细看看我们的例子。我们首先使用了一个技巧来拥有一个空的依赖数组，因此cleanup函数的行为类似于一个<code>componentWillUnmount()</code>生命周期方法。如果我们不使用回调函数调用<code>setCount</code>，该函数获取前一个值作为参数，我们需要编写以下代码，其中我们向依赖关系数组添加了一个<code>count</code>:</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    console.log("useEffect")
+    const interval = setInterval(function () {
+        setCount(count + 1);
+    }, 1000);
+    // return optional function for cleanup
+    // in this case, this cleanup fn is called every time count changes
+    return () =&gt; {
+        console.log("cleanup");
+        clearInterval(interval);
+    }
+}, [count]);
+</pre>
+<p><img data-attachment-id="160770" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/cleanup-function-called-multiple-times-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The cleanup function is called multiple times" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif" decoding="async" class="aligncenter size-full wp-image-160770 jetpack-lazy-image" src="../Images/c5c36038811d297041536a0246b5a035.png" alt="Cleanup Function Called Multiple Times" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160770" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/cleanup-function-called-multiple-times-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The cleanup function is called multiple times" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160770" src="../Images/c5c36038811d297041536a0246b5a035.png" alt="Cleanup Function Called Multiple Times" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/cleanup-function-called-multiple-times-1.gif"/></noscript>
+<p>相比之下，前一个示例只在装载时执行一次清理功能，因为我们直接阻止了使用状态变量(count):</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    console.log("useEffect")
+    const interval = setInterval(function () {
+        setCount(prev =&gt; prev + 1);
+    }, 1000);
+    // return optional function for cleanup
+    // in this case, this cleanup fn is called every time count changes
+    return () =&gt; {
+        console.log("cleanup");
+        clearInterval(interval);
+    }
+}, []);
+</pre>
+<p><img data-attachment-id="160774" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/eslint-wanrs-about-missing-prop/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png" data-orig-size="730,491" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ESLint Warns About a Missing Prop" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop-300x202.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png" decoding="async" class="aligncenter size-full wp-image-160774 jetpack-lazy-image" src="../Images/43f9d2be9f75af296f7150ec1025ff0b.png" alt="ESLint Warns About A Missing Prop" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop-300x202.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160774" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/eslint-wanrs-about-missing-prop/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png" data-orig-size="730,491" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ESLint Warns About a Missing Prop" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop-300x202.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160774" src="../Images/43f9d2be9f75af296f7150ec1025ff0b.png" alt="ESLint Warns About A Missing Prop" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop-300x202.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-wanrs-about-missing-prop.png"/></noscript>
+<p>在这种情况下，后一种方法是一个小的性能优化，因为我们减少了清理函数调用的数量。</p>
+<h2 id="implications-prop-state-changes">属性和状态变化的含义</h2>
+<p>道具更改和效果执行之间有一种自然的关联，因为它们会导致重新渲染，正如我们已经知道的，效果会在每个渲染周期后进行调度。</p>
+<p>考虑下面的例子。计划是<code>Counter</code>组件的间隔可以由一个同名的道具配置。</p>
+<pre class="language-javascript hljs">function Counter({ interval }) {
+  const [count, setCount] = useState(0);
+  useEffect(() =&gt; {
+    const counterInterval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, interval);
+    return () =&gt; clearInterval(counterInterval);
+  }, []);
+  return &lt;p&gt;and the counter counts {count}&lt;/p&gt;;
+}
+function EffectsDemoProps() {
+  const [interval, setInterval] = useState(1000);
+  return (
+    &lt;div&gt;
+      &lt;input
+        type="text"
+        value={interval}
+        onChange={(evt) =&gt; setInterval(evt.target.value)}
+      /&gt;
+      &lt;Counter interval={interval} /&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>便捷的ESLint插件指出我们遗漏了一些重要的东西:因为我们没有将<code>interval</code>属性添加到依赖数组(而是定义了一个空数组)，所以对父组件中输入字段的更改是无效的。即使在我们调整输入字段的值后，仍会使用<code>1000</code>的初始值:</p>
+<p><img decoding="async" class="aligncenter jetpack-lazy-image" src="../Images/3a262f66f0ff87f304102272424bf53b.png" alt="ESLint Warns About a Missing Prop" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-plugin-missing-prop-warning.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-plugin-missing-prop-warning.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" loading="lazy" class="aligncenter" src="../Images/3a262f66f0ff87f304102272424bf53b.png" alt="ESLint Warns About a Missing Prop" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/eslint-plugin-missing-prop-warning.png"/></noscript>
+<p>相反，我们必须将道具添加到依赖数组中:</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    const counterInterval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, interval);
+    return () =&gt; clearInterval(counterInterval);
+  }, [interval]);
+</pre>
+<p>现在情况看起来好多了:</p>
+<p><img data-attachment-id="160776" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-executed-prop-changes/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif" data-orig-size="377,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Executed on Prop Changes" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes-275x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif" decoding="async" class="aligncenter size-full wp-image-160776 jetpack-lazy-image" src="../Images/7c4422748fb0b72a61b4ccb6d7abfa8d.png" alt="The Effect Is Executed On Prop Changes" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160776" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-executed-prop-changes/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif" data-orig-size="377,412" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Executed on Prop Changes" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes-275x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160776" src="../Images/7c4422748fb0b72a61b4ccb6d7abfa8d.png" alt="The Effect Is Executed On Prop Changes" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-executed-prop-changes.gif"/></noscript>
+<h2 id="prop-changes-using-usecallback-hook">更多关于道具变化和使用<code>useCallback</code>钩子的信息</h2>
+<p>让我们稍微扩展一下示例，结合适当的更改来演示更多的关键概念:</p>
+<pre class="language-javascript hljs">const Counter = ({ interval, onDarkModeChange }) =&gt; {
+  console.log("render Counter");
+  const [count, setCount] = useState(0);
+  useEffect(() =&gt; {
+    console.log(`useEffect ${onDarkModeChange()}`);
+    const counterInterval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, interval);
+    return () =&gt; clearInterval(counterInterval);
+  }, [interval, onDarkModeChange]);
+  return &lt;p&gt;and the counter counts {count}&lt;/p&gt;;
+};
+const IntervalConfig = ({ onDarkModeChange }) =&gt; {
+  console.log("render IntervalConfig");
+  const [interval, setInterval] = useState(1000);
+  const onChange = (evt) =&gt; setInterval(evt.target.value);
+  return (
+    &lt;div&gt;
+      &lt;input type="text" value={interval} onChange={onChange} /&gt;
+      &lt;Counter interval={interval} onDarkModeChange={onDarkModeChange} /&gt;
+    &lt;/div&gt;
+  );
+};
+const EffectsDemoProps = () =&gt; {
+  console.log("render EffectsDemoProps");
+  const [numberClicks, setNumberClicks] = useState(0);
+  const [darkMode, setDarkMode] = useState(false);
+  const onDarkModeChange = () =&gt; (darkMode ? "🌙" : "🌞");
+  return (
+    &lt;div
+      style={
+        darkMode
+          ? { backgroundColor: "black", color: "white" }
+          : { backgroundColor: "white", color: "black" }
+      }
+    &gt;
+      &lt;label htmlFor="darkMode"&gt;dark mode&lt;/label&gt;
+      &lt;input
+        name="darkMode"
+        type="checkbox"
+        checked={darkMode}
+        onChange={() =&gt; setDarkMode((prev) =&gt; !prev)}
+      /&gt;
+      &lt;p&gt;
+        &lt;button onClick={() =&gt; setNumberClicks((prev) =&gt; prev + 1)}&gt;
+          click
+        &lt;/button&gt;
+        &lt;span&gt;&amp;nbsp;Number clicks: {numberClicks}&lt;/span&gt;
+      &lt;/p&gt;
+      &lt;IntervalConfig onDarkModeChange={onDarkModeChange} /&gt;
+    &lt;/div&gt;
+  );
+};
+</pre>
+<p>我添加了日志语句来指示所有组件渲染和对我们的<code>useEffect</code>语句的调用。让我们来看看会发生什么:</p>
+<p><img data-attachment-id="160778" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effected-executed-dark-mode-toggle/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Effected Executed on Dark Mode Toggle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif" decoding="async" class="aligncenter size-full wp-image-160778 jetpack-lazy-image" src="../Images/277f62d281961196190d67e2c943824f.png" alt="Effected Executed On Dark Mode Toggle" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160778" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effected-executed-dark-mode-toggle/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Effected Executed on Dark Mode Toggle" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160778" src="../Images/277f62d281961196190d67e2c943824f.png" alt="Effected Executed On Dark Mode Toggle" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effected-executed-dark-mode-toggle.gif"/></noscript>
+<p>到目前为止，一切都很好——我们可以切换黑暗模式复选框，效果也应该被执行。要执行的回调函数<code>onDarkModeChange</code>沿着组件树向下传递给<code>Counter</code>组件。根据ESLint插件的建议，我们将它添加到了<code>useEffect</code>语句的依赖数组中:</p>
+<pre class="language-javascript hljs">useEffect(() =&gt; {
+    console.log(`useEffect ${onDarkModeChange()}`);
+    const counterInterval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, interval);
+    return () =&gt; clearInterval(counterInterval);
+  }, [interval, onDarkModeChange]);
+</pre>
+<p>从录音中可以看到，如果两个道具<code>interval</code>或<code>onDarkModeChange</code>中的一个发生变化，效果就会执行。</p>
+<p>一切都好吗？没那么快——从下一段录音中你可以看到，如果我们点击按钮，效果会被错误地执行:</p>
+<p><img data-attachment-id="160780" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-mistakenly-executed/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Mistakenly Executed" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif" decoding="async" class="aligncenter size-full wp-image-160780 jetpack-lazy-image" src="../Images/01720891b09e2c8803cbdac44043adcd.png" alt="The Effect Is Mistakenly Executed" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160780" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-mistakenly-executed/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Mistakenly Executed" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160780" src="../Images/01720891b09e2c8803cbdac44043adcd.png" alt="The Effect Is Mistakenly Executed" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-mistakenly-executed.gif"/></noscript>
+<p>当然，<code>EffectsDemoProps</code>的状态改变了，这个组件和它的子组件一起被渲染。解决办法就是用<code>React.memo</code>对吧？</p>
+<pre class="language-javascript hljs">const Counter = React.memo(({ interval, onDarkModeChange }) =&gt; {
+    // ...
+});
+const IntervalConfig = React.memo(({ onDarkModeChange }) =&gt; {
+    // ...
+});
+</pre>
+<p>组件被渲染，效果仍然被错误地执行:</p>
+<p><img data-attachment-id="160782" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-still-executed-react-memo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Still Executed With React.memo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif" decoding="async" class="aligncenter size-full wp-image-160782 jetpack-lazy-image" src="../Images/88bf8abdae63d881f825d27a3132bd4b.png" alt="The Effect Is Still Executed With React.memo" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160782" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-still-executed-react-memo/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Is Still Executed With React.memo" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160782" src="../Images/88bf8abdae63d881f825d27a3132bd4b.png" alt="The Effect Is Still Executed With React.memo" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-still-executed-react-memo.gif"/></noscript>
+<p>为什么执行我们的<code>Counter</code>组件的效果？问题出在<code>onDarkModeChange</code>函数上:</p>
+<pre class="language-javascript hljs">const EffectsDemoProps = () =&gt; {
+    // ...
+    const onDarkModeChange = () =&gt; (darkMode ? "🌙" : "🌞");
+    // ...
+};
+</pre>
+<p>点击按钮时，<code>EffectsDemoProps</code>组件的<code>numberClicks</code>状态被改变，组件因此被重新渲染。</p>
+<p>这是因为<code>onDarkModeChange</code>是在组件内联定义的，每次组件重新渲染时都会重新创建。所以即使你在子组件上使用了<code>React.memo</code>，它们也会被重新渲染，因为传递的<code>onDarkModeChange</code>函数每次都指向另一个引用。</p>
+<p>这就是为什么理解价值观的同一性是至关重要的。与重新创建的原始值(如数字)相反，重新创建的函数指向内存中的另一个“单元”。这就是函数值不同的原因。</p>
+<p>我们可以用<a href="https://blog.logrocket.com/react-reference-guide-hooks-api/#usecallback"> <code>useCallback</code> </a>钩子来解决这个问题。此外，我们不一定需要使用<code>React.memo</code>,因为在我们的例子中重新呈现子组件并不是问题。然而，我们希望仅在<code>interval</code>值或<code>darkMode</code>值改变时执行效果:</p>
+<pre class="language-javascript hljs">import React, { useState, useEffect, useCallback } from "react";
+const Counter = ({ interval, onDarkModeChange }) =&gt; {
+    // ...
+};
+const IntervalConfig = ({ onDarkModeChange }) =&gt; {
+    // ...
+};
+const EffectsDemoProps = () =&gt; {
+    // ..
+    const onDarkModeChange = useCallback(() =&gt; {
+        return darkMode ? "🌙" : "🌞";
+    }, [darkMode]);
+    // ...
+};
+</pre>
+<p>使用<code>useCallback</code>，React只在其中一个依赖关系改变时创建一个新函数——在我们的例子中，是状态变量<code>darkMode</code>。有了这些，我们的例子就像预期的那样工作了:</p>
+<p><img data-attachment-id="160784" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-runs-as-expected/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Runs as Expected" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif" decoding="async" class="aligncenter size-full wp-image-160784 jetpack-lazy-image" src="../Images/490432826f620c98736532644f25488d.png" alt="The Effect Runs As Expected" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160784" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-runs-as-expected/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect Runs as Expected" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160784" src="../Images/490432826f620c98736532644f25488d.png" alt="The Effect Runs As Expected" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-runs-as-expected.gif"/></noscript>
+<h2 id="usecallback-usecontext"><code>useCallback</code>同<code>useContext</code></h2>
+<p>假设我们修改了示例，使用带有<code>useContext</code>钩子的React上下文，而不是将道具传递给子组件。在这种情况下，我们仍然需要使用<code>useCallback</code>作为<code>onDarkModeChange</code>的依赖项。原因与上一节相同:</p>
+<pre class="language-javascript hljs">import React, { useState, useEffect, useCallback, useContext } from "react";
+const EffectsContext = React.createContext(null);
+const Counter = ({ interval }) =&gt; {
+  const [count, setCount] = useState(0);
+  const { onDarkModeChange } = useContext(EffectsContext);
+  useEffect(() =&gt; {
+    const counterInterval = setInterval(function () {
+      setCount((prev) =&gt; prev + 1);
+    }, interval);
+    return () =&gt; clearInterval(counterInterval);
+  }, [interval, onDarkModeChange]);
+  return &lt;p&gt;and the counter counts {count}&lt;/p&gt;;
+};
+const IntervalConfig = () =&gt; {
+  const [interval, setInterval] = useState(1000);
+  const onChange = (evt) =&gt; setInterval(evt.target.value);
+  return (
+    &lt;div&gt;
+      &lt;input type="text" value={interval} onChange={onChange} /&gt;
+      &lt;Counter interval={interval} /&gt;
+    &lt;/div&gt;
+  );
+};
+const EffectsDemoContext = () =&gt; {
+  const [numberClicks, setNumberClicks] = useState(0);
+  const [darkMode, setDarkMode] = useState(false);
+  const onDarkModeChange = useCallback(() =&gt; {
+    return darkMode ? "🌙" : "🌞";
+  }, [darkMode]);
+  return (
+    &lt;div
+      style={
+        darkMode
+          ? { backgroundColor: "black", color: "white" }
+          : { backgroundColor: "white", color: "black" }
+      }
+    &gt;
+      &lt;label htmlFor="darkMode"&gt;dark mode&lt;/label&gt;
+      &lt;input
+        name="darkMode"
+        type="checkbox"
+        checked={darkMode}
+        onChange={() =&gt; setDarkMode((prev) =&gt; !prev)}
+      /&gt;
+      &lt;p&gt;
+        &lt;button onClick={() =&gt; setNumberClicks((prev) =&gt; prev + 1)}&gt;
+          click
+        &lt;/button&gt;
+        &lt;span&gt;&amp;nbsp;Number clicks: {numberClicks}&lt;/span&gt;
+      &lt;/p&gt;
+      &lt;EffectsContext.Provider value={{ onDarkModeChange }}&gt;
+        &lt;IntervalConfig /&gt;
+      &lt;/EffectsContext.Provider&gt;
+    &lt;/div&gt;
+  );
+};
+</pre>
+<h2 id="useeffect-inside-custom-hooks"><code>useEffect</code>定制挂钩内部</h2>
+<p><a href="https://blog.logrocket.com/react-custom-hooks-and-the-death-of-render-props-a0ce5cba387f/">定制挂钩</a>非常棒，因为它们能带来各种好处:</p>
+<ul>
+<li>可重用代码</li>
+<li>由于外包代码(效果)，组件更小</li>
+<li>由于组件内部自定义钩子的函数调用，更多的语义代码</li>
+<li>正如我们将在下一节中看到的，当在定制钩子内部使用时，效果可以被测试</li>
+</ul>
+<p>下面的示例表示一个用于获取数据的自定义挂钩。我们将<code>useEffect</code>代码块移动到一个表示自定义钩子的函数中。请注意，这是一个相当简化的实现，可能无法涵盖项目的所有需求。你可以在这里找到更多现成的定制取货挂钩<a href="https://github.com/rehooks/awesome-react-hooks">:</a></p>
+<pre class="language-javascript hljs">const useFetch = (url, initialValue) =&gt; {
+  const [data, setData] = useState(initialValue);
+  const [loading, setLoading] = useState(true);
+  useEffect(() =&gt; {
+    const fetchData = async function () {
+      try {
+        setLoading(true);
+        const response = await axios.get(url);
+        if (response.status === 200) {
+          setData(response.data);
+        }
+      } catch (error) {
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [url]);
+  return { loading, data };
+};
+function EffectsDemoCustomHook() {
+  const { loading, data } = useFetch(
+    "https://jsonplaceholder.typicode.com/posts/"
+  );
+  return (
+    &lt;div className="App"&gt;
+      {loading &amp;&amp; &lt;div className="loader" /&gt;}
+      {data?.length &gt; 0 &amp;&amp;
+        data.map((blog) =&gt; &lt;p key={blog.id}&gt;{blog.title}&lt;/p&gt;)}
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>React组件中的第一条语句<code>EffectsDemoCustomHook</code>使用了名为<code>useFetch</code>的定制钩子。正如您所看到的，使用这样的定制钩子比直接在组件内部使用效果更具语义性。</p>
+<p>业务逻辑被很好地从组件中抽象出来。我们必须使用自定义钩子的nice API来返回状态变量<code>loading</code>和<code>data</code>。</p>
+<p>定制钩子内部的效果依赖于作为道具传递给钩子的作用域变量<code>url</code>。这是因为我们必须将它包含在依赖数组中。因此，即使我们在这个例子中没有预见到URL的变化，将它定义为一个依赖项仍然是一个好的做法。如上所述，该值将来有可能在运行时改变。</p>
+<h2 id="additional-thoughts-functions-used-inside-effects">关于在效果中使用函数的附加想法</h2>
+<p>如果你仔细看看上一个例子，我们在效果中定义了函数<code>fetchData</code>,因为我们只在那里使用它。这是这种用例的最佳实践。如果我们在效果之外定义它，我们需要开发不必要的复杂代码:</p>
+<pre class="language-javascript hljs">const useFetch = (url, initialValue) =&gt; {
+  const [data, setData] = useState(initialValue);
+  const [loading, setLoading] = useState(true);
+  const fetchData = useCallback(async () =&gt; {
+    try {
+      setLoading(true);
+      const response = await axios.get(url);
+      if (response.status === 200) {
+        setData(response.data);
+      }
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+  useEffect(() =&gt; {
+    fetchData();
+  }, [fetchData]);
+  return { loading, data };
+};
+</pre>
+<p>如你所见，我们需要将<code>fetchData</code>添加到效果的依赖数组中。此外，我们需要用<code>useCallback</code>和它自己的依赖项(<code>url</code>)包装<code>fetchData</code>的实际函数体，因为该函数在每次渲染时都会被重新创建。</p>
+<p>顺便说一下，如果您将函数定义移动到effects中，您会产生更可读的代码，因为效果使用哪个范围值是直接可见的。代码甚至更加健壮。</p>
+<p>此外，如果您没有将依赖项作为props或context传递给组件，ESLint插件会“看到”所有相关的依赖项，并建议声明被遗忘的值。</p>
+<h2 id="using-async-functions-inside-useeffect">在<code>useEffect</code>中使用异步函数</h2>
+<p>如果您还记得在<code>useFetch</code>定制钩子中的<code>useEffect</code>块，您可能会问为什么我们需要这个额外的<code>fetchData</code>函数定义。我们不能像这样重构代码吗？</p>
+<pre class="language-javascript hljs">useEffect(async () =&gt; {
+  try {
+    setLoading(true);
+    const response = await axios.get(url);
+    if (response.status === 200) {
+      setData(response.data);
+    }
+  } catch (error) {
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+}, [url]);
+</pre>
+<p>很高兴你问了，但是不行！出现以下错误:</p>
+<p><img data-attachment-id="160786" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/async-await-produces-runtime-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Async/await Produces a Runtime Error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png" decoding="async" class="aligncenter size-full wp-image-160786 jetpack-lazy-image" src="../Images/9b877099291a3e90e001a9dd6f5d0d77.png" alt="Async/await Produces A Runtime Error" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error-300x171.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160786" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/async-await-produces-runtime-error/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png" data-orig-size="730,415" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Async/await Produces a Runtime Error" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error-300x171.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160786" src="../Images/9b877099291a3e90e001a9dd6f5d0d77.png" alt="Async/await Produces A Runtime Error" srcset="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error-300x171.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/async-await-produces-runtime-error.png"/></noscript>
+<p>强大的ESLint插件也会警告你。</p>
+<p>原因是这段代码返回一个承诺，但是一个效果只能返回void或者一个清理函数。</p>
+<h2 id="unit-testing-effects">效果的单元测试</h2>
+<p>将<code>useEffect</code>块提取到定制钩子中允许对它们进行单元测试，因为您不必处理实际的React组件。这是一个显著的优势。</p>
+<p>前段时间写了一篇关于用<a href="https://react-hooks-testing-library.com/">react-Hooks-testing-library</a>对定制钩子进行单元测试的文章。这是测试效果的一种可能性。</p>
+<p>下面的代码片段是一个<a href="https://jestjs.io/"> Jest </a>的例子，即使在运行时改变了一个效果的依赖关系(<code>url</code>)也能测试数据获取:</p>
+<pre class="language-javascript hljs">import { renderHook } from "@testing-library/react-hooks";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
+// import custom hook - in this example extracted to a separate file
+import useFetch from "./useFetch";
+test("useFetch performs multiple GET requests for different URLs", async () =&gt; {
+  // fetch 1
+  const initialValue = "initial value";
+  const mock = new MockAdapter(axios);
+  const mockData = 1;
+  const url = "http://mock";
+  mock.onGet(url).reply(200, mockData);
+  const { result, waitForNextUpdate } = renderHook(() =&gt;
+    useFetch(url, initialValue)
+  );
+  expect(result.current.data).toEqual("initial value");
+  expect(result.current.loading).toBeTruthy();
+  await waitForNextUpdate();
+  expect(result.current.data).toEqual(1);
+  expect(result.current.loading).toBeFalsy();
+  // fetch 2
+  const url2 = "http://mock2";
+  const mockData2 = 2;
+  mock.onGet(url2).reply(200, mockData2);
+  const initialValue2 = "initial value 2";
+  const { result: result2, waitForNextUpdate: waitForNextUpdate2 } = renderHook(
+    () =&gt; useFetch(url2, initialValue2)
+  );
+  expect(result2.current.data).toEqual("initial value 2");
+  expect(result2.current.loading).toBeTruthy();
+  await waitForNextUpdate2();
+  expect(result2.current.data).toEqual(2);
+  expect(result2.current.loading).toBeFalsy();
+});
+</pre>
+<p><code>useFetch</code>被包裹在一个<a href="https://react-hooks-testing-library.com/usage/basic-hooks#rendering"> <code>renderHook</code> </a>的函数调用中。这提供了正确的上下文来执行定制钩子，而不违反钩子的规则。</p>
+<p>为了执行实际的网络调用，我们利用<a href="https://react-hooks-testing-library.com/reference/api#waitfornextupdate"> <code>waitForNextUpdate</code> </a>。这允许我们等待异步函数返回来检查网络调用的响应。有了这个集合，我们可以断言钩子的结果。在我们的测试中，我们用<a href="https://github.com/ctimmerm/axios-mock-adapter"> axios模拟适配器</a>模拟了实际的网络调用。</p>
+<p>您也可以在<a href="https://codesandbox.io/s/testing-custom-hook-demo-ko6bq"> CodeSandbox </a>中找到这段代码。</p>
+<h2 id="useeffect-receipts">更多的收据</h2>
+<p>在这一节中，我将向您展示一些可能有用的便捷模式。</p>
+<h3 id="execute-affect-only-certain-condition">当满足特定条件时，只执行一次效果</h3>
+<p>正如我们已经知道的，您主要通过依赖数组来控制效果的执行。每当其中一个依赖关系发生变化时，就会执行该效果。通常，您应该将组件设计为在状态改变时执行效果，而不仅仅是一次。</p>
+<p>然而，有时您恰恰想要这样做，例如，当某个事件发生时。你可以用你在效果中的一个<code>if</code>语句中使用的标志来做这件事。如果你不想在更新标志时增加额外的渲染(这在大多数情况下是有问题的),那么<code>useRef</code>钩子是一个不错的选择。此外，您不必将ref添加到依赖数组中。</p>
+<p>以下示例仅在满足以下条件时从我们的效果中调用函数<code>trackInfo</code>:</p>
+<ul>
+<li>用户至少单击了一次按钮</li>
+<li>用户勾选了允许跟踪的复选框</li>
+</ul>
+<p>勾选复选框后，仅当用户再次点击按钮后，才应执行跟踪功能:</p>
+<pre class="language-javascript hljs">function EffectsDemoEffectConditional() {
+  const [count, setCount] = useState(0);
+  const [trackChecked, setTrackChecked] = useState(false);
+  const shouldTrackRef = useRef(false);
+  const infoTrackedRef = useRef(false);
+  const trackInfo = (info) =&gt; console.log(info);
+  useEffect(() =&gt; {
+    console.log("useEffect");
+    if (shouldTrackRef.current &amp;&amp; !infoTrackedRef.current) {
+      trackInfo("user found the button component");
+      infoTrackedRef.current = true;
+    }
+  }, [count]);
+  console.log("render");
+  const handleClick = () =&gt; setCount((prev) =&gt; prev + 1);
+  const handleCheckboxChange = () =&gt; {
+    setTrackChecked((prev) =&gt; {
+      shouldTrackRef.current = !prev;
+      return !prev;
+    });
+  };
+  return (
+    &lt;div&gt;
+      &lt;p&gt;
+        &lt;label htmlFor="tracking"&gt;Declaration of consent for tracking&lt;/label&gt;
+        &lt;input
+          name="tracking"
+          type="checkbox"
+          checked={trackChecked}
+          onChange={handleCheckboxChange}
+        /&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;button onClick={handleClick}&gt;click me&lt;/button&gt;
+      &lt;/p&gt;
+      &lt;p&gt;User clicked {count} times&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>在这个实现中，我们使用了两个ref:<code>shouldTrackRef</code>和<code>infoTrackedRef</code>。后者是“门”,保证跟踪功能只在其他条件满足后调用一次。</p>
+<p>每当<code>count</code>改变时，即每当用户点击按钮时，该效果重新运行。我们的<code>if</code>语句检查条件，只有当它评估为<code>true</code>时才执行实际的业务逻辑:</p>
+<p><img data-attachment-id="160788" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-logic-executed-once-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect’s Logic Is Executed Once" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif" decoding="async" class="aligncenter size-full wp-image-160788 jetpack-lazy-image" src="../Images/0c4be2a27f388fcce997095f56555ffd.png" alt="The Effect's Logic Is Executed Once" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160788" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/effect-logic-executed-once-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif" data-orig-size="730,509" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The Effect’s Logic Is Executed Once" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1-300x209.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160788" src="../Images/0c4be2a27f388fcce997095f56555ffd.png" alt="The Effect's Logic Is Executed Once" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/effect-logic-executed-once-1.gif"/></noscript>
+<p>日志消息<code>user found the button component</code>仅在满足正确条件后打印一次。</p>
+<h3 id="access-data-previous-renders">从以前的渲染中访问数据</h3>
+<p>如果您需要访问前一个渲染周期的一些数据，您可以利用<code>useEffect</code>和<code>useRef</code>的组合:</p>
+<pre class="language-javascript hljs">function EffectsDemoEffectPrevData() {
+  const [count, setCount] = useState(0);
+  const prevCountRef = useRef();
+  useEffect(() =&gt; {
+    console.log("useEffect", `state ${count}`, `ref ${prevCountRef.current}`);
+    prevCountRef.current = count;
+  }, [count]);
+  const handleClick = () =&gt; setCount((prev) =&gt; prev + 1);
+  console.log("render");
+  return (
+    &lt;div&gt;
+      &lt;p&gt;
+        &lt;button onClick={handleClick}&gt;click me&lt;/button&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        User clicked {count} times; previous value was {prevCountRef.current}
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</pre>
+<p>我们将效果与状态变量<code>count</code>同步，以便在用户点击按钮后执行。在我们的效果中，我们将状态变量的当前值赋给了<code>prevCountRef</code>的可变<code>current</code>属性。我们在JSX部分输出这两个值:</p>
+<p><img data-attachment-id="160790" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/accessing-data-from-previous-renders/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif" data-orig-size="702,388" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing Data From Previous Renders" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders-300x166.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif" decoding="async" class="aligncenter size-full wp-image-160790 jetpack-lazy-image" src="../Images/d80a3d8286a92250243826f0c07d1774.png" alt="Accessing Data From Previous Renders" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160790" data-permalink="https://blog.logrocket.com/useeffect-hook-complete-guide/attachment/accessing-data-from-previous-renders/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif" data-orig-size="702,388" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Accessing Data From Previous Renders" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders-300x166.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160790" src="../Images/d80a3d8286a92250243826f0c07d1774.png" alt="Accessing Data From Previous Renders" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/11/accessing-data-from-previous-renders.gif"/></noscript>
+<p>在加载这个演示程序时，在初始渲染时，状态变量具有调用<code>useState</code>的初始值。参考值为<code>undefined</code>。它再一次证明了效果是在渲染后运行的。当用户点击时，它按预期工作。</p>
+<h2 id="when-not-use-useeffect">何时不使用<code>useEffect</code></h2>
+<p>在某些情况下，由于潜在的性能问题，您应该避免使用<code>useEffect</code>。</p>
+<h3 id="transform-data-rendering">1.转换用于呈现的数据</h3>
+<p>如果渲染前需要转换数据，那么就不需要<code>useEffect</code>。假设您正在显示一个用户列表，并且只想根据某些标准过滤用户列表。也许您只想显示活动用户列表:</p>
+<pre class="language-javascript hljs">export const UserList = ({users}: IUserProps) =&gt; {
+
+  // the following part is completely unnecessary.
+  const [filteredUsers , setFilteredUsers] = useState([])
+  useEffect(() =&gt; {
+    const activeUsers = users.filter(user =&gt; user.active) 
+    setFilteredUsers(activeUsers)
+  ,[users])
+
+  return &lt;div&gt;
+    {filteredUsers.map(user =&gt; &lt;div&gt; {user.name} &lt;/div&gt;)}
+  &lt;/div&gt;
+}
+</pre>
+<p>在这里，您可以直接进行过滤并显示给用户，就像这样:</p>
+<pre class="language-javascript hljs">export const UserList = ({users}: IUserProps) =&gt; {
+  const filteredUsers = users.filter(user =&gt; user.active)
+  return &lt;div&gt;
+    {filteredUsers.map(user =&gt; &lt;div&gt; {user.name} &lt;/div&gt;)}
+  &lt;/div&gt;
+}
+</pre>
+<p>这将节省您的时间并提高您的应用程序的性能。</p>
+<h3 id="handling-user-events">2.处理用户事件</h3>
+<p>你不需要用<code>useEffect</code>来处理用户事件。假设您想在用户点击表单提交按钮时发出一个POST请求。下面这段代码的灵感来自<a href="https://beta.reactjs.org/learn/you-might-not-need-an-effect"> React的文档</a>:</p>
+<pre class="language-javascript hljs">function Form() {
+
+  // Avoid: Event-specific logic inside an Effect
+  const [jsonToSubmit, setJsonToSubmit] = useState(null);
+
+  useEffect(() =&gt; {
+    if (jsonToSubmit !== null) {
+      post('/api/register', jsonToSubmit);
+    }
+  }, [jsonToSubmit]);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    setJsonToSubmit({ firstName, lastName });
+  }
+
+}
+</pre>
+<p>在上面的代码中，您可以在单击按钮后发出post请求。但是你在级联效果，所以一旦<code>useEffect</code>被触发，它没有发生什么的完整背景。这可能会导致将来出现问题；相反，您可以在<code>handleSubmit</code>函数上发出POST请求:</p>
+<pre class="language-javascript hljs">function Form() {
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const jsonToSubmit = { firstName, lastName };
+    post('/api/register', jsonToSubmit);
+  }
+
+}
+</pre>
+<p>这要干净得多，有助于减少未来的错误。</p>
+<h2 id="conclusion">结论</h2>
+<p>如果你想成为下一级React开发人员，理解<code>useEffect</code>钩子的底层设计概念和最佳实践是一项需要掌握的关键技能。</p>
+<p>如果你在2019年初之前开始了React之旅，你必须学会用生命周期方法思考，而不是用效果思考。</p>
+<p>采用效果的心智模型将使你熟悉组件生命周期、数据流、其他钩子(<code>useState</code>、<code>useRef</code>、<code>useContext</code>、<code>useCallback</code>等)。)，甚至其他优化如<code>React.memo</code>。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

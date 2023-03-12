@@ -1,0 +1,189 @@
+<html>
+<head>
+<title>Packaging a Rust web service using Docker - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Docker - LogRocket博客打包Rust web服务</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/packaging-a-rust-web-service-using-docker/#0001-01-01">https://blog.logrocket.com/packaging-a-rust-web-service-using-docker/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>自从几年前Docker掀起了一股容器热潮以来，将web应用程序打包成Docker容器已经成为某种标准，尤其是在云中。</p>
+<p/>
+<p>这种方法对于本地开发和服务器部署都有一些好处。一旦构建了映像，它就不会改变，并且可以在任何运行Docker引擎的平台上以最小的性能损失执行(在Linux上)。</p>
+<p>在本教程中，我们将演示如何在Docker容器中放置一个Rust web应用程序。我们将使用不同的基本映像和权衡来介绍两种方法。</p>
+<h2 id="basicwebapp">基本web应用程序</h2>
+<p>首先，让我们用<a href="https://github.com/seanmonstar/warp" target="_blank" rel="noopener noreferrer"> warp </a>构建一个非常基本的web应用程序来测试不同的docker设置。</p>
+<p>在这种情况下，您需要的唯一依赖项是tokio和warp本身:</p>
+<pre>[dependencies]
+tokio = { version = "0.2", features = ["macros", "rt-threaded"] }
+warp = "0.2"
+</pre>
+<p>您还需要一个运行中的web服务器和一个<code>/health</code>端点来查看是否一切正常。</p>
+<pre>use warp::{Filter, Rejection, Reply};
+
+type Result&lt;T&gt; = std::result::Result&lt;T, Rejection&gt;;
+
+#[tokio::main]
+async fn main() {
+    let health_route = warp::path!("health").and_then(health_handler);
+
+    let routes = health_route.with(warp::cors().allow_any_origin());
+
+    println!("Started server at localhost:8000");
+    warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
+}
+
+async fn health_handler() -&gt; Result&lt;impl Reply&gt; {
+    Ok("OK")
+}
+</pre>
+<p>基本web应用程序的代码并不特别令人兴奋。然而，在将服务器绑定到IP和端口时，一定要注意到<code>0.0.0.0</code>的重要性。在docker内部使用<code>127.0.0.1</code>或<code>localhost</code>是行不通的。</p>
+<p>运行<code>cargo run</code>将在<code><a href="http://localhost:8000" rel="nofollow">http://localhost:8000</a></code>上启动一个带有<code>/health</code>端点的本地服务器，当它被调用时会返回<code>OK</code>。</p>
+<h2 id="dockerimagedebian">Docker图像(Debian)</h2>
+<p>现在是时候将整个东西放入Docker容器中了。</p>
+<p>构建要在云中运行的Docker映像时，一个好的实践是使用多构建设置，其中可执行文件在<code>builder</code>步骤中创建，然后复制到一个不同的、更小的映像中。</p>
+<p>这很有用，因为要构建应用程序，您需要Rust、Cargo和许多其他软件包。如果您只是将可执行文件保存在这个容器中并在那里运行，那么生成的映像将会非常大(在本例中大约为1.5 GB)。</p>
+<p>然而，对于多阶段构建，您可以使用一个非常简单的基础映像来实际运行创建的可执行文件。</p>
+<p>首先，让我们看看如何使用一个纤巧的Debian Buster基本映像。下面将是一个工作<code>Dockerfile</code>来做到这一点。</p>
+<pre>FROM rust:1.43 as builder
+
+RUN USER=root cargo new --bin rust-docker-web
+WORKDIR ./rust-docker-web
+COPY ./Cargo.toml ./Cargo.toml
+RUN cargo build --release
+RUN rm src/*.rs
+
+ADD . ./
+
+RUN rm ./target/release/deps/rust_docker_web*
+RUN cargo build --release
+
+
+FROM debian:buster-slim
+ARG APP=/usr/src/app
+
+RUN apt-get update \
+    &amp;&amp; apt-get install -y ca-certificates tzdata \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+EXPOSE 8000
+
+ENV TZ=Etc/UTC \
+    APP_USER=appuser
+
+RUN groupadd $APP_USER \
+    &amp;&amp; useradd -g $APP_USER $APP_USER \
+    &amp;&amp; mkdir -p ${APP}
+
+COPY --from=builder /rust-docker-web/target/release/rust-docker-web ${APP}/rust-docker-web
+
+RUN chown -R $APP_USER:$APP_USER ${APP}
+
+USER $APP_USER
+WORKDIR ${APP}
+
+CMD ["./rust-docker-web"]
+</pre>
+<p>这是相当多的文字，所以让我们一步一步来。</p>
+<p>如上所述，有两个构建步骤:简单地使用Rust 1.43基础映像的<code>builder</code>，以及使用Debian的第二步。</p>
+<p>在构建器步骤中，使用了一个简单的伪依赖缓存机制。首先，使用<code>cargo</code>创建一个空的Rust项目，然后将所有依赖项(以<code>Cargo.toml</code>的形式)复制到该项目中。</p>
+<p>然后，在删除<code>src</code>文件夹中的所有内容之前，会触发一个发布构建。使用Docker，对于<code>Dockerfile</code>中的每个命令，都会创建一个层。在后续构建中，只有输入发生了变化的层才需要重新构建。</p>
+<p>这就是你独立于你自己的代码构建依赖关系的原因——因为依赖关系的变化通常比依赖关系少得多。如果您只更改<code>src</code>中的代码，则不需要重新构建任何依赖层。不幸的是，由于Rust的编译时间仍然很长，特别是对于复杂的web应用程序，这可以节省您相当多的时间。</p>
+<p>a .移除<code>src</code>中的所有文件后，将项目的所有文件复制到Docker工作目录中，从依赖项中移除构建的二进制文件，并触发另一个发布构建——在本例中，使用整个代码。</p>
+<p>现在让我们看看<code>Dockerfile</code>的第二部分，在这里我们创建了一个可运行的容器映像。</p>
+<p>这一部分中的大多数命令都是在任何其他语言的Docker中用于web应用程序的通用命令。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>首先，我们将使用<code>apt</code>、<code>ca-certificates</code>和<code>tzdata</code>安装一些必需的包，这对于web应用程序来说是一个很好的基线。</p>
+<p>接下来，公开应用程序端口并创建一个非root用户，用于运行可执行文件。最有趣的部分是<code>COPY</code> <code>--from-builder</code>命令，它使我们能够将<code>builder</code>步骤中构建的可执行文件复制到这个容器中。</p>
+<p>最后，新创建的用户可以简单地启动可执行文件。</p>
+<p>要构建这个容器，只需执行下面的代码。</p>
+<pre>docker build -t rust-debian -f ./debian/Dockerfile .
+</pre>
+<p>然后，您可以使用以下命令来执行它:</p>
+<pre>docker run -p 8000:8000 rust-debian
+</pre>
+<p>这将运行Rust web应用程序，调用<code><a href="http://localhost:8000/health" rel="nofollow">http://localhost:8000/health</a></code>将返回OK。成功！</p>
+<p>查看<code>docker images</code>的输出，我们可以看到以下图像大小:</p>
+<pre>rust-debian          latest      d5ae1c61b310     About a minute ago   84.7MB
+</pre>
+<p>低于90MB —不算太坏。但是我们可以做得更好。让我们看看如何用阿尔卑斯山的基础图像做同样的事情。</p>
+<h2 id="dockerimagealpine">码头图片(阿尔卑斯)</h2>
+<p>大多数阿尔卑斯山的<code>Dockerfile</code>是相同的，但是有一些重要的区别。</p>
+<pre>FROM ekidd/rust-musl-builder:stable as builder
+
+RUN USER=root cargo new --bin rust-docker-web
+WORKDIR ./rust-docker-web
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
+RUN cargo build --release
+RUN rm src/*.rs
+
+ADD . ./
+
+RUN rm ./target/x86_64-unknown-linux-musl/release/deps/rust_docker_web*
+RUN cargo build --release
+
+
+FROM alpine:latest
+
+ARG APP=/usr/src/app
+
+EXPOSE 8000
+
+ENV TZ=Etc/UTC \
+    APP_USER=appuser
+
+RUN addgroup -S $APP_USER \
+    &amp;&amp; adduser -S -g $APP_USER $APP_USER
+
+RUN apk update \
+    &amp;&amp; apk add --no-cache ca-certificates tzdata \
+    &amp;&amp; rm -rf /var/cache/apk/*
+
+COPY --from=builder /home/rust/src/rust-docker-web/target/x86_64-unknown-linux-musl/release/rust-docker-web ${APP}/rust-docker-web
+
+RUN chown -R $APP_USER:$APP_USER ${APP}
+
+USER $APP_USER
+WORKDIR ${APP}
+
+CMD ["./rust-docker-web"]
+</pre>
+<p>在<code>builder</code>中，最重要的变化是基础图像，这里使用了<a href="https://hub.docker.com/r/ekidd/rust-musl-builder/" target="_blank" rel="noopener noreferrer"> rust-musl-builder </a>图像，而不是官方的Rust图像。</p>
+<p>这样做的原因是我们想要构建一个静态Rust二进制文件，我们可以将它复制到Alpine base映像中。因为Alpine也是围绕<code>musl-libc</code>构建的，所以使用官方Docker映像的可执行文件是行不通的。</p>
+<p>除此之外，构建器阶段也非常相似。唯一改变的是可执行文件的路径。</p>
+<p>在runner阶段，我们现在使用<code>alpine:latest</code>作为基础映像，并且必须使用<code>apk</code>和一些不同的命令来创建运行应用程序的用户。步骤本身基本相同，只是命令和路径有点不同。</p>
+<p>这个<code>Dockerfile</code>的基本结构与基于Debian的非常相似，所以构建和运行它的方式也是一样的。</p>
+<pre>docker build -t rust-alpine -f ./alpine/Dockerfile .
+docker run -p 8000:8000 rust-alpine
+</pre>
+<p>同样，打开<code><a href="http://localhost:8000/health" rel="nofollow">http://localhost:8000/health</a></code>，你会得到一个成功的响应。</p>
+<p>我们首先切换到Alpine的原因是图像大小，所以让我们看看我们在这里的位置。</p>
+<pre>rust-alpine          latest      492d0305ebcb     About a minute ago   16MB
+</pre>
+<p>16MB —图像大小减少了80%。然而，虽然这种大小上的减少很好，但是这里涉及到什么权衡呢？与Debian相比，使用Alpine镜像有什么缺点吗？</p>
+<p>让我们来看看在选择哪张图片作为基础时所涉及的含义。</p>
+<h2 id="choosingabaseimage">选择基础图像</h2>
+<p>Alpine的明显优势是图像尺寸更小。然而，正如在<code><a href="https://hub.docker.com/r/ekidd/rust-musl-builder/" target="_blank" rel="noopener noreferrer">rust-musl-builder</a></code>文档中所描述的，在过去，OpenSSL的工作一直存在问题。虽然这个问题已经解决了，但是如果你依赖C库，你可能会遇到麻烦，因为使用标准工具链会更容易处理C库。</p>
+<p>使用基于Alpine的映像还存在与内存分配相关的严重性能问题。安迪·格罗夫追溯到了musl的使用。在某些情况下，切换到jemalloc分配器会有所帮助。</p>
+<p>我个人没有遇到上述问题，但我确实注意到，与Debian相比，在Alpine容器中运行应用程序时，内存占用更低。根据您想要运行的工作负载，这些指标会有所不同，因此这里不可能给出什么灵丹妙药。</p>
+<p>一般来说，使用哪种堆栈是您自己的决定。它需要基于对您的用例很重要的权衡。</p>
+<p>与其他任何运营决策一样，对于生产web服务来说，不存在一刀切的做法。您需要对您的用例进行测试、基准测试和概要分析，然后决定什么是最适合的。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本指南中，我们介绍了如何以两种不同的方式封装Rust web应用程序，这两种方式有着截然不同的利弊。</p>
+<p>上面概述的两种方法并不是实现这一点的唯一方法，正如前面提到的，您为生产服务采用的方法必须基于您自己独特的需求和数据。然而，这篇文章中的例子是一个很好的起点，可以让你尝试使用Docker with Rust。</p>
+<p>你可以在<a href="https://github.com/zupzup/rust-docker-web" target="_blank" rel="noopener noreferrer"> GitHub </a>上找到这个例子的完整代码。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

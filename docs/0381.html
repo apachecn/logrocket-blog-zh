@@ -1,0 +1,453 @@
+<html>
+<head>
+<title>Creating a scalable GraphQL API with MySQL, Node.js, and Apollo - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用MySQL、Node.js和Apollo - LogRocket博客创建可伸缩的GraphQL API</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/#0001-01-01">https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>本帖于2021年8月更新相关信息和更新代码。</em></p>
+<p>准备好跳到一个<a href="https://blog.logrocket.com/intro-to-graphql-with-prisma/" target="_blank" rel="noopener noreferrer"> GraphQL </a> API了吗？如果您已经有了一个MySQL数据库，那么您就有了一个创建可伸缩API的绝佳起点。在本教程中，我们将介绍如何基于数据库创建模型，创建从数据库读取数据的节点GraphQL API，并学习如何在不同的表之间建立关系。</p>
+<h2>创建GraphQL端点</h2>
+<p>在本教程中，我们将为票务系统构建一个小的GraphQL端点。我们希望创建一个端点，在这里我们可以读取票据并获取它们的相关数据，比如用户、状态和优先级。</p>
+<p>我们将使用的构造块有:</p>
+<ul>
+<li>(现有的)MySQL数据库</li>
+<li><a href="https://nodejs.org/en/" target="_blank" rel="noopener noreferrer"> Node.js </a></li>
+<li><a href="https://expressjs.com/" target="_blank" rel="noopener noreferrer">Express</a>(node . js的web框架)</li>
+<li><a href="https://www.apollographql.com/" target="_blank" rel="noopener noreferrer"> Apollo </a>(创建GraphQL端点的工具)</li>
+<li><a href="http://docs.sequelizejs.com/" target="_blank" rel="noopener noreferrer">序列化</a>(对象关系映射包)</li>
+<li><a href="https://webpack.js.org/" target="_blank" rel="noopener noreferrer"> Webpack </a>(打包应用程序)</li>
+<li><a href="https://www.docker.com/" target="_blank" rel="noopener noreferrer"> Docker </a>(旋转本地MySQL数据库；只要您有MySQL实例，它就是可选的)</li>
+</ul>
+<p>如果你不知道我刚才提到的每一部分，不要担心，我会描述这一过程中的每一步。如果您想继续编码，您可以签出<a href="https://github.com/DirkWolthuis/graphql-express-migrating-mysql" target="_blank" rel="noopener noreferrer">这个存储库</a>,并使用以下命令克隆教程发布的开始:</p>
+<pre>git clone &lt;https://github.com/DirkWolthuis/graphql-express-migrating-mysql&gt; --branch start</pre>
+<h2>构建数据库层</h2>
+<p>首先，我们将假设我们正在使用一个现有的数据库。我创建了一个SQL文件，您可以将其导入MySQL数据库。我喜欢在一个<a href="https://blog.logrocket.com/docker-for-front-end-developers/" target="_blank" rel="noopener noreferrer"> Docker </a>容器中运行我的MySQL数据库。您可以使用<code>docker-compose.yaml</code>文件(在存储库中)来启动MySQL容器。</p>
+<p>该数据库有四个表:票据、优先级、状态和用户。这些表格具有以下结构:</p>
+<p>票</p>
+<pre><code>| Field               | Type             | Null | Key | Default           | Extra          |
++---------------------+------------------+------+-----+-------------------+----------------+
+| id                  | int(11) unsigned | NO   | PRI | NULL              | auto_increment |
+| subject             | varchar(256)     | NO   |     | NULL              |                |
+| priority_id         | int(11)          | NO   |     | NULL              |                |
+| status_id           | tinyint(4)       | NO   |     | NULL              |                |
+| user_id             | int(11)          | NO   |     | NULL              |                |
+| assigned_to_user_id | int(11)          | YES  |     | NULL              |                |
++---------------------+------------------+------+-----+-------------------+----------------+</code></pre>
+<p>用户</p>
+<pre><code>| Field | Type             | Null | Key | Default | Extra          |
++-------+------------------+------+-----+---------+----------------+
+| id    | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+| name  | varchar(256)     | NO   |     | NULL    |                |
+| email | varchar(256)     | NO   |     | NULL    |                |
++-------+------------------+------+-----+---------+----------------+</code></pre>
+<p>优先</p>
+<pre><code>| Field | Type             | Null | Key | Default | Extra          |
++-------+------------------+------+-----+---------+----------------+
+| id    | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+| slug  | varchar(64)      | NO   |     | NULL    |                |
+| name  | varchar(256)     | NO   |     | NULL    |                |
++-------+------------------+------+-----+---------+----------------+</code></pre>
+<p>状态</p>
+<pre><code>| Field | Type             | Null | Key | Default | Extra          |
++-------+------------------+------+-----+---------+----------------+
+| id    | int(10) unsigned | NO   | PRI | NULL    | auto_increment |
+| slug  | varchar(64)      | NO   |     | NULL    |                |
+| name  | varchar(256)     | NO   |     | NULL    |                |
++-------+------------------+------+-----+---------+----------------+</code></pre>
+<p>使用上面的图表创建自己的数据库，或者将SQL文件导入MySQL数据库。我们准备开始编码。您可以在目录<code>tutorial_assets</code>中的存储库内找到SQL文件。</p>
+<h2>引导应用程序</h2>
+<p>对于本教程，<a href="https://webpack.js.org/" target="_blank" rel="noopener noreferrer"> webpack </a>被设置为编译<code>dist</code>目录中的<code>app.js</code>文件。它是一个基本的Express Hello World应用程序。克隆项目后，您需要运行<code>npm install</code>来安装依赖项。</p>
+<p>安装完毕？可以运行<code>npm run start</code>来启动app。它将作为<code><a href="http://localhost:5000" rel="nofollow">http://localhost:5000</a></code>上的端点。</p>
+<p>让我们开始构建我们的GraphQL API吧！</p>
+<h2 id="creating-database-models-mysql">在MySQL中创建数据库模型</h2>
+<p>几乎每个框架都使用模型与数据库进行交互。为了与我们的MySQL数据库进行交互，我们使用<a href="http://docs.sequelizejs.com/" target="_blank" rel="noopener noreferrer"> Sequelize </a>作为ORM(对象关系映射)包。让我们从添加包开始(<code>mysql2</code>包是连接MySQL数据库所必需的),使用npm:</p>
+<pre>npm install sequelize mysql2</pre>
+<p>或者用纱线:</p>
+<pre>yarn add sequelize mysql2</pre>
+<p>现在我们可以做两件事情中的一件:我们可以手工创建数据库模型，或者用一个额外的包自动生成它们。对于本教程，手动创建模型不成问题，因为我们的数据库中只有四个小表。但是当您正在迁移一个更大的数据库时，您可能想要更加自动化的东西。幸运的是，有一个基于现有数据库生成序列数据库文件的包。这个包被命名为<a href="https://github.com/sequelize/sequelize-auto"> Sequelize-Auto </a>，可以在全球范围内安装npm:</p>
+<pre>npm install -g sequelize-auto MySQL</pre>
+<p>这是纱线的安装:</p>
+<pre>yarn global add sequelize-auto MySQL</pre>
+<p>为了以更加自动化的方式迁移数据库，我们可以使用<code>sequelize-auto</code>命令。我们需要在命令中插入MySQL数据库凭证来生成模型。如果您正在使用步骤1中提供的MySQL dump，我已经创建了一个您需要使用的config JSON文件。</p>
+<p><code>sequelize-auto-settings.json</code>位于<code>tutorial_assets</code>目录中。如果你在本教程中使用你自己的数据库，查看Sequelize API文档中的<a href="https://sequelize.readthedocs.io/en/latest/api/sequelize/">设置页面</a>，找到你需要的设置。</p>
+<pre>sequelize-auto -h &lt;host&gt; -d &lt;database&gt; -u &lt;user&gt; -x [password] -p [port]  --dialect [dialect] -c [/path/to/config] -o [/path/to/models]</pre>
+<p>所以，对我来说:</p>
+<pre>sequelize-auto -h localhost -d graphql-mysql-tutorial -u graphql -x 123456 -p 8006  --dialect mysql -c /Users/wolthuis/Documents/websites/tutorials/graphql-migrating-mysql/tutorial_assets/sequelize-auto-settings.json -o /Users/wolthuis/Documents/websites/tutorials/graphql-migrating-mysql/app/models</pre>
+<p>我们走吧！四个文件出现在<code>app/models</code>目录中。在我们的文件中，让我们从导入Sequelize和设置一些变量开始。</p>
+<h2>实现数据库模型</h2>
+<p>我们现在需要实现数据库模型。在app目录下，创建一个<code>database.js file</code>。在这个文件中，我们导入并导出数据库模型，这样我们就可以在应用程序中的任何地方使用它们。</p>
+<pre>import Sequelize from 'sequelize';
+
+var db = {}
+
+const sequelize = new Sequelize(
+    'DATABASE_NAME',
+    'DATABASE_USER',
+    'DATABASE_PASSWORD',
+    {
+        host: 'DATABASE_HOST',
+        port: 'DATABASE_PORT',
+        dialect: 'mysql',
+        define: {
+            freezeTableName: true,
+        },
+        pool: {
+            max: 5,
+            min: 0,
+            acquire: 30000,
+            idle: 10000,
+        },
+        // &lt;http://docs.sequelizejs.com/manual/tutorial/querying.html#operators&gt;
+        operatorsAliases: false,
+    },
+)
+
+let models = []
+
+// Initialize models
+models.forEach(model =&gt; {
+    const seqModel = model(sequelize, Sequelize)
+    db[seqModel.name] = seqModel
+})
+
+// Apply associations
+Object.keys(db).forEach(key =&gt; {
+    if ('associate' in db[key]) {
+        db[key].associate(db)
+    }
+})
+
+db.sequelize = sequelize
+db.Sequelize = Sequelize
+
+export default db;</pre>
+<p>现在我们需要填写MySQL数据库凭证并导入新创建的模型。通常情况下，您会使用环境变量来安全地传递敏感数据，但是出于教程的目的，我将在<code>database.js</code>文件中硬编码一些值。</p>
+<p>导入中带有凭证的<code>database.js</code>文件如下所示:</p>
+<pre>import Sequelize from 'sequelize';
+
+var db = {}
+
+const sequelize = new Sequelize('graphql-mysql-tutorial', 'graphql', '123456', {
+    host: 'localhost',
+    port: '8006',
+    dialect: 'mysql',
+    define: {
+        freezeTableName: true,
+    },
+    pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+    },
+    // &lt;http://docs.sequelizejs.com/manual/tutorial/querying.html#operators&gt;
+    operatorsAliases: false,
+})
+
+let models = [
+    require('./models/priorities.js'),
+    require('./models/status.js'),
+    require('./models/tickets.js'),
+    require('./models/users.js'),
+]
+
+// Initialize models
+models.forEach(model =&gt; {
+    const seqModel = model(sequelize, Sequelize)
+    db[seqModel.name] = seqModel
+})
+
+// Apply associations
+Object.keys(db).forEach(key =&gt; {
+    if ('associate' in db[key]) {
+        db[key].associate(db)
+    }
+})
+
+db.sequelize = sequelize
+db.Sequelize = Sequelize
+
+export default db;</pre>
+<p>太好了，我们现在可以在应用程序的任何地方导入<code>db</code>变量，并访问我们所有的模型。在接下来的步骤中，我们将使用该变量来访问我们的数据。</p>
+<h2>设置阿波罗服务器</h2>
+<p>Apollo是一家为GraphQL生态系统提供许多服务和开发工具的公司。它帮助开发人员使用许多包(如Apollo Federation、Apollo Client和Apollo Server)构建快速可靠的GraphQL服务。</p>
+<p>Apollo Server是一个符合规范的、可用于生产的JavaScript GraphQL服务器，它有助于使用许多Node.js框架创建GraphQL APIs。这是一个简单但功能强大的包，易于实现，易于使用，并且可以投入生产。</p>
+<p>首先，我们需要添加两个包:</p>
+<pre>npm install apollo-server-express graphql</pre>
+<p>或者用纱线:</p>
+<pre>yarn add apollo-server-express graphql</pre>
+<p>安装后，我们需要在<code>app.js</code>内部做一些设置来耦合Apollo和Express。我们从导入<code>ApolloServer</code>开始:</p>
+<pre>import { ApolloServer } from 'apollo-server-express';</pre>
+<p>然后，我们创建一个新的Apollo服务器实例:</p>
+<pre>const server = new ApolloServer({
+        modules: []
+})</pre>
+<p>最后一步是在现有的Express应用程序上应用Apollo服务器作为中间件:</p>
+<pre>server.applyMiddleware({ app })</pre>
+<p>我们还不能启动我们的应用程序，因为没有任何模块，阿波罗服务器将抛出一个错误。因此，我们将把我们的数据库实体实现到一个GraphQL端点中，这样我们就可以用GraphQL查询来访问它们。</p>
+<h2>创建我们的GraphQL类型和解析器</h2>
+<p>在GraphQL中，需要类型和解析器。类型描述了可以通过GraphQL端点获取或写入的数据。解析器是解析用户请求的逻辑。</p>
+<p>在GraphQL目录中，我们创建了一个新文件<code>tickets.js</code>。在这个文件中，我们将包含一个来自<code>apollo-server-express</code>包的变量，我们将使用它来创建GraphQL类型定义，包括我们的<code>db</code>变量和两个用于类型GraphQL定义和GraphQL解析器的空对象。</p>
+<pre>import { gql } from 'apollo-server-express'
+import * as db from '../database'
+
+export const typeDefs = gql`
+   
+`
+export const resolvers = {
+}</pre>
+<h2>创建GraphQL类型</h2>
+<p>首先我们填充<code>typeDefs</code>变量。你可以看到我们正在使用来自<code>apollo-server-express</code>包的<code>gql</code>变量。<code>gql</code>变量让我们编写包可读的类型定义。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在<code>typeDefs</code>变量中，我们需要扩展查询类型并创建一个名为<code>Ticket</code>的新类型。我们需要扩展<code>Query</code>类型的原因是因为GraphQL总是使用名为<code>Query</code>的顶级类型。在该类型中嵌套了其他类型，这就是GraphQL如何知道在您的GraphQL API中可用的类型。</p>
+<p>让我们扩展一下<code>Query</code>类型:</p>
+<pre>export const typeDefs = gql`
+    extend type Query {
+        tickets: [Ticket]
+        ticket(id: ID!): Ticket
+    }
+    type Ticket {
+       
+    }
+`</pre>
+<p>正如您所看到的，我们让GraphQL知道我们想要用两个新实体来扩展<code>Query</code>:<code>ticket</code>和<code>tickets</code>。</p>
+<p><code>Tickets</code>返回一个数组<code>tickets</code>:</p>
+<pre>tickets: [Ticket]</pre>
+<p><code>Ticket</code>返回单类型的<code>Ticket</code>。票类型会收到一个名为<code>id</code>、<code>of type ID</code>的参数，并且不能为空(所以换句话说，参数是必需的)。GraphQL类型中的感叹号表示值不能为空:</p>
+<pre>ticket(id: ID!): Ticket</pre>
+<p>现在我们的<code>Ticket</code>类型是空的，所以让我们填充这个类型:</p>
+<pre>export const typeDefs = gql`
+    extend type Query {
+        tickets: [Ticket]
+        ticket(id: ID!): Ticket
+    }
+    type Ticket {
+        id: ID!
+        subject: String
+        priority_id: Int
+        status_id: Int
+        user_id: Int
+        assigned_to_user_id: Int
+    }
+`</pre>
+<p>这里，我们描述了票证类型由哪些类型组成。它与我们的数据库模型100%匹配。这对于现在来说是正确的，但是将来当我们要在我们的类型/模型之间添加关系时，这种情况将会改变。</p>
+<h2>创建GraphQL解析器</h2>
+<p>现在我们已经创建了我们的<code>Ticket</code>实体，让我们创建我们的解析器。解析器需要或多或少地反映我们的类型。在resolver对象内部，我们也从一个顶级的<code>Query</code>对象开始。</p>
+<pre>export const resolvers = {
+    Query: {},
+}</pre>
+<p>在<code>Query</code>类型中，我们将创建两种票类型:<code>ticket</code>和<code>tickets</code>。我们使用我们的<code>db</code>(数据库)变量来解析数据库中的数据。</p>
+<pre>export const resolvers = {
+    Query: {
+        tickets: async () =&gt; db.tickets.findAll(),
+        ticket: async (obj, args, context, info) =&gt;
+            db.tickets.findByPk(args.id),
+    },
+}</pre>
+<p>解析器接收两个参数，我们可以用它们来解析删除请求。<code>obj</code>是根对象，我们将使用这个根对象来建立关系。<code>args</code>是我们在类型中定义的函数参数。</p>
+<p>对于我们的<code>tickets</code>查询，我们将接收一个<code>id</code>作为参数，并将其传递给我们的<code>findByPk</code>函数以获取一个特定的<code>Ticket</code>。如果你想了解更多关于<code>obj</code>、<code>args</code>、<code>context</code>和<code>info</code>的信息，请查阅<a href="https://www.apollographql.com/docs/graphql-tools/resolvers/" target="_blank" rel="noopener noreferrer">阿波罗文档</a>。</p>
+<h2>将票务模块添加到我们的阿波罗服务器</h2>
+<p>我们已经创建了一个模块，现在我们只需要将它导入到我们的应用程序<code>app.js</code>中。为此，请添加模块:</p>
+<pre>const server = new ApolloServer({
+    modules: [require('./GraphQL/tickets')],
+})</pre>
+<p>现在对优先级、用户和状态进行同样的操作，并导入这些模块:</p>
+<pre>const server = new ApolloServer({
+    modules: [
+        require('./GraphQL/tickets'),
+        require('./GraphQL/status'),
+        require('./GraphQL/users'),
+        require('./GraphQL/priorities'),
+    ],
+})</pre>
+<p>再次启动应用程序后，进入<a href="http://localhost:5000/graphql" target="_blank" rel="noopener noreferrer"> localhost:5000/graphql </a>，你将进入Apollo GraphQL查询构建器环境。在这个环境中，您可以测试您的API并创建查询，稍后您将在其他应用程序中使用这些查询。</p>
+<p>此外，您可以使用右侧的docs按钮来浏览您的API。因为GraphQL是类型化的，所以您自动拥有API文档。相当酷！</p>
+<p><img data-attachment-id="4034" data-permalink="https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/scherma/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scherma" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png" decoding="async" class="aligncenter wp-image-4034 size-full jetpack-lazy-image" src="../Images/1c610494ad01a5060b19e4b9bf7c7042.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/scherma-300x190.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="4034" data-permalink="https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/scherma/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scherma" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png" decoding="async" loading="lazy" class="aligncenter wp-image-4034 size-full" src="../Images/1c610494ad01a5060b19e4b9bf7c7042.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/scherma-300x190.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/scherma.png"/></noscript>
+<h2>创建数据之间的关系</h2>
+<p>在获取特定的<code>Ticket</code>时自动获取用户名就好了。对于这一步，我们将创建一个<code>Ticket</code>和一个用户之间的关系。</p>
+<h2>在GraphQL中的票据类型上添加用户类型</h2>
+<p>因此，首先让我们编辑票证类型。我们需要让GraphQL知道我们想要请求一个user类型的用户:</p>
+<pre>export const typeDefs = gql`
+    extend type Query {
+        tickets: [Ticket]
+        ticket(id: ID!): Ticket
+    }
+    type Ticket {
+        id: ID!
+        subject: String
+        priority_id: Int
+        status_id: Int
+        user_id: Int
+        user: User
+        assigned_to_user_id: Int
+    }
+`</pre>
+<h2>在GraphQL中为用户添加额外的解析器</h2>
+<p>接下来，我们需要添加一个嵌套的解析器来解析票据中的用户。在resolver对象中，我们将添加键<code>Ticket</code>。这就是当我们在一个类型中请求另一个类型时，GraphQL知道如何解析嵌套查询的原因。</p>
+<p>在本例中，解析器是票据类型中的<code>User</code>类型:</p>
+<pre>export const resolvers = {
+    Query: {
+        tickets: async () =&gt; db.tickets.findAll(),
+        ticket: async (obj, args, context, info) =&gt;
+            db.tickets.findByPk(args.id),
+    },
+    Ticket: {
+        user: async (obj, args, context, info) =&gt; db.users.findByPk(obj.user_id),
+    },
+}</pre>
+<p>您可以看到我们正在使用<code>obj</code>来访问票证数据。在票证数据中设置了<code>user_id</code>,因此我们可以从数据库中获得正确的用户。</p>
+<p>所以让我们看看我们的代码是否有效。我创建了这个查询，看看能否获得嵌套的用户数据。注意，您还需要从用户类型中指定您想要的字段，在我的例子中是<code>id</code>、<code>name</code>和<code>email</code>字段。</p>
+<pre>{
+  ticket(id: 3){
+    id
+    subject
+    user{
+      id
+      name
+      email
+    }
+  }
+}</pre>
+<p>太好了，成功了！这是阿波罗的回报:</p>
+<p><img data-attachment-id="65011" data-permalink="https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/graphqlexample-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphql-mysql-apollo-api-endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png" decoding="async" class="aligncenter wp-image-65011 size-full jetpack-lazy-image" src="../Images/522bfa87e5d22338d0ff590b4129568d.png" alt="" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1-300x190.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="65011" data-permalink="https://blog.logrocket.com/creating-scalable-graphql-api-mysql-apollo-node/graphqlexample-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png" data-orig-size="730,463" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="graphql-mysql-apollo-api-endpoint" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png" decoding="async" loading="lazy" class="aligncenter wp-image-65011 size-full" src="../Images/522bfa87e5d22338d0ff590b4129568d.png" alt="" srcset="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1-300x190.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/07/graphqlexample-1.png"/></noscript>
+<p>现在以同样的方式添加其他关系:<code>priority</code>、<code>status</code>和<code>assigned_to_user</code>。在添加完另一个嵌套解析器之后，您的<code>tickets.js</code>文件看起来会像这样:</p>
+<pre>import { gql } from 'apollo-server-express'
+import * as db from '../database'
+export const typeDefs = gql`
+    extend type Query {
+        tickets: [Ticket]
+        ticket(id: ID!): Ticket
+    }
+    type Ticket {
+        id: ID!
+        subject: String
+        priority_id: Int
+        priority: Priority
+        status_id: Int
+        status: Status
+        user_id: Int
+        user: User
+        assigned_to_user_id: Int
+        assigned_to_user: User
+    }
+`
+export const resolvers = {
+    Query: {
+        tickets: async () =&gt; db.tickets.findAll(),
+        ticket: async (obj, args, context, info) =&gt;
+            db.tickets.findByPk(args.id),
+    },
+    Ticket: {
+        user: async (obj, args, context, info) =&gt;
+            db.users.findByPk(obj.user_id),
+        priority: async (obj, args, context, info) =&gt;
+            db.priorities.findByPk(obj.priority_id),
+        status: async (obj, args, context, info) =&gt;
+            db.status.findByPk(obj.status_id),
+        assigned_to_user: async (obj, args, context, info) =&gt;
+            db.users.findByPk(obj.assigned_to_user_id),
+    },
+}</pre>
+<p>转到<code>localhost:5000/graphql</code>并构建一个查询，获取所有票据及其状态、优先级和用户。使用此查询:</p>
+<pre>{
+  tickets{
+    subject
+    status{
+      slug
+    }
+    priority{
+      slug
+    }
+    user{
+      name
+    }
+    assigned_to_user{
+      name
+    }
+  }
+}</pre>
+<p>我获得了以下票证及其属性:</p>
+<pre>{
+  "data": {
+    "tickets": [
+      {
+        "subject": "My computer is on fire🔥🔥",
+        "status": {
+          "slug": "open"
+        },
+        "priority": {
+          "slug": "high"
+        },
+        "user": {
+          "name": "Dirk Wolthuis"
+        },
+        "assigned_to_user": null
+      },
+      {
+        "subject": "MS Word is not starting, can someone help?",
+        "status": {
+          "slug": "doing"
+        },
+        "priority": {
+          "slug": "low"
+        },
+        "user": {
+          "name": "Chris Vogt"
+        },
+        "assigned_to_user": {
+          "name": "Dirk Wolthuis"
+        }
+      },
+      {
+        "subject": "There is a bug in the 🛒 of the webshop, steps to reproduce are included",
+        "status": {
+          "slug": "doing"
+        },
+        "priority": {
+          "slug": "high"
+        },
+        "user": {
+          "name": "Andrew Clark"
+        },
+        "assigned_to_user": {
+          "name": "Dirk Wolthuis"
+        }
+      },
+      {
+        "subject": "404 error: website not found - website down?💀",
+        "status": {
+          "slug": "closed"
+        },
+        "priority": {
+          "slug": "high"
+        },
+        "user": {
+          "name": "Andrew Clark"
+        },
+        "assigned_to_user": {
+          "name": "Dirk Wolthuis"
+        }
+      }
+    ]
+  }
+}</pre>
+<h2>结论</h2>
+<p>我们已经创建了一个可用的GraphQL API，您可以按照自己想要的方式定制它。您可以在实体之间添加多层关系。而且，在创建新的数据库表之后，您可以轻松地为您的应用程序创建所需的序列模型。</p>
+<p>出于本教程的目的，我们已经创建了一个只读数据库。只是想看看代码？你可以在这个库中找到它。如果你想了解更多关于如何操作数据库中的数据，你可以查看<a href="https://www.apollographql.com/docs/apollo-server/essentials/schema/#designing-mutations" target="_blank" rel="noopener noreferrer">设计突变</a>或者阅读<a href="https://www.howtographql.com/graphql-js/3-a-simple-mutation/" target="_blank" rel="noopener noreferrer">这篇关于突变的文章</a>。服务器的设置略有不同，但逻辑是相同的。</p><div class="code-block code-block-24">
+<div class="blog-plug inline-plug graphql-plug"><h2>监控生产中失败和缓慢的GraphQL请求</h2><p>虽然GraphQL有一些调试请求和响应的特性，但确保GraphQL可靠地为您的生产应用程序提供资源是一件比较困难的事情。如果您对确保对后端或第三方服务的网络请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-lazy-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/><noscript><img data-lazy-fallback="1" src="../Images/432a3823c85b3fb72a206e6236a29f48.png" data-original-src="https://files.readme.io/69aa835-Image_2019-11-09_at_1.28.05_PM.png"/></noscript><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><a href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录下你网站上发生的每一件事。您可以汇总并报告有问题的GraphQL请求，以快速了解根本原因，而不是猜测问题发生的原因。此外，您可以跟踪Apollo客户机状态并检查GraphQL查询的键值对。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/graphql-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>.</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

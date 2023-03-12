@@ -1,0 +1,202 @@
+<html>
+<head>
+<title>Creating forms in React in 2020 - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>2020年在React中创建表单</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/forms-in-react-in-2020/#0001-01-01">https://blog.logrocket.com/forms-in-react-in-2020/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>输入字段。文本区域。单选按钮和复选框。作为开发人员，这些是我们与用户的一些主要交互点。我们把它们放在前面和中心，用户尽可能地填写它们，如果运气好的话，他们会把它们寄回给你，没有任何验证错误。</p>
+<p>表单处理是许多web应用程序不可或缺的一部分，也是React做得最好的事情之一。你有很大的自由来实现和控制你想要的输入控件，并且有很多方法可以达到同样的目的。但是有最佳实践吗？做事有没有最好的方法？</p>
+<p>本文将向您展示在React中处理表单值的几种不同方法。我们将看看使用状态，自定义挂钩，最后，根本没有状态！</p>
+<p>请注意，在所有这些示例中，我们将创建一个带有电子邮件和密码字段的登录表单，但是这些技术可以用于大多数类型的表单。</p>
+<h2>请牢记可访问性</h2>
+<p>虽然这与当前的主题没有直接关系，但我想确保您记得让所有人都可以访问您的表单。为输入添加标签，在输入无效时设置正确的aria标签，并在语义上正确地构建内容。它使您的表单对每个人来说都更容易使用，并且使需要辅助技术的人也可以使用它。</p>
+<h2>用useState钩子处理表单</h2>
+<p>首先，让我们看看我通常是如何处理表单状态的。我将所有字段保存为独立的状态片段，并单独更新它们，如下所示:</p>
+<pre>function LoginForm() {
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    api.login(email, password);
+  }
+  return (
+    &lt;form onSubmit={handleSubmit}&gt;
+      &lt;div&gt;
+      &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+      &lt;input
+        type="email"
+        id="email"
+        value={email}
+        onChange={(e) =&gt; setEmail(e.target.value)}
+      /&gt;
+      &lt;/div&gt;
+      &lt;div&gt;
+      &lt;label htmlFor="password"&gt;Password&lt;/label&gt;
+      &lt;input
+        type="password"
+        id="password"
+        value={password}
+        onChange={(e) =&gt; setPassword(e.target.value)}
+      /&gt;
+      &lt;/div&gt;
+    &lt;/form&gt;
+  );
+}
+</pre>
+<p>首先，我们创建两种不同的状态——电子邮件和密码。然后，这两个变量被传递给它们各自的输入字段，指示该字段的值。每当字段中的内容发生变化时，我们都会确保更新状态值，从而触发应用程序的重新呈现。</p>
+<p>这对于大多数用例来说都很好，而且简单，容易理解，也不是很神奇。然而，每次都写出来是相当乏味的。</p>
+<h2>创建自定义挂钩</h2>
+<p>让我们做一个小的重构，创建一个定制的钩子来稍微改进我们的工作流:</p>
+<pre>const useFormField = (initialValue: string = "") =&gt; {
+  const [value, setValue] = React.useState(initialValue);
+  const onChange = React.useCallback(
+    (e: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; setValue(e.target.value),
+    []
+  );
+  return { value, onChange };
+};
+
+export function LoginForm() {
+  const emailField = useFormField();
+  const passwordField = useFormField();
+
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    api.login(emailField.value, passwordField.value);
+  };
+  return (
+    &lt;form onSubmit={handleSubmit}&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+        &lt;input
+          type="email"
+          id="email"
+          {...emailField}
+        /&gt;
+      &lt;/div&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="password"&gt;Password&lt;/label&gt;
+        &lt;input
+          type="password"
+          id="password"
+          {...passwordField}
+        /&gt;
+      &lt;/div&gt;
+    &lt;/form&gt;
+  );
+}</pre>
+<p>我们创建了一个定制钩子<code>useFormField</code>,它为我们创建了变更事件处理程序，并将值保存在state中。当我们使用它时，我们可以将钩子的结果传播到任何字段，事情将会像它所做的那样工作。</p>
+<h2>处理大量字段</h2>
+<p>这种方法的一个缺点是不能随着表单的增长而扩展。对于登录字段，这可能没问题，但是当您创建用户配置文件表单时，您可能想要询问大量信息！我们应该一遍又一遍地调用我们的自定义钩子吗？</p>
+<p>每当我遇到这种挑战时，我都倾向于编写一个自定义钩子，将所有表单状态保存在一个大块中。它可能看起来像这样:</p>
+<pre>function useFormFields&lt;T&gt;(initialValues: T) {
+  const [formFields, setFormFields] = React.useState&lt;T&gt;(initialValues);
+  const createChangeHandler = (key: keyof T) =&gt; (
+    e: React.ChangeEvent&lt;HTMLInputElement&gt;,
+  ) =&gt; {
+    const value = e.target.value;
+    setFormFields((prev: T) =&gt; ({ ...prev, [key]: value }));
+  };
+  return { formFields, createChangeHandler };
+}
+
+export function LoginForm() {
+  const { formFields, createChangeHandler } = useFormFields({
+    email: "",
+    password: "",
+  });
+
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    api.login(formFields.email, formFields.password);
+  };
+  return (
+    &lt;form onSubmit={handleSubmit}&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+        &lt;input
+          type="email"
+          id="email"
+          value={formFields.email}
+          onChange={createChangeHandler("email")}
+        /&gt;
+      &lt;/div&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="password"&gt;Password&lt;/label&gt;
+        &lt;input
+          type="password"
+          id="password"
+          value={formFields.password}
+          onChange={createChangeHandler("password")}
+        /&gt;
+      &lt;/div&gt;
+    &lt;/form&gt;
+  );
+}</pre>
+<p>有了这个<code>useFormFields</code>钩子，我们可以继续添加字段，而不会增加组件的复杂性。我们可以在一个地方访问所有表单状态，看起来很整洁。当然，在某些情况下，您可能需要添加一个“出口”并直接暴露底层的<code>setState</code>,但是对于大多数表单来说，这已经足够了。</p>
+<h2>另一种方法</h2>
+<p>所以显式处理状态工作得很好，并且在大多数情况下是React的<a href="https://reactjs.org/docs/uncontrolled-components.html" target="_blank" rel="noopener noreferrer">推荐方法</a>。但你知道还有另一种方法吗？事实证明，默认情况下，浏览器在内部处理表单状态，我们可以利用这一点来简化代码！</p>
+<p>下面是相同的表单，但是让浏览器处理状态:</p>
+<pre>export function LoginForm() {
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    api.login(formData.get('email'), formData.get('password'));
+  };
+  return (
+    &lt;form onSubmit={handleSubmit}&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="email"&gt;Email&lt;/label&gt;
+        &lt;input
+          type="email"
+          id="email"
+          name="email"
+        /&gt;
+      &lt;/div&gt;
+      &lt;div&gt;
+        &lt;label htmlFor="password"&gt;Password&lt;/label&gt;
+        &lt;input
+          type="password"
+          id="password"
+          name="password"
+        /&gt;
+      &lt;/div&gt;
+      &lt;button&gt;Log in&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}</pre>
+<p>现在，这看起来很简单！看不到一个挂钩，没有设置值，也没有更改侦听器。最棒的是它仍然像以前一样工作——但是怎么工作呢？</p>
+<p>你可能已经注意到我们在<code>handleSubmit</code>函数中做了一些不同的事情。我们正在使用一个名为<a href="https://developer.mozilla.org/en-US/docs/Web/API/FormData" target="_blank" rel="noopener noreferrer"> FormData </a>的内置浏览器API。FormData是从我们的输入字段中获取字段值的一种方便的(并且得到了<a href="https://developer.mozilla.org/en-US/docs/Web/API/FormData#Browser_compatibility" target="_blank" rel="noopener noreferrer">良好支持的</a>)方式！</p>
+<p>我们通过submit事件的target属性获取对表单DOM元素的引用，并创建FormData类的一个新实例。现在，我们可以通过调用formdata . get(' name-of-input-field ')按名称属性获取所有字段。</p>
+<p>这样，您就永远不需要显式地处理状态。如果您想要默认值(比如从数据库或本地存储中填充初始字段值)，React甚至为您提供了一个方便的<code>defaultValue</code>道具来完成这项工作！</p>
+<p>我们经常听到“使用平台”作为一种轻蔑，但有时平台只是来包装一拳。</p>
+<h2>什么时候用什么</h2>
+<p>因为表单是大多数web应用程序不可或缺的一部分，所以知道如何处理它们很重要。React为您提供了许多实现这一点的方法。</p>
+<p>对于不需要大量验证的简单表单(或者可以依赖于<a href="https://developer.mozilla.org/en-US/docs/Learn/Forms/Form_validation" target="_blank" rel="noopener noreferrer"> HTML5表单验证控件</a>)，我建议您只使用DOM默认提供的内置状态处理。有相当多的事情是您不能做的(比如以编程方式更改输入值或实时验证)，但是对于最简单的情况(比如上面的搜索字段或登录字段)，您可能会使用我们的替代方法。</p>
+<p>当您正在进行自定义验证或需要在提交表单之前访问一些表单数据时，您需要用受控组件显式地处理状态。您可以使用常规的useStateHooks，或者构建一个定制的钩子解决方案来稍微简化您的代码。</p>
+<p>值得注意的是，React本身建议您在大多数情况下使用受控组件(显式处理状态)——因为它更强大，并为您提供更大的灵活性。我认为你经常用简单来换取你不需要的灵活性。</p>
+<p>无论您决定使用什么，在React中处理表单从来没有像今天这样简单。当情况需要时，您可以让浏览器在显式处理状态的同时处理简单的表单。无论哪种方式，你都可以用比以前更少的代码来完成工作。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

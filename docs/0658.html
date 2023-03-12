@@ -1,0 +1,323 @@
+<html>
+<head>
+<title>Complete workflow guide to publish a React library to NPM using Github actions - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Github actions - LogRocket博客将React库发布到NPM的完整工作流指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/#0001-01-01">https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>出版一个NPM包总是一项令人生畏的任务。初始设置可能会很痛苦，因为要使它正常工作，您需要做很多事情。</p>
+<p>这些任务包括:</p>
+<ul>
+<li>将包编译成支持的JS版本</li>
+<li>版本控制</li>
+<li>出版</li>
+<li>自动化下次发布的工作流程</li>
+</ul>
+<p>今天，我们将使用Github操作来自动化NPM出版工作流程。</p>
+<p>我们来看三种不同的方法:</p>
+<ul>
+<li>手动发布到NPM</li>
+<li>基于Github版本的半自动发布</li>
+<li>通过Github push to master实现全自动发布</li>
+</ul>
+<p>所有的方法都各有利弊。本文将让您对Github动作的工作原理以及如何使用Github动作自动化一些代码有一个坚实的理解。</p>
+<h3>介绍</h3>
+<p>在我上一篇<a href="https://blog.logrocket.com/the-complete-guide-to-building-headless-interface-components-in-react/" target="_blank" rel="noopener noreferrer">博客文章</a>中，我创建了一个无头React组件。我想把它发布到NPM，这样任何人都可以在他们的React应用程序中使用它。</p>
+<p>今天，我们将把组件发布到NPM，并自动化工作流程，在更新的版本中一次又一次地发布它。</p>
+<h3>手动发布到NPM</h3>
+<p>首先，我们将创建库并手动发布它。我已经有了组件——你可以在我之前的<a href="https://blog.logrocket.com/the-complete-guide-to-building-headless-interface-components-in-react/" target="_blank" rel="noopener noreferrer">博客文章</a>中看到我是如何构建它的。</p>
+<p>这是一个简单的基于日期的倒计时组件。代码将如下所示:</p>
+<pre>// index.js
+import { useState, useEffect, useRef } from "react";
+import { calculateTimeLeft } from "./utils";
+const Countdown = ({ date, children }) =&gt; {
+  const initialTimeLeft = calculateTimeLeft(date);
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
+  const timer = useRef();
+  useEffect(() =&gt; {
+    timer.current = setInterval(() =&gt; {
+      setTimeLeft(calculateTimeLeft(date));
+    }, 1000);
+    return () =&gt; {
+      if (timer.current !== undefined) {
+        clearInterval(timer.current);
+      }
+    };
+  }, [date]);
+  let isValidDate = true,
+    isValidFutureDate = true;
+  if (timeLeft === null) isValidDate = false;
+  if (timeLeft &amp;&amp; timeLeft.seconds === undefined) isValidFutureDate = false;
+  return children({
+    isValidDate,
+    isValidFutureDate,
+    timeLeft
+  });
+};
+export default Countdown;</pre>
+<p>所使用的实用函数可以在名为<code>utils.js</code>的单独文件中找到:</p>
+<pre>import isValid from "date-fns/isValid";
+export const calculateTimeLeft = date =&gt; {
+  if (!isValid(date)) return null;
+  const difference = new Date(date) - new Date();
+  let timeLeft = {};
+  if (difference &gt; 0) {
+    timeLeft = {
+      days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((difference / 1000 / 60) % 60),
+      seconds: Math.floor((difference / 1000) % 60)
+    };
+  }
+  return timeLeft;
+};</pre>
+<p>你可以在这里找到React组件<a href="https://github.com/learnwithparam/react-headless-countdown" target="_blank" rel="noopener noreferrer">的完整repo，以及一个展示如何使用该组件的工作示例文件夹。</a></p>
+<p><span>我已经使用</span> <code>create-react-library</code> <span>来构建组件，并使用rollup为不同的JS版本编译它。这不是一次顺利的经历，所以我升级了</span> <code>create-react-library</code> <span>为</span> <code>react-hooks</code> <span>工作。</span></p>
+<p>您可以查看基本参考的代码库，以创建一个简单的React库。</p>
+<p>对于手动发布到NPM，步骤非常简单:</p>
+<ul>
+<li>编译成不同的支持的JS版本(例如，<code>npm run build</code>)</li>
+<li>在<code>package.json</code>中添加默认的源条目文件</li>
+</ul>
+<pre>// Example config
+"main": "dist/index.js",
+"module": "dist/index.es.js",
+"jsnext:main": "dist/index.es.js"</pre>
+<ul>
+<li>升级版本(主要版本、次要版本、补丁等。,)</li>
+<li>发布到NPM</li>
+</ul>
+<p>这里，编译和默认路径因项目而异。在我们只有一个组件的简单项目中，这非常简单。但是对于较大的组件、库或包来说，这可能有些棘手。</p>
+<h3>升级版本</h3>
+<p>NPM有自己的命令来升级这个包:</p>
+<pre>npm version major | minor | patch</pre>
+<p>NPM版本中有更多的值，但最常见的有:</p>
+<ul>
+<li>少校:有什么重大变化吗</li>
+<li>次要:任何功能更新</li>
+</ul>
+
+<ul>
+<li>补丁:现有功能的任何错误修复或热更新</li>
+</ul>
+<p>版本号示例:</p>
+<p><strong>v 1 . 2 . 3</strong>——这里，<code>1</code>表示主版本号，<code>2</code>表示次版本号，<code>3</code>表示补丁版本号。</p>
+<p>首先，我们需要在<code>package.json</code>中手动更新版本号，或者使用<code>npm version</code>命令。</p>
+<p>然后，我们需要运行publish命令将其发布到NPM注册表:</p>
+<pre>npm publish</pre>
+<p>要发布到NPM注册表，您需要一个NPM帐户。然后，在您的命令行中，您需要在运行publish命令之前使用<code>npm login</code>登录。</p>
+<p>但是NPM怎么知道这个包的名字呢？</p>
+<p>NPM直接从<code>package.json</code>文件中获取包名和版本。如果您已经使用了包名，那么<code>npm publish</code>命令将抛出一个错误。</p>
+<p>在这种情况下，您需要更改名称并再次尝试发布。</p>
+<p>需要记住的是，默认情况下，如果这个包以您的帐户名称命名，那么它就不是公共的。</p>
+<p>比如我的账号用户名是<code>learnwithparam</code>。如果我把我的包命名为<code>learnwithparam/react-headless-countdown</code>，那么<code>npm publish</code>会把它作为私有包发布。</p>
+<p>为了使其成为公共包，您需要明确提供访问详细信息:</p>
+<pre>npm publish --access=public</pre>
+<p>这将使包公开。</p>
+<p>如果软件包没有名称空间，这将取决于您的NPM设置。它要么是公共的，要么是私人的。因此，总是将访问值与命令一起传递，以使其显式公开。</p>
+<p>现在，我们已经通过全手工过程成功地将我们的包发布到NPM注册中心。这种方法的主要优点是你可以随时发布。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>最大的缺点是，如果有很多人参与项目，很难遵循标准的过程来发布它并对版本进行更改。</p>
+<p>决定版本号和何时发布它将永远困扰着你，并且如果它是通过手工过程发布的，将会减慢软件包的主动开发。</p>
+<p>我们如何纠正这种情况？让我们找出答案。</p>
+<h3>使用Github动作自动化发布</h3>
+<p>自动化发布流程的步骤:</p>
+<ul>
+<li>使用<code>npm version</code>命令更新软件包版本</li>
+<li>推送至Github并发布新闻稿</li>
+<li>Github actions将负责编译并发布到NPM</li>
+</ul>
+<p><code>npm version</code>不仅更新了<code>package.json</code>版本，还创建了一个新的提交，并在Git中添加了一个新的版本标签。</p>
+<p>因此，您可以使用<code>git push</code>将更新提交到Github，还可以使用<code>git push</code> <code>--</code> <code>tags</code>推送标签。</p>
+<p>这将创建一个草稿版本。</p>
+<p>Github默认不发布。您需要手动转到Github repo中的发布，并编辑发布以发布它。</p>
+<figure id="attachment_13546" aria-describedby="caption-attachment-13546" class="wp-caption aligncenter"><img data-attachment-id="13546" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/fix-semantic-versioning-demo-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png" data-orig-size="1516,1464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="fix-semantic-versioning-demo-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-300x290.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-1024x989.png" decoding="async" class="wp-image-13546 jetpack-lazy-image" src="../Images/17c59de7b5da668efe41dd328c24152d.png" alt="fix semantic versioning demo" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png 1516w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-300x290.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-1024x989.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-768x742.png 768w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13546" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/fix-semantic-versioning-demo-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png" data-orig-size="1516,1464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="fix-semantic-versioning-demo-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-300x290.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-1024x989.png" decoding="async" loading="lazy" class="wp-image-13546" src="../Images/17c59de7b5da668efe41dd328c24152d.png" alt="fix semantic versioning demo" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png 1516w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-300x290.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-1024x989.png 1024w, https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn-768x742.png 768w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/fix-semantic-versioning-demo-nocdn.png"/></noscript><figcaption id="caption-attachment-13546" class="wp-caption-text">Sample screen for publishing a release</figcaption></figure>
+<p>我们需要为释放事件设置一个Github动作来触发<code>npm publish</code>。</p>
+<p>在深入研究Github动作之前，让我们试着理解它是什么，然后编写我们的第一个Github动作。</p>
+<h3>什么是Github actions？</h3>
+<p>Github actions是Github事件的一个钩子，比如push、release，以及在这些事件之上的do自动化。每当这些事件发生时，Github将调用这些动作，并运行我们在这些动作中运行的任何操作。</p>
+<p>让我们从一个示例动作开始。如果你点击Github repo中的action选项卡，它会显示一些预先存在的操作。我们将跳过这一步，创建我们自己的动作</p>
+<figure id="attachment_13547" aria-describedby="caption-attachment-13547" class="wp-caption aligncenter"><img data-attachment-id="13547" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/get-started-with-github-actions-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png" data-orig-size="730,253" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Get-started-with-github-actions-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn-300x104.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png" decoding="async" class="wp-image-13547 size-full jetpack-lazy-image" src="../Images/481c82cc47fe73a207bc2ce85225788f.png" alt="Get started with Github actions" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn-300x104.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13547" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/get-started-with-github-actions-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png" data-orig-size="730,253" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Get-started-with-github-actions-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn-300x104.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png" decoding="async" loading="lazy" class="wp-image-13547 size-full" src="../Images/481c82cc47fe73a207bc2ce85225788f.png" alt="Get started with Github actions" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn-300x104.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/Get-started-with-github-actions-nocdn.png"/></noscript><figcaption id="caption-attachment-13547" class="wp-caption-text">Github action screen on a repo</figcaption></figure>
+<p>如果我们点击<code>setup a workflow yourself</code>，它将显示一个Github动作示例:</p>
+<figure id="attachment_13548" aria-describedby="caption-attachment-13548" class="wp-caption aligncenter"><img data-attachment-id="13548" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/main-yml-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png" data-orig-size="730,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="main-.-yml-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png" decoding="async" class="wp-image-13548 size-full jetpack-lazy-image" src="../Images/e06fe4f16d4eb07ace325da87f0d6de3.png" alt="main.yml" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn-300x190.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13548" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/main-yml-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png" data-orig-size="730,462" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="main-.-yml-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn-300x190.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png" decoding="async" loading="lazy" class="wp-image-13548 size-full" src="../Images/e06fe4f16d4eb07ace325da87f0d6de3.png" alt="main.yml" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn-300x190.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/main-.-yml-nocdn.png"/></noscript><figcaption id="caption-attachment-13548" class="wp-caption-text">Sample action by Github</figcaption></figure>
+<p>代码将如下所示:</p>
+<pre>name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593a313c3a32362c2d192f6b">[email protected]</a>
+    - name: Run a one-line script
+      run: echo Hello, world!
+    - name: Run a multi-line script
+      run: |
+        echo Add other actions to build,
+        echo test, and deploy your project.</pre>
+<p>如果您熟悉其他CI配置yaml文件，这将是不言自明的。让我们一步一步地检查代码:</p>
+<pre># Create a github action and give a name
+name: CI
+
+# `on` is event listener which listens to github events. Here the github action gets triggered whenever you push to github
+on: [push]
+
+# Create jobs whenever the `on` event is triggered - You can run multiple jobs.
+jobs:
+  build:
+    # This job will run on a ubuntu instance
+    runs-on: ubuntu-latest
+
+    # These are the steps it runs in sequence
+    steps:
+    # Uses is the keyword to use other github actions. Here we are cloning the project using github's own checkout action
+    - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="43202b2620282c3637033571">[email protected]</a>
+    # Give a name for the next steps (It is optional, it will be useful to see thee name in github CI)
+    - name: Run a one-line script
+      # `run` command will run the command on the ubuntu instance we created before  
+      run: echo Hello, world!
+    # This is a sample to create multi line script
+    - name: Run a multi-line script
+      run: |
+        echo Add other actions to build,
+        echo test, and deploy your project.</pre>
+<p>如果您仔细阅读代码中的注释，您会理解Github操作的基本步骤。</p>
+<p>首先，为Github动作设置一个名称，并指明何时运行该动作(即触发点)。</p>
+<p>然后，您将创建希望在这个Github操作中运行的作业。</p>
+<p>每个作业可以有多个步骤，每个步骤可以有一个<code>name</code>和<code>run</code>命令。你也可以用<code>uses</code>命令运行其他Github动作。</p>
+<p>让我们创建我们的第一个Github操作来构建并发布到NPM:</p>
+<pre># NPM Publish is the name for this action
+name: NPM Publish
+
+# This action will trigger on every release get created
+on:
+  release:
+    types: [created]
+
+# Job will run on a ubuntu instance
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the code
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593a313c3a32362c2d192f6b">[email protected]</a>
+      # Setup node with version 12.x and NPM registry url
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="afdccadbdadf82c1c0cbcaefd99e">[email protected]</a>
+        with:
+          node-version: "12.x"
+          registry-url: "https://registry.npmjs.org"
+      # Run yarn install to install project packages
+      - run: yarn install
+      # yarn build to build the project
+      - run: yarn build
+      # publish the files to NPM
+      - run: npm publish --access public
+      # for publishing, npm need authorization. We add the NPM token to the environment which will take care of authorization to publish to the package
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}</pre>
+<p>对于这个Github动作，我们有一个动作名称(即<code>NPM Publish</code>)，并且我们设置了一个<code>on</code>监听器来监听任何新创建的发布事件。</p>
+<p>然后，我们在一个Ubuntu实例上运行我们的构建，并使用一个<code>checkout</code>动作来检查Ubuntu实例中的代码。</p>
+<p>由于我们的代码是一个节点项目，我们将使用另一个名为<code>setup-node</code>的动作来安装运行节点项目所需的依赖项。</p>
+<p>然后，我们将在Ubuntu实例中安装并构建我们的项目，并运行publish命令<code>npm publish</code>。</p>
+<p>我们需要授权才能发布到NPM。因为我们是通过机器发布的，所以NPM提供了一个读取和发布的令牌。</p>
+<p>您可以转到“设置”,创建新的身份验证令牌，并将该令牌添加到Github secrets。</p>
+<p><a href="https://docs.npmjs.com/creating-and-viewing-authentication-tokens" target="_blank" rel="noopener noreferrer">参考本指南</a>了解如何在NPM创建授权令牌。<a href="https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets" target="_blank" rel="noopener noreferrer">参考本指南</a>了解如何将秘密添加到Github repo。</p>
+<p>在我们的回购协议中，我们添加了名为<code>NPM_TOKEN</code>的秘密，并添加了NPM认证令牌的值。</p>
+<p>这保证了auth令牌的安全，并通过secrets变量在运行时呈现它。</p>
+<p>这就是你如何在动作yaml文件<code>${{secrets.NPM_TOKEN}}</code>中呈现秘密</p>
+<p>现在我们一切都准备好了。如果你通过Github UI创建一个新版本，那么它会自动触发Github动作，并发布新版本到NPM。</p>
+<p>这种方法的优点是我们可以随时发布——我们只需要创建并发布一个新版本。</p>
+<p>此外，开发人员无需担心NPM登录或从本地机器发布。</p>
+<p>这种方法是半自动的。它需要人类来创造释放。</p>
+<p>它在大多数情况下都可以工作，但是对于更大的项目，最好是完全基于提交消息进行自动化。接下来，我们将了解如何采用全自动方法。</p>
+<blockquote><p>注意:如果你想了解更多关于Github动作的信息，请查阅Github的文档。这是一个非常广泛和优秀的学习如何配置项工作。</p></blockquote>
+<figure id="attachment_13549" aria-describedby="caption-attachment-13549" class="wp-caption aligncenter"><img data-attachment-id="13549" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/npm-publish/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png" data-orig-size="762,644" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="NPM-publish" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png" decoding="async" class="wp-image-13549 jetpack-lazy-image" src="../Images/d8925b5d4953b3e5c2a4c3aaa8dd87ae.png" alt="NPM-publish" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png 762w, https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish-300x254.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13549" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/npm-publish/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png" data-orig-size="762,644" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="NPM-publish" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish-300x254.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png" decoding="async" loading="lazy" class="wp-image-13549" src="../Images/d8925b5d4953b3e5c2a4c3aaa8dd87ae.png" alt="NPM-publish" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png 762w, https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish-300x254.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/NPM-publish.png"/></noscript><figcaption id="caption-attachment-13549" class="wp-caption-text">Publish to NPM when you create a new release</figcaption></figure>
+<h3>使用语义发布和Github动作完全自动化发布</h3>
+<p>有一个<a href="https://github.com/semantic-release/semantic-release" target="_blank" rel="noopener noreferrer">包</a>叫<code>semantic-release</code>。它自动化了整个出版和发行过程。</p>
+<p>您可以将更新推送到master，然后运行Github动作，它将在幕后运行<code>semantic-release</code>并创建一个新版本。</p>
+<p>它将基于提交发布文档，然后将包推送到NPM。</p>
+<p>这是从包中语义发布的定义:</p>
+<blockquote><p><strong> semantic-release </strong>自动化整个包发布工作流，包括:确定下一个版本号、生成发布说明和发布包。</p></blockquote>
+<p>我们将为<code>semantic-release</code>使用现有的<a href="https://github.com/codfish/semantic-release-action" target="_blank" rel="noopener noreferrer"> Github动作</a>。动作是语义发布的一个非常基本的用例:</p>
+<pre># Name for the github action
+name: Push to Master
+
+# Trigger this action when we push to master or merge a pull-request to master
+on:
+  push:
+    branches:
+      - master
+
+# runs the jobs
+jobs:
+  build:
+    # runs on ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      # checkout to github
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ff9c979a9c94908a8bbf89cd">[email protected]</a>
+      # semantic release action from third party
+      - uses: codfish/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5122343c303f2538327c23343d343022347c303225383e3f113c3022253423">[email protected]</a>
+    # Add the environment variable for NPM and github. Github is needed because semantic-release will create a new release and release notes automatically
+    env:
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}</pre>
+<h3>它是如何工作的</h3>
+<p>当您向master推送时:</p>
+<ul>
+<li>基于提交消息，它将创建一个新版本</li>
+<li>提交消息应遵循标准格式(即<a href="https://github.com/angular/angular.js/blob/master/DEVELOPERS.md#-git-commit-guidelines" target="_blank" rel="noopener noreferrer">角度提交消息约定</a>)</li>
+<li>语义版本创建发行说明并发布新版本</li>
+<li>发布后，它将发布到NPM</li>
+</ul>
+<p>语义发布包非常强大，除了简单地发布到NPM之外，还有许多其他选项来自动化您的工作流。</p>
+<p>但是正如编程中的每一个巧妙的技巧一样，总会有缺点。</p>
+<p>语义版本控制将帮助您实现自动化，但有时它并不适合您的用例。</p>
+<p>确保仅在需要时完全自动化该过程。大多数小包装不需要完全自动化，半自动就足够了。</p>
+<figure id="attachment_13550" aria-describedby="caption-attachment-13550" class="wp-caption aligncenter"><img data-attachment-id="13550" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/semantic-release-build/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png" data-orig-size="968,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="semantic-release-build" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-300x186.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png" decoding="async" class="wp-image-13550 jetpack-lazy-image" src="../Images/d5bec9c0ad1e836416581f705f9329bb.png" alt="semantic release build" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png 968w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-300x186.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-768x476.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-825x510.png 825w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13550" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/semantic-release-build/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png" data-orig-size="968,600" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="semantic-release-build" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-300x186.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png" decoding="async" loading="lazy" class="wp-image-13550" src="../Images/d5bec9c0ad1e836416581f705f9329bb.png" alt="semantic release build" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png 968w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-300x186.png 300w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-768x476.png 768w, https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build-825x510.png 825w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/semantic-release-build.png"/></noscript><figcaption id="caption-attachment-13550" class="wp-caption-text">Semantic release steps using Github actions</figcaption></figure>
+<p>下面是运行我的包中的<code>semantic-release</code>的Github动作示例:</p>
+<figure id="attachment_13551" aria-describedby="caption-attachment-13551" class="wp-caption aligncenter"><img data-attachment-id="13551" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/run-codfish-semantic-release-action/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png" data-orig-size="730,376" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="run-codfish-semantic-release-action" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png" decoding="async" class="wp-image-13551 size-full jetpack-lazy-image" src="../Images/c64d1b913673a3491011e0af21f59a74.png" alt="run-codfish-semantic-release-action" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action-300x155.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="13551" data-permalink="https://blog.logrocket.com/complete-workflow-guide-to-publish-a-react-library-to-npm-using-github-actions/run-codfish-semantic-release-action/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png" data-orig-size="730,376" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="run-codfish-semantic-release-action" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png" decoding="async" loading="lazy" class="wp-image-13551 size-full" src="../Images/c64d1b913673a3491011e0af21f59a74.png" alt="run-codfish-semantic-release-action" srcset="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png 730w, https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action-300x155.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2020/02/run-codfish-semantic-release-action.png"/></noscript><figcaption id="caption-attachment-13551" class="wp-caption-text">Step which push to NPM using Github actions</figcaption></figure>
+<p>语义发布的唯一问题是它不会更新<code>package.json</code>。</p>
+<p>它创建了一个新版本，也创建了一个发布版本，但是它没有更新<code>package.json</code>版本号。</p>
+<p>您需要手动更新它以供参考。也有一些方法可以更新它，但是我将把它留给您作为一个练习。</p>
+<p>对于不喜欢这些技巧的人来说，你也可以自己完成这些自动化操作，并在任何需要的地方控制这个过程。</p>
+<p>您可以检查提交消息，创建新版本，并将新版本推送到主服务器。然后添加一个新的Github动作，在发布时运行以推送到NPM。</p>
+<h3>Github操作的力量</h3>
+<p>Github的动作非常强大。是Github的一个CI。Github操作帮助您:</p>
+<ul>
+<li>对每个Github推送到任何分支进行测试</li>
+<li>推送到主服务器时部署到服务器</li>
+<li>发布到NPM或任何其他注册表</li>
+</ul>
+<p>还有更多。</p>
+<p>探索Github操作。它们几乎是为你能想到的任何事情而创建的第三方行为。</p>
+<h3>结论</h3>
+<p>您现在已经学习了如何通过Github自动发布NPM包。</p>
+<p>希望你喜欢这篇文章。在评论里说说你用Github actions的体验吧！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+ 
+</div>    
+</body>
+</html>

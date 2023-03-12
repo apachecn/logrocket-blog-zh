@@ -1,0 +1,228 @@
+<html>
+<head>
+<title>React Leaflet tutorial - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React传单教程- LogRocket博客</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-leaflet-tutorial/#0001-01-01">https://blog.logrocket.com/react-leaflet-tutorial/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><strong> <em>编者按</em> </strong> : <em>本帖最后更新于</em><em>2021年10月22日</em> <em>为了改进代码和更新任何过时的信息。</em></p>
+<p>大多数开发者都熟悉谷歌地图和MapBox，但它们都需要账户才能使用，并且可能需要付费订阅某些功能。如果你想要一个开源和免费的替代品呢？这就是传单上垒的地方！</p>
+<p>传单是一个轻量级的开源地图库，利用OpenStreetMap，一个免费的可编辑地理数据库。</p>
+<p>在本文中，我们将了解如何使用React Leaflet在React应用程序中呈现传单地图。我们将显示带有自定义图标的标记，并在单击时在地图上显示弹出窗口。稍后，我们将看到使用SWR加载远程和本地数据需要做哪些更改。</p>
+<p><iframe loading="lazy" title="YouTube video player" src="https://www.youtube.com/embed/290VgjkLong" frameborder="0" allowfullscreen="allowfullscreen">视频</iframe></p>
+<h2>入门指南</h2>
+<p>让我们从创建一个React应用程序开始，然后进入它的目录。之后，使用以下命令安装<code>react-leaflet</code>和<code>leaflet</code>的稳定版本:</p>
+<pre>npx create-react-app react-leaflet-demo
+cd react-leaflet-demo
+# install react-leaflet and leaflet
+npm install <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="651700040611480900040309001125564b574b55">[email protected]</a> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="08646d696e646d7c4839263e2638">[email protected]</a>
+</pre>
+<p>在渲染应用程序之前，将<code>package.json</code>文件中的<code>"browserslist"</code>值替换为:</p>
+<pre>"browserslist": [
+  "&gt;0.2%",
+      "not dead",
+      "not op_mini all"
+    ]
+</pre>
+<p>这样做可以防止出现下面的错误:</p>
+<pre>Module parse failed: Unexpected token (10:41)
+File was processed with these loaders:
+    ./node_modules/babel-loader/lib/index.js
+    You may need an additional loader to handle the result of these loaders.
+&gt; | useEffect(function updatePathOptions() {
+&gt; | if (props.pathOptions !== optionsRef.current) {
+&gt;  const options = props.pathOptions ?? {};
+&gt; | element.instance.setStyle(options);
+&gt; | optionsRef.current = options;
+</pre>
+<p>运行<code>npm start</code>应该会在你的浏览器上显示一个肯定的消息。</p>
+<h2>如何安装React传单</h2>
+<p>将<code>react-leaflet</code>添加到我们的<code>package.json</code>文件后，我们必须正确显示我们的地图。React传单<a href="https://blog.logrocket.com/styling-in-react-4-ways-style-react-app/">需要一些CSS来渲染</a>，我们可以在<code>head</code>中包含CSS <code>link</code>标签，也可以从下面的文件中直接复制并粘贴CSS到项目中:</p>
+<pre>&lt;link
+  rel="stylesheet"
+  href="https://unpkg.com/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90fcf5f1f6fcf5e4d0a1bea6bea0">[email protected]</a>/dist/leaflet.css"
+  integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+  crossorigin=""
+/&gt;
+</pre>
+<p>我们还需要设置地图本身呈现的<code>.leaflet-container</code>的宽度和高度，否则它将不可见，因为div的高度为<code>0px</code>:</p>
+<pre>.leaflet-container {
+  width: 100%;
+  height: 100vh;
+}
+</pre>
+<p>一旦完成，我们就可以开始了！下面的代码显示了在React应用程序中获得传单地图渲染所需的最小量。</p>
+<p>我们必须从<code>react-leaflet</code>导入<code>Map</code>(以及我们稍后将使用的其他一些包)，我们将从我们的<code>App</code>组件返回它:</p>
+<pre>import React, {useState} from "react";
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import './App.css';
+import { Icon } from "leaflet";
+import * as parkData from "./data/skateboard-parks.json";
+
+function App() {
+  return (
+    &lt;MapContainer center={[45.4, -75.7]} zoom={12}scrollWheelZoom={false}&gt;
+      &lt;TileLayer
+    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    attribution='&amp;copy; &lt;a href="http://osm.org/copyright"&gt;OpenStreetMap&lt;/a&gt; contributors'
+      /&gt;
+    &lt;/MapContainer&gt;
+  );
+}
+
+export default App;
+</pre>
+<p><code>MapContainer</code>组件要求我们设置一个<code>center</code>位置，这是一个包含纬度和经度以及地图默认缩放级别的数组。</p>
+<p>您还会注意到嵌套在<code>MapContainer</code>中的<code>TileLayer</code>组件。我们需要向OpenStreetMap提供属性，否则，您在屏幕上只会看到一个灰色方块:</p>
+<h2>如何在传单上添加标记？</h2>
+<p>为了在地图上显示标记，我们需要一些数据。我们的数据来自渥太华市，包含该地区滑板公园的位置。让我们从一个JSON文件本地加载这些数据，但是，为了了解它的样子，下面是两个skateparks的例子:</p>
+<pre>{
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "PARK_ID": 960,
+        "NAME": "Bearbrook Skateboard Park",
+        "DESCRIPTIO": "Flat asphalt surface, 5 components"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-75.3372987731628, 45.383321536272049]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "PARK_ID": 1219,
+        "NAME": "Bob MacQuarrie Skateboard Park (SK8 Extreme Park)",
+        "DESCRIPTIO": "Flat asphalt surface, 10 components, City run learn to skateboard programs, City run skateboard camps in summer"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-75.546518086577947, 45.467134581917357]
+      }
+    }
+  ]
+}
+</pre>
+<p>有了我们的数据，我们可以在<code>MapContainer</code>组件中映射它，为每个公园位置返回一个<code>Marker</code>组件。一个<code>Marker</code>需要一个<code>position</code>道具，告诉它在地图上的哪里渲染。</p>
+<p>这是一个<code>[latitude, longitude]</code>的数组，很像<code>MapContainer</code>的<code>center</code>道具。</p>
+<p>除此之外，我们必须建立一些国家。在<code>onClick</code>属性中，当用户点击标记时，我们设置<code>activePark</code>。我们稍后将使用它在地图弹出窗口中向用户显示特定滑板公园的一些信息:</p>
+<pre> //App.js
+export default function App() {
+  const [activePark, setActivePark] = useState(null);
+
+  return (
+    &lt;MapContainer center={[45.4, -75.7]} zoom={12} scrollWheelZoom={false}&gt;
+  {parkData.features.map(park =&gt; (
+        &lt;Marker
+          key={park.properties.PARK_ID}
+          position={[
+            park.geometry.coordinates[1],
+            park.geometry.coordinates[0]
+          ]}
+          onClick={() =&gt; {
+            setActivePark(park);
+          }}
+          icon={icon}
+        /&gt;
+      ))}
+    &lt;/MapContainer&gt;
+  );
+}
+</pre>
+<h2>用React传单显示地图弹出窗口</h2>
+<p>因为我们正在跟踪用户点击了哪个skatepark，如果我们的状态中有一个<code>activePark</code>，我们可以显示一个弹出窗口。</p>
+<p><code>Popup</code>组件显示了一个可以关闭的白色小气泡，很像<code>Marker</code>，我们需要给它一个位置，这样它就知道在地图上的哪里渲染了。在<code>Popup</code>内部，我们能够传递HTML。</p>
+<p>这也可以使用CSS来设置样式，所以可以随意改变外观，让它看起来完全像你想要的。</p>
+<p>在<code>Popup</code>上有一个<code>onClose</code> prop事件，允许我们跟踪用户何时关闭弹出气泡，以便我们可以相应地更新状态:</p>
+<pre>//App.js
+&lt;MapContainer center={[45.4, -75.7]} zoom={12} scrollWheelZoom={false}&gt;
+  {activePark &amp;&amp; (
+    &lt;Popup
+      position={[
+        activePark.geometry.coordinates[1],
+        activePark.geometry.coordinates[0]
+      ]}
+      onClose={() =&gt; {
+        setActivePark(null);
+      }}
+    &gt;
+      &lt;div&gt;
+        &lt;h2&gt;{activePark.properties.NAME}&lt;/h2&gt;
+        &lt;p&gt;{activePark.properties.DESCRIPTIO}&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/Popup&gt;
+  )}
+&lt;/MapContainer&gt;
+</pre>
+<h2>添加React传单自定义标记图标</h2>
+<p>使用从<code>leaflet</code>本身导入的<code>Icon</code>，很容易在传单中自定义标记图标。这样，我们可以创建一个新的<code>Icon</code>实例，设置图像的URL位置及其大小:</p>
+<pre>import { Icon } from "leaflet";
+
+const skater = new Icon({
+  iconUrl: "/skateboarding.svg",
+  iconSize: [25, 25]
+});
+</pre>
+<p>组件<code>Marker</code>有一个<code>icon</code>属性，可以设置为我们创建的<code>skater</code>变量。</p>
+<h2>用React传单显示远程数据</h2>
+<p>使用<a href="https://blog.logrocket.com/whats-new-swr-v1/"> SWR进行远程数据获取</a>，我们可以从API端点远程加载数据。一旦我们有了数据，我们如何在地图上显示它与显示本地数据没有什么不同。为了增加这个概念，我们将展示一些由英国警方提供的<a href="https://data.police.uk/api/crimes-street/all-crime?lat=52.629729&amp;lng=-1.131592&amp;date=2019-10">犯罪数据。</a></p>
+<p>我对数据进行了切片，只渲染数组中的前100个犯罪，因为渲染超过1000个标记会降低地图的速度:</p>
+<pre>// existing imports + new import for SWR
+import useSwr from "swr";
+
+const fetcher = (...args) =&gt; fetch(...args).then(response =&gt; response.json());
+
+function App() {
+  const url =
+    "https://data.police.uk/api/crimes-street/all-crime?lat=52.629729&amp;lng=-1.131592&amp;date=2019-10";
+  const { data, error } = useSwr(url, { fetcher });
+  const crimes = data &amp;&amp; !error ? data.slice(0, 100) : [];
+
+  return (
+    &lt;MapContainer center={[52.6376, -1.135171]} zoom={12} scrollWheelZoom={false}&gt;
+      &lt;TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&amp;copy; &lt;a href="http://osm.org/copyright"&gt;OpenStreetMap&lt;/a&gt; contributors'
+      /&gt;
+
+      {crimes.map(crime =&gt; (
+        &lt;Marker
+          key={crime.id}
+          position={[crime.location.latitude, crime.location.longitude]}
+        /&gt;
+      ))}
+    &lt;/MapContainer&gt;
+  );
+}
+
+export default App;
+</pre>
+<p>如果你确实需要数千个标记，你可能想直接使用传单(看看它是否能给你一些额外的性能)，或者看看谷歌地图或<a href="https://blog.logrocket.com/how-to-use-mapbox-gl/"> MapBox是否更适合你的需要</a>。</p>
+<h2>结论</h2>
+<p>传单和它的反应副本，反应传单，是一个神奇的开源和免费的地图替代谷歌地图和地图框，没有API的关键要求！这是一个易于使用的软件包，值得一试。</p>
+<p>Leaflet是一个非常轻量级的库，其容量<a href="https://bundlephobia.com/result?p=leaflet@1.6.0">略低于40kb的JavaScript </a>，它被行业巨头使用，如<a href="https://leafletjs.com/"> GitHub、Pinterest和Etsy </a>。</p>
+<p>本文展示的源代码是<a href="https://github.com/ugwutotheeshoes/react-leaflet-app-demo">，可在此处</a>获得。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

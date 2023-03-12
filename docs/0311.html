@@ -1,0 +1,189 @@
+<html>
+<head>
+<title>How to use scroll-linked animations the right way - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何正确使用滚动链接动画</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/use-scroll-linked-animations-right-way/#0001-01-01">https://blog.logrocket.com/use-scroll-linked-animations-right-way/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按:</strong>这篇文章更新于2021年6月，包含了关于<code>IntersectionObserver</code> V2的最新信息。</em></p>
+<p>如果使用不当，滚动链接动画会因实现效率低下而导致较低的帧速率和明显的抖动。即使是2014年的热门话题，视差滚动效果，也遇到了效率低下的问题。<a href="http://uxpajournal.org/the-effects-of-parallax-scrolling-on-user-experience-in-web-design/" target="_blank" rel="noopener noreferrer"> Frederick等人</a> (2015年)报告了带有视差滚动的网站的“重大可用性问题”，甚至晕车。</p>
+<p>动画并不总是罪魁祸首，因为即使没有效果或者不合适的滚动事件监听器仍然会让人头疼。Twitter在2011年对<a href="https://twitter.com/twittersupport/status/25683274323992577?lang=en" target="_blank" rel="noopener noreferrer">滞后滚动的一系列问题做出了回应</a>，导致jQuery的创始人约翰·雷西格<a href="https://johnresig.com/blog/learning-from-twitter/" target="_blank" rel="noopener noreferrer">得出结论，昂贵的滚动事件处理程序不是一个好主意</a>。</p>
+<h2>使用CSS和JavaScript制作滚动链接动画</h2>
+<p>这引发了两大类回应:Javascript monkey补丁和CSS替换，以利用<a href="https://staktrace.com/spout/entry.php?id=834" target="_blank" rel="noopener noreferrer">浏览器优化</a>。前者只是一种变通方法，我们将在下面详细介绍一种长期的<code>IntersectionObserver</code>解决方案。</p>
+<p>后者同样是一个合适的长期解决方案，在主流浏览器中被广泛采用，覆盖了高达97%的用户。然而，它的确切规范会定期进行小的重构，留下许多<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Scroll_Snap" target="_blank" rel="noopener">被弃用的scroll-snap-* CSS属性</a>。</p>
+<p>本文围绕这两类响应，给出了两个技巧:使用Javascript观察者模式，尽可能使用CSS。我们从JavaScript变通方法和解决方案开始。然后，我们讨论CSS属性以及如何使用它们来简化滚动链接的动画——应避免使用的不推荐使用的属性、当前使用的和广泛支持的属性，以及即将出现的属性。</p>
+<h2>尽可能使用JavaScript观察者模式</h2>
+<p>滚动链接动画通常基于滚动位置。对于这样的应用程序，滚动事件侦听器正在轮询滚动位置—如果滚动位置在目标范围内，则执行滚动链接动画。这与Javascript的<a href="https://developer.mozilla.org/en-US/docs/Web/API/EventListener" target="_blank" rel="noopener noreferrer">设计方法</a>相反，它是监听事件而不是轮询事件。类似地，滚动链接动画将<em>监听</em>滚动位置，而不是<em>检查</em>滚动位置。观察者模式，确切地说是<code>IntersectionObserver</code>是一种持久的技术，可以实现这一点。粗略地说，一旦到达某个滚动位置，就会执行<code>IntersectionObserver</code>事件处理程序。我们将在下面更详细、更精确地描述它所实现的功能。</p>
+<h3>使用<code>IntersectionObserver</code>的离散滚动效果</h3>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API" target="_blank" rel="noopener noreferrer">交叉点观察器API </a>基于每个元素工作。每当这个元素(称为<strong>目标</strong>)出现在屏幕上时，交叉点观察器回调就会被调用。有三个配置选项需要注意:</p>
+<ol>
+<li>具体来说，API支持的不仅仅是屏幕。每当目标元素与另一个元素<a href="https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API#Intersection_observer_concepts_and_usage" target="_blank" rel="noopener noreferrer"> <strong>根</strong> </a>相交时，回调就会被调用。根可能是屏幕，它是使用<code>null</code> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">指定的，或者是开发人员指定的任何其他DOM元素。</span></li>
+<li>API允许开发人员指定“出现”的含义，是指目标几乎不与根相交，还是完全与根相交。<strong>相交比</strong>是目标在根内可见的百分比。0表示目标不可见，1.0表示目标完全可见；开发者可以为这个交集比率指定一个<strong>阈值</strong>，或者一组阈值。每当交集比率超过数组中的阈值时，就会调用回调。注意两个方向都会触发回调——要么在阈值以下开始，要么在阈值以上结束，反之亦然。</li>
+<li>为了计算交集，API使用包含目标可见部分的最小矩形和包含根内容的最小矩形。在根内容的包含矩形周围添加了<strong>根边距</strong>，用于计算交集。详见MDN的<a href="https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API#How_intersection_is_calculated" target="_blank" rel="noopener noreferrer">“交集如何计算”</a>。</li>
+</ol>
+<p>以下是一个交叉点观察器配置示例。只要示例框在用户视口中完全可见，就会触发处理程序:</p>
+<pre>var intersectionOptions = {
+  root: null,  // use the viewport
+  rootMargin: '0px',
+  threshold: 1.0
+}
+
+function intersectionCallback(entries, observer) {
+  entries.forEach(entry =&gt; {
+    if (entry.intersectionRatio &gt;= 1) {
+      console.log("Fully visible!");
+    } else {
+      console.log("Not fully visible!");
+    }
+  });
+}
+
+var observer = new IntersectionObserver(intersectionCallback, intersectionOptions);
+
+var target = document.querySelector('#box');
+observer.observe(target);
+</pre>
+<p>下面是对应的HTML和CSS:</p>
+<pre>&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;IntersectionObserver Demo&lt;/title&gt;
+    &lt;style&gt;
+      #box {
+        margin-top:100% 0 100% 0;
+        width:100%;
+        height:90%;
+        background-color:black;
+      }
+    &lt;/style&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="box"&gt;&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>使用支持<a href="https://caniuse.com/intersectionobserver" target="_blank" rel="noopener">的浏览器</a>在这里查看代码笔<a href="https://codepen.io/alvinwan/pen/RmBRbj" target="_blank" rel="noopener noreferrer">，并尝试将黑盒完全滚动到视图中，然后部分或完全从视图中消失。每当盒子完全滚动到视图中时，控制台显示<code>Fully visible!</code>。每当盒子滚动到不再完全可见时，控制台就会显示<code>Not fully visible!</code>。</a></p>
+<p><img data-attachment-id="3454" data-permalink="https://blog.logrocket.com/use-scroll-linked-animations-right-way/scroll/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif" data-orig-size="730,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll-300x163.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif" decoding="async" class="aligncenter wp-image-3454 size-full jetpack-lazy-image" src="../Images/3118e9d3aff3f10e0e0d892d99bec104.png" alt="" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="3454" data-permalink="https://blog.logrocket.com/use-scroll-linked-animations-right-way/scroll/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif" data-orig-size="730,396" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="scroll" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll-300x163.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif" decoding="async" loading="lazy" class="aligncenter wp-image-3454 size-full" src="../Images/3118e9d3aff3f10e0e0d892d99bec104.png" alt="" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/06/scroll.gif"/></noscript>
+<p>但是，<code>IntersectionObserver</code>会告诉您某个项目何时完全出现在视窗中，但不会告诉您该项目是否实际可见。例如，项目可能完全透明或被遮挡，导致广告曝光的统计不精确。</p>
+<h2>使用<code>IntersectionObserver</code> V2的可见性感知离散滚动事件</h2>
+<p>类似于<code>IntersectionObserver</code>，<code>IntersectionObserver</code>的第一个版本，每当目标与视口重叠时，<code>IntersectionObserver</code> V2将调用一个回调。与以前不同的是，V2现在增加了两种配置，下面的描述几乎一字不差地从W3规范的接口中摘录了<a href="https://w3c.github.io/IntersectionObserver/v2/#intersection-observer-interface" target="_blank" rel="noopener">:</a></p>
+<p><code>trackVisibility</code>:如果为真，跟踪目标可见性的变化。跟踪可见性比跟踪与视口的交点更昂贵，因此启用此功能会显著降低网页性能。因此，只有在必要时才应该使用这个仅适用于V2的选项。如果在未指定有效延迟的情况下设置可见性跟踪，则会出现此警告。</p>
+<p><code>delay</code>:观察者通知之间的最小毫秒数，如果<code>trackVisibility</code>为真，则最小为100ms。</p>
+<p>要查看V2的运行情况，请在初始化<code>IntersectionObserver</code>时设置上面的两个配置选项。返回的<a href="https://w3c.github.io/IntersectionObserver/v2/#intersection-observer-entry" target="_blank" rel="noopener"> <code>IntersectionObserverEntry</code> </a>将有一个新的布尔字段<code>isVisible</code>，您可以使用它。</p>
+<p>以下是一个交叉点观察器配置示例。有两个样品盒:一个部分透明，另一个是纯色的。每当纯色框在用户视口中完全可见时，就会触发处理程序。下面的代码大部分是从上面复制的，只有几行新的注释:</p>
+<pre>var intersectionOptions = {
+  root: null,
+  rootMargin: '0px',
+  threshold: 1.0,
+  trackVisibility: true, // NEW
+  delay: 100, // NEW
+}
+
+function intersectionCallback(entries, observer) {
+  entries.forEach(entry =&gt; {
+    if (
+entry.intersectionRatio &gt;= 1
+&amp;&amp; entry.isVisible // NEW
+) {
+      console.log(entry.target.id + " fully visible!"); // NEW
+    } else {
+      console.log(entry.target.id + " not fully visible!"); // NEW
+    }
+  });
+}
+
+var observer = new IntersectionObserver(intersectionCallback, intersectionOptions);
+
+var targets = document.querySelectorAll('.box'); // NEW - id -&gt; class selector + select all
+targets.forEach((target) =&gt; { // NEW - iterate over all boxes
+    observer.observe(target);
+});
+</pre>
+<p>HTML和CSS也大部分是复制的，只有几行改动。</p>
+<pre>&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;IntersectionObserver Demo&lt;/title&gt;
+    &lt;style&gt;
+      .box {  # NEW - change from id to class selector
+        margin-top:100% 0 100% 0;
+        width:100%;
+        height:90%;
+        background-color:black;
+      }
+    .transparent { # NEW - new class for transparent box
+        opacity: 0.5;
+}
+    &lt;/style&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id=”box1” class="box"&gt;&lt;/div&gt; &lt;!-- NEW: change from id to class selector --&gt;
+    &lt;div id=”box2” class=”box transparent”&gt;&lt;/div&gt; &lt;!-- NEW: half-transparent box --&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>使用支持<a href="https://caniuse.com/intersectionobserver-v2" target="_blank" rel="noopener">的浏览器</a>在这里查看代码笔<a href="https://codepen.io/alvinwan/pen/rNmJRqM" target="_blank" rel="noopener">，并尝试将框完全滚动到视图中，然后部分或完全滚动到视图之外。当纯色框完全滚动到视图中时，控制台会显示<code>Box 1 fully visible!</code>。每当盒子滚动到不再完全可见时，控制台就会显示<code>Box 1 not fully visible!</code>。请注意，无论透明框是否出现在视口中，您都会看到<code>Box 2 not fully visible!</code>。</a></p>
+<p>尽管这为我们提供了离散滚动事件的可见性健壮变体，但是这不包括当用户滚动时连续出现的滚动链接动画。一个例子是视差效应。如果在这些情况下需要滚动事件处理程序，有几种解决方法。这些方法适用于所有高频率的事件处理程序，重点是减少处理程序被调用的次数。</p>
+<h3>具有去抖动和节流的连续滚动效果</h3>
+<p><strong>去抖</strong>关注事件的“突发”。对于事件处理程序调用的任何快速序列，要么(a)第一次执行并忽略所有直接的后续调用，要么(b)等到“最后一次”调用后再执行。前者被称为<em>尾随模式</em>。后者被称为<em>领先(或“即时”)模式</em>。</p>
+<p>这直接应用于窗口大小调整、拖放和预览渲染。然而，这对于滚动链接的动画有不利的影响。去抖动的这个缺陷是它对突发的定义:所有在<code>wait</code>毫秒内的连续呼叫都聚集成一个突发。这意味着只要事件发生在<code>wait</code>毫秒内，突发就可以无限期持续。在跟踪模式下，这意味着事件处理程序永远不会被触发。换句话说，如果用户一直滚动，你的网站内容可能永远不会在网页上显示出来。</p>
+<p><strong>节流</strong>关注的是执行速度，解决了上面的陷阱。当一个事件被重复调用时，事件处理程序保证每<code>wait</code>毫秒执行一次。这与搜索中的自动完成有直接的应用。然而，这种方法的缺陷是去抖动容易发生——如果一个脉冲串在<code>wait</code>毫秒内开始和结束，该脉冲串将不会触发事件处理程序。例如，如果<code>wait</code>是<code>1000ms</code>秒，用户拿着<code>500ms</code>滚过网页的A部分，A部分将永远不会运行它的滚动链接动画。通过显示和位置不幸的正确组合，这可以不利地抵消视差效应。</p>
+<p>诚然，上述对立的例子是人为的，但这是为了说明节流和去抖动的互补性质。选择一种方法就是选择一种折衷，没有一种方法完全胜过另一种。更多细节见来自<a href="https://css-tricks.com/the-difference-between-throttling-and-debouncing/" target="_blank" rel="noopener noreferrer">CSS Tricks’Chris Coyier</a>和【客座作者】David Corbacho 的文章，以及<code>requestAnimationFrame</code>作为第三种选择的可能性。正如我们在下面的CSS部分所讨论的，这些连续滚动效果现在或者将来会被浏览器优化的CSS属性所替代。</p>
+<h2>尽可能使用CSS替换</h2>
+<p>使用浏览器优化的CSS属性，几种常见的滚动效果是可能的:滚动捕捉已经被主流浏览器支持，覆盖了93.7%以上的用户；<a href="https://caniuse.com/#search=sticky" target="_blank" rel="noopener noreferrer"> 95.5%+的用户</a>支持粘性位置；而一个<a href="https://alligator.io/css/pure-css-parallax/" target="_blank" rel="noopener noreferrer">的临时CSS视差</a>得到了98.4%+的用户[ <a href="https://caniuse.com/#search=transform" target="_blank" rel="noopener noreferrer"> 1 </a>，<a href="https://caniuse.com/#search=transform" target="_blank" rel="noopener noreferrer"> 2 </a> ]的支持。然而，考虑到W3C 记录的<a href="https://github.com/w3c/css-houdini-drafts/blob/master/scroll-customization-api/UseCases.md" target="_blank" rel="noopener noreferrer">多种多样的用例，即使包含部分用户基础覆盖的CSS属性，支持也是有限的。然而，CSS替换将实现和优化的开销卸载到浏览器上。有了Javascript或无动画的后备，CSS属性可以提高大多数用户的可用性。</a></p>
+<h3>对齐滚动</h3>
+<p>首先，CSS snap scrolling 的<a href="https://drafts.csswg.org/css-scroll-snap/" target="_blank" rel="noopener noreferrer">规范在不断变化。有许多<strong>不赞成使用的CSS属性来避免</strong>，包括以下内容:</a></p>
+<ol>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-coordinate" target="_blank" rel="noopener noreferrer">滚动捕捉坐标</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-destination" target="_blank" rel="noopener noreferrer">滚动捕捉目的地</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-points-x" target="_blank" rel="noopener noreferrer">滚动捕捉点x </a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-points-y" target="_blank" rel="noopener noreferrer">滚动捕捉点y </a></li>
+</ol>
+<p>这些属性被广泛用于来自<a href="https://webkit.org/demos/scroll-snap/" target="_blank" rel="noopener noreferrer"> webkit </a>和<a href="https://css-tricks.com/introducing-css-scroll-snap-points/" target="_blank" rel="noopener noreferrer"> CSS窍门</a>的CSS滚动链接动画教程，并且<a href="https://gist.github.com/majido/9900261e1b7e2b1eb180b01c03656b42" target="_blank" rel="noopener noreferrer">受到Firefox和Safari的支持。</a>然而，与大多数CSS设计理念不同，捕捉位置是全局定义的，而不是按元素定义的。CSS属性的当前规范有所不同，并且更加严格地遵循每个元素的设计原则:</p>
+<ol class="listtype-number listindent1 list-number1" start="1">
+<li><code><span class="inline-code attrlink url author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"><a class="attrlink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-align" target="_blank" rel="noreferrer nofollow noopener" data-target-href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-align"><b>scroll-snap-align</b></a></span><span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">:</span><b> </b><span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">[none | start | end | center] [none | start | end | center]</span></code> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">为</span> <span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"> x </span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">和</span> <span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"> y </span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">方向指定对齐。如果只指定了一个值，该选项将应用于两个方向。</span> <span class="attrlink url author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"> <a class="attrlink" href="https://developers.google.com/web/updates/2018/07/css-scroll-snap#css_scroll_snap" target="_blank" rel="noreferrer nofollow noopener" data-target-href="https://developers.google.com/web/updates/2018/07/css-scroll-snap#css_scroll_snap"> Google Web开发者说明了</a> </span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">这种对齐方式并提供了一个轮播示例。</span></li>
+<li><code><span class="inline-code attrlink url author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"><a class="attrlink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-type" target="_blank" rel="noreferrer nofollow noopener" data-target-href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-type"><b>scroll-snap-type</b></a></span><span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">: none | mandatory | proximity</span></code><span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">无</span>选项很简单，而<span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">强制</span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">选项是你可能期望的快速滚动，所有滚动位置都快速滚动。然而，</span> <span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">接近度</span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">仅在用户已经滚动到对齐滚动位置附近的位置时对齐。否则，滚动不受影响。</span></li>
+<li>这为滚动区域配置了填充，其行为类似于典型的填充属性。有一个类似的<span class="inline-code author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">滚动边距</span> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">属性。这不是特定于对齐行为，而是避免了像粘性标题遮蔽内容这样的问题。</span></li>
+<li><strong> <code><span class="inline-code attrlink url author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2"><a class="attrlink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-stop" target="_blank" rel="noreferrer nofollow noopener" data-target-href="https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-stop">scroll-snap-stop</a></span></code> </strong> <span class=" author-d-iz88z86z86za0dz67zz78zz78zz74zz68zjz80zz71z9iz90z8gz86z2oz84zz81zz68zz80zz73zz75z1z72zz122zfz81zz71zbz77zgz65ze5uz84z6z82ztyz71z2">注意，这个属性被<a href="https://drafts.csswg.org/css-scroll-snap/" target="_blank" rel="noopener"> W3C 2021编辑草案</a>认为是“有风险的”，意味着它在未来可能会被弃用，也可能不会被弃用。</span></li>
+</ol>
+<p>但是，捕捉位置现在由具有上述属性的元素表示。下面是一个HTML和CSS格式的快照滚动演示示例，没有多填充。</p>
+<p/>
+<pre>&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Scroll Snapping Demo&lt;/title&gt;
+    &lt;style&gt;
+      html, body, section {
+        width:100%;
+        height:100%;
+      }
+      body {
+        scroll-snap-type: y mandatory;
+      }
+      section {
+        scroll-snap-align: start;
+      }
+      section.black { background-color: black; }
+    &lt;/style&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;section&gt;&lt;/section&gt;
+    &lt;section class="black"&gt;&lt;/section&gt;
+    &lt;section&gt;&lt;/section&gt;
+    &lt;section class="black"&gt;&lt;/section&gt;
+    &lt;section&gt;&lt;/section&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+<p>你可以在这里查看密码本<a href="https://codepen.io/alvinwan/pen/YbjGoP" target="_blank" rel="noopener noreferrer"/>。尝试上下滚动以查看滚动的效果。</p>
+<p>滚动捕捉只是许多滚动链接动画中的一个，但凭借其93.8%以上的用户群覆盖率和持续快速上升的支持，它可能会成为您应用程序的黄金时间。</p>
+<h3><strong>其他滚动链接动画</strong></h3>
+<p>为了支持持续的效果，同时支持滚动行为(例如，当用户向下滚动页面x%时，项目水平移动x%)，W3C于2021年2月 发布了一个非官方规范，概述了潜在的CSS实现。不用说，这些都是需要注意的属性，但不是用来写作的。然而，类似的提议有望进一步将滚动链接的动画工作卸载到浏览器上。</p>
+<h2>外卖食品</h2>
+<p>简而言之，对于滚动链接的动画，尽可能使用CSS属性，但在必要时，使用Javascript中的适当优化:对于基于位置的离散事件，使用观察者模式。对于连续事件，基于时间或事件突发的速率限制。如果做不到这一点，就会导致可用性体验下降，滚动链接的动画会阻碍可用性体验，也不会支持可用性体验。要了解更多细节和其他资源，请参阅关于<a href="https://developers.google.com/web/updates/2018/07/css-scroll-snap" target="_blank" rel="noopener noreferrer"> Google Web开发人员</a>、<a href="https://css-tricks.com/introducing-css-scroll-snap-points/" target="_blank" rel="noopener noreferrer"> CSS技巧</a>和<a href="https://developer.mozilla.org/en-US/docs/Mozilla/Performance/Scroll-linked_effects" target="_blank" rel="noopener noreferrer"> MDN web文档</a>的相关文章。</p><div class="code-block code-block-25">
+<div class="blog-plug inline-plug css-plug"><h2>你的前端是否占用了用户的CPU？</h2><p>随着web前端变得越来越复杂，资源贪婪的特性对浏览器的要求越来越高。如果您对监控和跟踪生产环境中所有用户的客户端CPU使用、内存使用等感兴趣，</p><a target="_blank" href="https://lp.logrocket.com/blg/css-signup">try LogRocket</a><p>.</p><a class="signup" href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/dacb06c713aec161ffeaffae5bd048cd.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/cpu-memory-usage.png"/></noscript></a><a href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用的DVR，记录你的网络应用或网站上发生的一切。您可以汇总和报告关键的前端性能指标，重放用户会话和应用程序状态，记录网络请求，并自动显示所有错误，而不是猜测问题发生的原因。</p><p>现代化您调试web和移动应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/css-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

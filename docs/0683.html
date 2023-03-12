@@ -1,0 +1,228 @@
+<html>
+<head>
+<title>Reducing Redux boilerplate with Redux-Leaves - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Redux-Leaves - LogRocket博客减少Redux样板文件</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/reducing-redux-boilerplate-with-redux-leaves/#0001-01-01">https://blog.logrocket.com/reducing-redux-boilerplate-with-redux-leaves/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Redux是一个用一个问题换另一个问题的软件库的典型例子。</p>
+<p>虽然redux使您能够使用flux模式全局管理应用程序状态<a href="https://www.freecodecamp.org/news/an-introduction-to-the-flux-architectural-pattern-674ea74775c9/" target="_blank" rel="noopener noreferrer">，但它也导致您的应用程序充满乏味的样板代码。</a></p>
+<p>即使是最简单的更改也需要声明类型、操作，并向已经庞大的switch语句添加另一个case语句。</p>
+<p>随着状态和变化的复杂性不断增加，你的规约变得更加复杂和费解。</p>
+<p>如果你能去掉大部分样板文件会怎么样？</p>
+
+<div class="podcast-container">
+<div class="podcast-embed">
+<h2>我们不只是写Redux，我们也谈论它。现在听着:</h2>
+<p>或者以后订阅</p>
+<h3>回车:Redux-Leaves</h3>
+
+</div>
+</div>
+<h2>Redux-Leaves 是一个JavaScript库，它为如何处理Redux应用程序中的状态变化提供了一个新的框架。在标准的redux设置中，有一个或几个控制器管理应用程序的不同部分。</h2>
+<p>相反，Redux-Leaves将数据的每个节点，或其术语中的“叶”，视为一等公民。每片叶子都自带还原器，不用写了。</p>
+<p>这使您能够从应用程序中删除大量样板文件。</p>
+<p>让我们比较这两种方法，然后看看如何从传统的redux设置迁移到使用Redux-Leaves的设置。</p>
+<p>如何开始使用Redux-Leaves</p>
+<h3>让我们首先构建一个简单的greenfield应用程序，它只使用redux和Redux-Leaves。这样，您可以在尝试将该工具添加到现有项目之前对其进行测试。</h3>
+<p>然后，我们将看看如何在现有项目中添加冗余叶。我们将使用<code>create-react-app</code>通过构建链和其他工具快速建立一个环境。</p>
+<p>开始您的项目</p>
+<h3>对于这个例子，我们将使用Twitter作为我们的模型。我们将存储一个推文列表并添加到其中。</h3>
+<pre>npx create-react-app my-redux-leaves-demo &amp;&amp; cd my-redux-leaves-demo
+yarn init
+yarn add redux redux-leaves</pre>
+<p>在一个<code>store.js</code>文件中，让我们看看redux案例，并将其与Redux-Leaves的工作方式进行比较。</p>
+<p>添加记录:Redux版本</p>
+<h3>通常，每当您需要向state添加新的突变时，您会创建:</h3>
+<p>类型常数</p>
+<ul>
+<li>动作创建者功能</li>
+<li>减速器开关语句中的一个实例。</li>
+<li>下面是我们添加推文的redux示例:</li>
+</ul>
+<p>添加记录:Redux-Leaves版本</p>
+<h3>使用Redux-Leaves，不需要定义一个reducer函数。Redux-Leaves初始化函数提供了一个我们可以传递给<code>createStore</code>的缩减器。</h3>
+<pre>import { createStore } from 'redux'
+
+const initialState = {
+  tweets: [],
+}
+
+const types = {
+  ADD_TWEET: 'ADD_TWEET',
+}
+
+const actions = {
+  pushTweet: (tweet) =&gt; ({
+    type: types.ADD_TWEET,
+    payload: tweet,
+  })
+}
+
+const reducer = (state = initialState, action) =&gt; {
+  switch (action.type) {
+    case 'ADD_TWEET':
+      return {
+        ...state,
+        tweets: [
+          ...state.tweets,
+          action.payload,
+        ]
+     }
+  default:
+    return state
+  }
+}
+
+const store = createStore(reducer)
+store.dispatch(actions.pushTweet({ text: 'hello', likes: 0 }))</pre>
+<p>此外，它提供了一个actions对象，该对象提供了action creator函数，因此我们也不必担心从头开始编写这些函数。</p>
+<p>考虑到所有这些，没有必要声明类型常量。再见，样板！</p>
+<p>下面是一段与上面代码功能相当的代码，用Redux-Leaves编写:</p>
+<p>比上一个例子简洁多了。随着您需求的增长，结果会更加激烈。</p>
+<pre>import { createStore } from 'redux'
+import { reduxLeaves } from 'redux-leaves’
+
+const initialState = {
+  tweets: [],
+}
+
+const [reducer, actions] = reduxLeaves(initialState)
+const store = createStore(reducer)
+
+store.dispatch(actions.tweets.create.push({ text: 'hello', likes: 0 }))</pre>
+<p>在一个标准的redux应用程序中，您必须为每一个变异编写新的类型并扩展您的reducer。</p>
+<p>Redux-Leaves处理许多开箱即用的情况，所以情况并非如此。</p>
+<p>更多来自LogRocket的精彩文章:</p><div class="code-block code-block-54">
+<hr/>
+<h3>你如何调度这些变异？</h3>
+
+<hr/></div>
+<p>带有Redux-Leaves内置动作创建器。状态中的每一段数据都是一片树叶。在我们的例子中，tweets数组是一片树叶。</p>
+<p>有了对象，叶子可以嵌套。tweet本身被认为是一片叶子，它的每个子字段也是一片叶子，以此类推。每个都有自己的动作创建者。</p>
+<p>各种数据类型的操作创建器概述</p>
+<h2>Redux-Leaves为每种类型的叶子提供了三个动作创建器，不管是哪种类型:</h2>
+<p><strong>更新</strong>:将一片叶子的值设置为你想要的任何值</p>
+<ul>
+<li><strong>复位</strong>:将一片叶子的值设置回初始状态</li>
+<li><strong>清除</strong>:取决于数据类型。数字变成0。布尔变成假的。字符串、数组和对象变空(分别为<code>''</code>、<code>[]</code>和<code>{}</code>)</li>
+<li>除此之外，Redux-Leaves还提供了一些特定于类型的创建器。例如，布尔类型的叶子具有开、关和切换动作创建器。</li>
+</ul>
+<p>有关完整列表，请参考<a href="https://redux-leaves.js.org/docs/defaults/push" target="_blank" rel="noopener noreferrer"> Redux-Leaves文档</a>。</p>
+<p>创建动作的两种方法</p>
+<h3>您可以直接使用create函数并以这种方式调度操作，也可以声明可以在其他地方调用的操作。</h3>
+<p>第二种方式更接近于redux当前的运行方式，但也因此产生了更多的样板文件。</p>
+<p>我将由您来决定哪种方法最适合您的需求。</p>
+<p>用bundle创建复杂的动作</p>
+<pre>// method #1
+store.dispatch(actions.tweets.create.push({ text: 'hello', likes: 0 }))
+
+// method #2
+const addTweet = actions.tweets.create.push
+store.dispatch(addTweet({ text: 'hello', likes: 0 }))</pre>
+<h3>样板代码可以节省时间，但是它不能处理每一个真实的用例。如果你想一次更新多个叶子怎么办？</h3>
+<p>Redux-Leaves提供了一个捆绑功能，将许多动作合并为一个。</p>
+<p>如果你想在添加推文时跟踪最近的时间戳，它应该是这样的:</p>
+<p>第一个参数是要调度的操作数组，第二个参数是可选的自定义类型。</p>
+<pre>const updateTweet = (tweet) =&gt; bundle([
+  actions.most_recent.create.update(Date.now()),
+  actions.tweets.create.push(tweet),
+], 'UPDATE_WITH_RECENCY_UPDATE')
+
+store.dispatch(updateTweet({ text: 'hello', likes: 0 }))</pre>
+<p>但即使这样，也可能有一些情况是这样的。如果你的减速器需要更多的逻辑怎么办？</p>
+<p>如果在更新状态的一部分时需要引用另一部分，该怎么办？对于这些情况，也可以编写定制的叶子减少器。</p>
+<p>这种可扩展性使得Redux-Leaves大放异彩:它提供了足够的内置功能来处理简单的用例，并能够在需要时扩展该功能。</p>
+<p>使用叶reducer创建自定义reducer操作</p>
+<h3>发微博时，用户只需在文本框中输入内容，然后点击提交。</h3>
+<p>他们不负责提供所有的元数据。一个更好的API应该是只需要一个字符串来创建一条tweet，并抽象出实际的结构。</p>
+<p>这种情况是定制叶缩减器的一个很好的用例。</p>
+<p>叶reducer的核心形状与其他reducer相同:它接受状态和动作，并返回状态的更新版本。</p>
+<p>但是，它们的不同之处在于，叶缩减器不直接与单个数据相关。在应用程序的任何叶上都可以调用叶缩减器。</p>
+<p>这是Redux-Leaves帮助你避免重复的另一种方式。</p>
+<p>还要注意叶reducer中的<code>state</code>并没有引用整个全局状态——只引用了它被调用的叶。</p>
+<p>在我们的例子中，<code>leafState</code>是tweets数组。</p>
+<p>如果需要引用全局状态，可以将它作为可选的第三个参数传入。</p>
+<p>向<code>reduxLeaves</code>功能添加自定义叶减速器。对象中的密钥成为它在应用程序中的函数签名。</p>
+<pre>const pushTweet = (leafState, action) =&gt; [
+  ...leafState,
+  {
+    text: action.payload,
+    likes: 0,
+    last_liked: null,
+    pinned: false,
+  }
+]</pre>
+<p>然后，为定制的reducers分派动作看起来就像内置的一样:</p>
+<pre>const customReducers = {
+  pushTweet: pushTweet,
+}
+
+const [reducer, actions] = reduxLeaves(initialState, customReducers)
+const store = createStore(reducer)</pre>
+<p>输出以下内容:</p>
+<pre>store.dispatch(actions.tweets.create.pushTweet('Hello, world!'))
+console.log('leaves version', store.getState())</pre>
+<p>迁移到落叶层</p>
+<pre>{
+  tweets: [
+    { 
+      text: “Hello, World!”,
+      likes: 0, 
+      last_liked: null, 
+      pinned: false, 
+    }
+  ]
+}</pre>
+<h3>如果你正在做一个现有的项目，并考虑移动Redux-Leaves，你可能不想一下子把整个项目都拿出来。</h3>
+<p>更安全的策略是一次一个动作地替换现有的redux代码。</p>
+<p>如果您已经为您的应用程序准备好了测试——在尝试像这样重构一个库之前，您应该这样做——那么这个过程应该是平稳而简单的。</p>
+<p>替换一个动作并运行测试。当他们通过时，重复。</p>
+<p>为此，我推荐使用<a href="https://www.npmjs.com/package/reduce-reducers" target="_blank" rel="noopener noreferrer"> reduce-reducers </a> Redux实用程序。减压器-减压器可将现有的减压器与新的减压器相结合。</p>
+<p>有了这个工具，无需重写任何代码就可以向应用程序添加Redux-Leaves。</p>
+<pre>yarn add reduce-reducers</pre>
+<p>此更新不应改变您的应用程序的行为。旧的reducerss和新的reducer都可以更新存储。</p>
+<pre>import { createStore } from 'redux'
+import { reduxLeaves } from 'redux-leaves'
+import reduceReducers from 'reduce-reducers’
+
+Const initialState = {
+  // initial state
+}
+
+const myOldReducer = (state = initialState, action) =&gt; {
+  // big case statement goes here
+}
+
+const leafReducers = {} // we’ll put custom reducers here if/when we need them
+
+const [reducer, actions] = reduxLeaves(initialState, leafReducers)
+
+const comboReducer = reduceReducers(myOldReducer, reducer) 
+
+const store = createStore(comboReducer)</pre>
+<p>因此，您可以逐个删除和替换操作，而不是一次重写所有内容。</p>
+<p>最终，您将能够在不改变功能的情况下做出一个美味的拉请求，使您的代码库缩短几千行。</p>
+<p>如果您愿意的话，这一更改允许在不修改现有案例的情况下对新代码使用Redux-Leaves。</p>
+<p>结论</p>
+<h2>在我的书中，通过添加另一个库来消除一个库的复杂性是一个违反直觉的主张。</h2>
+<p>一方面，您可以利用Redux-Leaves来减少样板代码并提高开发人员添加功能的速度。</p>
+<p>然而，添加另一个库意味着团队中的开发人员需要熟悉另一个API。</p>
+<p>如果你独自工作或者在一个小团队中工作，那么学习曲线可能不是问题。只有您和您的团队才能知道redux是否是您项目的正确决策。</p>
+<p>减少的代码库和更快的开发速度值得增加的依赖性和学习吗？这取决于你。</p>
+<p>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p>
+<p>Focus on the bugs that matter — <a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">try LogRocket today</a>.</p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,255 @@
+<html>
+<head>
+<title>Advanced data fetching techniques in Vue - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Vue - LogRocket博客中的高级数据获取技术</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/advanced-data-fetching-techniques-in-vue/#0001-01-01">https://blog.logrocket.com/advanced-data-fetching-techniques-in-vue/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当用前端框架构建应用程序时，产生很多意见的一个方面是数据获取的概念。在基本场景中，您可以结合使用HTTP客户端(例如<a href="https://github.com/axios/axios" target="_blank" rel="noopener noreferrer"> Axios </a>)和Vue的生命周期方法来处理数据。</p>
+<p>更复杂的情况，如具有多个组件的大型应用程序，在大多数情况下会被路由，将需要不同的方法。此外，获取数据的顺序——在加载某些组件之前或之后——也是一个问题。在这篇文章中，我们将看看在使用Vue的高级场景中获取数据的最佳实践。我们还将学习如何使用Vue 3的组合API来利用数据获取中的<code>stale-while-revalidate</code>技术。</p>
+<h2>导航布线元件时提取数据</h2>
+<p>当涉及各种路由组件时，数据获取可能会变得复杂。在某些情况下，我们可能希望在导航特定路线时显示一些数据。Vue Router 通过提供在导航之前或之后获取数据的选项，恰当地处理了这一问题。让我们来看看这两种情况。</p>
+<h3>导航前获取数据</h3>
+<p>Vue路由器提供了许多钩子来处理导航前的数据获取:</p>
+<ul>
+<li>带三个参数的<code>beforeRouteEnter()</code>钩子——<code>to</code>、<code>from</code>和<code>next</code>。顾名思义，它用于在导航到组件之前获取该组件所需的数据</li>
+<li><code>beforeRouteUpdate()</code>钩子也采用与<code>beforeRouteEnter()</code>相同的参数，用于用已经获取的数据更新组件</li>
+</ul>
+<p>我们有一个带有两个路由组件的应用程序，显示我们银行账户的当前余额和分类账余额。当显示我们的分类帐余额时，我们希望在导航到组件之前获取数据。首先，我们将创建为分类帐余额提供数据的脚本:</p>
+<pre>// LedgerBalance.js
+
+export default (callback) =&gt; {
+  const LedgerBalance = "1500 USD";
+  setTimeout(() =&gt; {
+    callback(null, LedgerBalance);
+  }, 3000);
+};</pre>
+<p>接下来，我们将创建分类帐余额组件:</p>
+<pre>&lt;!-- LedgerBalance.vue --&gt;
+
+&lt;template&gt;
+  &lt;div&gt;Hello, your ledger balance is {{ balance }}&lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+import ledgerBalance from "../scripts/LedgerBalance";
+export default {
+  name: "Ledger",
+  data() {
+    return { balance: null };
+  },
+  // Here the component is yet to be loaded
+  beforeRouteEnter(to, from, next) {
+    ledgerBalance((err, balance) =&gt; {
+      next(vm =&gt; vm.setBalance(err, balance));
+    });
+  },
+  // On calling beforeRouteUpdate, the component is loaded and the route changes
+  beforeRouteUpdate(to, from, next) {
+    this.balance = null;
+    ledgerBalance((err, balance) =&gt; {
+      this.setBalance(err, balance);
+      next();
+    });
+  },
+  methods: {
+    setBalance(err, balance) {
+      if (err) {
+        console.error(err);
+      } else {
+        this.balance = balance;
+      }
+    }
+  }
+};
+&lt;/script&gt;</pre>
+<p>在<code>LedgerBalance.vue</code>中，<code>beforeRouteEnter()</code>钩子确保在<code>Ledger</code>组件被加载之前从<code>LedgerBalance.js</code>获取数据。</p>
+<p>接下来，当<code>Ledger</code>被加载并且路线改变时，<code>beforeRouteUpdate()</code>中的<code>setBalance()</code>方法被用于设置数据。</p>
+<p>然后，我们将定义分类帐余额的传送路径:</p>
+<pre>// main.js
+
+import Vue from "vue";
+import VueRouter from "vue-router";
+import App from "./App";
+import Ledger from "./components/LedgerBalance";
+Vue.use(VueRouter);
+const router = new VueRouter({
+  routes: [
+    { path: "/Ledger", component: Ledger }
+  ]
+});
+new Vue({
+  render: (h) =&gt; h(App),
+  router
+}).$mount("#app");</pre>
+<p>定义路由路径后，我们将把它包含在主视图中:</p>
+<pre>&lt;!-- App.vue --&gt;
+
+&lt;template&gt;
+  &lt;div id="app"&gt;
+    &lt;div class="nav"&gt;
+      &lt;router-link to="/Ledger"&gt;Ledger Balance&lt;/router-link&gt;
+    &lt;/div&gt;
+    &lt;hr&gt;
+    &lt;div class="router-view"&gt;
+      &lt;router-view&gt;&lt;/router-view&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+export default { name: "App" };
+&lt;/script&gt;</pre>
+<p>当导航到<code>Ledger</code>组件时，我们可以观察到延迟(由于<code>LedgerBalance.js</code>中的<code>setTimeout()</code>函数),因为数据是在导航之前获取的:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/kd8OjJf-rdc?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h3>导航后获取数据</h3>
+<p>在某些情况下，我们可能希望在导航到组件后获取数据。这在我们处理实时变化的数据时会很有用。例如账户的当前余额。在这种情况下，我们将首先定义处理当前余额数据的函数:</p>
+<pre>// CurrentBalance.js
+
+export default (callback) =&gt; {
+  const CurrentBalance = "1000 USD";
+  setTimeout(() =&gt; {
+    callback(null, CurrentBalance);
+  }, 3000);
+};</pre>
+<p>接下来，当创建我们的<code>CurrentBalance</code>组件时，我们将使用<code>created()</code>生命周期钩子来调用<code>fetchBalance()</code>，我们的数据获取方法:</p>
+<pre>/&lt;!-- CurrentBalance.vue --&gt;
+
+&lt;template&gt;
+  &lt;div&gt;Hello, your current balance is {{ balance }}&lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+import currentBalance from "../scripts/CurrentBalance";
+export default {
+  name: "Current",
+  data() {
+    return { balance: null };
+  },
+  created() {
+    this.fetchBalance();
+  },
+  methods: {
+    fetchBalance() {
+      currentBalance((err, balance) =&gt; {
+        if (err) {
+          console.error(err);
+        } else {
+          this.balance = balance;
+        }
+      });
+    }
+  }
+};
+&lt;/script&gt;</pre>
+<p>考虑到数据将在导航发生后获取，进度条或微调器之类的加载组件会很有用，这样看起来就不会有错误:</p>
+<p><span class="embed-youtube"> <iframe loading="lazy" class="youtube-player" src="https://www.youtube.com/embed/FS8n35sZ2P0?version=3&amp;rel=1&amp;showsearch=0&amp;showinfo=1&amp;iv_load_policy=1&amp;fs=1&amp;hl=en-US&amp;autohide=2&amp;wmode=transparent" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation">视频</iframe> </span></p>
+<h2>在Vue中重新验证时失效</h2>
+<p>传统上，Vue应用程序使用<code>mounted()</code>钩子来获取数据。从API获取数据类似于下面的代码示例:</p>
+<pre>&lt;template&gt;
+  &lt;div :key="car.carmodel" v-for="car in cars"&gt;
+    {{ car.carmodel }}
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+export default {
+  name: 'Cars',
+  data() {
+    return {
+      cars: []
+    }
+  },
+  mounted() {
+    fetch('/api/cars')
+      .then(res =&gt; res.json())
+      .then(carJson =&gt; {
+        this.cars = carJson
+      })
+  }
+}
+&lt;/script&gt;</pre>
+<p>假设这里需要更多的数据，这可能导致从多个端点获取数据。这是不可行的，因为在不同组件之间导航将导致为每个导航发出一个API请求。这些多个API请求可能会降低速度，并给该应用程序的用户带来糟糕的体验:</p>
+<pre>&lt;template&gt;
+   &lt;div v-if="about"&gt;
+     &lt;div&gt;{{ about.car.model }}&lt;/div&gt;
+     &lt;div&gt;{{ about.bio }}&lt;/div&gt;
+   &lt;/div&gt;
+   &lt;div v-else&gt;
+     &lt;Loading /&gt;
+   &lt;/div&gt;
+ &lt;/template&gt;
+
+ &lt;script&gt;
+ export default {
+   name: 'Bio',
+   props: {
+     model: {
+       type: String,
+       required: true
+     }
+   },
+   data() {
+     return {
+       about: null
+     }
+   },
+
+   mounted() {
+     fetch(`/api/car/${this.model}`)
+       .then(res =&gt; res.json())
+       .then(car =&gt; fetch(`/api/car/${car.id}/about`))
+       .then(res =&gt; res.json())
+       .then(about =&gt; {
+         this.about = {
+           ...about,
+           car
+         }
+       })
+   }
+ }
+ &lt;/script&gt;</pre>
+<p>理想情况下，我们需要的是一种高效的方式来缓存已经访问过的组件，这样每个已经访问过的组件都可以方便地呈现数据，即使是在来回导航的时候。这就是“重新验证时失效”概念有用的地方。</p>
+<p>Stale-while-revalidate <code>(swr)</code>使我们能够缓存已经获取的数据，同时获取其他请求的数据。在上面的代码示例中，每个查看汽车简介的请求都会重新触发查看汽车模型的请求，即使该模型已经被查看过。使用<code>swr</code>，我们可以缓存汽车的模型，这样当用户请求汽车的简介时，可以在获取汽车简介数据的同时看到模型。</p>
+<p>在Vue中，通过一个库(<a href="https://github.com/Kong/swrv" target="_blank" rel="noopener noreferrer"> swrv </a>)可以实现stale-while-revalidate的概念，这个库很大程度上利用了Vue的组合API。采用一种更具伸缩性的方法，我们可以使用<code>swrv</code>来获取汽车的细节，如下所示:</p>
+<pre>import carInfo from './carInfo'
+import useSWRV from 'swrv'
+
+export default {
+  name: 'Bio',
+  props: {
+    model: {
+      type: String,
+      required: true
+    }
+  },
+
+  setup(props) {
+    const { data: car, error: carError } = useSWRV(
+      `/api/cars/${props.model}`,
+      carInfo
+    )
+    const { data: about, error: aboutError } = useSWRV(
+      () =&gt; `/api/cars/${car.value.id}/about`,
+      carInfo
+    )
+
+    return {
+      about
+    }
+  }
+}</pre>
+<p>在上面的代码示例中，第一个<code>useSWRV</code>钩子使用API的URL作为每个请求的唯一标识符，并接受一个<code>carInfo</code>函数。<code>carInfo</code>是一个异步函数，用于获取汽车的详细信息，它还使用API的URL作为唯一标识符。</p>
+<p>第二个<code>useSWRV</code>钩子观察第一个钩子的变化，并根据这些变化重新验证它的数据。<code>data</code>和<code>error</code>值分别为对<code>carInfo</code>函数发出的请求的成功和失败响应而填充。</p>
+<h2>摘要</h2>
+<p>如果使用得当，在导航路由组件时获取数据和缓存已经获取的数据是在应用程序中创建令人印象深刻的用户体验的好方法。为了更深入地了解stale-while-revalidate，我建议你看一下关于这个话题的Markus Oberlehner的文章。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

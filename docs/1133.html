@@ -1,0 +1,194 @@
+<html>
+<head>
+<title>Top 3 templating libraries for Rust - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Rust - LogRocket博客的前三大模板库</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/top-3-templating-libraries-for-rust/#0001-01-01">https://blog.logrocket.com/top-3-templating-libraries-for-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>Rust有很多很好的模板箱，包括一些稳定的、准备用于生产的模板箱。其中一些是其他语言模板库的移植，而另一些是专门为Rust创建的。</p>
+<p/>
+<p>在本指南中，我们将比较其中一些板条箱，并向您展示如何开始使用每种板条箱。</p>
+<h2 id="handlebars">1.把手</h2>
+<p>手柄是一个最初为JavaScript开发的最小模板系统。有了<a href="https://crates.io/crates/handlebars" target="_blank" rel="noopener noreferrer">车把板条箱</a>，我们可以在Rust中使用相同的系统。这个板条箱是最适合生产的铁锈模板板条箱之一，甚至被用来渲染rust-lang.org<a href="https://www.rust-lang.org" target="_blank" rel="noopener noreferrer"/>。尽管如此，handlebars crate与JavaScript实现并不是100%兼容，所以请记住以下区别。</p>
+<ol>
+<li>不支持小胡子块</li>
+<li><a href="https://github.com/sunng87/handlebars-rust/issues/12" target="_blank" rel="noopener noreferrer"> Chained else </a>尚未实现</li>
+</ol>
+<p>如果这些限制不是交易破坏者，车把可能是一个很好的选择。</p>
+<p>让我们来看看如何使用这个板条箱。</p>
+<p>首先，用cargo创建一个新项目，并将其添加到您的依赖项中。</p>
+<pre>[dependencies]
+handlebars = "3"
+</pre>
+<p>我们可以从hello world的例子开始。</p>
+<pre>use handlebars::Handlebars;
+use std::collections::HashMap;
+
+fn main() {
+    let mut handlebars = Handlebars::new();
+    let source = "Hello {{ name }}";
+    handlebars
+        .register_template_string("hello", source)
+        .unwrap();
+
+    let mut data = HashMap::new();
+    data.insert("name", "Rust");
+
+    println!("{}", handlebars.render("hello", &amp;data).unwrap());
+}
+</pre>
+<p>这里我们使用一个字符串注册一个模板，并在一个<code>HashMap</code>中提供所需的数据作为键值对。这段代码输出“Hello Rust”尝试用其他东西替换哈希表中的“name”键，然后再次运行代码。您应该看到它输出“Hello”，因为在呈现时“name”字段永远不会提供给模板。</p>
+<p>有时候这不是我们想要的；模板期望给定一个名称，但如果没有给定，它会自动跳过。幸运的是，handlebars crate有一个严格的模式，当试图访问不存在的字段时会产生一个<code><a href="https://docs.rs/handlebars/3.4.0/handlebars/struct.RenderError.html" target="_blank" rel="noopener noreferrer">RenderError</a></code>，这在JavaScript版本中是没有的。在渲染之前，我们可以使用下面的代码行启用严格模式。</p>
+<pre>handlebars.set_strict_mode(true);
+</pre>
+<p>现在，当渲染时没有给模板提供“名称”字段时，上面的示例将会死机。</p>
+<p>对于较长的模板，将它们移动到自己的文件中可能是个好主意。一种方法是使用<a href="https://doc.rust-lang.org/std/macro.include_str.html" target="_blank" rel="noopener noreferrer"> <code>include_str</code> </a>宏。</p>
+<pre>handlebars
+    .register_template_string("hello", include_str!("templates/hello.hbs"))
+    .unwrap();
+</pre>
+<p><code>template/hello.hbs</code>是模板文件的位置，相对于Rust源文件。这个宏很酷的一点是它包含了编译时文件的内容，产生了一个<code>&amp;'static str</code>。这意味着模板字符串将包含在编译后的二进制文件中，我们不需要在运行时加载文件。</p>
+<p>然而，如果我们想在运行时加载模板，Handlebars提供了一些实用函数来帮助我们。</p>
+<p>要从文件中加载和注册单个模板:</p>
+<pre>handlebars.register<em>template</em>file("template_name", "templates/index.hbs");</pre>
+<p>要加载并注册模板文件的整个目录:</p>
+<pre>handlebars.register<em>templates</em>directory(".hbs", "path/to/templates");</pre>
+<p>第一个参数(<code>.hbs</code>)是要查找的文件扩展名。在这种情况下，注册模板的名称将是模板目录中模板的相对路径，不带扩展名。例如，<code>path/to/templates/blog/hello.hbs</code>会有一个带有上述代码的名字<code>blog/hello</code>。注意，以这种方式加载模板目录需要<code>dir_source</code>特性。</p>
+<pre>[dependencies]
+handlebars = { version = "3", features = ["dir_source"] }
+</pre>
+<p>需要注意的最后一件事是，<code>render</code>方法接受任何实现了<a href="https://docs.rs/serde/1.0.115/serde/ser/trait.Serialize.html" target="_blank" rel="noopener noreferrer"> Serde的<code>Serialize</code>特征</a>的数据。之前我们使用了<code>HashMap</code>，但是在适当的时候可以随意使用其他的东西。</p>
+<p>总的来说，如果你想在模板中嵌入尽可能少的逻辑，我会推荐把手板条箱。它在Rust和JavaScript社区中被广泛使用，Rust实现非常稳定。</p>
+<h2 id="tera">2.特拉</h2>
+<p><a href="https://tera.netlify.com" target="_blank" rel="noopener noreferrer"> Tera </a>是一种受<a href="http://jinja.pocoo.org" target="_blank" rel="noopener noreferrer"> Jinja2 </a>和<a href="https://docs.djangoproject.com/en/1.9/topics/templates" target="_blank" rel="noopener noreferrer"> Django模板语言</a>启发的模板语言。不像车把，这个板条箱不是一个直接端口，也不打算100%兼容。与手柄不同的是，Tera模板语言允许在模板中使用复杂的逻辑，功能更加丰富。</p>
+<p>首先，将<code>tera</code>的依赖项添加到<code>Cargo.toml</code>中。</p>
+<pre>[dependencies]
+tera = "1"
+</pre>
+<p>与我们在把手示例中使用的“hello world”类似，如下所示。</p>
+<pre>use tera::{Context, Tera};
+
+fn main() {
+    let mut tera = Tera::default();
+
+    let source = "Hello {{ name }}";
+    tera.add_raw_template("hello", source).unwrap();
+
+    let mut context = Context::new();
+    context.insert("name", "Rust");
+
+    println!("{}", tera.render("hello", &amp;context).unwrap());
+}
+</pre>
+<p>如你所见，非常相似。首先，我们注册一个模板字符串，然后定义一些数据<code>context</code>，最后使用模板和数据呈现一个输出字符串。这里的一个重要区别是，<code>Tera::render</code>的第二个参数采用了由Tera crate提供的类型<code>&amp;Context</code>。幸运的是，我们没有失去Serde的<code>Serialize</code>的灵活性，因为<code>Context</code>类型本身可以从实现<code>Serialize</code>的任何值构建。</p>
+<pre>let value = // something that implements `Serialize`
+let context = Context::from_serialize(value);
+</pre>
+<p>就像我们之前看到的一样，<code>include_str</code>宏可以用来在编译时包含外部模板文件。运行时读取模板可以手动完成，也可以使用Tera提供的助手方法，我们通常使用的是<code>Tera::new</code>。</p>
+<pre>let tera = Tera::new("templates/**/*").unwrap();
+</pre>
+<p>这需要一个glob，然后加载并注册与扩展的glob匹配的每个模板。</p>
+<h3><strong>万亿模板语言</strong></h3>
+<p>由于Tera模板语言有很多特性，而且在Rust之外并不存在，我们将回顾一下使用它的基础知识。如需完整参考，请查看优秀的<a href="https://tera.netlify.app/docs" target="_blank" rel="noopener noreferrer"> Tera文档</a>。</p>
+<p>Tera模板有三种特殊分隔符:</p>
+<ol>
+<li><code>{{</code>和<code>}}</code>为表达式</li>
+<li>用于语句的<code>{%</code>和<code>%}</code>(<code>{%-</code>和<code>-%}</code>可以分别用于去除前导/尾随空格)</li>
+<li><code>{#</code>和<code>#}</code>进行评论</li>
+</ol>
+<p>它们支持数学和比较。</p>
+<pre>&lt;h1&gt;Flower shop&lt;/h1&gt;
+{% if visit_count % 10000 == 0 %}
+&lt;p&gt;Congratulations lucky visitor! You win a flower!&lt;/p&gt;
+{% else %}
+&lt;p&gt;Welcome to the flower shop.&lt;/p&gt;
+{% endif %}
+</pre>
+<p>这个例子还演示了带有<code>if</code>和<code>else</code>的条件控制结构的语法。除此之外，您还可以在模板条件中使用逻辑运算符<code>and</code>、<code>or</code>和<code>not</code>。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<pre>{% if month == 1 and day == 1 %}
+&lt;p&gt;Happy new year!&lt;/p&gt;
+{% endif %}
+</pre>
+<p>Tera包括一个称为过滤器的概念，可用于修改模板中的数据。过滤器可以链接，您可以注册自己的自定义过滤器。</p>
+<pre>tera.register_filter("upper", string::upper);
+</pre>
+<p>然后可以在类似下面的模板中使用它。</p>
+<pre>&lt;h2&gt;Hello, {{ name | upper }}!&lt;/h2&gt;
+</pre>
+<p>虽然我们可以创建自己的过滤器，但Tera有一些内置的过滤器，用于人们想做的一些常见事情，这可能就足够了。</p>
+<p>对于数组和结构的迭代，Tera提供了循环。</p>
+<pre>{% for student in students %}
+&lt;div&gt;
+  &lt;h3&gt;{{ student.name }}&lt;/h3&gt;
+  &lt;p&gt;{{ student.score }}&lt;/p&gt;
+&lt;/div&gt;
+{% endfor %}
+
+&lt;ul&gt;
+  {% for key, value in books %}
+  &lt;li&gt;{{ key }} - {{ value.author }}&lt;/li&gt;
+  {% endfor %}
+&lt;/ul&gt;
+</pre>
+<p>最后，我们可以使用<code>include</code>来构建模板。</p>
+<pre>{% include "header.html" %}
+&lt;h1&gt;Blog&lt;/h1&gt;
+&lt;p&gt;Welcome to my blog&lt;/p&gt;
+{% include "footer.html" %}
+</pre>
+<p>这只是您可以使用Tera模板做的事情的皮毛。它们还支持函数、宏、继承等等，但是为了简洁起见，我在这里就不赘述了。</p>
+<p>Tera可以被认为是稳定的和生产就绪的。我相信通常最好不要在模板中包含太多的逻辑，但是当需要额外的灵活性时，Tera是目前Rust的最佳选择之一。</p>
+<h2 id="liquid">3.液体</h2>
+<p>我们要看的最后一个箱子是<a href="https://crates.io/crates/liquid" target="_blank" rel="noopener noreferrer">液体</a>，这是流行的<a href="https://shopify.github.io/liquid" target="_blank" rel="noopener noreferrer">液体模板语言</a>的一个端口，最初是用Ruby编写的。这个机箱的一个明确目标是与<a href="https://github.com/Shopify/liquid" target="_blank" rel="noopener noreferrer"> Shopify/liquid </a>百分之百兼容。</p>
+<p>和往常一样，我们可以从向依赖项添加液体开始。</p>
+<pre>[dependencies]
+liquid = "0.21"
+</pre>
+<p>同样，等效的“hello world”示例如下所示:</p>
+<pre>use liquid::ParserBuilder;
+
+fn main() {
+    let source = "Hello {{ name }}";
+    let template = ParserBuilder::with_stdlib()
+        .build()
+        .unwrap()
+        .parse(source)
+        .unwrap();
+
+    let globals = liquid::object!({
+        "name": "Rust"
+    });
+
+    println!("{}", template.render(&amp;globals).unwrap());
+}
+</pre>
+<p>我们一次创建一个模板结构，而不是像<code>Handlebars</code>和<code>Tera</code>那样拥有一个包含所有模板的结构。这一次，我们的数据<code>globals</code>是用<code>liquid::object</code>宏定义的，但是我们也可以通过直接使用<code>liquid::Object</code>类型来使用类似于<code>HashMap</code>的API。像其他箱子一样，数据对象可以直接从实现<code>Serialize</code>的类型中创建。</p>
+<pre>let value = // something that implements `Serialize`
+let globals = liquid::to_object(&amp;value).unwrap();
+</pre>
+<p>一般来说，liquid crate没有太多的<a href="https://docs.rs/liquid/0.21.1/liquid" target="_blank" rel="noopener noreferrer">公共API表面</a>,并且缺少从文件中加载模板之类的实用功能。也就是说，在运行时将文件加载到字符串中是一件你可以自己轻松完成的事情。</p>
+<p>液体模板与Tera模板有许多相似之处。它们共享相同的表达式和语句分隔符，并且还具有语法相似的过滤器。</p>
+<pre>&lt;p&gt;{{ "rust!" | capitalize | prepend: "Hello " }}&lt;/p&gt;
+</pre>
+<p>这个模板将呈现字符串<code>"&lt;p&gt;Hello Rust!&lt;/p&gt;"</code>。</p>
+<p>在我们观察的三个板条箱中，液体是最不适合生产的，这一事实得到了它缺乏1.0版本的支持。尽管如此，对于来自Ruby版本的liquid或者只是喜欢模板语言本身的人来说，它仍然是一个不错的选择。</p>
+<h2 id="conclusion">结论</h2>
+<p>看了三个最流行的模板箱之后，很容易说模板对于用Rust编写的web项目来说不是问题，而且Rust已经为它们提供了强大的支持。车把和Tera都是稳定的、可生产的板条箱，虽然液体可能还没有达到相同的水平，但它仍然是一个可靠的选择。</p>
+<p>值得注意的是，在Rust中，除了这三种模板之外，还有很多其他选择，但大多数其他选择都不太受欢迎，也没有稳定的版本。无论您决定使用哪种机箱，您都将能够获得用Rust编写web应用程序的性能和可靠性优势。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

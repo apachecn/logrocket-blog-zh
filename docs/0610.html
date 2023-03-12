@@ -1,0 +1,123 @@
+<html>
+<head>
+<title>How to migrate a database schema at scale - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何大规模迁移数据库模式</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/how-to-migrate-a-database-schema-at-scale/#0001-01-01">https://blog.logrocket.com/how-to-migrate-a-database-schema-at-scale/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>任何重要的应用程序都需要一个随时间发展的数据库来支持新特性或解决查询的伸缩问题。在控制台中手动更改数据库模式可能没问题，但前提是您的web应用程序非常小，处于测试阶段，受众非常少，或者是一个业余爱好项目。在任何其他情况下，您都应该编写迁移。</p>
+<h2>什么是迁移</h2>
+<p>迁移是更新数据库模式的小段代码。因为迁移是代码，所以它们可以在不同的环境中以自动化的方式重现，也可以用不同的方式进行测试。通常，您会使用工具来创建和运行迁移。该工具将提供一个命令行界面，用于开始编写新的迁移代码、运行特定的迁移、回滚迁移或在您当前的设置/环境中运行所有待定的迁移。这些工具通常包含在您使用的ORM或数据库框架中。例如，你有用于Ruby on Rails 、<a href="https://sequelize.org/master/manual/migrations.html" target="_blank" rel="noopener noreferrer"> Sequelize </a>、<a href="http://knexjs.org/#Migrations" target="_blank" rel="noopener noreferrer"> knex.js </a>或<a href="https://lift.prisma.io/" target="_blank" rel="noopener noreferrer"> Prisma/Lift </a>的工具。</p>
+<h2>我们应该如何运行这些迁移</h2>
+<p>在小型应用程序中，您可以决定在运行应用程序之前只运行迁移。我参与过许多项目，这些项目都有这样的Node.js脚本:</p>
+<pre>"start": "./run-migrations &amp;&amp; node app.js"</pre>
+<p>即使数据库非常大，以至于迁移需要一段时间才能运行，如果您有一个设置，在新部署启动并运行之前，以前的部署一直为请求提供服务，这也是可以的。但是，如果先前的部署不能处理新的数据库更改，该怎么办呢？</p>
+<p>例如，如果您重命名了一个列，或者添加了一个在旧代码中会在查询中产生歧义的列，该怎么办？新的部署可能需要一段时间来处理所有的请求，如果代码试图用旧的列名来处理这些请求，将会产生错误。您可以决定暂时关闭服务，然后运行迁移并重新建立服务。</p>
+<p>然而，这将会惹恼使用该服务的用户，所以你应该安排一个维护窗口，并通过电子邮件告诉你的用户，或者在你的网站上放一个警告，等等。值得努力吗？有没有更好的办法？</p>
+<p>这个问题有一个解决方案，可以让你的服务保持正常运行，而你的用户不会注意到任何事情。这是基于我认为的关于迁移的黄金法则——当迁移一个数据库时，<strong>当前的代码必须与先前的和新的数据库模式都很好地工作</strong>。</p>
+<p>我们如何保证这一点？有两种方法:</p>
+<ul>
+<li>修改数据库模式的部署不能包含对应用程序代码的更改</li>
+<li>在您的配置项中，在运行迁移后运行测试</li>
+</ul>
+<p>通过这种方式，您可以在迁移前后测试您的代码。您在之后测试<em>，因为您在您的CI中显式地这样做，在</em>之前测试<em>，因为如果您没有更改任何应用程序代码，这是真的，因为代码没有更改，您也没有更改任何测试，所以当前代码已经在之前的部署中使用旧的数据库模式进行了测试。</em></p>
+<h2>回填数据</h2>
+<p>以这种方式进行迁移还带来了另一个好处。您可以将迁移的运行从部署过程中分离出来，这允许您进行长期运行的迁移。例如，如果您需要回填数据。</p>
+<p>如果创建新的列或表来对某些数据或计算进行反规范化，则可能需要迭代所有记录来计算现有记录的值，这意味着某些数据库更改需要模式迁移和部署的多步骤过程。</p>
+<p>例如，假设您有一个日期为<code>created_at</code>和<code>sold_at</code>的商品，您想在您的应用程序中添加一个新的特性，以显示并能够根据商品的库存时间对其进行排序。如果只显示时间量而不排序，您可以在呈现UI时进行计算。但是，如果您想按该标准排序，您会希望数据已经在数据库中的新列中进行了计算，并对其进行索引。</p>
+<p>因此，首先，您将在迁移中创建一个新列和索引。下面是一个使用knex的例子:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.integer('time_in_stock')
+    t.index(['time_in_stock'])
+  })
+}
+
+exports.down = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.dropIndex(['time_in_stock'])
+    t.dropColumn('time_in_stock')
+  })
+}</pre>
+<p>然后，您将更改您的应用程序代码，以便在出售新商品时计算时间:</p>
+<pre>function soldItem(item) {
+  const now = new Date()
+  item.update({
+    sold_at: now,
+    time_in_stock: now - item.created_at // new calculation
+  })
+}</pre>
+<p>接下来，您将编写并运行一个迁移来计算在您进行开始计算新列的更改之前现有记录的销售值:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.raw('UPDATE items SET time_in_stock = UNIX_TIMESTAMP(sold_at) - UNIX_TIMESTAMP(created_at) WHERE time_in_stock IS NULL')
+}</pre>
+<p>最后，您将能够添加应用程序代码来显示计算结果，并让您的用户根据它们进行排序。根据您的情况(与销售商品的例子不同),一旦数据库中的所有记录都被回填，您可能还想通过另一次迁移向新列添加一个NOT NULL约束。</p>
+<h2>其他示例</h2>
+<p>让我们看看其他一些需要多步骤过程的例子。</p>
+<h3>删除表或列</h3>
+<p>首先，您必须停止写入该表或列:</p>
+<pre>item.update({
+  a_column: a_value
+  // legacy_column: value // Stop writing to the column
+})</pre>
+<p>然后，您将能够编写一个迁移，将它从数据库中物理删除:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.dropColumn('legacy_column')
+  })
+}</pre>
+<p>如果您想要删除一个具有NOT NULL约束的列，您还需要第一次迁移来删除该约束。否则，你将无法停止给那个专栏写信。</p>
+<h3>将数据从一列或表移动到另一列或表</h3>
+<p>最简单的例子是在同一个表中将数据从一列移动到另一列。您可能希望这样做，只是因为新的数据类型不同，或者只是名称不同。让我们看看所有涉及的步骤。首先，您需要创建新的列或表:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.integer('new_column')
+  })
+}
+
+exports.down = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.dropColumn('new_column')
+  })
+}</pre>
+<p>然后，您需要更改应用程序，开始将信息写入这两列:</p>
+<pre>item.update({
+  legacy_column: value,
+  new_column: value // Start writing to both columns
+})</pre>
+<p>然后，您将进行迁移以回填新列，以便旧记录在两列中都有正确的值:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.raw('UPDATE items SET new_column = legacy_column WHERE new_column IS NULL')
+}</pre>
+<p>然后，您将更改应用程序代码，只从新列开始读写:</p>
+<pre>// No longer writing to the legacy column
+item.update({ new_column: value })</pre>
+<p>最后，您将能够删除旧的列或表:</p>
+<pre>exports.up = function(knex, Promise) {
+  return knex.schema.table('items', function(t) {
+    t.dropColumn('legacy_column')
+  })
+}</pre>
+<h2>长期运行迁移的注意事项</h2>
+<p>如果您有大量需要修改或回填的数据，最好不要在一条SQL语句中完成，因为您可能会锁定您的表，服务将停止工作或工作不佳。最好查询一些需要更新的记录，然后只在那些记录中运行SQL语句。也许做一些类似<code>UPDATE ... WHERE id IN (…list of ids from previous query)</code>的事情。您将在一个循环中这样做，首先查询一些记录，然后更新它们。</p>
+<p>您将需要抑制更新，因为否则您将在短时间内触发许多写操作，这也可能对您的服务的健全性产生不良影响。</p>
+<p>这种实现长期运行迁移的方式还允许您随时停止和恢复迁移。这尤其有用，因为像这样的迁移可能会在某些记录中遇到问题。如果是这种情况，这个策略允许您修复迁移并重新运行它。</p>
+<p>根据我的经验，您经常会创建一个新列并希望对其进行回填，但有时您希望用其进行回填的计算会返回null，这可能是因为非常旧的记录没有进行计算所需的所有信息，并且在更新行时，您会因为NOT NULL约束而出错。在这些情况下，您可以默认为一个特定值或删除约束，具体取决于您的情况。</p>
+<h2>结论</h2>
+<p>在不停机从而不中断用户的情况下发展数据库模式可能需要很多步骤，但我发现这比关闭服务器和争分夺秒地运行更好、压力更小、也更安全。常见的情况是，一些应用程序得到更新，然后需要在开始时进行一些清理，让用户等待，这也是一种糟糕的用户体验。</p>
+<p>这些最佳实践不仅适用于web应用程序，也适用于具有嵌入式数据库的移动应用程序。</p><div class="code-block code-block-2">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

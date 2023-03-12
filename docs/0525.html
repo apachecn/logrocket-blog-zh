@@ -1,0 +1,387 @@
+<html>
+<head>
+<title>Unit and integration testing for Node.js apps - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Node.js应用程序的单元和集成测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/#0001-01-01">https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>对于任何应用程序，测试都是开发过程中不可或缺的一部分。</p>
+<p>使用您的应用程序构建测试使您能够:</p>
+<ul>
+<li>快速验证对项目的更改不会破坏预期的行为</li>
+<li>在记录路径流时充当伪文档</li>
+<li>轻松演示应用程序行为</li>
+<li>快速检查应用程序的健康状况和代码库</li>
+</ul>
+<p>这篇文章将介绍Node.js应用程序的单元和集成测试。</p>
+<p>我们将在GitHub上回顾我的express . js API ms-star wars<a href="https://github.com/andrewevans0102/ms-starwars" target="_blank" rel="noopener noreferrer">。我建议对我的项目做一个<code>git clone</code>,并跟随我讨论对应用程序进行单元测试的不同方法。</a></p>
+<h3>测试概述</h3>
+<p>当使用Node.js进行测试时，通常会使用以下代码:</p>
+
+<p>术语测试通常还指以下内容:</p>
+<ul>
+<li><strong>单元测试</strong>–测试你的应用程序代码和逻辑。这是您的代码实际做的任何事情，不依赖于外部服务和数据来完成。</li>
+<li><strong>集成测试</strong>–测试您的应用程序与应用程序内部(或外部)的服务的连接。这可能包括连接应用程序的不同部分，或者在一个大型项目中连接两个不同的应用程序。</li>
+<li>回归测试——在一系列更改完成后测试您的应用程序行为。这通常是在主要产品发布之前做的事情。</li>
+<li><strong>端到端测试</strong>–测试项目的完整端到端流程。这包括外部HTTP调用和项目中的完整流程。</li>
+</ul>
+<p>除了这四种，还有其他特定于应用程序和框架的测试形式。</p>
+<p>在这篇文章中，我们将关注单元和集成测试。</p>
+<p>首先，让我们讨论一下我们将使用的不同框架。</p>
+<h3>摩卡是什么？</h3>
+<p>Mocha是一个测试运行程序，可以让您测试Node.js代码。它适用于任何Node.js项目，并遵循基本的<a href="https://jasmine.github.io/2.0/introduction.html" target="_blank" rel="noopener noreferrer"> Jasmine </a>语法，如下所示(借用自<a href="https://mochajs.org/#getting-started" target="_blank" rel="noopener noreferrer">的mocha入门文档</a>)。</p>
+<pre>describe('Array', function() {
+  describe('#indexOf()', function() {
+    it('should return -1 when the value is not present', function() {
+      assert.equal([1, 2, 3].indexOf(4), -1);
+    });
+  });
+});</pre>
+<p>使用mocha，您还可以使用断言库，如<a href="https://www.npmjs.com/package/assert" target="_blank" rel="noopener noreferrer"> assert </a>、<a href="https://www.npmjs.com/package/expect" target="_blank" rel="noopener noreferrer"> expect </a>等等。</p>
+<p>Mocha在test runner本身也有很多特性。我强烈推荐阅读Glad Chinda的<a href="https://blog.logrocket.com/a-quick-and-complete-guide-to-mocha-testing-d0e0ea09f09d/" target="_blank" rel="noopener noreferrer">快速完整的摩卡测试指南</a>以获取更多信息。</p>
+<h3>柴和柴是什么-http？</h3>
+<p><a href="https://www.chaijs.com/" target="_blank" rel="noopener noreferrer">柴</a>为Node.js提供断言库。</p>
+<p>Chai包含了一些基本的断言，您可以使用它们来验证行为。一些比较受欢迎的包括:</p>
+
+<p>这些可以在你的测试中用来评估你正在测试的代码的情况，比如下面的<a href="https://www.chaijs.com/" target="_blank" rel="noopener noreferrer">摘自柴的主页</a>:</p>
+<pre>chai.should();
+
+foo.should.be.a('string');
+foo.should.equal('bar');
+foo.should.have.lengthOf(3);
+tea.should.have.property('flavors')
+  .with.lengthOf(3);</pre>
+<p>Chai-http 是一个插件，它提供了一个完全成熟的测试运行器，可以实际运行您的应用程序并直接测试其端点:</p>
+<pre>describe('GET /films-list', () =&gt; {
+  it('should return a list of films when called', done =&gt; {
+    chai
+      .request(app)
+      .get('/films-list')
+      .end((err, res) =&gt; {
+        res.should.have.status(200);
+        expect(res.body).to.deep.equal(starwarsFilmListMock);
+        done();
+      });
+  });
+});</pre>
+<p>使用chai-http，测试运行程序启动您的应用程序，调用请求的端点，然后在一个命令中完成所有操作。</p>
+<p>这非常强大，有助于应用程序的集成测试。</p>
+<h3>什么是西农？</h3>
+<p>除了有一个测试运行器和断言，测试还需要刺探、存根和嘲讽。Sinon为spys、stubs和mocks提供了一个框架来测试Node.js。</p>
+<p>Sinon相当简单，您只需在应用程序的不同测试中使用相关的spy、stub和mock对象。</p>
+<p>使用sinon的一些存根进行的简单测试如下所示:</p>
+<pre>describe('Station Information', function() {
+  afterEach(function() {
+    wmata.stationInformation.restore();
+  });
+  it('should return station information when called', async function() {
+    const lineCode = 'SV';
+    const stationListStub = sinon
+      .stub(wmata, 'stationInformation')
+      .withArgs(lineCode)
+      .returns(wmataStationInformationMock);
+    const response = await metro.getStationInformation(lineCode);
+    expect(response).to.deep.equal(metroStationInformationMock);
+  });
+});</pre>
+<p>我知道这里发生了很多事情，但让我们只关注这一点:</p>
+<pre>const stationListStub = sinon
+      .stub(wmata, 'stationInformation')
+      .withArgs(lineCode)
+      .returns(wmataStationInformationMock);</pre>
+<p>这是为带有参数<code>lineCode</code>的<code>wmata</code>服务的方法<code>stationInformation</code>创建一个存根，该存根将在<code>wmataStationInformationMock</code>返回模拟。</p>
+<p>这让您可以构建基本的存根，这样测试运行程序将使用您的存根来代替它所运行的方法。这很好，因为你可以隔离行为。</p>
+<p>西农能做的不仅仅是树桩。</p>
+<p>关于用sinon测试的更多信息，我推荐阅读Leighton Wallace的<a href="https://blog.logrocket.com/sinon-with-chai/" target="_blank" rel="noopener noreferrer">How to best use Sinon with Chai</a>。</p>
+<h3>演示</h3>
+<p>在我开始实际构建测试之前，我想简单描述一下我的项目。</p>
+<p>ms-starwars实际上是对Star Wars API (SWAPI)的API调用的编排，这里的提供了<a href="https://swapi.co/" target="_blank" rel="noopener noreferrer">。SWAPI本身就是一个非常好的API，它提供了大量关于星球大战大炮的数据。</a></p>
+<p>更酷的是SWAPI是社区驱动的。因此，如果您看到某处缺少信息，您可以在这里打开他们的<a href="https://github.com/phalt/swapi" target="_blank" rel="noopener noreferrer">项目的PR并自己添加。</a></p>
+<p>当您为SWAPI调用端点时，API会返回额外的端点，您可以调用这些端点来获取更多信息。这使得rest调用有些轻量级。</p>
+<p>下面是来自<code>film</code>端点的响应:</p>
+<pre>{
+    "title": "A New Hope",
+    "episode_id": 4,
+    "opening_crawl": "It is a period of civil war.\r\nRebel spaceships, striking\r\nfrom a hidden base, have won\r\ntheir first victory against\r\nthe evil Galactic Empire.\r\n\r\nDuring the battle, Rebel\r\nspies managed to steal secret\r\nplans to the Empire's\r\nultimate weapon, the DEATH\r\nSTAR, an armored space\r\nstation with enough power\r\nto destroy an entire planet.\r\n\r\nPursued by the Empire's\r\nsinister agents, Princess\r\nLeia races home aboard her\r\nstarship, custodian of the\r\nstolen plans that can save her\r\npeople and restore\r\nfreedom to the galaxy....",
+    "director": "George Lucas",
+    "producer": "Gary Kurtz, Rick McCallum",
+    "release_date": "1977-05-25",
+    "characters": [
+        "https://swapi.co/api/people/1/",
+        "https://swapi.co/api/people/2/",
+        "https://swapi.co/api/people/3/",
+        "https://swapi.co/api/people/4/",
+        "https://swapi.co/api/people/5/",
+        "https://swapi.co/api/people/6/",
+        "https://swapi.co/api/people/7/",
+        "https://swapi.co/api/people/8/",
+        "https://swapi.co/api/people/9/",
+        "https://swapi.co/api/people/10/",
+        "https://swapi.co/api/people/12/",
+        "https://swapi.co/api/people/13/",
+        "https://swapi.co/api/people/14/",
+        "https://swapi.co/api/people/15/",
+        "https://swapi.co/api/people/16/",
+        "https://swapi.co/api/people/18/",
+        "https://swapi.co/api/people/19/",
+        "https://swapi.co/api/people/81/"
+    ],
+    "planets": [
+        "https://swapi.co/api/planets/2/",
+        "https://swapi.co/api/planets/3/",
+        "https://swapi.co/api/planets/1/"
+    ],
+    "starships": [
+        "https://swapi.co/api/starships/2/",
+        "https://swapi.co/api/starships/3/",
+        "https://swapi.co/api/starships/5/",
+        "https://swapi.co/api/starships/9/",
+        "https://swapi.co/api/starships/10/",
+        "https://swapi.co/api/starships/11/",
+        "https://swapi.co/api/starships/12/",
+        "https://swapi.co/api/starships/13/"
+    ],
+    "vehicles": [
+        "https://swapi.co/api/vehicles/4/",
+        "https://swapi.co/api/vehicles/6/",
+        "https://swapi.co/api/vehicles/7/",
+        "https://swapi.co/api/vehicles/8/"
+    ],
+    "species": [
+        "https://swapi.co/api/species/5/",
+        "https://swapi.co/api/species/3/",
+        "https://swapi.co/api/species/2/",
+        "https://swapi.co/api/species/1/",
+        "https://swapi.co/api/species/4/"
+    ],
+    "created": "2014-12-10T14:23:31.880000Z",
+    "edited": "2015-04-11T09:46:52.774897Z",
+    "url": "https://swapi.co/api/films/1/"
+}</pre>
+<p>为包括字符、行星等各种区域返回附加的API端点。</p>
+<p>要获得特定电影的所有数据，您必须调用:</p>
+<ul>
+<li>薄膜终点</li>
+<li>字符的所有端点</li>
+<li>行星的所有端点</li>
+<li>星际飞船的所有端点</li>
+<li>车辆的所有端点</li>
+<li>物种的所有终点</li>
+</ul>
+<p>我构建ms-starwars是为了尝试将HTTP调用捆绑到返回的端点，并使您能够发出单个请求并获得任何端点的相关数据。</p>
+<p>为了设置这个编排，我创建了Express.js路由和相关的控制器。</p>
+<p>我还为每个SWAPI调用添加了一个缓存机制。这提高了我的API的性能，因此这些捆绑的HTTP调用没有与进行多个HTTP调用等相关的延迟。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>在项目中，单元测试在<code>/test/unit</code>可用。在<code>test/integration</code>可以进行<code>integration</code>测试。你可以用我的项目的npm脚本运行它们:<br/> <code>npm run unit-tests</code>和<code>npm run intergration-tests</code>。</p>
+<p>在接下来的章节中，我们将逐步编写单元测试和集成测试。然后，我们将介绍一些您可以进行的考虑和优化。</p>
+<p>让我们来看看代码。</p>
+<h3>单元测试</h3>
+<p>首先，让我们在示例项目中的<code>/test/firstUnit.js</code>处创建一个新文件</p>
+<p>在测试的顶部，让我们添加以下内容:</p>
+<pre>const sinon = require('sinon');
+const chai = require('chai');
+const expect = chai.expect;
+const swapi = require('../apis/swapi');
+const starwars = require('../controllers/starwars');
+// swapi mocks
+const swapiFilmListMock = require('../mocks/swapi/film_list.json');
+// starwars mocks
+const starwarsFilmListMock = require('../mocks/starwars/film_list.json');</pre>
+<p>这是在做什么？好了，前几行引入了项目的依赖项:</p>
+<pre>const sinon = require('sinon');
+const chai = require('chai');
+const expect = chai.expect;
+const swapi = require('../apis/swapi');
+const starwars = require('../controllers/starwars');</pre>
+<ul>
+<li>拉入<a href="https://sinonjs.org/" target="_blank" rel="noopener noreferrer"> sinon框架</a>。</li>
+<li>拉进<a href="https://www.chaijs.com/" target="_blank" rel="noopener noreferrer">柴架</a>。</li>
+<li>定义<code>expect</code>以便我们可以使用它断言。</li>
+<li>引入项目中定义的<code>swapi</code> api服务。这些是对SWAPI端点的直接调用。</li>
+<li>引入项目中定义的<code>starwars</code> api控制器。这些是SWAPI端点的编排。</li>
+</ul>
+<p>接下来，你会注意到所有的模拟:</p>
+<pre>// swapi mocks
+const swapiFilmListMock = require('../mocks/swapi/film_list.json');
+// starwars mocks
+const starwarsFilmListMock = require('../mocks/starwars/film_list.json');</pre>
+<p>这些是来自SWAPI端点的JSON响应和从项目控制器返回的结果。</p>
+<p>由于我们的单元测试只是测试我们的实际代码，并不依赖于实际的流程，模拟数据使我们能够只测试代码，而不依赖于正在运行的服务。</p>
+<p>接下来，让我们用以下内容定义我们的第一个测试:</p>
+<pre>describe('Film List', function() {
+  afterEach(function() {
+    swapi.films.restore();
+  });
+  it('should return all the star wars films when called', async function() {
+    sinon.stub(swapi, 'films').returns(swapiFilmListMock);
+    const response = await starwars.filmList();
+    expect(response).to.deep.equal(starwarsFilmListMock);
+  });
+});</pre>
+<p>这里，<code>describe</code>块定义了测试的一个事件。</p>
+<p>你通常会使用<code>describe</code>并用一个<code>it</code>把它包起来。这使您能够对测试进行分组，这样<code>describe</code>可以被看作是组的名称，而<code>it</code>可以被看作是将要运行的单个测试。</p>
+<p>您还会注意到我们有一个<code>afterEach</code>函数。</p>
+<p>有几个这种类型的函数适用于Mocha。</p>
+<p>通常，您最常看到的是<code>afterEach</code>和<code>beforeEach</code>。这些基本上是生命周期挂钩，使您能够为测试设置数据，然后在测试运行后释放资源。</p>
+<p>在<code>afterEach</code>内有一个<code>swapi.films.restore()</code>调用。</p>
+<p>这释放了SWAPI <code>films</code>端点用于存根和未来的测试。这是必要的，因为我测试的星球大战控制器正在调用SWAPI <code>films</code>端点。</p>
+<p>在<code>it</code>块中，您会注意到有一个定义后跟一个<code>async function</code>调用。这里的<code>async</code>调用向运行者表明有异步行为要测试。这使我们能够使用您在第7行看到的<code>await</code>调用。</p>
+<p>最后，我们来看看测试本身。</p>
+<p>首先，我们用以下内容定义存根:</p>
+<pre>sinon.stub(swapi, 'films').returns(swapiFilmListMock);</pre>
+<p>每当从<code>swapis</code> API服务调用<code>films</code>方法时，这个存根就通知Mocha使用模拟文件。</p>
+<p>要在测试运行程序中释放这个方法，您需要调用<code>restore</code>。</p>
+<p>这对我们来说并不是一个问题，因为我们只是运行一个测试，但是如果你定义了很多测试，那么你会想要这样做。我把它放在这里只是为了表示习惯。</p>
+<p>最后，我们有实际的方法调用和一个<code>expect</code>来检查结果:</p>
+<pre>const response = await starwars.filmList();
+expect(response).to.deep.equal(starwarsFilmListMock);</pre>
+<p>当您运行这个测试时，它应该调用<code>filmList</code>控制器，并返回预期的<code>starwarsFilmListMock</code>响应。</p>
+<p>让我们运行它。</p>
+<p>通过以下方式在您的终端中全球安装Mocha:</p>
+<pre>npm i mocha --global</pre>
+<p><span>然后，用<br/> </span>运行测试</p>
+<pre>mocha test/firstUnit</pre>
+<p>您应该看到以下内容:</p>
+<p><img data-attachment-id="9451" data-permalink="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/ms-starwars-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png" data-orig-size="730,322" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ms-starwars-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png" decoding="async" class="aligncenter wp-image-9451 size-full jetpack-lazy-image" src="../Images/7d59a5c7568f980fb4a950b63da17c95.png" alt="ms-starwars" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn-300x132.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9451" data-permalink="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/ms-starwars-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png" data-orig-size="730,322" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ms-starwars-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-9451 size-full" src="../Images/7d59a5c7568f980fb4a950b63da17c95.png" alt="ms-starwars" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn-300x132.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/ms-starwars-nocdn.png"/></noscript>
+<p>在高层次上，这是任何单元测试都可以预期的。</p>
+<p>请注意，我们执行了以下操作:</p>
+<ol>
+<li>安排–我们通过创建存根来设置我们的数据</li>
+<li>act——我们调用了控制器方法来执行测试</li>
+<li>断言——我们断言来自控制器的响应等于我们保存的模拟值</li>
+</ol>
+<p>在运行任何测试时，这种安排、操作和断言的模式都是需要记住的。</p>
+<h3>更复杂的单元测试</h3>
+<p>第一个测试向您展示了基本的设置——您现在对arrange、act和assert有了基本的了解。</p>
+<p>让我们考虑一个更复杂的测试:</p>
+<pre>describe('Film', function() {
+  afterEach(function() {
+    swapi.film.restore();
+    swapi.people.restore();
+  });
+  it('should return all the metadata for a film when called', async function() {
+    const filmId = '1';
+    const peopleId = '1';
+    const planetId = '1';
+    const starshipId = '2';
+    const vehicleId = '4';
+    const speciesId = '1';
+    sinon
+      .stub(swapi, 'film')
+      .withArgs(filmId)
+      .resolves(swapiFilmMock);
+    sinon
+      .stub(swapi, 'people')
+      .withArgs(peopleId)
+      .resolves(swapiPeopleMock);
+    sinon
+      .stub(swapi, 'planet')
+      .withArgs(planetId)
+      .resolves(swapiPlanetMock);
+    sinon
+      .stub(swapi, 'starship')
+      .withArgs(starshipId)
+      .resolves(swapiStarshipMock);
+    sinon
+      .stub(swapi, 'vehicle')
+      .withArgs(vehicleId)
+      .resolves(swapiVehicleMock);
+    sinon
+      .stub(swapi, 'species')
+      .withArgs(speciesId)
+      .resolves(swapiSpeciesMock);
+    const response = await starwars.film(filmId);
+    expect(response).to.deep.equal(starwarsFilmMock);
+  });
+});</pre>
+<p>哇，好多存根啊！但是它并不像看起来那么可怕——这个测试基本上和我们之前的例子做了同样的事情。</p>
+<p>我想强调一下这个测试，因为它使用了多个存根(带参数)。</p>
+<p>正如我之前提到的，ms-starwars将几个HTTP调用捆绑在一起。对<code>film</code>端点的一个调用实际上调用了<code>film</code>、<code>people</code>、<code>planet</code>、<code>starship</code>、<code>vehicle</code>和<code>species</code>。要做到这一点，所有这些模拟都是必要的。</p>
+<p>一般来说，这就是你的单元测试的样子。您可以对PUT、POST和DELETE方法调用执行类似的行为。</p>
+<p>关键是测试代码。注意，我们在返回值中使用了stub和mock。</p>
+<p>我们在测试应用程序逻辑，并不关心应用程序的整体工作。测试完整流程的测试通常是集成或端到端测试。</p>
+<h3>集成测试</h3>
+<p>对于单元测试，我们只关注测试代码本身，而不关心端到端的流程。</p>
+<p>我们只关注于确保应用程序方法从预期的输入中获得预期的输出。</p>
+<p>对于集成测试(以及端到端测试)，我们测试流程。</p>
+<p>集成测试很重要，因为它们确保应用程序的各个组件能够协同工作。</p>
+<p>这对于微服务非常重要，因为您将定义不同的类来创建微服务。</p>
+<p>您也可能有一个包含多个服务的项目，您需要编写集成测试来确保它们能够很好地协同工作。</p>
+<p>对于ms-starwars项目，我们只是要确保控制器提供的编排与对SWAPI端点的各个API调用一起工作。</p>
+<p>继续用<code>/test/firstIntegration.js</code>定义一个新文件。</p>
+<p>将以下内容添加到文件的顶部:</p>
+<pre>const chai = require('chai');
+const chaiHttp = require('chai-http');
+chai.use(chaiHttp);
+const app = require('../server');
+const should = chai.should();
+const expect = chai.expect;
+// starwars mocks
+const starwarsFilmListMock = require('../mocks/starwars/film_list.json');</pre>
+<p>这是在做什么？</p>
+<p>首先，我们定义了一个<a href="https://www.chaijs.com/" target="_blank" rel="noopener noreferrer"> chai </a>和<a href="https://www.chaijs.com/plugins/chai-http/" target="_blank" rel="noopener noreferrer"> chai-http </a>的实例。接下来，我们将从<code>server.js</code>文件中定义实际应用程序本身的实例。</p>
+<p>然后我们引入should和expect，最后我们引入一个mock，我们将使用它来比较响应。</p>
+<p>让我们构建我们的测试:</p>
+<pre>describe('GET /films-list', () =&gt; {
+  it('should return a list of films when called', done =&gt; {
+    chai
+      .request(app)
+      .get('/films-list')
+      .end((err, res) =&gt; {
+        res.should.have.status(200);
+        expect(res.body).to.deep.equal(starwarsFilmListMock);
+        done();
+      });
+  });
+});</pre>
+<p>这是在做什么？</p>
+<p>嗯，这类似于我们之前看到的语法——我们有带<code>it</code>的<code>describe</code>。这将设置测试，并表明测试实际上正在这里进行。</p>
+<p>然后我们调用<code>chai.request</code>并传递我们对app ( <code>server.js</code>)文件的引用。这就是我们如何使用<a href="https://www.chaijs.com/plugins/chai-http/" target="_blank" rel="noopener noreferrer"> chai-http </a>库进行http调用。</p>
+<p>然后，我们从我们的API向<code>films-list</code>端点传递一个GET调用。</p>
+<p>然后我们调用<code>end</code>来通知行为，当调用完成时做什么。</p>
+<p>我们预计<code>200</code>的状态为:</p>
+<pre>res.should.have.status(200);</pre>
+<p>然后，我们期待一个机构平等的嘲笑:</p>
+<pre>expect(res.body).to.deep.equal(starwarsFilmListMock);</pre>
+<p>最后，我们调用<code>done()</code>来停止测试运行程序。</p>
+<p>真正酷的部分是它在本地启动你的应用程序，运行你指定的请求(GET，POST PUT DELETE，等等。)，使您能够捕获响应，并关闭本地运行的应用程序。</p>
+<p>现在我们的集成测试设置好了，用下面的代码运行它:</p>
+<pre>    mocha --exit test/firstIntegration
+&gt; note that the `--exit` flag is being passed here just to signal to the test runner to stop after the test finishes.  You can run it without `--exit` , but it would just wait for you to manually cancel the process.</pre>
+<p>那么您应该会看到这样的内容:</p>
+<p><img data-attachment-id="9456" data-permalink="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/git-master-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png" data-orig-size="730,385" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="git-master-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn-300x158.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png" decoding="async" class="aligncenter wp-image-9456 size-full jetpack-lazy-image" src="../Images/965055de613dd89fcd0b6c84d717a798.png" alt="git-master-nocdn.png" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn-300x158.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="9456" data-permalink="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/git-master-nocdn/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png" data-orig-size="730,385" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="git-master-nocdn" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn-300x158.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png" decoding="async" loading="lazy" class="aligncenter wp-image-9456 size-full" src="../Images/965055de613dd89fcd0b6c84d717a798.png" alt="git-master-nocdn.png" srcset="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png 730w, https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn-300x158.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/11/git-master-nocdn.png"/></noscript>
+<p>除了测试运行程序之外，还有其他框架可以运行您的应用程序。</p>
+<p>然而，使用chai-http是干净的，并且易于在您的任何项目中实现，通常不需要额外的框架。</p>
+<p>我推荐使用chai-http库和您的应用程序，并在有问题时参考文档。</p>
+<h3>测试策略</h3>
+<p>对于任何测试套件，我们还应该考虑整体策略。你应该问问自己，你想考什么？你覆盖了所有的申请流程吗？是否有特定的边缘条件需要测试？您需要为您的产品负责人或团队领导提供报告吗？</p>
+<p>到目前为止，我所介绍的框架使您能够运行测试，但是对于测试报告者来说还有许多选择。此外，还有一些测试工具可以提供代码覆盖率。</p>
+<blockquote><p>如果你在这里查阅<a href="https://medium.com/walkme-engineering/measure-your-nodejs-code-coverage-using-istanbul-82b129c81ae9" target="_blank" rel="noopener noreferrer">帖子，你会看到一个</a><a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">伊斯坦布尔测试覆盖工具</a>的好例子。</p></blockquote>
+<p>我在团队中经历的一个失败是，他们认为如果代码覆盖率工具说你已经达到90%的覆盖率，那么你就很好。这并不准确。</p>
+<p>当您编写测试时，您应该考虑奇怪的行为和对特定输入的测试。仅仅因为你的代码已经被覆盖，并不意味着离群值和边缘情况已经被覆盖。</p>
+<p>对于任何测试套件，您不仅应该考虑“快乐之路”和“悲伤之路”场景，还应该考虑边缘情况和客户的特定情况。</p>
+<p>此外，在集成和端到端测试中，经常会依赖外部HTTP调用。</p>
+<p>如果外部API关闭，这可能会有问题。</p>
+<p>事实上，我最近构建了另一个微服务来做这件事。我使用一个模拟服务器来运行我的测试，并使用<a href="https://www.npmjs.com/package/start-server-and-test" target="_blank" rel="noopener noreferrer"> start-server-and-test </a>来一起运行这两个测试。</p>
+<p>这被证明是一个很棒的体验，因为我可以独立运行我的测试，并且它将我从依赖外部API中解放出来。</p>
+<p>我推荐<a href="https://dev.to/andrewevans0102/mock-servers-with-integration-tests-52de" target="_blank" rel="noopener noreferrer">在这里查看我的文章</a>。这是一个很好的无依赖测试创新方法的例子。</p>
+<p>总的来说，你的测试策略将基于你的情况。我建议你不要只看“快乐之路”或“预期案例”,而要考虑其他一切。</p>
+<h3>结论</h3>
+<p>我希望我在这里的帖子已经很好地介绍了如何测试Node.js应用程序。</p>
+<p>我们已经讨论了可以在Node.js应用程序中使用的不同框架和技术。我们还完成了Node.js应用程序的单元和集成测试。</p>
+<p>我在这里使用的框架是Express.js，但是这些模式也适用于其他Node.js框架。我建议查看我上面提供的链接，以及每个框架的文档。</p>
+<p>在推特上关注我，地址是<a href="https://twitter.com/andrewevans0102" target="_blank" rel="noopener noreferrer"> @AndrewEvans0102。</a></p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

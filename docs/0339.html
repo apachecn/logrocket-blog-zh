@@ -1,0 +1,299 @@
+<html>
+<head>
+<title>Adding login authentication to secure React apps - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>添加登录验证以保护React应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/#0001-01-01">https://blog.logrocket.com/adding-login-authentication-secure-react-apps/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><em> <strong>编者按</strong>:本React和Express.js登录认证教程最后一次更新于2022年11月30日，定义和评估React应用中服务器端登录认证的好处。这个更新还包括关于注销以及如何连接到MongoDB数据库的部分。</em></p>
+<p>众所周知，客户端由于其暴露的本质而不安全。在您的web应用程序中，您可以有条件地呈现视图，以便向不同的用户显示不同的内容。但是，如果这些信息已经存储在客户端，它就不再安全了。</p>
+<p>为了确保只有安全登录的用户才能看到受限内容，您应该在身份验证时从服务器发送内容数据。</p>
+<p>在本教程中，我们将向您展示如何通过为<a href="https://expressjs.com"> Express.js </a>服务器实现基本的服务器端认证来保护您的<a href="https://blog.logrocket.com/tag/react/"> React应用</a>。虽然客户端将是一个React应用程序，但您可以将其应用于几乎任何其他类型的客户端应用程序。我们还将讨论一些在服务器端实现安全登录功能的React身份验证最佳实践。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="server-side-login-authentication">什么是服务器端登录认证？</h2>
+<p>服务器端登录认证是一种对试图登录服务器的用户的身份进行认证的方法。这种类型的身份验证通常需要用户提供用户名和密码，然后将用户名和密码发送到服务器进行验证。如果凭据有效，服务器将允许用户登录并访问服务器上的资源。</p>
+<h2 id="benefits-using-server-side-login-authentication">使用服务器端登录身份验证的好处</h2>
+<p>使用服务器端登录身份验证有多种用途和好处。首先，它有助于确保服务器及其包含的资源的安全性。通过要求用户提供用户名和密码，服务器可以验证试图登录的人是否被授权这样做。</p>
+<p>服务器端登录身份验证的另一个好处是，它可以提供一个集中的系统来管理用户帐户。这意味着服务器管理员可以轻松地添加、删除或更新用户帐户，并且这些更改会立即反映在整个服务器上。这可以更容易地管理用户访问，并确保只有授权用户才能访问服务器及其资源。</p>
+<p>此外，服务器端登录身份验证可以为用户提供一种从任何设备安全访问资源的方式，只要他们拥有必要的凭据。这对于拥有多个地点的组织或需要远程访问资源的员工尤其有用。</p>
+<p>总的来说，服务器端登录身份验证是保护服务器及其包含的资源的安全的一个有用而重要的工具。它可以帮助防止未经授权的访问，并提供一个集中的系统来管理用户帐户，使其成为任何安全服务器环境的重要组成部分。</p>
+<h2 id="react-authentication-server-side-setup">React身份验证服务器端登录设置</h2>
+<p>引导React项目最简单的方法是使用<a href="https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/"> Create React App </a>包。当您用这个包创建一个项目并运行<code>npm start</code>时，您实际上启动了一个<a href="https://blog.logrocket.com/changes-coming-to-webpack-in-2021/"> webpack服务器</a>。这在您的本地机器上运行良好，但是当您想要将它部署到远程服务器时，您需要自己的服务器来服务您的React应用程序。这基本上就是一个<a href="https://blog.logrocket.com/type-html-faster-react-emmet-vs-code/"> HTML </a>、<a href="https://blog.logrocket.com/tag/vanilla-javascript/"> JavaScript </a>、<a href="https://blog.logrocket.com/tag/css/"> CSS </a>的包。</p>
+<p>对于这个React身份验证示例项目，我们将参考以下文件夹结构:</p>
+<pre class="language-plaintext hljs">--- Project Folder
+ |__ client (React App)
+ |__ server.js
+ |__ package.json
+</pre>
+<p>有一个<code>Project Folder</code>和一个包含React应用程序的<code>client</code>文件夹。该文件夹还包含一个<code>server.js</code>和<code>package.json</code>文件，您可以在终端的项目目录下使用以下命令创建这些文件:</p>
+<pre class="language-javascript hljs">npm init -y
+touch server.js
+</pre>
+<h2 id="serving-react-app-express-js-server">从Express.js服务器提供React应用程序</h2>
+<h3 id="proxy-react-app">代理React应用</h3>
+<p>您部署的React应用程序将被构建，并且,<code>build</code>文件夹将由Express.js服务器提供服务。然而，当在本地开发应用程序时，你不应该在每一个变化上都为生产而构建。为了避免这种情况，你可以<a href="https://blog.logrocket.com/why-you-should-use-proxy-server-create-react-app/">代理你的React应用</a>到一个特定的端口。</p>
+<p>这样，您将使用内置的webpack服务器在本地运行React应用程序，并且仍然能够与Express.js服务器通信。</p>
+<p>将下面一行添加到React应用程序的<code>package.json</code>中，假设Express服务器将在<code>port 5000</code>上提供服务:</p>
+<pre class="language-javascript hljs">"proxy": "http://localhost:5000/"
+</pre>
+<h3 id="serve-build-folder">奉上<code>build</code>文件夹</h3>
+<p>Express.js服务器应该服务于<code>build</code>文件夹，该文件夹将在部署到远程服务器的过程中创建。</p>
+<p>以下代码片段是一个基本的Express.js服务器。我们将在此基础上添加身份验证和其他功能:</p>
+<pre class="language-javascript hljs">const express = require('express');
+const path = require('path');
+const app = express();
+
+const PORT = process.env.PORT || 5000;
+
+app
+  .use(express.static(path.join(__dirname, '/client/build')))
+  .listen(PORT, () =&gt; console.log(`Listening on ${PORT}`));
+
+app.get('/', (req, res) =&gt; {
+  res.sendFile(path.join(__dirname, '/client/build/index.html'));
+});
+</pre>
+<h3 id="run-express-js-server-locally">在本地运行Express.js服务器</h3>
+<p>如前所述，React应用程序仍将使用webpack服务器，因为它将代理到<code>port 5000</code>。然而，我们仍然必须单独运行<a href="https://blog.logrocket.com/organizing-express-js-project-structure-better-productivity/">快速服务器</a>。</p>
+<p>Nodemon包对于运行和监听变化非常方便。只需在项目文件夹的主目录中运行<code>nodemon server.js</code>，就可以全局安装，然后运行服务器。至于React应用程序，我们只需运行<code>client</code>文件夹中的<code>npm start</code>。</p>
+<h3 id="run-remote-server">如何在远程服务器上运行</h3>
+<p>虽然这是一个可选的步骤，但值得一提的是。让我们假设我们想要将我们的应用程序部署到一个<a href="https://www.heroku.com"> Heroku </a> dyno。</p>
+<p><a href="https://blog.logrocket.com/deploying-decoupled-monorepo-project-heroku/"> Heroku </a>检测Node.js应用程序，安装依赖项，并自动运行它。但是，您仍然需要告诉它进入特定的文件夹，安装依赖项，并为生产构建React应用程序。在我们的例子中，这将分别进入<code>/client</code>运行<code>npm install</code>，然后进入<code>npm run build</code>。</p>
+<p>为此，Heroku有一个<code>post-build</code>命令:<code>"heroku-postbuild": "cd client &amp;&amp; npm install &amp;&amp; npm run build"</code></p>
+<p>将此添加到服务器的<code>package.json</code>内的<code>"scripts"</code>键下。另外，确保Node.js应用程序的入口点是<code>package.json</code>文件中的<code>server.js</code>。</p>
+<p>如果你用<code>-y</code>标志初始化你的npm包为用<code>"main": "server.js"</code>初始化的<code>npm init -y</code>，这很可能是<code>index.js</code>。</p>
+<h2 id="basic-authentication-react-express-js">React和Express.js中的基本身份验证</h2>
+<p>顾名思义，<a href="https://www.npmjs.com/package/express-basic-auth"> express-basic-auth </a>是一个非常方便易用的包，用于基本的身份验证目的。</p>
+<p>首先，安装软件包，然后要求它位于您的<code>server.js</code>的顶部。我们将通过使用包的实例来定义安全登录凭据:</p>
+<pre class="language-javascript hljs">const basicAuth = require('express-basic-auth');
+
+const auth = basicAuth({
+  users: {
+    admin: '123',
+    user: '456',
+  },
+});
+</pre>
+<p>现在，当<code>auth</code>变量被用作端点的参数，并且当且仅当凭证与请求匹配一起发送时，来自该端点的响应才返回到客户端。</p>
+<p>在下面的代码中，您将看到服务器端的<code>/authenticate</code>端点和客户端发送的<code>GET</code>请求，以及包含凭证的<code>auth</code>对象:</p>
+<pre class="language-javascript hljs">// End-point on Server
+
+app.get('/authenticate', auth, (req, res) =&gt; {
+  if (req.auth.user === 'admin') {
+    res.send('admin');
+  } else if (req.auth.user === 'user') {
+    res.send('user');
+  }
+});
+
+// Request on Client
+
+const auth = async () =&gt; {
+  try {
+    const res = await axios.get('/authenticate', { auth: { username: 'admin', password: '123' } });
+    console.log(res.data);
+  } catch (e) {
+    console.log(e);
+  }
+};
+</pre>
+<p>在上面的例子中，传递正确的凭证会将<code>admin</code>或<code>user</code>作为字符串响应发送回来，这取决于所使用的用户名。错误的登录凭证将简单地返回一个响应<code>401 (Unauthorized)</code>。</p>
+<h2 id="react-authentication-http-cookies">使用HTTP cookies进行身份验证</h2>
+<p>既然我们已经知道了如何在凭证正确的情况下将数据从服务器发送到客户机，下一步就是通过一个<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies"> cookie会话</a>来持久化认证。</p>
+<p>我们可以从服务器在客户机上设置一个cookie，而不是从<code>authenticate</code>端点发送响应。通过部署另一个端点，我们可以检查cookie并实际发送数据来填充视图。</p>
+<p>一旦用户通过身份验证，这些信息应该存储在客户端的某个地方，这样用户就不需要每次都进行身份验证。通常的做法是使用cookies来存储这个会话信息。只要设置了正确的标志，Cookies就是安全的。</p>
+<h3 id="react-httponly-cookie">反应饼干</h3>
+<p>当使用cookie会话在React中持久化身份验证时，<code>httpOnly</code>标志确保除了服务器之外，任何客户端脚本都不能访问cookie。</p>
+<p><code>secure</code>标志确保cookie信息通过HTTPS协议与加密请求一起发送到服务器。使用<code>secure</code>标志时，还需要一个密钥来对cookie进行签名。为此，我们为Express.js服务器使用了<code>cookie-parser</code>中间件。</p>
+<p>一个cookie只有一个<code>name</code>和一个<code>value</code>。即使有上述标志，也不要在cookie参数中泄露任何易受攻击的信息。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="create-user-session-cookies-react">如何在React中使用cookies创建用户会话</h3>
+<p>在下面的代码示例中，<code>server.js</code>在身份验证时设置一个唯一的cookie。正如您所看到的，设置cookie后，响应也发送一个带有<code>screen:admin</code>或<code>screen:user</code>键值对的对象。</p>
+<p>这个响应稍后将在客户端的React应用程序中使用:</p>
+<pre class="language-javascript hljs">const cookieParser = require('cookie-parser');
+
+// A random key for signing the cookie
+app.use(cookieParser('82e4e438a0705fabf61f9854e3b575af'));
+
+app.get('/authenticate', auth, (req, res) =&gt; {
+  const options = {
+    httpOnly: true,
+    signed: true,
+  };
+
+  if (req.auth.user === 'admin') {
+    res.cookie('name', 'admin', options).send({ screen: 'admin' });
+  } else if (req.auth.user === 'user') {
+    res.cookie('name', 'user', options).send({ screen: 'user' });
+  }
+});
+</pre>
+<p>由于cookie有一个<code>httpOnly</code>标志，我们既不能在客户端读取也不能删除它。因此，我们还需要两个端点来读取和删除cookie，并相应地发送回响应。</p>
+<h3 id="reading-cookie-server">从服务器读取cookie</h3>
+<p>从服务器读取cookie非常简单，但是您应该记住，该功能的端点不应该有<code>auth</code>变量，因为不需要对该端点进行身份验证。</p>
+<p>在注销用户部分下面，我们有两个端点:<code>/read-cookie</code>和<code>/clear-cookie</code>。带有<code>res</code>的<code>signedCookies</code>对象包含我们为cookie设置的<code>name:value</code>对:</p>
+<pre class="language-javascript hljs">res.cookie('name', 'admin', options)
+</pre>
+<p>根据cookie名称的值，我们将发送一个响应。</p>
+<h3 id="log-out-user">注销用户</h3>
+<p>至于<code>/clear-cookie</code>端点，删除cookie是通过引用cookie的名字来完成的，这个名字就是<code>name</code>。这反过来执行一个简单的<code>logout</code>功能，因为它清除了用户的会话:</p>
+<pre class="language-javascript hljs">app.get('/read-cookie', (req, res) =&gt; {
+  if (req.signedCookies.name === 'admin') {
+    res.send({ screen: 'admin' });
+  } else if (req.signedCookies.name === 'user') {
+    res.send({ screen: 'user' });
+  } else {
+    res.send({ screen: 'auth' });
+  }
+});
+
+app.get('/clear-cookie', (req, res) =&gt; {
+  res.clearCookie('name').end();
+});
+</pre>
+<p>按照这个逻辑，您可以创建几个端点，根据应用程序的性质发送不同类型的数据。您需要做的就是检查cookie并相应地发送响应。</p>
+<p>下面，您可以找到完整的<code>server.js</code>文件，它服务于客户端React应用程序，我们将在下一节中讨论:</p>
+<pre class="language-javascript hljs">const express = require('express');
+const basicAuth = require('express-basic-auth');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+
+const app = express();
+
+const auth = basicAuth({
+  users: {
+    admin: '123',
+    user: '456',
+  },
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.use(cookieParser('82e4e438a0705fabf61f9854e3b575af'));
+
+app
+  .use(express.static(path.join(__dirname, '/client/build')))
+  .listen(PORT, () =&gt; console.log(`Listening on ${PORT}`));
+
+app.get('/', (req, res) =&gt; {
+  res.sendFile(path.join(__dirname, '/client/build/index.html'));
+});
+
+app.get('/authenticate', auth, (req, res) =&gt; {
+  const options = {
+    httpOnly: true,
+    signed: true,
+  };
+
+  console.log(req.auth.user);
+
+  if (req.auth.user === 'admin') {
+    res.cookie('name', 'admin', options).send({ screen: 'admin' });
+  } else if (req.auth.user === 'user') {
+    res.cookie('name', 'user', options).send({ screen: 'user' });
+  }
+});
+
+app.get('/read-cookie', (req, res) =&gt; {
+  console.log(req.signedCookies);
+  if (req.signedCookies.name === 'admin') {
+    res.send({ screen: 'admin' });
+  } else if (req.signedCookies.name === 'user') {
+    res.send({ screen: 'user' });
+  } else {
+    res.send({ screen: 'auth' });
+  }
+});
+
+app.get('/clear-cookie', (req, res) =&gt; {
+  res.clearCookie('name').end();
+});
+
+app.get('/get-data', (req, res) =&gt; {
+  if (req.signedCookies.name === 'admin') {
+    res.send('This is admin panel');
+  } else if (req.signedCookies.name === 'user') {
+    res.send('This is user data');
+  } else {
+    res.end();
+  }
+});
+</pre>
+<h2 id="practical-react-authentication-example">一个React认证实例</h2>
+<p>假设您有一个管理屏幕和一个普通用户屏幕，您在其中显示不同的内容。</p>
+<p>我们需要的第一件事是身份验证请求，它将凭证发送到服务器。我们还需要从<a href="https://blog.logrocket.com/react-lifecycle-methods-tutorial-examples/#componentDidMount"> <code>componentDidMount</code>生命周期挂钩</a>发送的另一个请求，以检查是否已经有一个cookie，以便我们可以自动登录。</p>
+<p>然后，我们可能需要一些其他的请求来获取额外的数据。最终，我们需要能够发送一个请求来清除cookie，以便会话不再持续。</p>
+<p>你可以在<a href="https://codesandbox.io/s/basic-auth-example-o73bh?from-embed"> CodeSandbox </a>上找到完整的客户端代码。然而，为了让它工作，很明显，您应该在服务器旁边运行它:</p>
+<p>正在连接到MongoDB</p>
+<h2 id="connecting-mongodb">要将Node.js应用程序连接到<a href="https://www.mongodb.com/atlas/database"> MongoDB Atlas数据库</a>，您需要执行以下步骤:</h2>
+<p>为Node.js安装MongoDB驱动程序，这将允许您从Node.js应用程序连接MongoDB数据库并与之交互。你可以通过在你的终端中运行<code>npm install mongodb</code>来实现。</p>
+<p>创建一个<a href="https://account.mongodb.com/account/register"> MongoDB Atlas账户</a>。这将为您提供一个可以用来连接数据库的URL。</p>
+<p>成功创建帐户后，您应该会看到如下图所示的仪表板。接下来，要创建一个数据库，点击<strong>建立一个数据库</strong>按钮:</p>
+<p><img data-attachment-id="149071" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/react-data-base-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step one" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png" decoding="async" class="aligncenter size-full wp-image-149071 jetpack-lazy-image" src="../Images/c6f4627af81f93d84f9b01bb36444cf6.png" alt="Connecting to MongoDB Step One" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png"/></p>
+<p>选择自由<strong>共享</strong>选项:</p><noscript><img data-lazy-fallback="1" data-attachment-id="149071" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/react-data-base-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step one" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-149071" src="../Images/c6f4627af81f93d84f9b01bb36444cf6.png" alt="Connecting to MongoDB Step One" srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/react-data-base-mongodb.png"/></noscript>
+<p><img data-attachment-id="149075" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/shared-mongodb-option/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step two" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png" decoding="async" class="aligncenter size-full wp-image-149075 jetpack-lazy-image" src="../Images/95c1cab5afdc0fc399f86cfb85734c4d.png" alt="Connecting to MongoDB Step Two" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png"/></p>
+<p>然后，通过单击页面底部的<strong>创建集群</strong>按钮来创建集群。您还可以在此页面上决定编辑和更改集群:</p><noscript><img data-lazy-fallback="1" data-attachment-id="149075" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/shared-mongodb-option/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step two" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-149075" src="../Images/95c1cab5afdc0fc399f86cfb85734c4d.png" alt="Connecting to MongoDB Step Two" srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/shared-mongodb-option.png"/></noscript>
+<p><img data-attachment-id="149077" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/create-cluster-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step three" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png" decoding="async" class="aligncenter size-full wp-image-149077 jetpack-lazy-image" src="../Images/9d011103f63d41c029c7221fa976040f.png" alt="Connecting to MongoDB Step Three" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png"/></p>
+<p>接下来，为您的集群设置用户名和密码。然后，向下滚动到页面底部，点击<strong>连接到我的本地环境</strong>并添加您的IP地址:</p><noscript><img data-lazy-fallback="1" data-attachment-id="149077" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/create-cluster-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step three" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-149077" src="../Images/9d011103f63d41c029c7221fa976040f.png" alt="Connecting to MongoDB Step Three" srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/create-cluster-mongodb.png"/></noscript>
+<p><img data-attachment-id="149080" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/connect-local-environment-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step four" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png" decoding="async" class="aligncenter size-full wp-image-149080 jetpack-lazy-image" src="../Images/bf094b85aeee967a332b9013bfe4d8e0.png" alt="Connecting to MongoDB Step Four" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png"/></p>
+<p>如果您正确遵循了上述步骤，您应该能够看到下图所示的页面:</p><noscript><img data-lazy-fallback="1" data-attachment-id="149080" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/connect-local-environment-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step four" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-149080" src="../Images/bf094b85aeee967a332b9013bfe4d8e0.png" alt="Connecting to MongoDB Step Four" srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/connect-local-environment-mongodb.png"/></noscript>
+<p><img data-attachment-id="149082" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/deploy-react-database-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step five" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png" decoding="async" class="aligncenter size-full wp-image-149082 jetpack-lazy-image" src="../Images/d862bd10389e362ec8c6bfc584f0cd04.png" alt="Connecting to MongoDB Step Five" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb-300x153.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png"/></p>
+<p>从那里，点击以红色突出显示的<strong>菜单</strong>按钮，然后点击<strong>加载样本数据集</strong>。MongoDB为我们提供了一个模拟数据集，我们可以使用它来快速测试应用程序与数据库之间的连接。</p><noscript><img data-lazy-fallback="1" data-attachment-id="149082" data-permalink="https://blog.logrocket.com/adding-login-authentication-secure-react-apps/attachment/deploy-react-database-mongodb/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png" data-orig-size="730,373" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Connecting to MongoDB step five" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb-300x153.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-149082" src="../Images/d862bd10389e362ec8c6bfc584f0cd04.png" alt="Connecting to MongoDB Step Five" srcset="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png 730w, https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb-300x153.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2021/05/deploy-react-database-mongodb.png"/></noscript>
+<p>接下来，选择最左边的<strong>连接</strong>按钮，如上图所示。您应该会看到一个弹出模式。选择<strong>连接您的应用程序</strong>选项。这将帮助我们使用MongoDB的一个本地驱动程序连接到我们的应用程序，在我们的例子中，它是<a href="https://mongodb.github.io/node-mongodb-native/">节点本地驱动程序</a>。</p>
+<p>使用MongoDB驱动程序</p>
+<h3 id="using-mongodb-driver">从屏幕上出现的下一个弹出模式中复制连接字符串。我们将把它添加到我们的<code>server.js</code>文件中。</h3>
+<p>在Node.js应用程序中，使用MongoDB驱动程序通过MongoDB Atlas提供的URL连接到数据库。您可以使用以下代码来实现这一点:</p>
+<p>在这段代码中，您需要分别用您的MongoDB Atlas用户名和密码替换<code>&lt;username&gt;</code>和<code>&lt;password&gt;</code>。</p>
+<pre class="language-javascript hljs">const MongoClient = require('mongodb').MongoClient;
+const url = 'mongodb+srv://&lt;username&gt;:&lt;password&gt;@cluster0.mongodb.net/test?retryWrites=true&amp;w=majority';
+
+MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, (err, client) =&gt; {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log('Connected to MongoDB Atlas');
+    // do something with your database here
+  }
+});
+</pre>
+<p>一旦Node.js应用程序连接到MongoDB Atlas数据库，就可以使用MongoDB驱动程序对数据库执行<code>CRUD</code>操作。例如，您可以使用<code>insertOne()</code>方法将文档插入到集合中，或者使用<code>find()</code>方法从集合中检索文档。</p>
+<p>关键要点</p>
+<h2 id="key-takeaways">让我们回顾一下通过登录身份验证保护React应用程序的最重要步骤。</h2>
+<p>我们有三个不同的状态变量:<code>screen</code>，<code>username</code>，<code>password</code>。</p>
+<p><code>username</code>和<code>password</code>用于存储输入的现场数据，并通过<code>auth</code>函数通过<code>/authenticate</code>端点发送给服务器。因此，登录按钮的<a href="https://blog.logrocket.com/a-guide-to-react-onclick-event-handlers-d411943b14dd/"> onClick事件</a>调用<code>auth</code>函数。只有在用户进行初始身份验证时，才需要这样做。</p>
+<p>为了检查用户是否已经登录，我们在<code>readCookie</code>函数中使用了<code>/read-cookie</code>端点。这个函数在<code>component mount</code>上只被调用一次。来自该端点的响应设置<code>screen</code>状态以将视图改变到<code>admin</code>或<code>user</code>屏幕。</p>
+<p>在这个React身份验证示例中，<code>admin</code>和<code>user</code>屏幕是同一个组件。但是，由于来自服务器的响应会根据身份验证而变化，因此同一组件会呈现不同的内容。</p>
+<p>此外，<code>/get-data</code>端点演示了来自服务器的特定于cookie的响应的另一个用例。</p>
+<p>最后，<code>/clear-cookie</code>与注销按钮的<code>onClick</code>事件一起使用，以清除cookie并将<code>screen</code>状态变量设置回其初始状态。</p>
+<p>结论</p>
+<h2>本教程的目的是让您对使用<code>express-basic-auth</code> npm包的Express.js服务器上的基本服务器端React身份验证有一个基本的了解。这种简单的身份验证系统的潜在用例从小型个人项目到具有固定用户数量的界面的安全页面。</h2>
+<p>保护安全登录机制背后的数据的需求几乎是普遍的。如果您知道如何在React和Express.js中实现安全登录身份验证，那么您几乎可以在任何其他类型的客户端应用程序中实现相同的功能。</p>
+<p>如果您对如何在Node.js中进一步提高您的web应用程序安全性感兴趣，请查看我们的使用bcrypt 在Node.js中进行<a href="https://blog.logrocket.com/password-hashing-node-js-bcrypt/">密码散列的指南。</a></p>
+<p>使用LogRocket消除传统反应错误报告的噪音</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p><p vwo-el-id="28675661060">Focus on the React bugs that matter —
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">try LogRocket today</a>.
+</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

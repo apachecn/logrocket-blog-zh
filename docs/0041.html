@@ -1,0 +1,181 @@
+<html>
+<head>
+<title>Implicit state sharing: React’s context API &amp; provide/inject in Vue - LogRocket Blog</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>隐式状态共享:React的上下文API &amp;在Vue - LogRocket博客中提供/注入</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implicit-state-sharing-reacts-context-api-provide-inject-in-vue-679062a50f05/#0001-01-01">https://blog.logrocket.com/implicit-state-sharing-reacts-context-api-provide-inject-in-vue-679062a50f05/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>假设您正在创建一个accordion组件，并希望通过npm包公开发布。您希望这个accordion的用户能够通过将多个组件组合在一起，以非常灵活的方式使用组件。</p>
+<p>假设这是您理想的API:</p>
+<pre>&lt;Accordion&gt;
+    &lt;AccordionItem&gt;
+        &lt;AccordionHeader&gt;Header content&lt;/AccordionHeader&gt;
+        &lt;AccordionPanel&gt;Panel content&lt;/AccordionPanel&gt;
+    &lt;/AccordionItem&gt;
+&lt;/Accordion&gt;</pre>
+<p><code>AccordionItem</code>将包含可展开或折叠的手风琴的每个部分，<code>AccordionHeader</code>将是用户可以点击展开或折叠的地方，<code>AccordionPanel</code>将包含要显示或隐藏的内容。</p>
+<p>每个<code>AccordionItem</code>都需要保持某种状态——不管它是不是<em class="markup--em markup--p-em">展开的</em>。但是<code>AccordionHeader</code>也需要访问这个值，这样它就可以显示适当的切换按钮。而<code>AccordionPanel</code>可能也需要访问这个，因为它是被展开和折叠的东西。</p>
+<p>一种可能是通过render props向用户公开扩展的值，并确保您的文档让他们知道他们需要将该值传递给header和panel组件。</p>
+<pre>&lt;Accordion&gt;
+    &lt;AccordionItem render={({expanded}) =&gt; (
+        &lt;AccordionHeader expanded={expanded}&gt;
+            Header content
+        &lt;/AccordionHeader&gt;
+        &lt;AccordionPanel expanded={expanded}&gt;
+            Panel content
+        &lt;/AccordionPanel&gt;
+    )} 
+    /&gt;
+&lt;/Accordion&gt;</pre>
+<p>虽然这看起来是一个不错的解决方案，但是让组件的消费者担心组件的内部结构并不理想。事实上,<code>AccordionHeader</code>和<code>AccordionPanel</code>需要访问扩展状态不应该是我们的用户必须关心的事情。</p>
+<p>还应该注意，虽然这是一个简单的例子，但是您的组件可能要复杂得多，具有多层嵌套组件，在这种情况下，正确的钻探可能会变得非常繁琐。</p>
+<p>我们真正需要的是一种方式来<em>含蓄地</em>传递道具。</p>
+<h2>使用React的上下文API</h2>
+<p>对于这种情况，有一个更好的解决方案——React的上下文API。我们可以使用上下文API来创建一些状态，并在幕后需要的地方提供它，从我们面向公众的API中消除这种顾虑。(参见:<a class="markup--anchor markup--p-anchor" href="https://blog.logrocket.com/guide-to-react-compound-components-9c4b3eb482e9" target="_blank" rel="noopener noreferrer" data-href="https://blog.logrocket.com/guide-to-react-compound-components-9c4b3eb482e9">复合组件模式</a>)。</p>
+<p>首先，我们将创建一个上下文，并定义该上下文的<em>形状</em>。我们将从一个<code>expanded</code>值和一个<code>toggleExpansion</code>方法开始。我们将此上下文定义为与我们的accordion项目特别相关:</p>
+<pre>const AccordionItemContext = React.createContext({
+    expanded: false,
+    toggleExpansion: () =&gt; {}
+});</pre>
+<p>现在，在我们的<code>AccordionItem</code>组件中，我们将定义<code>expanded</code>和<code>toggleExpansion</code>值，并将它们作为<code>Provider</code>组件的值输入。</p>
+<pre>class AccordionItem extends React.Component {
+    constructor (props) {
+        super(props)
+    
+        this.toggleExpansion = () =&gt; {
+            this.setState({ expanded: !this.state.expanded })
+        }
+    
+        this.state = {
+            expanded: false,
+            toggleExpansion: this.toggleExpansion
+        }
+    }
+    
+    render () {
+        return (
+            &lt;AccordionItemContext.Provider value={this.state}&gt;
+                &lt;div className="accordion-item"&gt;
+                    {this.props.children}
+                &lt;/div&gt;
+            &lt;/AccordionItemContext.Provider&gt;
+        )
+    }
+}</pre>
+<p><code>Provider</code>是上下文等式的一半。另一半是<code>Consumer</code>。正如我们将很快看到的那样，<code>Provider</code>允许<code>Consumer</code>订阅上下文变化。</p>
+<p>接下来，我们需要将<code>AccordionHeader</code>和<code>AccordionPanel</code>设置为这个上下文的<em>消费者</em>:</p>
+<pre>const AccordionHeader = (props) =&gt; {
+    return (
+        &lt;AccordionItemContext.Consumer&gt;
+            {({ expanded, toggleExpansion }) =&gt; (
+                &lt;h2 className="accordion-header"&gt;
+                    &lt;button onClick={toggleExpansion}&gt;
+                        { expanded ? '▼ ' : '► ' } 
+                        { props.children }
+                    &lt;/button&gt;
+                &lt;/h2&gt;
+            )}
+        &lt;/AccordionItemContext.Consumer&gt;
+    )
+}</pre>
+<p>组件<code>Consumer</code>需要一个函数作为其子组件。这个函数将接收上下文值，我们将它析构为<code>expanded</code>和<code>toggleExpansion</code>。然后，我们的组件能够在其模板中使用这些值。</p>
+<p>我们将类似地使用<code>Consumer</code>来给予<code>AccordionPanel</code>对上下文值的访问:</p>
+<pre>const AccordionPanel = (props) =&gt; {
+    return (
+        &lt;AccordionItemContext.Consumer&gt;
+            {({ expanded }) =&gt; &lt;div className={"accordion-panel " + (expanded ? 'expanded' : '')}&gt;{props.children}&lt;/div&gt;}
+        &lt;/AccordionItemContext.Consumer&gt;
+    )
+}</pre>
+<p>现在，我们真的可以为accordion组件实现我们理想的API了。我们组件的用户不必担心在组件树中上下传递状态。这些组件的内部结构对他们是隐藏的:</p>
+<pre>&lt;Accordion&gt;
+    &lt;AccordionItem&gt;
+        &lt;AccordionHeader&gt;Header content&lt;/AccordionHeader&gt;
+        &lt;AccordionPanel&gt;Panel content&lt;/AccordionPanel&gt;
+    &lt;/AccordionItem&gt;
+&lt;/Accordion&gt;</pre>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="js,result" data-user="jonathanharrell" data-slug-hash="WgBzyX" data-pen-title="React Accordion Component Using Context">参见<a href="https://codepen.io"> CodePen </a>上Jonathan Harrell(<a href="https://codepen.io/jonathanharrell">@ Jonathan Harrell</a>)<br/>使用上下文反应手风琴组件的笔<a href="https://codepen.io/jonathanharrell/pen/WgBzyX">。</a></p>
+<p>提供/注入Vue</p>
+<h2>Vue提供了一个类似React的上下文API的工具，叫做provide/inject。为了使用它，我们将在我们的<code>accordion-item</code> Vue组件上使用<code>provide</code>方法:</h2>
+<p>我们从<code>provide()</code>返回一个对象，该对象包含我们想要提供给其他组件的状态。注意，我们将一个对象传递给<code>accordionItemState</code>，而不是简单地传递&lt;代码“&gt;扩展值”。<code>provide</code>为了有所反应，必须传递一个对象。</p>
+<pre>Vue.component('accordion-item', {
+    data () {
+        return {
+            sharedState: {
+                expanded: false
+            }
+        }
+    },
+  
+    provide () {
+        return {
+            accordionItemState: this.sharedState
+        }
+    },
+  
+    render (createElement) {
+        return createElement(
+            'div', 
+            { class: 'accordion-item' }, 
+            this.$slots.default
+        )
+    }
+})</pre>
+<p>注意，我们在这里使用一个render函数来创建这个组件，但是这对于使用provide/inject来说并不是必需的。</p>
+<p>现在，我们将把这个状态注入到我们的子组件中。我们将简单地使用<code>inject</code>属性，它接受对应于我们在<code>provide</code>中定义的对象属性的字符串数组。</p>
+<p>一旦我们在<code>inject</code>中包含了属性名，我们就可以访问模板中的那些值。</p>
+<pre>Vue.component('accordion-header', {
+    inject: ['accordionItemState'],
+  
+    template: `
+        &lt;h2 class="accordion-header"&gt;
+            &lt;button @click="accordionItemState.expanded = !accordionItemState.expanded"&gt;
+                {{ accordionItemState.expanded ? '▼' : '►' }} 
+                &lt;slot&gt;&lt;/slot&gt;
+            &lt;/button&gt;
+        &lt;/h2&gt;
+    `
+})</pre>
+<p>参见<a href="https://codepen.io"> CodePen </a>上Jonathan Harrell(<a href="https://codepen.io/jonathanharrell">@ Jonathan Harrell</a>)<br/>使用提供/注入的Pen <a href="https://codepen.io/jonathanharrell/pen/PdvRoP"> <br/> Vue手风琴组件。</a></p>
+<pre>Vue.component('accordion-panel', {
+    inject: ['accordionItemState'],
+  
+    template: `
+        &lt;div class="accordion-panel" :class="{ expanded: accordionItemState.expanded }"&gt;
+            &lt;slot&gt;&lt;/slot&gt;
+        &lt;/div&gt;
+    `
+})</pre>
+<p class="codepen" data-height="265" data-theme-id="0" data-default-tab="html,result" data-user="jonathanharrell" data-slug-hash="PdvRoP" data-pen-title="Vue Accordion Component Using Provide/Inject">小心使用</p>
+<p>值得注意的是，只有在真正有意义的时候，才应该隐式地传递道具。这样做太多会混淆组件的真实行为，并给其他可能参与您的项目的开发人员带来困惑。</p>
+<h2>打包并分发到其他应用程序中使用的组件库是一个完美的用例，因为组件的内部属性实际上不需要向最终用户公开。</h2>
+<p>React的上下文API和Vue的提供/注入特性都使得通过隐式状态共享来实现这一点成为可能。</p>
+<p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</p>
+<p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">. </h2><p>LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p>LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p>现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+<p vwo-el-id="28675660750">像用户一样体验您的Vue应用</p>
+<p vwo-el-id="28675661060">调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>. </h2><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p><p>The LogRocket Vuex plugin logs Vuex mutations to the LogRocket console, giving you context around what led to an error, and what state the application was in when an issue occurred.</p><p>Modernize how you debug your Vue apps - <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a>.</p></div>
+
+
+</div>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+
+</div>    
+</body>
+</html>
