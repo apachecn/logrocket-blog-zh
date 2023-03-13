@@ -1,0 +1,215 @@
+<html>
+<head>
+<title>A guide to streaming SSR with React 18 </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>React 18流SSR指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/streaming-ssr-with-react-18/#0001-01-01">https://blog.logrocket.com/streaming-ssr-with-react-18/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>React 18推出了很多令人兴奋的变化和功能。这可能是你已经听过很多的事情，而且理由很充分。尽管稍不引人注目，React SSR架构中也有一些非常令人兴奋的发展。为了理解React 18带来的突破，有必要看看整个时间线以及导致它的增量步骤。</p>
+<p>在我们深入了解SSR的前因后果之前，首先了解我们进行SSR的原因至关重要。特别是，我们将深入探讨它的重要性以及它的哪些方面决定了React团队决定改进他们的SSR架构的方式。</p>
+<p>在本文中，我们将仔细研究SSR，因为对这一主题有一个基本的了解以及它与其他技术的比较是很重要的，最重要的是客户端渲染(CSR)。不幸的是，我们无法在本文中涵盖全部内容，而将只关注React 18上下文中SSR的重要方面。虽然并非绝对必要，但我们建议您温习一下这个主题，以便充分利用本文。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="short-introduction-ssr">SSR的简短介绍</h2>
+<p>本质上，实施SSR的最重要原因是:</p>
+<ul>
+<li>表演</li>
+<li>搜索引擎优化</li>
+<li>用户体验(UX)</li>
+</ul>
+<p>本质上，存在一个使用SSR的React应用程序的特定渲染流程。首先，服务器接管客户端获取所有数据并呈现整个React应用程序的责任。这样做之后，产生的HTML和JavaScript从服务器发送到客户机。最后，客户端将HTML放到屏幕上，并用适当的JavaScript将其连接起来，这也被称为<a href="https://www.joshwcomeau.com/react/the-perils-of-rehydration/">水合</a>过程。现在，客户机接收整个HTML结构，而不是它需要自己呈现的一大堆JavaScript。</p>
+<p>这种流程的好处包括网络爬虫更容易访问这些页面，从而提高SEO，并且客户端可以快速向用户显示生成的HTML，而不是一片空白，从而提高UX。因为所有的渲染都发生在服务器上，所以客户端被免除了这一职责，并且没有成为低端设备场景中的瓶颈的风险，从而提高了性能。</p>
+<p>然而，上述设置只是SSR的一个起点。基于上面的事情是如何实现的，在性能和UX方面有更多的收获。考虑到这两个方面，让我们沿着React SSR内存通道走一趟，深入React 18之前的问题，体验它随着时间的推移而发生的变化，并了解React 18及其流媒体功能如何改变一切。</p>
+<h2 id="streaming-ssr-pre-react-18">(流式)SSR，预反应18</h2>
+<p>在React 18、<a href="https://blog.logrocket.com/react-suspense-data-fetching/">悬念</a>或任何新的流媒体功能出现之前，React中典型的SSR设置如下所示。虽然不同的实现可能会有细微的差别，但大多数设置都遵循相似的架构。</p>
+<pre class="language-typescript hljs">// server/index.ts
+import path from 'path';
+import fs from 'fs';
+
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
+import express from 'express';
+
+import { App } from '../client/App';
+
+const app = express();
+
+app.get('/', (req, res) =&gt; {
+    const appContent = ReactDOMServer.renderToString(&lt;App /&gt;);
+    const indexFile = path.resolve('./build/index.html');
+
+
+    fs.readFile(indexFile, 'utf8', (err, data) =&gt; {
+        if (err) {
+                console.error('Something went wrong:', err);
+                return res.status(500).send('Failed to load the app.');
+        }
+
+        return res.send(
+                data.replace('&lt;div id="root"&gt;&lt;/div&gt;', `&lt;div id="root"&gt;${app}&lt;/div&gt;`)
+        );
+    });
+});
+
+app.use(express.static('./build'));
+
+app.listen(8080, () =&gt; {
+    console.log(`Server is listening on port ${PORT}`);
+});
+
+// build/index.html
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;title&gt;React App&lt;/title&gt;
+    &lt;script src="main.js" async defer&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>SSR设置的最大部分是服务器，所以让我们从它开始。在这个例子中，我们使用Express启动一个服务器，在端口8080上提供来自我们的<code>build</code>文件夹的文件。当服务器在根URL接收到一个请求时，它会使用来自<code>ReactDOMServer</code>包的<code>renderToString</code>函数将React应用程序呈现为一个HTML字符串。</p>
+<p>然后需要将结果发送回客户端。但在此之前，服务器需要用适当的HTML结构包围呈现的应用程序。为此，该示例在<code>build</code>文件夹中查找<code>index.html</code>文件，导入它，并将呈现的应用程序注入根元素:</p>
+<pre class="language-typescript hljs">// client/index.ts
+import React from "react";
+import ReactDOM from 'react-dom';
+import { App } from './App';
+
+// Instead of `ReactDOM.render(...)`
+ReactDOM.hydrate(&lt;App /&gt;, document.getElementById('root'));
+</pre>
+<p>然后，需要在客户端进行的主要更改是，它不再需要呈现应用程序。</p>
+<p>正如我们在上一步中看到的，服务器已经呈现了应用程序。所以现在，客户端只负责给应用程序补水。它通过使用<code>ReactDOM.hydrate</code>函数而不是<code>ReactDOM.render</code>来实现。</p>
+<p>虽然这是React SSR的一个工作设置，但它在性能和UX方面仍有一些主要缺点:</p>
+<ul>
+<li>虽然服务器现在负责呈现React应用程序，但服务器端呈现的内容仍然是一大块HTML，需要在呈现之前向客户端传输</li>
+<li>由于React组件相互依赖的特性，服务器必须等待所有数据被获取，然后才能开始呈现组件、生成HTML响应并将其发送给客户端</li>
+<li>客户端仍然需要加载整个应用程序的JavaScript，然后才能开始合成服务器的HTML响应</li>
+<li>水合过程需要一次完成，但是组件只有在水合之后才能交互，这意味着在水合完成之前用户不能与页面交互</li>
+</ul>
+<p>最后，所有这些缺点归结为当前的设置，它仍然是从服务器到客户端的瀑布式方法。这就形成了一个从一端到另一端的要么全有要么全无的流程:要么将整个HTML响应发送到客户机，要么获取所有数据以便服务器可以开始呈现，要么整个应用程序是否被水合，要么整个页面有响应或没有响应。</p>
+<p>在React 16中，在现有的<code>renderToString</code>之上引入了<code><a href="https://reactjs.org/docs/react-dom-server.html#rendertonodestream">renderToNodeStream server rendering function</a></code>。就设置和结果而言，除了这个函数返回一个Node.js <code>ReadableStream</code>之外，没有太大变化。这允许服务器将HTML流式传输到客户机。</p>
+<pre class="language-typescript hljs">app.get('/', (req, res) =&gt; {
+    const endHTML = "&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;";
+    const indexFile = path.resolve('./build/index.html');
+
+    fs.readFile(indexFile, 'utf8', (err, data) =&gt; {
+            if (err) {
+              console.error('Something went wrong:', err);
+              return res.status(500).send('Failed to load the app.');   
+        }
+
+        // Split the HTML where the React app should be injected and send the first part to the client
+        const beginHTML = data.replace('&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;', '');
+        res.write(beginHTML);
+
+
+        // Render the application into a stream using `renderToNodeStream`  and pipe that into the response
+        const appStream = ReactDOMServer.renderToNodeStream(&lt;App /&gt;);
+        appStream.pipe(res, { end: 'false' });
+
+
+        // When the server is done rendering, send the rest of the HTML
+        appStream.on('end', () =&gt; {
+            response.end(endHTML);
+        )};
+    });  
+});
+</pre>
+<p>这个新功能部分解决了我们描述的一个缺点；也就是说，它必须将HTML响应作为一个大blob从服务器传输到客户机。但是，服务器仍然需要等待整个HTML结构生成，然后才能开始向客户端传输任何内容。因此，它并没有真正解决我们描述的任何其他缺点。</p>
+<p>现在，让我们看看React 18推出新功能后的情况，以及它们如何解决这些缺点。</p>
+<h2 id="streaming-ssr-post-react-18">流式SSR后反应18</h2>
+<p>SSR体系结构post-React 18涉及几个不同的部分。这些都不能单独解决我们描述的任何缺点，但是它们的结合创造了奇迹。因此，要完全理解整个设置，有必要研究所有这些设置以及它们的作用。</p>
+<h3 id="suspense-component"><code>Suspense</code>组件</h3>
+<p>这一切的中心是著名的<code><a href="https://reactjs.org/blog/2022/03/29/react-v18.html#new-suspense-features">Suspense component</a></code>。它是我们将要描述的所有特性的主要入口，所以让我们从它开始吧。</p>
+<pre class="language-javascript hljs">// client/src/SomeComponent.js
+import { lazy, Suspense } from 'react';
+
+const SomeInnerComponent = lazy(() =&gt; import('./SomeInnerComponent.js' /* webpackPrefetch: true */));
+
+export default function SomeComponent() {
+    // ...
+    return (
+        &lt;Suspense fallback={&lt;Spinner /&gt;}&gt;
+          &lt;SomeInnerComponent /&gt;
+        &lt;/Suspense&gt;
+    );
+}
+</pre>
+<p>简而言之，悬念是开发人员告诉React应用程序的某个部分正在等待数据的一种机制。与此同时，React将在其位置显示一个回退UI，并在数据准备好时更新它。</p>
+<p>这听起来与以前的方法没有太大区别，但从根本上说，它以一种更优雅和集成的方式同步了React的渲染过程和数据获取过程。要了解更多细节，请看一下<a href="https://www.chakshunyu.com/blog/a-fundamental-guide-to-react-suspense/">这个悬念指南</a>。</p>
+<p>暂挂边界根据应用程序的数据获取需求将应用程序分割成块，然后服务器可以使用这些块来延迟呈现挂起的内容。同时，它可以预先呈现有数据可用的块，并将其传输到客户端。当先前挂起的块的数据准备好时，服务器将呈现它，并使用开放流再次将其发送给客户端。</p>
+<p>与用于将JavaScript包代码分割成更小部分的<code>React.lazy</code>一起，它提供了解决剩余瀑布缺陷的第一个难题。</p>
+<p>然而，问题是在React 18之前，使用<code>React.lazy</code>的悬念和代码分割还不兼容SSR。</p>
+<h3 id="rendertopipeablestream-api"><code>renderToPipeableStream</code> API</h3>
+<p>为了理解剩余的连接拼图，我们来看看React团队在他们的<a href="https://github.com/reactwg/react-18/discussions/37">工作组讨论</a>中为React 18后的架构提供的<a href="https://codesandbox.io/s/kind-sammet-j56ro?file=/src/App.js">悬念SSR示例</a>。</p>
+<pre class="language-javascript hljs">import ReactDOMServer from "react-dom/server";
+import { App } from "../client/App";
+
+app.get('/', (req, res) =&gt; {
+    res.socket.on('error', (error) =&gt; console.log('Fatal', error));
+
+    let didError = false;
+    const stream = ReactDOMServer.renderToPipeableStream(
+        &lt;App /&gt;,
+        {
+            bootstrapScripts: ['/main.js'],
+            onShellReady: () =&gt; {
+                res.statusCode = didError ? 500 : 200;
+                res.setHeader('Content-type', 'text/html');
+                stream.pipe(res);
+            },
+            onError: (error) =&gt; {
+                didError = true;
+                console.log(error);
+            } 
+        }
+    );
+});
+</pre>
+<p>与之前的设置相比，最显著的变化是在服务器端使用了<code>renderToPipeableStream</code> API。这是React 18中新引入的服务器渲染功能，返回可管道化的Node.js流。虽然以前的<code>renderToNodeStream</code>不能等待数据，并且会缓冲整个HTML内容，直到流的末尾，但是<code>renderToPipeableStream</code>函数没有这些限制。</p>
+<p>当<code>Suspense</code>边界以上的内容准备好了，就调用<code>onShellReady</code>回调。如果在此期间发生任何错误，都会反映在对客户端的响应中。然后，我们将开始通过管道将HTML传输到响应中，从而将HTML传输到客户端。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>之后，该流将保持打开，并将任何后续呈现的HTML块传输到客户端。这是相比其前一版本最大的变化。</p>
+<p>这个渲染功能通过服务器端的<code>React.lazy</code>与悬念特性和代码分割完全集成，这就是启用SSR的流HTML特性的原因。这解决了前面描述的HTML和数据获取的瀑布，因为应用程序可以基于数据需求增量地呈现和传输。</p>
+<pre class="language-typescript hljs">// client/index.ts
+import React from "react";
+import ReactDOMClient from 'react-dom/client';
+import { App } from './App';
+
+// Instead of `ReactDOM.hydrate(...)`
+ReactDOMClient.hydrateRoot(document.getElementById('root'), &lt;App /&gt;);
+</pre>
+<h3 id="introducing-reactdomclient-hydrateroot-selective-hydration">引入<code>ReactDOMClient.hydrateRoot</code>进行选择性水合</h3>
+<p>在客户端，唯一需要做的改变是应用程序在屏幕上的显示方式。作为之前<code>ReactDOM.hydrate</code>的替代，React团队在React 18中引入了新的<code>ReactDOMClient.hydrateRoot</code>。虽然变化很小，但它带来了许多改进和特性。对我们来说，最重要的是选择性水合作用。</p>
+<p>如前所述，悬念根据数据需求将应用程序分割成HTML块，而代码分割将应用程序分割成JavaScript块。选择性补水允许React在客户端将这些东西放在一起，并在不同的时间和优先级开始补水。它可以在收到大量HTML和JS时立即开始水合，并对用户与之交互的部分的水合队列进行优先排序。</p>
+<p>这解决了剩下的两个瀑布问题:必须等待所有JavaScript加载完毕才能开始水合，或者水合整个应用程序，或者一个都不水合。</p>
+<p>选择性水合和其他提到的特性的组合允许React在加载必要的JavaScript代码后立即开始水合，同时还能够根据优先级分别水合应用程序的不同部分。</p>
+<h2>下一步是什么？</h2>
+<p>React 18是其SSR架构经过几个主要版本和多年微调的长期发展变化的基础上的樱桃。悬念和代码分割是拼图的早期部分，但直到React 18中引入流HTML和选择性水合作用后，才能在服务器上发挥其全部潜力。</p>
+<p>为了帮助您理解这些变化是如何实现的，我们查看了React 18前后的情况，探索了设置SSR的典型方法的代码示例，深入研究了React SSR架构面临的主要缺点，最后回顾了悬念、代码分割、流HTML和选择性水合的组合是如何解决这些问题的。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

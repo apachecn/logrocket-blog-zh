@@ -1,0 +1,247 @@
+<html>
+<head>
+<title>Using Rust with Axum for error handling </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Rust和Axum进行错误处理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/rust-axum-error-handling/#0001-01-01">https://blog.logrocket.com/rust-axum-error-handling/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当你构建一个后端web服务时，事情并不总是顺利的。例如，传入的请求可能没有必要的数据，或者可能以错误的格式显示其数据。大多数web服务通过返回错误响应来处理这种可能性。</p>
+<p>Axum是一个使用Rust构建服务器端web应用的框架。它还允许您处理错误响应。</p>
+<p>本教程向您介绍了如何使用Rust和Axum构建web服务，以及如何使用这个框架处理错误响应。</p>
+<p>向前跳:</p>
+
+<h2 id="installing-axum">安装Axum</h2>
+<p>要设置一个Axum项目，首先需要使用以下命令创建一个空的Rust项目:</p>
+<pre class="language-rust hljs">$ cargo new --bin axum-web-server</pre>
+<p>上面的命令创建一个<code>axum-web-server</code>文件夹，并初始化您需要开始的文件。</p>
+<p>接下来你需要做的是安装<code>axum</code>和<code>tokio</code>包。要安装它们，打开<code>axum-web-server</code>文件夹中的<code>Cargo.toml</code>文件，在<code>[dependencies]</code>下写下以下内容:</p>
+<pre class="language-rust hljs">axum = "0.6.1"
+tokio = { version = "1.23.0", features = ["full"] }
+tower = { version = "0.4.13", features = ["timeout"] }</pre>
+<p>然后使用下面的命令构建包:</p>
+<pre class="language-rust hljs">$ cargo build</pre>
+<p>提醒一下，当你构建一个项目时，<code><a href="https://blog.logrocket.com/demystifying-cargo-in-rust/">cargo</a></code> <a href="https://blog.logrocket.com/demystifying-cargo-in-rust/">会将你在<code>[dependencies]</code>下面列出的包</a>从注册表下载到你的项目中。</p>
+<h2 id="building-simple-web-server-axum">用Axum构建一个简单的web服务器</h2>
+<p>随着项目的建立，是时候构建一个简单的应用程序了。稍后，我们将使用这个简单的应用程序来演示如何在Axum中处理错误。</p>
+<p>如果您已经有了自己的项目，并且只是想看看Axum的错误处理功能，那么<a href="#handling-errors-rust-axum">您可以跳过</a>。</p>
+<p>在本节中，您将构建的应用程序是一个具有三个端点的web服务:</p>
+<ul>
+<li><code>/</code> —根；返回文本<code>Welcome</code></li>
+<li><code>/say-hello</code> —返回文本<code>Hello!</code></li>
+<li><code>/say-goodbye</code> —返回文本<code>Goodbye</code></li>
+</ul>
+<p>该服务器的代码如下。将代码复制并粘贴到<code>axum-web-server</code>文件夹中的<code>src/main.rs</code>文件中:</p>
+<pre class="language-rust hljs">use axum::{
+   routing::get,
+   Router,
+};
+
+#[tokio::main]
+async fn main() {
+   let app = Router::new()
+       .route("/", get(root))
+       .route("/say-hello", get(say_hello))
+       .route("/say-goodbye", get(say_goodbye));
+
+   axum::Server::bind(&amp;"127.0.0.1:3000".parse().unwrap())
+       .serve(app.into_make_service())
+       .await.unwrap();
+}
+
+
+async fn root() -&gt; String {
+   return "Welcome!".to_string();
+}
+
+async fn say_hello() -&gt; String {
+   return "Hello!".to_string();
+}
+
+async fn say_goodbye() -&gt; String {
+   return "Goodbye!".to_string();
+}</pre>
+<p>要查看运行中的代码，请运行以下命令:</p>
+<pre class="language-rust hljs">$ cargo run</pre>
+<p>上面的命令运行<code>main.rs</code>文件。当程序运行时，它还在<code><a href="http://127.0.0.1:3000" rel="nofollow">http://127.0.0.1:3000</a></code>启动一个本地web服务器。</p>
+<p>当你在浏览器中打开<code><a href="http://127.0.0.1:3000" rel="nofollow">http://127.0.0.1:3000</a></code>时，你会在浏览器页面上看到一条显示<code>Welcome</code>的消息。</p>
+<p>相反，当你打开<code><a href="http://127.0.0.1:3000/say-hello" rel="nofollow">http://127.0.0.1:3000/say-hello</a></code>时，你会得到一条信息，上面写着<code>Hello!</code></p>
+<p>在浏览器中打开URL链接类似于<a href="https://blog.logrocket.com/making-http-requests-rust-reqwest/">向URL </a>发送GET请求。浏览器在浏览器页面中显示请求的相应文本响应。</p>
+<h2 id="understanding-simple-web-server">了解简单web服务器的工作原理</h2>
+<p>现在您可能想知道代码是如何工作的。程序做的第一件事是导入必要的包:</p>
+<pre class="language-rust hljs">use axum::{
+   routing::get,
+   Router,
+};</pre>
+<p>该软件包包括以下内容:</p>
+<ul>
+<li><code>routing::get</code> —用于向路由注册GET请求处理程序</li>
+<li><code>Router</code> —用于创建和处理路线</li>
+</ul>
+<p>在导入的下面，程序定义了主函数:</p>
+<pre class="language-rust hljs">#[tokio::main]
+async fn main() {
+   let app = Router::new()
+       .route("/", get(root))
+       .route("/say-hello", get(say_hello))
+       .route("/say-goodbye", get(say_goodbye));
+
+   axum::Server::bind(&amp;"127.0.0.1:3000".parse().unwrap())
+       .serve(app.into_make_service())
+       .await.unwrap();
+}</pre>
+<p>默认情况下，Rust不允许将主函数声明为异步，所以需要用<code>#[tokio::main]</code>属性修改函数。</p>
+<p>在<code>main</code>函数中，我们做的第一件事是创建一个路由器，并为我们希望web服务器拥有的每个路由注册处理程序:</p>
+<pre class="language-rust hljs">let app = Router::new()
+    .route("/", get(root))
+    .route("/say-hello/:name", get(say_hello))
+    .route("/say-goodbye/:name", get(say_goodbye));</pre>
+<p>我们做的下一件事是创建一个服务器，将它绑定到<code><a href="http://127.0.0.1:3000" rel="nofollow">http://127.0.0.1:3000</a></code>，并注册我们创建的路由器:</p>
+<pre class="language-rust hljs">axum::Server::bind(&amp;"127.0.0.1:3000".parse().unwrap())
+     .serve(app.into_make_service())
+     .await.unwrap();</pre>
+<p>在<code>main</code>函数下面，我们声明了注册到路由器的<code>root</code>、<code>say_hello</code>和<code>say_goodbye</code>处理程序:</p>
+<pre class="language-rust hljs">async fn root() -&gt; String {
+   return "Welcome!".to_string();
+}
+
+async fn say_hello() -&gt; String {
+   return "Hello!".to_string();
+}
+
+async fn say_goodbye() -&gt; String {
+   return "Goodbye!".to_string();
+}</pre>
+<p>现在，我们可以继续使用Axum来处理Rust中的错误。</p>
+<h2 id="what-handler">什么是处理程序？</h2>
+<p>处理程序是处理请求背后的逻辑的异步函数。</p>
+<p>处理程序不仅可以访问发送到路由的请求数据，还可以提供对请求的响应。一旦您在路由上注册了一个处理程序，发送到该路由的任何请求都将由该处理程序处理。</p>
+<p>前面几节中的<code>root</code>、<code>say_hello</code>和<code>say_goodbye</code>函数是处理程序的简单示例:</p>
+<pre class="language-rust hljs">async fn root() -&gt; String {
+   return "Welcome!".to_string();
+}
+
+async fn say_hello() -&gt; String {
+   return "Hello!".to_string();
+}
+
+async fn say_goodbye() -&gt; String {
+   return "Goodbye!".to_string();
+}</pre>
+<p>在处理程序对请求的操作结束时，处理程序返回的将是服务器的响应。</p>
+<p>例如，当你向<code><a href="http://127.0.0.1:3000" rel="nofollow">http://127.0.0.1:3000</a></code>发送请求时，程序调用<code>root</code>。由于<code>root</code>返回<code>Welcome!</code>，根处理程序返回<code>Welcome!</code>作为它的响应。</p>
+<h2 id="handling-errors-rust-axum">用Axum处理Rust中的错误</h2>
+<p>除了返回常规响应，您可能需要在响应中返回错误。错误有助于让客户机知道它的请求出了什么问题。</p>
+<p>Axum要求所有处理程序都是可靠的，这意味着它们在运行时不会出错。这意味着处理程序发送错误响应的唯一方式是<a href="https://blog.logrocket.com/rust-enums-and-pattern-matching/">返回一个</a> <code><a href="https://blog.logrocket.com/rust-enums-and-pattern-matching/">Result::Err enum</a></code>。</p>
+<p>在下面的示例中，我们修改了根处理程序，以包括错误处理功能:</p>
+<pre class="language-rust hljs">async fn root() -&gt; Result&lt;String, StatusCode&gt; {
+   let a_condition = false;
+   if a_condition {
+       return Ok("Welcome!".to_string());
+   } else {
+       return Err(StatusCode::INTERNAL_SERVER_ERROR);
+   }
+}</pre>
+<p>如您所见，处理程序返回了一个内部服务器错误响应，因为<code>a_condition</code>为假。</p>
+<p>现在修改了<code>root</code>，当您在浏览器中打开<code><a href="http://127.0.0.1:3000/" rel="nofollow">http://127.0.0.1:3000/</a></code>时，网页将如下图所示:</p>
+<p><img data-attachment-id="156629" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img1-page-not-working-error-500-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Page-not-working-error-500-response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png" decoding="async" class="aligncenter size-full wp-image-156629 jetpack-lazy-image" src="../Images/7a2b8c248d639a539d7450d31cec0219.png" alt="Browser Open To Port 3000 In Light Mode With Http Error 500 Message Displayed" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response-300x172.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="156629" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img1-page-not-working-error-500-response/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png" data-orig-size="730,418" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Page-not-working-error-500-response" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response-300x172.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-156629" src="../Images/7a2b8c248d639a539d7450d31cec0219.png" alt="Browser Open To Port 3000 In Light Mode With Http Error 500 Message Displayed" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response-300x172.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img1-Page-not-working-error-500-response.png"/></noscript>
+<p>如果我们将<code>a_condition</code>设置为true，处理程序将再次返回<code>Welcome!</code>，就像之前一样。</p>
+<h2 id="other-methods-handling-errors-rust-axum">用Axum处理Rust错误的其他方法</h2>
+<p>除了<code>Result::Err</code>枚举，Axum还提供了其他方法来处理错误响应。两种主要的方法是易出错的处理程序和模式匹配。</p>
+<h3 id="error-handling-fallible-handlers">用易出错的处理程序处理错误</h3>
+<p>您可能不总是知道处理程序中的每个错误条件，处理程序在运行时可能会遇到错误。然而，Axum要求所有的处理程序都不会出错。因此，当处理程序遇到错误时，传入的请求不会得到响应。</p>
+<p>如果处理程序遇到错误，易出错的处理程序将返回错误响应。下面是一个容易出错的处理程序的示例:</p>
+<pre class="language-rust hljs">use axum::{
+   Router,
+   http::{Response, StatusCode},
+   error_handling::HandleError,
+};
+
+#[tokio::main]
+async fn main() {
+   // this service might fail with `reqwest::Error`
+   let fallible_service = tower::service_fn(|_req| async {
+     let body = can_fail().await?;
+     Ok::&lt;_, reqwest::Error&gt;(Response::new(body))
+   });
+
+   // Since fallible_service can fail with 'reqwest::Error',
+   // you can't directly route it to "/".
+   // Use route_service to convert any errors
+   // encountered into a response
+   let app = Router::new()
+     .route_service("/", HandleError::new(fallible_service, handle_error) );
+  
+   axum::Server::bind(&amp;"127.0.0.1:3000".parse().unwrap())
+     .serve(app.into_make_service())
+     .await
+     .unwrap();
+}
+
+async fn can_fail() -&gt; Result&lt;String, reqwest::Error&gt; {
+   // send a request to a site that doesn't exist 
+   // so we can see the handler fail
+   let body = reqwest::get("https://www.abcdth.org")
+     .await?
+     .text()
+     .await?;
+   Ok(body)
+}
+async fn handle_error(err: reqwest::Error) -&gt; (StatusCode, String) {
+   return (
+       StatusCode::INTERNAL_SERVER_ERROR,
+       format!("Something went wrong: {}", err),
+   );
+}</pre>
+<p>如您所见，<code>fallible_service</code>将失败并返回一个内部服务错误。然后，您应该会看到一条消息，内容为<code>Something went wrong:</code>,后面是一条错误消息，解释了出错的原因:</p>
+<p><img data-attachment-id="156627" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img2-something-went-wrong-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png" data-orig-size="730,225" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Something-went-wrong-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message-300x92.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png" decoding="async" class="aligncenter size-full wp-image-156627 jetpack-lazy-image" src="../Images/508605e8f14ab3a20305cc80a4cfb1d0.png" alt="Browser Open To Port 3000 In Light Mode With Error Message Stating Something Went Wrong And Explaining What Went Wrong" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message-300x92.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="156627" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img2-something-went-wrong-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png" data-orig-size="730,225" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Something-went-wrong-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message-300x92.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-156627" src="../Images/508605e8f14ab3a20305cc80a4cfb1d0.png" alt="Browser Open To Port 3000 In Light Mode With Error Message Stating Something Went Wrong And Explaining What Went Wrong" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message-300x92.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img2-Something-went-wrong-error-message.png"/></noscript>
+<h3 id="error-handling-pattern-matching">模式匹配的错误处理</h3>
+<p>当Axum服务器出现故障时，它会返回无内容响应。服务器故障通常源于可能失败的语句。</p>
+<p>为了防止服务器返回无内容的响应，我们需要直接处理错误。处理错误的一种直接方法是通过模式匹配。</p>
+<p>要使用模式匹配处理错误，只需在可能发生错误的地方用<code>match</code>块包装语句。</p>
+<p>在下面的示例中，<code>reqwest</code>语句被包装，因为它可能会失败:</p>
+<pre class="language-rust hljs">use axum::{
+ Router,
+ routing::get,
+ http::StatusCode,
+};
+
+#[tokio::main]
+async fn main() {
+
+   let app = Router::new()
+       .route("/", get(|| async {
+           match reqwest::get("https://www.abcdth.org").await {
+               Ok(res) =&gt; (
+                   StatusCode::OK,
+                   res.text().await.unwrap(),
+               ),
+               Err(err) =&gt; (
+                   StatusCode::INTERNAL_SERVER_ERROR,
+                   format!("Server failed with {}", err),
+               )
+           }
+       }));
+  
+   axum::Server::bind(&amp;"127.0.0.1:3000".parse().unwrap())
+       .serve(app.into_make_service())
+       .await
+       .unwrap();
+}</pre>
+<p>如您所见，当处理程序失败时，它会返回一个内部服务错误，然后显示一条解释失败原因的消息:</p>
+<p><img data-attachment-id="156625" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img3-server-failed-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png" data-orig-size="730,227" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Server-failed-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message-300x93.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png" decoding="async" class="aligncenter size-full wp-image-156625 jetpack-lazy-image" src="../Images/3a4422bb31a83943c997ba8a8fbdeb22.png" alt="Browser Open To Port 3000 In Light Mode Displaying Message Explaining Why Server Failed" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message-300x93.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="156625" data-permalink="https://blog.logrocket.com/rust-axum-error-handling/attachment/img3-server-failed-error-message/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png" data-orig-size="730,227" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Server-failed-error-message" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message-300x93.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-156625" src="../Images/3a4422bb31a83943c997ba8a8fbdeb22.png" alt="Browser Open To Port 3000 In Light Mode Displaying Message Explaining Why Server Failed" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message-300x93.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/img3-Server-failed-error-message.png"/></noscript>
+<h1>结论</h1>
+<p>在本文中，我们研究了如何使用Rust和Axum构建web服务，以及错误处理的工作原理和在Axum中处理错误响应的不同方式。</p>
+<p>Axum是构建web应用程序和服务的强大工具。通过Axum上的<a href="https://docs.rs/axum/latest/axum/">Rust docs</a>，这篇关于<a href="https://blog.logrocket.com/deploy-rust-web-server-heroku-axum-tokio-github-actions/">如何将Rust web服务器部署到Heroku上的文章</a>，或者Axum上的<a href="https://docs.rs/http/0.2.8/http/status/struct.StatusCode.html"> Rust docs状态代码</a>，了解更多关于该框架的信息。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,301 @@
+<html>
+<head>
+<title>How to create a web app in Rust with Rocket and Diesel </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用Rocket和Diesel在Rust中创建web应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/#0001-01-01">https://blog.logrocket.com/create-web-app-rust-rocket-diesel/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>根据<a href="https://insights.stackoverflow.com/survey"> Stack Overflow </a>的一项调查，七年来，<a href="https://blog.logrocket.com/tag/rust/"> Rust </a>编程语言一直被评为最受欢迎的编程语言。它的流行源于它对<a href="https://blog.logrocket.com/why-is-rust-popular/">安全性、性能、内置内存管理和并发特性</a>的关注。所有这些原因使它成为构建web应用程序的绝佳选择。</p>
+<p>然而，Rust是一种系统编程语言。如何使用它来创建web应用程序？进入<a href="https://rocket.rs/">火箭</a>、<a href="http://actix.rs"> Actix </a>、<a href="https://docs.rs/warp/latest/warp/"> Warp </a>等等。这些web框架使开发人员能够使用Rust创建web应用程序。</p>
+<p>Rocket和Diesel为在Rust中构建web应用程序提供了强大而高效的工具集。在本文的其余部分，我们将介绍如何使用Rust、Rocket和Diesel创建web应用程序。我们将介绍如何设置开发环境、检查不同的组件、设置API端点以及呈现HTML。</p>
+<p>为了从这件作品中获得终极价值，你需要对Rust 有一个<a href="https://blog.logrocket.com/getting-up-to-speed-with-rust/">的基本了解。您还需要安装并运行Rust和PostgreSQL数据库。你可以按照</a><a href="https://doc.rust-lang.org/book/ch01-01-installation.html">的文档</a>为你的操作系统安装Rust，从<a href="https://www.postgresql.org/download/">官网</a>为你的操作系统下载PostgreSQL。如果您使用的是macOS，则可以通过在终端上运行以下命令来快速安装并启动PostgreSQL数据库:</p>
+<pre class="language-shell hljs">brew update &amp;&amp; brew install postgresql &amp;&amp; brew services start postgresql
+</pre>
+<p>让我们开始吧！</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="rocket-diesel">火箭和柴油介绍</h2>
+<p>Rocket是一个<a href="https://blog.logrocket.com/rust-web-apps-using-rocket-framework/"> Rust web framework </a>，内置了开发人员创建高效安全的web应用程序所需的工具，同时保持灵活性、可用性、内存和类型安全，语法简洁明了。</p>
+<p>作为大多数web框架的惯例，Rocket允许您使用<a href="https://blog.logrocket.com/11-database-drivers-and-orms-for-rust-that-are-ready-for-production/">对象关系映射器</a> (ORMs)作为应用程序的数据访问层。<a href="https://rocket.rs/v0.5-rc/guide/state/#databases"> Rocket是ORM不可知的</a>，这意味着你可以使用任何你选择的Rust ORM来访问你的Rocket应用程序中的数据库。在本文中，我们将使用<a href="https://diesel.rs/"> Diesel </a> ORM作为我们的选择，因为它是最流行的Rust ORMs之一。在编写的时候，Diesel ORM支持<a href="https://blog.logrocket.com/tag/postgresql/"> PostgreSQL </a> <strong>，</strong> <a href="https://blog.logrocket.com/5-ways-rapidly-improve-mysql-database-performance/"> MySQL </a> <strong>，</strong>和<a href="https://blog.logrocket.com/create-api-rust-sqlite-rocket/"> SQLite </a>数据库。</p>
+<h2 id="setting-up-rocket-diesel">设置火箭和柴油</h2>
+<p>首先，让我们用<a href="https://blog.logrocket.com/demystifying-cargo-in-rust/"> Cargo </a>创建一个新的<a href="https://doc.rust-lang.org/cargo/guide/creating-a-new-project.html"> Rust二进制应用程序</a>，如下所示:</p>
+<pre class="language-shel hljs">cargo new blog --bin 
+</pre>
+<p>当您运行上面的命令时，将自动生成一个具有以下结构的<code>blog</code>目录:</p>
+<pre class="language-shell-hljs">.
+├── Cargo.toml
+└── src
+    └── main.rs
+</pre>
+<p>接下来，我们需要将Diesel、Rocket和其他依赖项添加到<code>Cargo.toml</code>文件中。这些附加依赖项包括:</p>
+
+<pre class="language-toml hljs">#Cargo.toml
+[package]
+name = "blog"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rocket = { version = "0.5.0-rc.2", features=["json"]}
+diesel = { version = "2.0.0", features = ["postgres", "r2d2"] }
+dotenvy = "0.15"
+serde = "1.0.152"
+
+[dependencies.rocket_dyn_templates]
+features = ["handlebars"]
+
+[dependencies.rocket_contrib]
+version = "0.4.4"
+default-features = false
+features = ["json"]
+</pre>
+<p>现在，我们有了所有的依赖项。请注意，我启用了<code>features</code>中的<code>json</code>，使<code><a href="https://api.rocket.rs/master/rocket/serde/json/struct.Json.html">serde json</a></code>在Rocket应用程序中可用。我还为Diesel启用了<code>postgres</code>和<code><a href="https://docs.rs/diesel/latest/diesel/r2d2/index.html">r2d2</a></code>，使PostgreSQL和连接池特性可用。</p>
+<h3 id="diesel-cli">安装Diesel CLI</h3>
+<p>Diesel提供了一个<a href="https://crates.io/crates/diesel_cli"> CLI </a>，允许您管理和自动化Diesel设置数据库重置和数据库迁移过程。通过运行以下命令安装Diesel CLI:</p>
+<pre class="language-shell hljs">cargo install diesel_cli --no-default-features --features postgres
+</pre>
+<blockquote><p>注意:确保您已经安装了PostgreSQL否则，你会有错误。</p></blockquote>
+<p>接下来，创建一个<code>.env</code>文件并添加您的数据库连接字符串，如下所示:</p>
+<pre class="language-shell hljs">DATABASE_URL=postgres://username:<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2858495b5b5f475a4c6844474b494440475b5c">[email protected]</a>/blog
+</pre>
+<p>请记住，数据库<code>blog</code>必须存在于您的<code>Postgres</code>数据库中。从那里，在你的终端上运行<code>diesel setup</code>命令。</p>
+<p>该命令将创建一个带有必要配置的<code>migration</code>文件和一个<code>diesel.toml</code>文件，如下所示:</p>
+<pre class="language-toml hljs">├── Cargo.toml
+├── diesel.toml
+├── migrations
+│   └── 00000000000000_diesel_initial_setup
+│       ├── down.sql
+│       └── up.sql
+└── src
+    └── main.rs
+</pre>
+<p>因为这个项目是一个blog，有一个posts表来存储所有的文章，所以我们需要用<code>diesel migration generate posts</code>代码创建一个迁移。</p>
+<p>运行该命令后，响应应该如下所示:</p>
+<p><img data-attachment-id="159600" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/rust-project-start/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png" data-orig-size="730,96" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Rust, Rocket, and Diesel project set up" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start-300x39.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png" decoding="async" class="aligncenter size-full wp-image-159600 jetpack-lazy-image" src="../Images/c0c2fdc6457e6eefe6d8f2022f3a84a7.png" alt="Rust, Rocket, and Diesel Project Set Up" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start-300x39.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159600" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/rust-project-start/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png" data-orig-size="730,96" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Rust, Rocket, and Diesel project set up" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start-300x39.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159600" src="../Images/c0c2fdc6457e6eefe6d8f2022f3a84a7.png" alt="Rust, Rocket, and Diesel Project Set Up" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start-300x39.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-project-start.png"/></noscript>
+<p>现在打开<code>migration</code>目录下的<code>up.sql</code>文件，里面应该没有内容了。接下来，添加SQL查询，用下面的代码创建<code>posts</code>表:</p>
+<pre class="language-sql hljs">CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR NOT NULL,
+  body TEXT NOT NULL,
+  published BOOLEAN NOT NULL DEFAULT FALSE
+)
+</pre>
+<p>同样，打开<code>down.sql</code>文件并添加一个查询来删除<code>table</code>:</p>
+<pre class="language-sql hljs">-- This file should undo anything in `up.sql`
+DROP TABLE posts
+</pre>
+<h3 id="running-migration">运行迁移</h3>
+<p>一旦这些文件被更新，我们就可以运行迁移。您需要创建<code>down.sql</code>文件，并确保它是准确的，这样您就可以用一个简单的命令快速回滚您的迁移。要应用我们刚刚对<code>migration</code>文件所做的更改，运行<code>diesel migration run</code>命令。您会注意到<code>schema.rs</code>文件和数据库<code>table</code>将被创建。它应该是这样的:</p>
+<p><img data-attachment-id="159602" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/diesel-migration-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png" data-orig-size="730,436" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example of the Diesel migration" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust-300x179.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png" decoding="async" class="aligncenter size-full wp-image-159602 jetpack-lazy-image" src="../Images/343d289a0fd3c8717d0f0ba154d4abaf.png" alt="Example of the Diesel Migration" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust-300x179.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159602" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/diesel-migration-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png" data-orig-size="730,436" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Example of the Diesel migration" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust-300x179.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159602" src="../Images/343d289a0fd3c8717d0f0ba154d4abaf.png" alt="Example of the Diesel Migration" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust-300x179.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/diesel-migration-rust.png"/></noscript>
+<p>以下是该表在PostgreSQL中的外观:</p>
+<p><img data-attachment-id="159604" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/tables-blog-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png" data-orig-size="730,164" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="List of tables in the blog database" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png" decoding="async" class="aligncenter size-full wp-image-159604 jetpack-lazy-image" src="../Images/6fc557525cc05e19247752efc4515e83.png" alt="List of Tables in the Blog Database" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-300x67.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159604" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/tables-blog-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png" data-orig-size="730,164" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="List of tables in the blog database" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-300x67.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159604" src="../Images/6fc557525cc05e19247752efc4515e83.png" alt="List of Tables in the Blog Database" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-300x67.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust.png"/></noscript>
+<p><img data-attachment-id="159606" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/tables-blog-rust-info/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png" data-orig-size="730,184" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Table description in Rust" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png" decoding="async" class="aligncenter size-full wp-image-159606 jetpack-lazy-image" src="../Images/da836fa163c24213eeaa249bb4df44a1.png" alt="Table Description in Rust" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info-300x76.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159606" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/tables-blog-rust-info/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png" data-orig-size="730,184" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Table description in Rust" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info-300x76.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159606" src="../Images/da836fa163c24213eeaa249bb4df44a1.png" alt="Table Description in Rust" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info-300x76.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/tables-blog-rust-info.png"/></noscript>
+<p>要重做<code>migration</code>，运行<code>diesel migration redo</code>命令。我们刚刚创建的表将从Postgres数据库中删除。当然，当你有真实的数据时，这不是你想做的事情，因为你会删除所有的东西。到目前为止，我们已经设置了Diesel。我们需要建立博客文章模型，以允许Rocket有效地与模式进行交互。</p>
+<h2 id="building-rocket-model">建造火箭模型</h2>
+<p>为了构建火箭模型，创建一个<code>Models</code>目录和一个<code>mod.rs</code>文件。然后，向其中添加以下内容:</p>
+<pre class="language-rust hljs">// models/mod.rs
+use super::schema::posts;
+use diesel::{prelude::*};
+use serde::{Serialize, Deserialize};
+
+#[derive(Queryable, Insertable, Serialize, Deserialize)]
+#[diesel(table_name = posts)]
+pub struct Post {
+    pub id: i32,
+    pub title: String,
+    pub body: String,
+    pub published: bool,
+}
+</pre>
+<p>请注意，我们正在派生<code>Queryable, Insertable, Serialize, Deserialize</code>。<code>Queryable</code>将允许我们在表上运行选择查询。如果你不希望表格是可选的，你可以忽略它，和<code>Insertable</code>一样。<code>Insertable</code>允许您在数据库中创建记录。最后，<code>Serialize</code>和<code>Deserialize</code>自动允许您序列化和反序列化表。</p>
+<p>如果您正在跟进，您的应用程序结构应该如下所示:</p>
+<pre class="language-shell hljs">.
+├── Cargo.lock
+├── Cargo.toml
+├── diesel.toml
+├── target
+├── migrations
+│   ├── 00000000000000_diesel_initial_setup
+│   │   ├── down.sql
+│   │   └── up.sql
+│   └── 2023-01-18-115141_posts
+│       ├── down.sql
+│       └── up.sql
+└── src
+    ├── main.rs
+    ├── models
+    │   └── mod.rs
+    └── schema.rs
+</pre>
+<p>至此，我们已经万事俱备了！现在，让我们编写一个服务，通过API创建一篇博客文章，并在浏览器中显示它——这样，我们就可以看到如何处理这两种情况。在提供创建和查看博客文章的服务之前，让我们连接到数据库。</p>
+<h3 id="connecting-database">连接到数据库</h3>
+<p>创建一个<code>services</code>目录，并将以下内容添加到<code>mod.rs</code>文件中:</p>
+<pre class="language-rust hljs">extern crate diesel;
+extern crate rocket;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use dotenvy::dotenv;
+use rocket::response::{status::Created, Debug};
+use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::{get, post };
+use crate::models;
+use crate::schema;
+use rocket_dyn_templates::{context, Template};
+use std::env;
+
+pub fn establish_connection_pg() -&gt; PgConnection {
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    PgConnection::establish(&amp;database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+}
+</pre>
+<p>在上面的代码中，我们导入了将在服务中使用的所有必要的<code>crates</code>，并创建了Postgres <code>connection</code>函数。当我们从数据库中创建和查询数据时，我们将重用这个函数。现在我们有了一个数据库连接，让我们实现一个在数据库中创建记录的函数。</p>
+<h2 id="creating-post">创建帖子</h2>
+<p>用Diesel ORM创建记录非常简单。我们将首先创建一个struct，它表示我们期望从客户端获得的数据的结构，并通过如下所示的derive属性启用<code>Serialization</code>:</p>
+<pre class="language-rust hljs">//service/mod.rs
+
+#[derive(Serialize, Deserialize)]
+pub struct NewPost {
+    title: String,
+    body: String,
+}
+</pre>
+<p>接下来，我们将创建从客户端接收数据并对其进行处理的实际函数:</p>
+<pre class="language-rust hljs">type Result&lt;T, E = Debug&lt;diesel::result::Error&gt;&gt; = std::result::Result&lt;T, E&gt;;
+
+#[post("/post", format = "json", data = "&lt;post&gt;")]
+pub fn create_post(post: Json&lt;NewPost&gt;) -&gt; Result&lt;Created&lt;Json&lt;NewPost&gt;&gt;&gt; {
+    use self::schema::posts::dsl::*;
+    use models::Post;
+    let connection = &amp;mut establish_connection_pg();
+
+    let new_post = Post {
+        id: 1,
+        title: post.title.to_string(),
+        body: post.body.to_string(),
+        published: true,
+    };
+
+    diesel::insert_into(self::schema::posts::dsl::posts)
+        .values(&amp;new_post)
+        .execute(connection)
+        .expect("Error saving new post");
+    Ok(Created::new("/").body(post))
+}
+</pre>
+<p>上面的<code>create_post</code>函数接受一个<code>post</code>对象作为参数，并返回一个<code>Result that</code>可能是一个<code>error</code>或一个成功的创建。属性<code>#[post("/posts")]</code>表明这是一个<code>POST</code>请求。<code>Created</code>响应返回一个<code>200</code>状态码，如果插入成功，该行<code>Created::new("/").body(post)</code>返回<code>200</code>状态码和刚刚插入的<code>record</code>作为<code>JSON Deserialized object</code>。</p>
+<h2 id="viewing-posts">如何查看帖子</h2>
+<p>现在我们可以创建记录了，让我们创建在浏览器中查看我们已经创建的记录的功能。创建逻辑是针对一个<a href="https://blog.logrocket.com/building-rest-api-rust-rhai-actix-web/"> Rest API </a>的。现在我们需要处理HTML模板:</p>
+<pre class="language-rust hljs">#[get("/posts")]
+pub fn list() -&gt; Template {
+    use self::models::Post;
+    let connection = &amp;mut establish_connection_pg();
+    let results = self::schema::posts::dsl::posts
+        .load::&lt;Post&gt;(connection)
+        .expect("Error loading posts");
+    Template::render("posts", context! {posts: &amp;results, count: results.len()})
+}
+</pre>
+<p>在上面的代码中，我们请求了<code>posts</code>表中的所有帖子。注意，<code>#[get("/posts")]</code>属性表明这是一个<code>GET</code>请求。我们也可以使用一个<code>filter</code>来获取发布的文章。例如，下面的代码将获取所有已发布的帖子:</p>
+<pre class="language-rust hljs">let results = self::schema::posts::dsl::posts
+        .filter(published.eq(true))
+        .load::&lt;Post&gt;(connection)
+        .expect("Error loading posts");
+</pre>
+<p>注意这个函数返回一个<code>Template</code>，对吗？还记得我们添加了<code>handlebars</code>作为模板引擎的<code>Cargo.toml</code>文件吗？该函数将返回一个<code>template</code>，<code>handlebars</code>将负责剩下的部分:</p>
+<pre class="language-handlebars hljs">[dependencies.rocket_dyn_templates]
+features = ["handlebars"]
+</pre>
+<p>让我们仔细看看回应:</p>
+<pre class="language-rust hljs">Template::render("posts", context! {posts: &amp;results, count: results.len()})
+</pre>
+<p>第一个参数是车把的模板文件名。我们还没有创建它，所以让我们这样做。首先，创建一个名为<code>templates</code>的目录，并添加文件<code>posts.html.hbs</code>。确保名字中有<code>HTML</code>。否则，Rocket可能无法将该文件识别为模板。</p>
+<p>添加以下代码作为文件内容:</p>
+<pre class="language-handlebars hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Blog Posts&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;section id="hello"&gt;
+        &lt;h1&gt;Posts&lt;/h1&gt;
+        New Posts
+        &lt;ul&gt;
+            {{#each posts}}
+            &lt;li&gt;Title: {{ this.title }}&lt;/li&gt;
+            &lt;li&gt;Body: {{ this.body }}&lt;/li&gt;
+            {{else}}
+            &lt;p&gt; No posts yet&lt;/p&gt;
+            {{/each}}
+        &lt;/ul&gt;
+    &lt;/section&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>我们使用模板中的<code>#each</code>循环来遍历帖子并单独显示内容。现在，您的目录结构应该如下所示:</p>
+<pre class="language-shell hljs">.
+├── Cargo.lock
+├── Cargo.toml
+├── diesel.toml
+├── migrations
+│   ├── 00000000000000_diesel_initial_setup
+│   │   ├── down.sql
+│   │   └── up.sql
+│   └── 2023-01-18-115141_posts
+│       ├── down.sql
+│       └── up.sql
+├── src
+│   ├── main.rs
+│   ├── models
+│   │   └── mod.rs
+│   ├── schema.rs
+│   └── services
+│       └── mod.rs
+└── templates
+    └── posts.html.hbs
+</pre>
+<p>最后，让我们添加一个<code>route</code>并测试应用程序。打开<code>main.rs</code>文件，用以下内容替换现有的<code>"Hello, World!"</code>功能:</p>
+<pre class="language-rust hljs">extern crate rocket;
+use rocket::{launch, routes};
+use rocket_dyn_templates::{ Template };
+mod services;
+pub mod  models;
+pub mod  schema;
+
+#[launch]
+fn rocket() -&gt; _ {
+    rocket::build()
+        .mount("/", routes![services::create_post])
+        .mount("/", routes![services::list])
+        .attach(Template::fairing())
+}
+</pre>
+<p>在上面的代码中，我们导入了生成主函数的<code><a href="https://api.rocket.rs/master/rocket/attr.launch.html">launch</a></code>宏——应用程序的入口点并返回<code>Rocket&lt;Build&gt;</code>。你必须挂载每一个你想添加的<code>route</code>。我们使用<code>attach</code>方法来呈现模板，并将<code><a href="https://api.rocket.rs/v0.4/rocket/fairing/trait.Fairing.html">fairing</a></code>特征传递给它。</p>
+<p>就是这样。我们现在准备测试应用程序。如果你坚持到这一点，你就是真正的MVP。</p>
+<h2 id="testing-postman-web-browser">使用Postman和web浏览器进行测试</h2>
+<p>至此，我们已经完成了最困难的部分。让我们来做有趣的部分，在这里您将看到我们所构建的是如何工作的。首先，通过在终端上运行<code>cargo run</code>命令来编译和运行应用程序。如果一切顺利，您应该会看到这样的内容:</p>
+<p><img data-attachment-id="159608" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/rust-rocket-diesel-running/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png" data-orig-size="730,421" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Rust, Rocket, and Diesel running" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png" decoding="async" class="aligncenter size-full wp-image-159608 jetpack-lazy-image" src="../Images/c7458149a1d2011ea253712d728eca79.png" alt="Rust, Rocket, and Diesel Running" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running-300x173.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159608" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/rust-rocket-diesel-running/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png" data-orig-size="730,421" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Rust, Rocket, and Diesel running" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159608" src="../Images/c7458149a1d2011ea253712d728eca79.png" alt="Rust, Rocket, and Diesel Running" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running-300x173.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/rust-rocket-diesel-running.png"/></noscript>
+<p>通过您的浏览器(<code>GET</code>请求)转到<code><a href="http://127.0.0.1:8000/posts" rel="nofollow">http://127.0.0.1:8000/posts</a></code>查看您创建的所有帖子。最初，不会有帖子。让我们用<a href="https://blog.logrocket.com/how-automate-api-tests-postman/">邮递员</a>创建一个。因此，我们将向<code>/post</code>端点发出一个<code>HTTP POST</code>请求来创建一篇博客文章:</p>
+<p><img data-attachment-id="159610" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/blog-post-browser/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blog post created with Rust, Rocket, and Diesel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png" decoding="async" class="aligncenter size-full wp-image-159610 jetpack-lazy-image" src="../Images/2d47f9611499352436f68907c46015e6.png" alt="Blog Post Created With Rust, Rocket, and Diesel" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser-300x134.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159610" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/blog-post-browser/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png" data-orig-size="730,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Blog post created with Rust, Rocket, and Diesel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser-300x134.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159610" src="../Images/2d47f9611499352436f68907c46015e6.png" alt="Blog Post Created With Rust, Rocket, and Diesel" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser-300x134.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/blog-post-browser.png"/></noscript>
+<p>当我们在浏览器上再次查看时，应该会看到我们的新帖子。</p>
+<p><img data-attachment-id="159612" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/final-blog-post-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create web app with Rust, Rocket, and Diesel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png" decoding="async" class="aligncenter size-full wp-image-159612 jetpack-lazy-image" src="../Images/3b150af3f8a408a3be19c75adc75e0d5.png" alt="Created Web App With Rust, Rocket, and Diesel" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust-300x98.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159612" data-permalink="https://blog.logrocket.com/create-web-app-rust-rocket-diesel/attachment/final-blog-post-rust/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png" data-orig-size="730,239" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Create web app with Rust, Rocket, and Diesel" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust-300x98.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159612" src="../Images/3b150af3f8a408a3be19c75adc75e0d5.png" alt="Created Web App With Rust, Rocket, and Diesel" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust-300x98.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/final-blog-post-rust.png"/></noscript>
+<h2>结论</h2>
+<p>本文教我们如何用Rust、Rocket和Diesel创建一个web应用程序。我们探讨了如何创建API端点、插入和读取数据库，以及如何呈现HTML模板。我希望你喜欢读它，就像我喜欢写它一样。为了进一步阅读，我鼓励你阅读这篇关于用Rocket 构建web应用的文章。</p>
+<p>您还应该查看构建的演示应用程序的GitHub repo 。如果你对此感到困惑，这应该是一个主要的参考点。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

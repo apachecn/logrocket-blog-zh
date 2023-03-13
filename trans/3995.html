@@ -1,0 +1,539 @@
+<html>
+<head>
+<title>A guide to adding SSR to an existing Vue 3 app </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>将SSR添加到现有Vue 3应用程序的指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/#0001-01-01">https://blog.logrocket.com/adding-ssr-existing-vue-3-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>当讨论服务器端呈现(SSR)时，像Next.js、Remix、SvelteKit和Nuxt.js这样的框架经常出现在脑海中，因为它们提供了内置的SSR功能。然而，重要的是要认识到客户端渲染框架，如React和Vue.js，也需要SSR来创建优化的和SEO友好的应用程序。</p>
+<p>将SSR集成到现有的应用程序中可能是一项艰巨的任务，这可能解释了为什么这不是一个更广泛讨论的话题。在本文中，我们将研究服务器端渲染的优缺点，并探索使用Vue的默认捆绑器<a href="https://vitejs.dev"> Vite </a>将服务器端渲染整合到现有Vue 3应用程序中的过程。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="prerequisites">先决条件</h2>
+<p>为了遵循本文中的示例，建议您具备以下条件:</p>
+<ul>
+<li>对Vue 3的基本理解</li>
+<li>Express.js的工作知识</li>
+<li>安装在计算机上的Node.js</li>
+</ul>
+<h2 id="what-ssr">什么是SSR？</h2>
+<p>服务器端呈现(SSR)是指在服务器上而不是在客户端浏览器上生成和交付完全呈现的页面的过程。这种方法用于客户端JavaScript应用程序，允许更快的加载时间和更好的搜索引擎优化。</p>
+<p>SSR的兴起可以归因于单页应用程序(spa)的日益流行。SPAs是一种web开发架构，它为传统的多页面应用程序提供了一种替代方案。由于使用了异步javascript，它们可以创建客户端应用程序，这些应用程序可以动态更新部分用户界面，而不需要重新加载整个页面。SSR是一个解决方案，旨在增强这些类型的应用程序的性能和SEO。</p>
+<p>如今，许多单页面应用程序都是使用流行的UI框架(如React、Vue.js和Angular)构建的。这些spa由单个HTML页面组成，该页面从服务器异步检索数据。这使得实时更新对用户可见，而不需要完全刷新页面。</p>
+<p>SPA架构是创建类似于本地移动和桌面应用程序的web应用程序的一次雄心勃勃的尝试。然而，因为浏览器必须在初始加载期间一次生成应用的所有方面，包括用户界面、数据和功能，所以spa往往较慢。这是因为SPA的HTML页面包含一个空的根元素，浏览器在下载并处理包含页面上所有其他元素的JavaScript包后会填充这个根元素。这种方法被称为客户端渲染(CSR)。</p>
+<p>以下是SPA的HTML页面外观示例:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;link rel="icon" href="/favicon.ico"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Vite App&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="app"&gt;&lt;/div&gt;
+    &lt;script type="module" src="/src/main.js"&gt;&lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>因为浏览器必须在显示任何内容之前下载并执行整个应用程序，所以初始页面加载时间通常很慢。这导致了糟糕的用户体验，因为用户可能会长时间看到空白屏幕或加载微调器。此外，缓慢的页面加载会对网站的SEO性能产生负面影响。</p>
+<p>相比之下，SSR在服务器上生成静态HTML标记，允许浏览器在初始加载期间接收完全呈现的页面。这是通过使用Node.js等后端运行时来执行JavaScript代码和构建用户界面来实现的。</p>
+<p>下面的示例展示了HTML文件如何从服务器端呈现的页面接收内容:</p>
+<pre class="language-html hljs">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;title&gt;Vite App&lt;/title&gt;
+</pre>
+<p>元素中的HTML内容在服务器上生成，然后在初始加载时发送到客户端。</p>
+<p>如前所述，Vue框架支持创建客户端应用程序，默认情况下，客户端应用程序在浏览器中呈现生成和操作DOM的组件。也可以在服务器上呈现相同的组件，将它们直接传输到浏览器，然后在客户端将静态标记合并到完全交互式的应用程序中。</p>
+<p>我们将在本文的后面探讨如何实现这一点。</p>
+<h2 id="why-add-ssr-vue-3-app">为什么要在你的Vue 3应用中加入SSR？</h2>
+<p>您可能选择将服务器端呈现合并到现有的Vue.js 3应用程序中有几个原因:</p>
+<ul>
+<li><strong>改进的性能</strong> : SSR通过在服务器上生成静态HTML标记，可以显著缩短应用程序的初始加载时间，从而允许浏览器在初始加载期间接收完整呈现的页面</li>
+<li>增强的 <strong> SEO </strong>:搜索引擎很难索引大量使用JavaScript的应用程序。使用SSR，页面的初始呈现在服务器上完成，搜索引擎可以很容易地读取HTML</li>
+<li><strong>改进的可访问性</strong> : SSR可以让网速慢的用户或使用辅助技术的用户更容易访问网络应用</li>
+<li><strong>更好的用户体验</strong>:服务器端渲染可以确保在浏览器中禁用或阻止了JavaScript的用户仍然可以看到与启用了JavaScript的用户相同的内容和布局</li>
+<li><strong>后端集成</strong> : SSR允许与后端系统和服务轻松集成</li>
+</ul>
+<h2 id="considerations-tradeoffs">考虑和权衡</h2>
+<p>如果您正在创建一个新的Vue.js 3应用程序，并且服务器端呈现非常重要，那么您可以使用一个现代的JavaScript元框架，比如Nuxt.js，它提供了内置的服务器端呈现。另一种选择是使用由<a href="http://%E2%80%8B%E2%80%8Bhttps://github.com/vitejs/vite-plugin-vue/tree/main/playground/ssr-vue">Vue核心团队</a>提供的<a href="http://%E2%80%8B%E2%80%8Bhttps://github.com/vitejs/vite-plugin-vue/tree/main/playground/ssr-vue">官方SSR设置</a> <a href="http://%E2%80%8B%E2%80%8Bhttps://github.com/vitejs/vite-plugin-vue/tree/main/playground/ssr-vue">。</a></p>
+<p>然而，如果您有一个现有的Vue应用程序，并且迁移到Nuxt.js不是一个选项，那么值得注意的是，将SSR添加到您的应用程序可能会带来额外的复杂性和开发工作。在走上这条道路之前，评估添加SSR的利弊是很重要的。以下是一些注意事项:</p>
+<ul>
+<li><strong>维护</strong>:SSR应用程序可能比传统的客户端应用程序需要更多的维护</li>
+<li><strong>性能</strong>:服务器端渲染可以改善初始加载时间，但也会给应用程序带来额外的延迟和复杂性。SSR还可能增加代码库的复杂性，并需要额外的服务器资源</li>
+<li><strong>浏览器兼容性</strong>:一些较旧的浏览器可能不支持SSR实施中使用的某些功能或技术，这可能需要额外的测试和兼容性解决方案</li>
+<li><strong>安全</strong> : SSR可能会引入额外的安全问题。它要求应用程序在服务器上运行，而服务器很容易受到不同类型的网络攻击</li>
+<li><strong>状态管理</strong>:与传统的SPA相比，SSR需要不同的状态管理方法；实施可能具有挑战性，需要额外的努力</li>
+</ul>
+<h2 id="getting-started">入门指南</h2>
+<p>对于本教程，我将假设您已经设置了一个现有的Vue.js应用程序。因此，我们将从安装教程所需的必要依赖项开始。</p>
+<p>如果您没有项目设置，并且希望按照本文中的示例进行操作，那么您可以使用以下命令引导一个Vue 3项目:</p>
+<pre class="language-bash hljs">npm init <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f7818292b79b9683928483">[email protected]</a>
+</pre>
+<p>默认情况下，Vue CLI会为Vue项目安装大多数必需的依赖项(例如，vue-router、Pinia和vue-jsx ),因此您只需安装Express即可开始。</p>
+<p>为此，打开您的计算机的终端，cd到您的项目文件夹，并运行以下命令:</p>
+<pre class="language-bash hljs">npm i express
+</pre>
+<h2 id="folder-structure">文件夹结构</h2>
+<p>要将SSR集成到我们的应用程序中，我们需要执行以下步骤:</p>
+<ul>
+<li>在<code>package.json</code>中调整构建脚本，以生成客户端和SSR构建并生成预加载指令</li>
+<li>使用<code>express</code>创建服务器</li>
+<li>为服务器和客户机开发一个入口点</li>
+</ul>
+<p>这将需要对文件结构进行更改，并向项目中添加新文件。典型的SSR应用程序具有以下目录结构:</p>
+<pre class="language-json hljs">- index.html
+- server.js 
+- src/
+ - main.js    
+ - entry-client.js 
+ - entry-server.js  
+</pre>
+<p>正如您可能已经观察到的，这是Vue项目模板的标准文件夹结构，除了一些额外的文件，如<code>server.js</code>、<code>entry-client.js</code>和<code>entry-server.js</code>。</p>
+<p>这些文件将用于在应用程序中建立SSR功能。<code>server.js</code>文件将作为应用程序的主服务器。<code>entry-server.js</code>文件将包含负责从服务器生成内容的render函数。而<code>entry-client.js</code>文件将负责使用SSR API渲染应用程序，还将处理应用程序的水合过程。</p>
+<p>如果这些文件不存在，请将其添加到项目目录中。文件的位置并不重要，但是建议将<code>server.js</code>文件放在根目录中，将条目文件<code>entry-server.js</code>和<code>entry-client.js</code>放在<code>src</code>目录中:</p>
+<p><img data-attachment-id="160975" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/src-directory-file-structure-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png" data-orig-size="229,422" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Src directory file structure Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app-163x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png" decoding="async" class="aligncenter wp-image-160975 size-full jetpack-lazy-image" src="../Images/cc59a1f31a116e5cf8881de67aa390c2.png" alt="Src Directory File Structure Vue 3 App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png 229w, https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app-163x300.png 163w" data-lazy-sizes="(max-width: 229px) 100vw, 229px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160975" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/src-directory-file-structure-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png" data-orig-size="229,422" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Src directory file structure Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app-163x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png" decoding="async" loading="lazy" class="aligncenter wp-image-160975 size-full" src="../Images/cc59a1f31a116e5cf8881de67aa390c2.png" alt="Src Directory File Structure Vue 3 App" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png 229w, https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app-163x300.png 163w" sizes="(max-width: 229px) 100vw, 229px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/src-directory-file-structure-vue-3-app.png"/></noscript>
+<h2 id="setting-up-client-files">设置客户端文件</h2>
+<p>在建立服务器端文件之前，我们需要建立客户端文件，如<code>router.js</code>、<code>main.js</code>和<code>index.html</code>文件。</p>
+<h3 id="main-js"><code>main.js</code></h3>
+<p><code>main.js</code>文件通常包含一个利用应用程序的函数，其内容通常类似于下面的示例代码:</p>
+<pre class="language-javascript hljs">import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./App.vue";
+import router from "./router";
+import "./assets/main.css";
+const app = createApp(App);
+app.use(createPinia());
+app.use(router);
+app.mount("#app");
+</pre>
+<p>然而，在这个应用程序的上下文中，我们将使用<code>createSSRApp</code>和<code>createRouter</code>函数来创建应用程序的SSR版本，并建立一个路由器实例。</p>
+<p>打开<code>main.js</code>文件，用以下代码替换上面的代码:</p>
+<pre class="language-javascript hljs">//main.js
+import { createPinia } from "pinia";
+import { createSSRApp } from "vue";
+import App from "./App.vue";
+import { createRouter } from "./router";
+
+export function createApp() {
+ const app = createSSRApp(App);
+ const pinia = createPinia();
+ app.use(pinia);
+ const router = createRouter();
+ app.use(router);
+ return { app, router };
+}
+</pre>
+<h3 id="router-js"><code>router.js</code></h3>
+<p>要为我们的服务器端渲染的Vue应用程序配置路由器，我们只需在服务器端使用<code>createMemoryHistory()</code>函数来记录历史，在客户端使用<code>createWebHistory()</code>函数。我们还需要为应用程序中的页面创建路径，并使用<code>createRouter</code>功能注册它们:</p>
+<pre class="language-javascript hljs">//router.js
+
+import {
+  createMemoryHistory,
+  createRouter as _createRouter,
+  createWebHistory,
+} from "vue-router";
+
+const routes = [
+  {
+    path: "/",
+    component: () =&gt; import("../pages/Home.vue"),
+  },
+  {
+    path: "/welcome",
+    component: () =&gt; import("../pages/Welcome.vue"),
+  },
+];
+
+export const createRouter = () =&gt;
+  _createRouter({
+    history: import.meta.env.SSR
+      ? createMemoryHistory("/")
+      : createWebHistory("/"),
+    routes,
+  });
+</pre>
+<p>在这里，我们为<code>pages</code>文件夹中的<code>home</code>和<code>welcome</code>页面文件创建路径。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="index-html"><code>index.html</code></h3>
+<p>在<code>index.html</code>文件中需要做的就是用客户机条目文件替换默认的条目目标<code>main.js</code>:</p>
+<pre class="language-html hljs">//index.html
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;title&gt;Vite App&lt;/title&gt;
+    &lt;!--preload-links--&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="app"&gt;&lt;!--app-html--&gt;&lt;/div&gt;
+    &lt;script type="module" src="/src/entry-client.js"&gt;&lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p><em> <strong>注意，<code>entry-client.js</code>尚未创建，稍后我们将在本文</strong> </em>中学习如何创建</p>
+<h2 id="configuring-package-json-file">配置<code>package.json</code>文件</h2>
+<p>我们需要对<code>package.json</code>文件进行必要的调整，以启用我们计划在项目中实现的SSR功能。具体来说，我们将定制<code>package.json</code>文件中的脚本，以包含构建服务器端呈现版本和客户端呈现版本的选项，用于生产和生成预加载指令。</p>
+<p>为此，打开<code>package.json</code>文件并用以下内容替换现有脚本:</p>
+<pre class="language-json hljs">//package.json
+
+"scripts": {
+    "dev": "node server",
+    "build": "npm run build:client &amp;&amp; npm run build:server",
+    "build:noExternal": "npm run build:client &amp;&amp; npm run build:server:noExternal",
+    "build:client": "vite build --ssrManifest --outDir dist/client",
+    "build:server": "vite build --ssr src/entry-server.js --outDir dist/server",
+    "build:server:noExternal": "vite build --config vite.config.noexternal.js --ssr src/entry-server.js --outDir dist/server",
+    "generate": "vite build --ssrManifest --outDir dist/static &amp;&amp; npm run build:server &amp;&amp; node prerender",
+    "serve": "NODE_ENV=production node server",
+    "debug": "node --inspect-brk server"
+  },
+</pre>
+<p>您可能还想在<code>package.json</code>文件中添加一个<code>"type": "module"</code>属性，以防止节点抛出“不能在模块外使用导入语句”错误:</p>
+<pre class="language-json hljs">"type": "module",
+</pre>
+<h2 id="setting-up-server-express-js">使用Express.js设置服务器</h2>
+<p>Node.js服务器将处理应用程序的呈现，方法是将其转换为字符串，将字符串注入到<code>index.html</code>文件中，并用呈现的内容替换<code>app</code> div中的占位符。我们将在下面几节中更详细地介绍这个过程。</p>
+<p>现在，打开<code>server.js</code>文件并导入以下包:</p>
+<pre class="language-javascript hljs">import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import express from "express";
+</pre>
+<p>在这一步，我们利用<code>express</code>创建服务器，<code>path</code>处理文件路径，<code>fileUrlToPath</code>将文件URL转换成文件路径，<code>fs</code>包读取<code>index.html</code>文件。</p>
+<p>接下来，在前面的导入下面添加以下代码:</p>
+<pre class="language-javascript hljs">const isTest = process.env.VITEST;
+
+export async function createServer(
+  root = process.cwd(),
+  isProd = process.env.NODE_ENV === "production",
+  hmrPort
+) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const resolve = (p) =&gt; path.resolve(__dirname, p);
+
+  const indexProd = isProd
+    ? fs.readFileSync(resolve("dist/client/index.html"), "utf-8")
+    : "";
+
+  const manifest = isProd
+    ? JSON.parse(
+        fs.readFileSync(resolve("dist/client/ssr-manifest.json"), "utf-8")
+      )
+    : {};
+
+  const app = express();
+
+  /**
+   * @type {import('vite').ViteDevServer}
+   */
+  let vite;
+  if (!isProd) {
+    vite = await (
+      await import("vite")
+    ).createServer({
+      base: "/",
+      root,
+      logLevel: isTest ? "error" : "info",
+      server: {
+        middlewareMode: true,
+        watch: {
+          usePolling: true,
+          interval: 100,
+        },
+        hmr: {
+          port: hmrPort,
+        },
+      },
+      appType: "custom",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use((await import("compression")).default());
+    app.use(
+      "/",
+      (await import("serve-static")).default(resolve("dist/client"), {
+        index: false,
+      })
+    );
+  }
+
+  app.use("*", async (req, res) =&gt; {
+    try {
+      const url = req.originalUrl;
+
+      let template, render;
+      if (!isProd) {
+        template = fs.readFileSync(resolve("index.html"), "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        render = (await vite.ssrLoadModule("/src/entry-server.js")).render;
+      } else {
+        template = indexProd;
+        render = (await import("./dist/server/entry-server.js")).render;
+      }
+
+      const [appHtml, preloadLinks] = await render(url, manifest);
+
+      const html = template
+        .replace(`&lt;!--preload-links--&gt;`, preloadLinks)
+        .replace(`&lt;!--app-html--&gt;`, appHtml);
+
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      vite &amp;&amp; vite.ssrFixStacktrace(e);
+      console.log(e.stack);
+      res.status(500).end(e.stack);
+    }
+  });
+
+  return { app, vite };
+}
+
+if (!isTest) {
+  createServer().then(({ app }) =&gt;
+    app.listen(6173, () =&gt; {
+      console.log("http://localhost:6173");
+    })
+  );
+}
+</pre>
+<p>这里，我们通过读取<code>index.html</code>文件来配置Vite服务器，利用来自<code>entry-server.js</code>文件的render函数，传入初始URL，在本例中是主页，最后，用呈现的内容替换<code>&lt;!--app-html--&gt;</code>占位符。</p>
+<p><code>createServer</code>函数负责整个服务器的逻辑。该功能的初始部分用于将Vite从生产环境中分离出来，并在中间件模式中使用它，使我们能够完全控制主服务器:</p>
+<pre class="language-javascript hljs">let vite;
+  if (!isProd) {
+    vite = await (
+      await import("vite")
+    ).createServer({
+      base: "/",
+      root,
+      logLevel: isTest ? "error" : "info",
+      server: {
+        middlewareMode: true,
+        watch: {
+          usePolling: true,
+          interval: 100,
+        },
+        hmr: {
+          port: hmrPort,
+        },
+      },
+      appType: "custom",
+    });
+    // use vite's connect instance as middleware
+    app.use(vite.middlewares);
+  } else {
+    app.use((await import("compression")).default());
+    app.use(
+      "/",
+      (await import("serve-static")).default(resolve("dist/client"), {
+        index: false,
+      })
+    );
+  }
+</pre>
+<p>这里，<code>if</code>语句在执行其中的代码块之前检查应用程序是否不处于生产模式。这段代码在中间件模式下创建了一个<code>ViteDevServer</code>实例，并将应用类型配置为<code>custom</code>，禁用了Vite的内置服务逻辑，并允许服务器接管处理请求。</p>
+<p>服务器的另一个重要部分是<code>*</code>处理程序的实现，它负责提供服务器呈现的HTML。这是通过读取<code>index.html</code>文件，从<code>entry-server.js</code>文件调用呈现函数，传入当前URL，然后用呈现的内容替换<code>&lt;!--app-html--&gt;</code>占位符来实现的。这确保了服务器可以将应用程序作为完全呈现的HTML字符串来提供，而不仅仅是客户端的JavaScript包:</p>
+<pre class="language-javascript hljs">app.use("*", async (req, res) =&gt; {
+    try {
+      const url = req.originalUrl;
+
+      let template, render;
+      if (!isProd) {
+        template = fs.readFileSync(resolve("index.html"), "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        render = (await vite.ssrLoadModule("/src/entry-server.js")).render;
+      } else {
+        template = indexProd;
+        render = (await import("./dist/server/entry-server.js")).render;
+      }
+
+      const [appHtml, preloadLinks] = await render(url, manifest);
+
+      const html = template
+        .replace(`&lt;!--preload-links--&gt;`, preloadLinks)
+        .replace(`&lt;!--app-html--&gt;`, appHtml);
+
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      vite &amp;&amp; vite.ssrFixStacktrace(e);
+      console.log(e.stack);
+      res.status(500).end(e.stack);
+    }
+  });
+
+  return { app, vite };
+}
+</pre>
+<p><code>else</code>块做的事情很简单。它将生产<code>index.html</code>文件分配给模板变量，并在生产环境中导入<code>entry-server.js</code>文件，将其分配给<code>render</code>变量。这将用于呈现应用程序的服务器端版本，并将其注入到<code>index.html</code>文件中，代替占位符。</p>
+<p>注意，代码中引用的<code>dist/client/</code>路径指向客户端构建中的资产链接。因此，不在条件块内的文件从<code>dist/client/</code>开始处理。</p>
+<p>在条件块之外，我们将根路径(<code>url</code>)和<code>manifest</code>传递给<code>render</code>函数，并从中析构<code>appHtml</code>和<code>preloadLinks</code>:</p>
+<pre class="language-javascript hljs">const [appHtml, preloadLinks] = await render(url, manifest);
+</pre>
+<p>使用我们之前添加到<code>package.json</code>文件中的<code>build:client</code>脚本的<code>--ssrManifest</code>标志生成的<code>manifest.json</code>文件将被<code>render</code>函数用来标识可用的客户端资产。</p>
+<p>最后，呈现的HTML和预加载链接被注入到<code>index.html</code>文件的占位符中:</p>
+<pre class="language-javascript hljs"> const html = template
+ .replace(`&lt;!--preload-links--&gt;`, preloadLinks)
+ .replace(`&lt;!--app-html--&gt;`, appHtml);
+
+ res.status(200).set({ "Content-Type": "text/html" }).end(html);
+</pre>
+<p>既然服务器已经设置好了；在构建和服务我们的应用程序之前，我们可以继续创建和填充<code>entry-client.js</code>和<code>entry-server.js</code>文件。</p>
+<h2 id="configuring-entry-files">配置条目文件</h2>
+<p><code>entry-client.js</code>和<code>entry-server.js</code>文件用于在我们的应用程序中设置SSR功能。<code>entry-server.js</code>文件包含使用<code>createSSRApp</code> API为SSR创建Vue应用程序实例和使用<code>renderToString</code> API将应用程序呈现为字符串的逻辑。然后，生成的字符串被发送到浏览器，在客户端进行处理和呈现。<code>entry-client.js</code>文件负责初始化应用程序的水合过程，并使用SSR API创建应用程序的客户端实例。</p>
+<h3 id="entry-server-js"><code>entry-server.js</code></h3>
+<p>在<code>entry-server.js</code>文件中，我们需要创建一个渲染函数来初始化一个Vue实例，配置必要的中间件，比如路由器和商店，并接受一个URL路径作为参数。然后，该函数应导出此实例，供服务器使用，以将应用程序呈现为用于服务器端呈现的字符串。</p>
+<p>首先，导航到<code>src</code>文件夹中的<code>entry-server.js</code>文件，并添加以下代码:</p>
+<pre class="language-javascript hljs">//server.js
+
+import { basename } from "node:path";
+import { renderToString } from "vue/server-renderer";
+import { createApp } from "./main";
+
+export async function render(url, manifest) {
+  const { app, router } = createApp();
+
+  await router.push(url);
+  await router.isReady();
+
+  const ctx = {};
+  const html = await renderToString(app, ctx);
+
+  const preloadLinks = renderPreloadLinks(ctx.modules, manifest);
+  return [html, preloadLinks];
+}
+
+function renderPreloadLinks(modules, manifest) {
+  let links = "";
+  const seen = new Set();
+  modules.forEach((id) =&gt; {
+    const files = manifest[id];
+    if (files) {
+      files.forEach((file) =&gt; {
+        if (!seen.has(file)) {
+          seen.add(file);
+          const filename = basename(file);
+          if (manifest[filename]) {
+            for (const depFile of manifest[filename]) {
+              links += renderPreloadLink(depFile);
+              seen.add(depFile);
+            }
+          }
+          links += renderPreloadLink(file);
+        }
+      });
+    }
+  });
+  return links;
+}
+
+function renderPreloadLink(file) {
+  if (file.endsWith(".js")) {
+    return `&lt;link rel="modulepreload" crossorigin href="${file}"&gt;`;
+  } else if (file.endsWith(".css")) {
+    return `&lt;link rel="stylesheet" href="${file}"&gt;`;
+  } else if (file.endsWith(".woff")) {
+    return ` &lt;link rel="preload" href="${file}" as="font" type="font/woff" crossorigin&gt;`;
+  } else if (file.endsWith(".woff2")) {
+    return ` &lt;link rel="preload" href="${file}" as="font" type="font/woff2" crossorigin&gt;`;
+  } else if (file.endsWith(".gif")) {
+    return ` &lt;link rel="preload" href="${file}" as="image" type="image/gif"&gt;`;
+  } else if (file.endsWith(".jpg") || file.endsWith(".jpeg")) {
+    return ` &lt;link rel="preload" href="${file}" as="image" type="image/jpeg"&gt;`;
+  } else if (file.endsWith(".png")) {
+    return ` &lt;link rel="preload" href="${file}" as="image" type="image/png"&gt;`;
+  } else {
+    return "";
+  }
+}
+</pre>
+<p>这里我们使用<code>render</code>函数创建一个context对象，该对象自动关联Vue SSR上下文中使用的组件模块id，并呈现请求的页面。该函数还使用了<code>renderToString()</code>方法来返回解析应用程序的呈现HTML的承诺。</p>
+<p><code>renderPreloadLinks</code>和<code>renderPreloadLink</code>函数用于在客户端渲染CSS、字体、JavaScript文件等资源。前一个函数将模块和清单参数作为<code>render</code>函数中的参数，并与应用程序的静态标记一起导出，以便在<code>server.js</code>文件中使用:</p>
+<pre class="language-javascript hljs">function renderPreloadLinks(modules, manifest) {
+  let links = "";
+  const seen = new Set();
+  modules.forEach((id) =&gt; {
+    const files = manifest[id];
+    if (files) {
+      files.forEach((file) =&gt; {
+        if (!seen.has(file)) {
+          seen.add(file);
+          const filename = basename(file);
+          if (manifest[filename]) {
+            for (const depFile of manifest[filename]) {
+              links += renderPreloadLink(depFile);
+              seen.add(depFile);
+            }
+          }
+          links += renderPreloadLink(file);
+        }
+      });
+    }
+  });
+  return links;
+}
+</pre>
+<p>值得注意的是，<code>manifest</code>文件是从客户端构建生成的，包含模块id到它们对应的块和资产文件的映射。我们必须运行<code>build</code>命令，并为服务器和入口文件生成一个客户机构建来访问该文件。</p>
+<p>为此，在当前工作目录中打开您的终端并运行以下命令:</p>
+<pre class="language-bash hljs">npm run build
+</pre>
+<p><img data-attachment-id="160979" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/configuring-entry-js-files-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png" data-orig-size="525,211" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Configuring entry.js files Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app-300x121.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png" decoding="async" class="aligncenter wp-image-160979 size-full jetpack-lazy-image" src="../Images/3f1ef05e2847c362323a07f5c9e919c2.png" alt="Configuring Entry.js Files Vue 3 App" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png 525w, https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app-300x121.png 300w" data-lazy-sizes="(max-width: 525px) 100vw, 525px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160979" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/configuring-entry-js-files-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png" data-orig-size="525,211" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Configuring entry.js files Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app-300x121.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png" decoding="async" loading="lazy" class="aligncenter wp-image-160979 size-full" src="../Images/3f1ef05e2847c362323a07f5c9e919c2.png" alt="Configuring Entry.js Files Vue 3 App" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png 525w, https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app-300x121.png 300w" sizes="(max-width: 525px) 100vw, 525px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/configuring-entry-js-files-vue-3-app.png"/></noscript>
+<p>这将构建您的应用程序，并在根目录下生成一个包含一个<code>manifest.json</code>文件的dist文件夹:</p>
+<p><img data-attachment-id="160981" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/constructing-app-generating-dist-folder-manifest-json-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" data-orig-size="236,225" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Constructing app generating dist folder manifest JSON file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" decoding="async" class="aligncenter wp-image-160981 size-full jetpack-lazy-image" src="../Images/3481746f8d1deb0d899f7f0ef56b36d2.png" alt="Constructing App Generating Dist Folder Manifest JSON File" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160981" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/constructing-app-generating-dist-folder-manifest-json-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" data-orig-size="236,225" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Constructing app generating dist folder manifest JSON file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png" decoding="async" loading="lazy" class="aligncenter wp-image-160981 size-full" src="../Images/3481746f8d1deb0d899f7f0ef56b36d2.png" alt="Constructing App Generating Dist Folder Manifest JSON File" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/constructing-app-generating-dist-folder-manifest-json-file.png"/></noscript>
+<p>在这个阶段，我们可以通过在终端中运行<code>npm run serve</code>命令来启动应用程序，允许我们查看应用程序的内容:</p>
+<p><img data-attachment-id="160984" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/vue-3-app-content/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png" data-orig-size="506,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Vue 3 app content" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png" decoding="async" class="alignnone size-medium wp-image-160984 jetpack-lazy-image" src="../Images/736422e17661be06fb2410075ccffd20.png" alt="Vue 3 App Content" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png 300w, https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png 506w" data-lazy-sizes="(max-width: 300px) 100vw, 300px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160984" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/vue-3-app-content/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png" data-orig-size="506,301" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Vue 3 app content" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png" decoding="async" loading="lazy" class="alignnone size-medium wp-image-160984" src="../Images/736422e17661be06fb2410075ccffd20.png" alt="Vue 3 App Content" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png 300w, https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content.png 506w" sizes="(max-width: 300px) 100vw, 300px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/vue-3-app-content-300x178.png"/></noscript>
+<p>在本例中，我们加入了导航功能，可以导航到我们之前创建的<code>home</code>和<code>welcome</code>页面，还加入了一个按钮，单击该按钮可以增加计数状态:</p>
+<pre class="language-html hljs">//App.vue
+
+&lt;template&gt;
+  &lt;div&gt;
+    &lt;router-link to="/"&gt;Home&lt;/router-link&gt; |
+    &lt;router-link to="/welcome"&gt;Welcome&lt;/router-link&gt;
+    &lt;router-view /&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+</pre>
+<p>如果您尝试与该应用程序交互，您会注意到它不起作用，并且所提供的应用程序是静态的:</p>
+<p><img data-attachment-id="160986" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/attempting-interact-static-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif" data-orig-size="545,280" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Attempting interact static Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app-300x154.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif" decoding="async" class="aligncenter wp-image-160986 size-full jetpack-lazy-image" src="../Images/0f08c45d6f39c1d23da9c8bfa86adfd3.png" alt="Attempting Interact Static Vue 3 App" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160986" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/attempting-interact-static-vue-3-app/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif" data-orig-size="545,280" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Attempting interact static Vue 3 app" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app-300x154.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif" decoding="async" loading="lazy" class="aligncenter wp-image-160986 size-full" src="../Images/0f08c45d6f39c1d23da9c8bfa86adfd3.png" alt="Attempting Interact Static Vue 3 App" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/attempting-interact-static-vue-3-app.gif"/></noscript>
+<p>这是因为<code>entry-client.js</code>文件还需要设置，app还需要补水。</p>
+<h3 id="entry-client-js"><code>entry-client.js</code></h3>
+<p>在这种情况下，水合是一个将已经呈现的HTML页面转化为客户端完全交互式应用程序的过程。这是通过在页面中注入JavaScript代码和其他资产来实现的。这通过将静态HTML元素绑定到相应的Vue.js组件并重新激活事件监听器和其他动态功能来“水合”静态HTML元素。</p>
+<p><code>entry-client.js</code>文件负责这个过程；它导出一个函数来创建新的Vue实例，配置路由器和其他特定于客户端的选项，并将应用程序附加到DOM。</p>
+<p><code>entry-client.js</code>文件是客户端唯一需要的入口文件，所以我们不需要<code>main.j``s</code>文件，它是前一个入口文件。然而，由于SSR功能被添加到一个现有的项目中，<code>main.js</code>文件可能包含其他功能；因此，我们在其中编写了<code>createApp()</code>函数。</p>
+<p>在<code>entry-client.js</code>文件中，我们需要从<code>main.js</code>文件中导入<code>createApp</code>函数，析构app和路由器方法，并在附加app之前验证路由器是否准备好，以确保水合匹配:</p>
+<pre class="language-javascript hljs">import { createApp } from "./main";
+
+const { app, router } = createApp();
+
+router.isReady().then(() =&gt; {
+  app.mount("#app");
+
+  console.log("hydrated");
+});
+</pre>
+<p>这样，我们就成功地将服务器端渲染集成到了现有的Vue 3应用程序中。现在，如果您保存您的进度并返回浏览器，应用程序应该正确加载其资源:</p>
+<p><img data-attachment-id="161001" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/vue-3-app-server-side-rendering-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif" data-orig-size="720,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Vue 3 app server side rendering" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering-300x137.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif" decoding="async" class="aligncenter wp-image-161001 size-full jetpack-lazy-image" src="../Images/136e8985235e803df0b83531e0810a79.png" alt="Vue 3 App Server Side Rendering" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="161001" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/vue-3-app-server-side-rendering-2/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif" data-orig-size="720,329" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Vue 3 app server side rendering" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering-300x137.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif" decoding="async" loading="lazy" class="aligncenter wp-image-161001 size-full" src="../Images/136e8985235e803df0b83531e0810a79.png" alt="Vue 3 App Server Side Rendering" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/03/vue-3-app-server-side-rendering.gif"/></noscript>
+<p>要确认内容正在从服务器呈现，您可以通过导航到<code>Network</code>选项卡来检查浏览器的开发人员工具。在那里，当您单击URL并导航到response选项卡时，您应该会看到页面上的内容，如下所示:</p>
+<p><img data-attachment-id="160991" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/checking-browser-dev-tools-confirm-sever-rendering/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif" data-orig-size="720,383" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Checking browser dev tools confirm server rendering" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif" decoding="async" class="aligncenter wp-image-160991 size-full jetpack-lazy-image" src="../Images/bc2881d809879200a819708aabfb6e67.png" alt="Checking Browser Dev Tools Confirm Server Rendering" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160991" data-permalink="https://blog.logrocket.com/adding-ssr-existing-vue-3-app/attachment/checking-browser-dev-tools-confirm-sever-rendering/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif" data-orig-size="720,383" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Checking browser dev tools confirm server rendering" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering-300x160.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif" decoding="async" loading="lazy" class="aligncenter wp-image-160991 size-full" src="../Images/bc2881d809879200a819708aabfb6e67.png" alt="Checking Browser Dev Tools Confirm Server Rendering" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/checking-browser-dev-tools-confirm-sever-rendering.gif"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们讨论了服务器端呈现的概念、它的优点和缺点，并演示了如何将SSR整合到一个预先存在的Vue 3项目中。我们使用的过程包括为应用程序创建一个主服务器，并为服务器端和客户端添加新的条目文件。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

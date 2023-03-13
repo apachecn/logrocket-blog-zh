@@ -1,0 +1,275 @@
+<html>
+<head>
+<title>How to deploy Lambda functions in Rust </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何在Rust中部署Lambda函数</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deploy-lambda-functions-rust/#0001-01-01">https://blog.logrocket.com/deploy-lambda-functions-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>学习如何使用Rust编写的Lambda函数对于今天的开发人员来说是一项非常有用的技能。AWS Lambda提供按需计算服务，无需部署或维护长时间运行的服务器，无需安装和升级操作系统或修补安全漏洞。</p>
+<p>在本文中，我们将学习如何创建和部署用Rust编写的Lambda函数。为了方便起见，这个项目的所有代码都可以在我的GitHub上找到。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="cold-starts-rust">冷启动和生锈</h2>
+<p>Lambda多年来一直存在的一个问题是冷启动问题。</p>
+<p>一个函数不能立即启动，因为它通常需要几秒钟或更长时间来返回一个响应。不同的编程语言有不同的性能特征；像Java这样的一些语言会有更长的冷启动时间，因为它们的依赖性，比如JVM。</p>
+<p>另一方面，Rust具有极小的冷启动，并且已经成为通过避免较大冷启动来寻求显著性能增益的开发人员的编程语言选择。</p>
+<p>让我们跳进来。</p>
+<h2 id="getting-started">入门指南</h2>
+<p>首先，我们需要安装带有<code><a href="#https://doc.rust-lang.org/cargo/getting-started/installation.html">rustup</a></code>和<code><a href="https://www.cargo-lambda.info/guide/installation.html">cargo-lambda</a></code>的<code><a href="https://doc.rust-lang.org/cargo/">cargo</a></code>。我将使用<a href="https://blog.logrocket.com/how-to-set-up-m1-macbook-web-development/">家酿</a>，因为我在Mac上，但你可以看看之前的两个链接，在你自己的机器上安装说明。</p>
+<pre>curl https://sh.rustup.rs -sSf | sh
+brew tap cargo-lambda/cargo-lambda
+brew install cargo-lambda
+</pre>
+<h3 id="generate-boilerplate-new-command">用<code>new</code>命令生成样板文件</h3>
+<p>首先，让我们用<code><a href="https://www.cargo-lambda.info/commands/new.html">new</a></code>命令创建一个新的Rust包。如果你包含了<code>--http</code>标志，它会自动生成一个兼容<a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html"> Lambda函数URL</a><a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-urls.html">的项目。</a></p>
+<pre>cargo lambda new --http rustrocket
+cd rustrocket
+</pre>
+<p>这就生成了一个基本框架，开始用Rust编写AWS Lambda函数。我们的项目结构包含以下文件:</p>
+<pre>.
+├── Cargo.toml
+└── src
+    └── main.rs
+</pre>
+<p><code>src</code>目录下的<code>main.rs</code>保存着我们用Rust编写的Lambda代码。</p>
+<p>我们一会儿就来看看这段代码，但是让我们先来看看唯一的另一个文件，<code><a href="https://doc.rust-lang.org/cargo/reference/manifest.html">Cargo.toml</a></code> <a href="https://doc.rust-lang.org/cargo/reference/manifest.html">。</a></p>
+<h3 id="cargo-manifest-file">货物清单文件</h3>
+<p>是一个Rust清单文件，包括一个用TOML为你的包编写的配置文件。</p>
+<pre class="language-toml hljs"># Cargo.toml
+
+[package]
+  name = "rustrocket"
+  version = "0.1.0"
+  edition = "2021"
+
+[dependencies]
+  lambda_http = "0.6.1"
+  lambda_runtime = "0.6.1"
+  tokio = { version = "1", features = ["macros"] }
+  tracing = { version = "0.1", features = ["log"] }
+  tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
+</pre>
+<ul>
+<li>所有<code>Cargo.toml</code>文件的第一部分定义了一个包。<code>name</code>和<code>version</code>字段是唯一需要的信息——在官方<code><a href="#https://doc.rust-lang.org/cargo/reference/manifest.html#the-package-section">package</a></code>文档中可以找到其他字段的详细列表</li>
+<li>第二部分指定了我们的<code><a href="#https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html">dependencies</a></code>，以及要安装的版本</li>
+</ul>
+<p>对于我们将在本文中创建的示例，我们只需要添加一个额外的依赖项(<code>serde</code>)。</p>
+<p>Serde 是一个序列化和反序列化Rust数据结构的框架。在撰写本文时，当前版本是<code>1.0.145</code>,但是您可以使用以下命令安装最新版本:</p>
+<pre>cargo add serde
+</pre>
+<p>现在我们的<code>[dependencies]</code>包括<code>serde = "1.0.145"</code>。</p>
+<h2 id="start-development-server-watch-command">用<code>watch</code>命令启动开发服务器</h2>
+<p>现在，让我们用<code><a href="https://www.cargo-lambda.info/commands/watch.html">watch</a></code>子命令启动一个开发服务器，模拟与AWS Lambda控制平面的交互。</p>
+<pre>cargo lambda watch
+</pre>
+<p>由于模拟器服务器包括对Lambda函数url的现成支持，您可以打开<a href="http://localhost:9000/lambda-url/rustrocket">localhost:9000/Lambda-URL/rust rocket</a>来调用您的函数并在浏览器中查看它。</p>
+<p><img data-attachment-id="139891" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/lambda-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png" data-orig-size="730,106" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="lambda-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png" decoding="async" class="aligncenter wp-image-139891 size-full jetpack-lazy-image" src="../Images/5b011a79cc38265de60359ac40a35287.png" alt="Invoke your Lambda function and view it in your browser" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function-300x44.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="139891" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/lambda-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png" data-orig-size="730,106" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="lambda-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png" decoding="async" loading="lazy" class="aligncenter wp-image-139891 size-full" src="../Images/5b011a79cc38265de60359ac40a35287.png" alt="Invoke your Lambda function and view it in your browser" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function-300x44.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/lambda-function.png"/></noscript>
+<p>打开<code>src</code>目录下的<code>main.rs</code>可以看到这个函数的代码。</p>
+<pre class="language-rust hljs">// src/main.rs
+
+use lambda_http::{run, service_fn, Body, Error, Request, RequestExt, Response};
+
+async fn function_handler(event: Request) -&gt; Result&lt;Response&lt;Body&gt;, Error&gt; {
+    let resp = Response::builder()
+        .status(200)
+        .header("content-type", "text/html")
+        .body("Hello AWS Lambda HTTP request".into())
+        .map_err(Box::new)?;
+    Ok(resp)
+}
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), Error&gt; {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .without_time()
+        .init();
+    run(service_fn(function_handler)).await
+}
+</pre>
+<p>现在，我们将通过添加一条新消息对<code>body</code>中的文本进行更改。由于标题已经设置为<code>text/html</code>，我们可以用HTML标签包装我们的消息。</p>
+<p>我们的终端也显示了一些警告，可以通过以下更改进行修复:</p>
+<ul>
+<li>将<code>event</code>重命名为<code>_event</code></li>
+<li>从导入中移除未使用的<code>RequestExt</code></li>
+</ul>
+<pre class="language-rust hljs">// src/main.rs
+
+use lambda_http::{run, service_fn, Body, Error, Request, Response};
+
+async fn function_handler(_event: Request) -&gt; Result&lt;Response&lt;Body&gt;, Error&gt; {
+    let resp = Response::builder()
+        .status(200)
+        .header("content-type", "text/html")
+        .body("&lt;h2&gt;Hello from LogRocket&lt;/h2&gt;".into())
+        .map_err(Box::new)?;
+    Ok(resp)
+}
+</pre>
+<p><code>main()</code>功能不会改变。返回浏览器查看更改:</p>
+<p><img data-attachment-id="139893" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/main-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png" data-orig-size="730,108" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="main-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png" decoding="async" class="aligncenter wp-image-139893 size-full jetpack-lazy-image" src="../Images/e532414013f98c1904eca12b904d7ce1.png" alt="Main function" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/main-function-300x44.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="139893" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/main-function/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png" data-orig-size="730,108" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="main-function" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function-300x44.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png" decoding="async" loading="lazy" class="aligncenter wp-image-139893 size-full" src="../Images/e532414013f98c1904eca12b904d7ce1.png" alt="Main function" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/main-function-300x44.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/main-function.png"/></noscript>
+<h3 id="include-additional-information-project">在我们的项目中包含附加信息</h3>
+<p>现在，我们有一个可以被调用来接收响应的函数，但是这个Lambda不能接受用户的特定输入，我们的项目不能用于部署和调用多个函数。</p>
+<p>为此，我们将在名为<code>bin</code>的新目录中创建一个新文件<code>hello.rs</code>。</p>
+<pre class="language-rust hljs">mkdir src/bin
+echo &gt; src/bin/hello.rs
+</pre>
+<p>目录让我们能够在一个项目中包含多个函数处理程序，并分别调用它们。</p>
+<p>我们还必须在我们的<code>Cargo.toml</code>文件的底部添加一个包含新处理程序名称的<code><a href="https://doc.rust-lang.org/cargo/reference/cargo-targets.html#binaries">bin</a></code>部分，如下所示:</p>
+<pre class="language-toml hljs"># Cargo.toml
+
+[[bin]]
+  name = "hello"
+</pre>
+<p>包含以下代码，将<code>event</code>有效负载转换为<code>Response</code>，并通过<code><a href="#https://doc.rust-lang.org/std/result/%5C">Ok()</a></code>传递给<code>main()</code>函数，如下所示:</p>
+<pre class="language-rust hljs">// src/bin/hello.rs
+
+use lambda_runtime::{service_fn, Error, LambdaEvent};
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize)]
+struct Request {
+    command: String,
+}
+
+#[derive(Serialize)]
+struct Response {
+    req_id: String,
+    msg: String,
+}
+
+pub(crate) async fn my_handler(event: LambdaEvent&lt;Request&gt;) -&gt; Result&lt;Response, Error&gt; {
+    let command = event.payload.command;
+    let resp = Response {
+        req_id: event.context.request_id,
+        msg: format!("{}", command),
+    };
+    Ok(resp)
+}
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), Error&gt; {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .without_time()
+        .init();
+    let func = service_fn(my_handler);
+    lambda_runtime::run(func).await?;
+    Ok(())
+}
+</pre>
+<h3 id="send-request-invoke-command">用<code>invoke</code>命令发送请求</h3>
+<p>使用<code><a href="https://www.cargo-lambda.info/commands/invoke.html">invoke</a></code>子命令向控制平面仿真器发送请求。</p>
+<pre class="language-rust hljs">cargo lambda invoke hello \
+  --data-ascii '{"command": "hello from logrocket"}'
+</pre>
+<p>您的终端将对此作出回应:</p>
+<pre class="language-rust hljs">{
+  "req_id":"64d4b99a-1775-41d2-afc4-fbdb36c4502c",
+  "msg":"hello from logrocket"
+}
+</pre>
+<h2 id="deploy-project-production"><strong>将项目投入生产</strong></h2>
+<p>到目前为止，我们只是在自己的机器上本地运行Lambda处理程序。为了在AWS上获得这个处理程序，我们需要构建和部署项目的工件。</p>
+<h3 id="bundle-function-artifacts-build-command">用<code>build</code>命令捆绑功能工件</h3>
+<p>用<code><a href="https://www.cargo-lambda.info/commands/build.html">build</a></code>子命令编译你的函数。这产生了可以上传到AWS Lambda的工件。</p>
+<pre class="language-rust hljs">cargo lambda build
+</pre>
+<h3 id="create-IAM-role">创建IAM角色</h3>
+<p>AWS IAM ( <a href="https://aws.amazon.com/iam/"> i </a> <a href="https://aws.amazon.com/iam/"> dentity和</a> <a href="https://aws.amazon.com/iam/"> a </a> <a href="https://aws.amazon.com/iam/">访问</a> <a href="https://aws.amazon.com/iam/"> m </a> <a href="https://aws.amazon.com/iam/">管理</a>)是一个用于创建、应用和管理AWS资源上的角色和权限的服务。</p>
+<p>它的复杂性和功能范围促使像Amplify这样的团队围绕IAM开发大量的工具资源。这包括带有新抽象的<a href="https://docs.aws.amazon.com/amplify/latest/userguide/security-iam.html">库和SDK</a>，其构建的明确目的是简化开发者使用IAM和<a href="https://docs.amplify.aws/lib/auth/getting-started/q/platform/js/"> Cognito </a>等服务的体验。</p>
+<p>在这个例子中，我们只需要创建一个只读角色，我们将把它放在一个名为<code>rust-role.json</code>的文件中。</p>
+<pre class="language-rust hljs">echo &gt; rust-role.json
+</pre>
+<p>我们将使用AWS CLI并发送以下角色的JSON定义。在<code>rust-role.json</code>中包含以下代码:</p>
+<pre class="language-json hljs">{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Service": "lambda.amazonaws.com"
+    },
+    "Action": "sts:AssumeRole"
+    }
+  ]
+}
+</pre>
+<p>要做到这一点，首先安装<a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"> AWS CLI </a>，它提供了一个<a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/iam/index.html">扩展的</a>列表，用于使用IAM。我们需要的唯一命令是<code><a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/iam/create-role.html">create-role</a></code>命令，以及两个选项:</p>
+<ul>
+<li>包含针对<code>--assume-role-policy-document</code>选项的IAM策略</li>
+<li>包含<code>--role-name</code>选项的名称<code>rust-role</code></li>
+</ul>
+<pre class="language-rust hljs">aws iam create-role \
+  --role-name rust-role \
+  --assume-role-policy-document file://rust-role.json
+</pre>
+<p>这将输出以下JSON文件:</p>
+<pre class="language-rust hljs">{
+  "Role": {
+    "Path": "/",
+    "RoleName": "rust-role2",
+    "RoleId": "AROARZ5VR5ZCOYN4Z7TLJ",
+    "Arn": "arn:aws:iam::124397940292:role/rust-role",
+    "CreateDate": "2022-09-15T22:15:24+00:00",
+    "AssumeRolePolicyDocument": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "lambda.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole"
+        }
+      ]
+    }
+  }
+}
+</pre>
+<p>复制<code>Arn</code>的值，在我的例子中是<code>arn:aws:iam::124397940292:role/rust-role</code>，并将其包含在<code>--iam-role</code>标志的下一个命令中。</p>
+<h3 id="upload-AWS-deploy-command">用<code>deploy</code>命令上传到AWS</h3>
+<p>使用<code><a href="https://www.cargo-lambda.info/commands/deploy.html">deploy</a></code>子命令将您的函数上传到AWS Lambda。Cargo Lambda将尝试使用Lambda的默认服务角色策略<code>AWSLambdaBasicExecutionRole</code>创建一个执行角色。</p>
+<p>如果这些命令失败并显示权限错误，那么您将需要通过添加<code>--iam-role FULL_ROLE_ARN</code>来包含上一节中的AWS IAM角色。</p>
+<pre class="language-rust hljs">cargo lambda deploy --enable-function-url rustrocket
+cargo lambda deploy hello
+</pre>
+<p>如果一切正常，您将获得一个用于<code>rustrocket</code>函数的Arn和URL，以及一个用于<code>hello</code>函数的Arn，如下图所示。</p>
+<pre>🔍 function arn: arn:aws:lambda:us-east-1:124397940292:function:rustrocket
+🔗 function url: https://bxzpdr7e3cvanutvreecyvlvfu0grvsk.lambda-url.us-east-1.on.aws/
+</pre>
+<p>打开<a href="https://bxzpdr7e3cvanutvreecyvlvfu0grvsk.lambda-url.us-east-1.on.aws/">函数URL </a>查看您的函数:</p>
+<p><img data-attachment-id="139895" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/function-url/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png" data-orig-size="730,87" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="function-url" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url-300x36.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png" decoding="async" class="aligncenter wp-image-139895 size-full jetpack-lazy-image" src="../Images/961614b0413b723bd0075835b0652f0b.png" alt="Function URL." data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/function-url-300x36.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="139895" data-permalink="https://blog.logrocket.com/deploy-lambda-functions-rust/attachment/function-url/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png" data-orig-size="730,87" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="function-url" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url-300x36.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png" decoding="async" loading="lazy" class="aligncenter wp-image-139895 size-full" src="../Images/961614b0413b723bd0075835b0652f0b.png" alt="Function URL." srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/function-url-300x36.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/function-url.png"/></noscript>
+<p>对于<code>hello</code>处理程序，我们将再次使用<code>invoke</code>命令，但是这次使用一个用于远程函数的<code>--remote</code>标志。</p>
+<pre class="language-rust hljs">cargo lambda invoke \
+  --remote \
+  --data-ascii '{"command": "hello from logrocket"}' \
+  arn:aws:lambda:us-east-1:124397940292:function:hello
+</pre>
+<h3 id="alternative-deployment-options">替代部署选项</h3>
+<p>到目前为止，我们只使用了Cargo Lambda来处理我们的Lambda函数，但是至少有十几种不同的方式来将函数部署到AWS Lambda！</p>
+<p>这些众多的方法在方法上有很大的不同，但可以大致分为三组:</p>
+<ol>
+<li>其他开源项目，如Cargo Lambda，由个人或一群人维护，可能是AWS员工自己或AWS顾问，他们与希望构建AWS的客户一起工作</li>
+<li>由希望通过提供更好、更简化的开发者体验来与AWS竞争的公司构建的工具</li>
+<li>由AWS内部团队创建和推动的服务，这些团队构建新产品，寻求改善现有AWS开发人员的生活，同时引入新的和经验较少的工程师</li>
+</ol>
+<p>关于使用第二类和第三类工具的说明，请参见<code>aws-lambda-rust-runtime</code> GitHub仓库上的<a href="https://github.com/awslabs/aws-lambda-rust-runtime#2-deploying-the-binary-to-aws-lambda">将二进制代码部署到AWS Lambda </a>一节。</p>
+<h2 id="finalthoughts">最后的想法</h2>
+<p>Rust在AWS的未来是光明的。他们对支持该项目的团队和基金会进行了大量投资。还有各种AWS服务现在也开始整合Rust，包括:</p>
+
+<p>要了解更多关于在AWS上运行Rust的信息，请查看Rust的AWS SDK。要在Lambda上更深入地使用Rust，请访问GitHub上的<a href="https://github.com/awslabs/aws-lambda-rust-runtime"> Rust运行时库</a>。</p>
+<p>我希望这篇文章对如何在Lambda上运行Rust是一个有用的介绍，请在下面留下你对自己经历的评论！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

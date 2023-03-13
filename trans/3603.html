@@ -1,0 +1,465 @@
+<html>
+<head>
+<title>Flutter CI/CD using GitHub Actions </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用GitHub动作抖动CI/CD</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/flutter-ci-cd-using-github-actions/#0001-01-01">https://blog.logrocket.com/flutter-ci-cd-using-github-actions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>我们处于这样一种状态，公司在几分钟内发布软件和解决方案，并且他们通过遵循持续集成(CI)和持续交付(CD)的操作原则来这样做。</p>
+<p>CI/CD管道使得软件的自动交付更加频繁、可靠和安全。它关注更高的代码质量，这就是为什么它对移动开发者或团队至关重要。</p>
+<p>在本教程中，您将学习如何使用GitHub Actions作为工具，遵循CI/CD原则部署您的Flutter应用程序。</p>
+<p>本教程需要一个Google服务帐户，它将在GitHub Actions中用于将Android版本发布到Play Store，因此要在GCP创建一个项目，<a href="https://console.cloud.google.com/iam-admin/serviceaccounts/project">创建一个服务帐户</a>并选择您创建的项目。</p>
+<p>注意，本教程假设你对颤振有一定的了解。如果你是Flutter新手，请浏览官方文档了解一下。</p>
+<h2>什么是GitHub Actions？</h2>
+<p>GitHub Actions是一个CI/CD工具，它可以帮助您直接从您的存储库构建、测试和部署生产中的变更。您可以使用它来设置特定事件的应用程序发布，如在存储库的特定分支中提交标签。</p>
+<p>此外，人们不必为项目间的共同事务创建工作流，因为GitHub有一个市场，您可以从其中使用其他人开发的现有工作流。</p>
+<p>GitHub Actions工作流使用<code>.yml</code>(“YAML不是标记语言”)文件，这些文件将存储在项目根目录下的<code>.github</code>目录中。</p>
+<p>此外，GitHub Actions支持不同的环境和容器，如Linux、macOS、Windows，甚至虚拟机。</p>
+<h2>入门指南</h2>
+<p>按照以下步骤进行初始设置:</p>
+<ol>
+<li>使用您最喜欢的IDE或使用Flutter命令行工具建立一个新的Flutter项目</li>
+<li>在您的机器上的新项目中初始化Git，并创建一个与您的GitHub帐户相关联的新存储库</li>
+<li>在flutter项目的根目录下创建config目录<code>.github</code>和一个名为<code>workflows</code>的新目录。此处的工作流将包含您所有的CI/CD工作流作为<code>.yml</code>文件</li>
+</ol>
+<h2>使用一个基本的颤动动作来构建一个Android版本</h2>
+<p>现在，您将创建一个基本的Android工作流来帮助您理解GitHub Actions如何构建您的Flutter应用程序。</p>
+<p>用下面的代码在<code>workflows</code>中创建一个<code>.yml</code>文件<code>android-release.yml</code>:</p>
+<pre class="language-yaml hljs">name: Android Release
+
+# 1
+on:
+  # 2
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+  # 3
+  workflow_dispatch:
+
+# 4
+jobs:
+  # 5
+  build:
+    # 6
+    runs-on: ubuntu-latest
+
+    # 7
+    steps:
+      # 8
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e1828984828a8e9495a197d2">[email protected]</a>
+      # 9
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b3c0d6c7c6c39ed9d2c5d2f3c580">[email protected]</a>
+        with:
+          distribution: 'zulu'
+          java-version: "12.x"
+      # 10   
+      - uses: subosito/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8ceae0f9f8f8e9fea1edeff8e5e3e2ccfabe">[email protected]</a>
+        with:
+          # 11
+          flutter-version: "3.0.0"
+          channel: 'stable'
+      # 12
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Runs a set of commands using the runners shell
+      - name: Start release build
+        run: flutter build appbundle
+</pre>
+<p>上面的工作流程:</p>
+<ol>
+<li>控制工作流运行的时间</li>
+<li>针对<code>"master"</code>分支的推或拉请求事件触发工作流；你可以根据你的要求改变它</li>
+<li>允许您从GitHub repo的“操作”选项卡中手动运行此工作流(工作流运行由一个或多个可以顺序或并行运行的作业组成)l</li>
+<li>包含一个名为<code>build</code>的作业</li>
+<li>包含将运行作业的运行程序的类型</li>
+<li>使用步骤来表示将作为作业的一部分执行的一系列任务</li>
+<li>在<code>$GITHUB_WORKSPACE</code>下准备好您的存储库，以便您的作业可以访问它</li>
+<li>设置Java，以便您的工作可以使用它来构建Flutter应用程序</li>
+<li>使用<a href="https://github.com/subosito/flutter-action">子位置颤振工作流程</a>设置颤振</li>
+<li>调整到您正在使用的颤振版本</li>
+<li>使用运行程序的shell运行单个命令</li>
+</ol>
+<h3>这个基本动作的问题</h3>
+<p>这个基本工作流的问题是，每当你在<code>master</code>分支中推送变更，这个工作流每次都会触发并开始设置Java SDK和Flutter SDK。所以最终，这将导致构建应用程序的延迟，因为您每次都必须设置服务。</p>
+<h3>如何让你的工作流程更快？</h3>
+<p>您可以通过缓存Java和Flutter SDKs使您的Flutter工作流更快，这样在下一次运行时，它不会在检查SDK的存在之前直接获取SDK。</p>
+<p>在您的<code>main.yml</code>文件中，进行以下更改:</p>
+<pre class="language-yaml hljs">      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="790a1c0d0c095413180f18390f4a">[email protected]</a>
+        with:
+          distribution: 'zulu'
+          java-version: "12.x"
+          cache: 'gradle' // 1
+         
+      - uses: subosito/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="99fff5ecededfcebb4f8faedf0f6f7d9efab">[email protected]</a>
+        with:
+          flutter-version: "3.0.0"
+          channel: 'stable'
+          cache: true // 2</pre>
+<p>您已经通过为Java SDK ( <code>1</code>)提供要缓存的Gradle并为Flutter SDK ( <code>2</code>)启用缓存更新了SDK设置。</p>
+<p>下次运行工作帖子时，保存上述更改并观察花费的时间；你会看到一个基本流程的时差。</p>
+<h2>为Play Store发布做准备</h2>
+<p>现在，您将扩展您的工作流程，创建一个Android Play商店版本。</p>
+<h3>生成版本号</h3>
+<p>对于任何新的发布，您都应该有一个新的发布版本号，因此在构建之前，您需要使用下面的作业创建一个版本号:</p>
+<pre class="language-yaml hljs"># 1
+version:
+    name: Create version number
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="80e3e8e5e3ebeff5f4c0f6b3">[email protected]</a>
+      # 2
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="166573626366566026382f3821">[email protected]</a>
+        with:
+          versionSpec: "5.x"
+      - name: Use GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f194899492848594b187c1dfc8dfc6">[email protected]</a>
+      # 3
+      - name: Create version.txt with nuGetVersion
+        run: echo ${{ steps.gitversion.outputs.nuGetVersion  }} &gt; version.txt
+      # 4
+      - name: Upload version.txt
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="97e2e7fbf8f6f3baf6e5e3fef1f6f4e3d7e1a5">[email protected]</a>
+        with:
+          name: gitversion
+          path: version.txt</pre>
+<p>在上面的代码中，我们执行了以下操作:</p>
+<ol>
+<li>创建了将在构建作业之前执行的新作业版本</li>
+<li>安装了<a href="https://github.com/GitTools/GitVersion"> GitVersion </a>，一个通过查看你的Git历史来进行版本控制的工具</li>
+<li>使用GitVersion发布，将版本放在一个<code>version.text</code>文件中</li>
+<li>上传了名为<code>gitversion</code>的<code>version.text</code>文件，作为actions系统的工件，稍后将在构建作业中使用</li>
+</ol>
+<h3>签署应用程序</h3>
+<p>要将应用程序发布到Play Store，您需要使用密钥库为您的应用程序提供数字签名。根据你的机器，按照官方的颤振文档来做:</p>
+<pre class="language-javascript hljs">keytool -genkey -v -keystore %userprofile%\upload-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias upload</pre>
+<p>这将在您的主目录或您提供的任何路径中存储一个扩展名为<code>.jks</code>的文件。</p>
+<p><em>注意，确保将商店密码、密钥密码和密钥别名添加到您的GitHub存储库秘密中(来自GitHub存储库&gt;秘密&gt;动作)</em></p>
+<p><img data-attachment-id="142149" data-permalink="https://blog.logrocket.com/flutter-ci-cd-using-github-actions/attachment/repository-secrets/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png" data-orig-size="730,376" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Repository secrets" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png" decoding="async" class="aligncenter size-full wp-image-142149 jetpack-lazy-image" src="../Images/1f757b3ae5e605f8cadd8d5ca73cb226.png" alt="Repository Secrets" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets-300x155.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142149" data-permalink="https://blog.logrocket.com/flutter-ci-cd-using-github-actions/attachment/repository-secrets/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png" data-orig-size="730,376" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Repository secrets" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets-300x155.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142149" src="../Images/1f757b3ae5e605f8cadd8d5ca73cb226.png" alt="Repository Secrets" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets-300x155.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/repository-secrets.png"/></noscript>
+<h4>运行keytool时遇到问题？</h4>
+<p>如果您面临“‘keytool’不被识别为内部或外部命令”的问题，那么添加JDK bin的路径以使用环境变量，否则<a href="https://www.oracle.com/java/technologies/javase-jdk15-downloads.html">安装JDK </a>并重复添加到环境变量的路径。</p>
+<p>接下来，在应用程序的Android目录下创建一个新文件<code>key.properties</code>,并提供对之前生成的密钥库的引用:</p>
+<pre class="language-javascript hljs">storePassword=&lt;password from previous step&gt;
+keyPassword=&lt;password from previous step&gt;
+keyAlias=upload
+storeFile=&lt;location of the key store file, such as /Users/&lt;user name&gt;/your-keystore-file.jks&gt;</pre>
+<p>要在发布模式下构建您的应用程序时使用此密钥，请按如下方式更新您的Android级<code>build.gradle</code>文件:</p>
+<ol>
+<li>定义<code>keyProperties </code>变量，从<code>filesystem</code> : <pre class="language-javascript hljs">   def keystoreProperties = new Properties()    def keystorePropertiesFile = rootProject.file('key.properties')    if (keystorePropertiesFile.exists()) {        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))    }</pre>中引用<code>key.properties</code>文件</li>
+<li>更新<code>buildTypes</code>并增加<code>signingConfigs</code>如下:<pre class="language-javascript hljs">   signingConfigs {        release {            keyAlias keystoreProperties['keyAlias']            keyPassword keystoreProperties['keyPassword']            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null            storePassword keystoreProperties['storePassword']        }    }    buildTypes {        release {            signingConfig signingConfigs.release        }    }</pre></li>
+</ol>
+<p>此后，您的新构建将使用键在发布模式下创建。</p>
+<p><em>注意，不要提交<code>keystore</code>键和<code>key.properties</code>文件，让它们成为私有的。</em></p>
+<p>所以你可能想知道，我们的作业如何知道这个键是否存在于文件系统中，并在<code>key.properties</code>文件中使用它作为引用？</p>
+<p>要解决此问题，请执行以下操作:</p>
+<ol>
+<li><code>Base64</code>使用Git Bash或Bash在您的机器中编码您的密钥库文件:<pre class="language-javascript hljs">base64 &lt;your-keystore-file.jks&gt;</pre></li>
+<li>在你的GitHub库中创建一个新的秘密<code>ANDROID_KEYSTORE_BASE64</code></li>
+<li>复制输出并将其作为<code>ANDROID_KEYSTORE_BASE64</code>粘贴到您的GitHub存储库中；那里会很安全</li>
+</ol>
+<p>现在更新您的<code>android-release.yml</code>文件中的构建作业:</p>
+<pre class="language-yaml hljs">build:
+    name: Create Android Build
+    # 1
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="84e7ece1e7efebf1f0c4f2b7">[email protected]</a>
+      # 2   
+      - name: Get version.txt
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="abcfc4dcc5c7c4cacf86cad9dfc2cdcac8dfebdd99">[email protected]</a>
+        with:
+          name: gitversion
+      # 3
+      - name: Create new file without newline char from version.txt
+        run: tr -d '\n' &lt; version.txt &gt; version1.txt
+      # 4
+      - name: Read version
+        id: version
+        uses: juliangruber/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4f3d2a2e2b622926232a622e2c3b2620210f397e">[email protected]</a>
+        with:
+          path: version1.txt
+      # 5
+      - name: Update version in YAML
+        run: sed -i 's/99.99.99+99/${{ steps.version.outputs.content }}+${{ github.run_number }}/g' pubspec.yaml
+      # 6
+      - name: Download Android keystore
+        id: android_keystore
+        uses: timheuer/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3456554751020019405b19525d58517442051a041a07">[email protected]</a>
+        with:
+          fileName: upload-keystore.jks
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+      # 7
+      - name: Create key.properties
+        run: |
+          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" &gt; android/key.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" &gt;&gt; android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" &gt;&gt; android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" &gt;&gt; android/key.properties
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="047761707174296e657265447237">[email protected]</a>
+        with:
+          distribution: 'zulu'
+          java-version: "12.x"
+          cache: gradle
+      - uses: subosito/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7d1b11080909180f501c1e091412133d0b4f">[email protected]</a>
+        with:
+          flutter-version: "3.0.0"
+          channel: 'stable'
+          cache: true
+     
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Start Android Release Build
+        run: flutter build appbundle
+      # 8
+      - name: Upload Android Release
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d6a3a6bab9b7b2fbb7a4a2bfb0b7b5a296a0e4">[email protected]</a>
+        with:
+          name: android-release
+          path: build/app/outputs/bundle/release/app-release.aab</pre>
+<p>在上面的代码中，您执行了以下操作:</p>
+<ol>
+<li>添加了对版本作业的依赖性，以便按顺序运行此作业</li>
+<li>使用名称<code>gitversion</code>下载第一个作业中上传的版本文件</li>
+<li>从<code>version.txt</code>创建了一个没有<code>newline char</code>的新文件</li>
+<li>从<code>version1.txt</code>文件中读取更新版本</li>
+<li>用包含版本的版本ID更新了<code>pubspec.yml</code>文件</li>
+<li>解码作为ID <code>android_keystore</code>的秘密保存的<code>base64</code>编码密钥库值</li>
+<li>使用秘密和<code>android_keystore</code>创建了<code>key.properties</code></li>
+<li>上传了Android发布包，作为将在下一个任务中使用的工件</li>
+</ol>
+<h3>部署应用程序</h3>
+<p>现在，您需要使用捆绑包并将其发送到Play Store。在此之前，是时候使用您在本教程开始时创建的服务帐户了。如果创建了服务帐户，复制该帐户的密钥，并将其存储在secrets中作为<code>PLAYSTORE_ACCOUNT_KEY</code>。</p>
+<p>接下来，在你的<a href="https://play.google.com/console"> Google Play控制台</a> &gt; <strong>用户&amp;权限</strong>，邀请用户并在此添加服务账号用户邮箱。</p>
+<p>如果您在<strong>应用权限</strong>中没有看到您的应用，请确保您的项目启用了GCP的Google Play开发者API。</p>
+<p>接下来，更新用户的权限，使其拥有像管理员角色一样发布应用程序的权限。</p>
+<p>现在，在您的<code>android-release</code>流程中添加一个新的工作部署:</p>
+<pre class="language-yaml hljs">deploy:
+    name: Deploy Android Build
+    # 1
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3d5e55585e565248497d4b0c">[email protected]</a>
+      # 2
+    - name: Get Android Build from artifacts
+      uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2f4b40584143404e4b024e5d5b46494e4c5b6f591d">[email protected]</a>
+      with:
+        name: android-release
+      # 3
+    - name: Release Build to internal track
+      uses: r0adkll/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="96e3e6faf9f7f2bbf1f9f9f1faf3bbe6faf7efd6e0a7">[email protected]</a>
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.PLAYSTORE_ACCOUNT_KEY }}
+        packageName: &lt;YOUR_PACKAGE_NAME&gt;
+        releaseFiles: app-release.aab
+        track: alpha
+        status: completed</pre>
+<p>在这里，您执行了以下操作:</p>
+<ol>
+<li>添加了按顺序运行此作业的依赖项</li>
+<li>使用名称<code>android-release</code>从artificats下载Android版本</li>
+<li>使用了<a href="https://github.com/r0adkll/upload-google-play"> <span class="__cf_email__" data-cfemail="81f4f1edeee0e5ace6eeeee6ede4aff1ede0f8c1f7b0">【受电子邮件保护】</span> </a>工作流和<code>PLAYSTORE_ACCOUNT_KEY</code>秘密、您的应用程序包名称、您要上传版本的轨道及其状态</li>
+</ol>
+<p>之后，将您的更改推送到GitHub，并查看工作流将您的应用程序部署到Play Store。</p>
+<p>以下是完整的工作流程:</p>
+<pre class="language-yaml hljs">name: Android Release
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+  workflow_dispatch:
+
+jobs:
+  version:
+    name: Create version number
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="92f1faf7f1f9fde7e6d2e4a1">[email protected]</a>
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2251475657526254120c1b0c15">[email protected]</a>
+        with:
+          versionSpec: "5.x"
+      - name: Use GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d2b7aab7b1a7a6b792a4e2fcebfce5">[email protected]</a>
+      - name: Create version.txt with nuGetVersion
+        run: echo ${{ steps.gitversion.outputs.nuGetVersion  }} &gt; version.txt
+      - name: Upload version.txt
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cfbabfa3a0aeabe2aebdbba6a9aeacbb8fb9fd">[email protected]</a>
+        with:
+          name: gitversion
+          path: version.txt
+
+  build:
+    name: Create Android Build
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="15767d70767e7a6061556326">[email protected]</a>
+      - name: Get version.txt
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2a4e455d4446454b4e074b585e434c4b495e6a5c18">[email protected]</a>
+        with:
+          name: gitversion
+      - name: Create new file without newline char from version.txt
+        run: tr -d '\n' &lt; version.txt &gt; version1.txt
+      - name: Read version
+        id: version
+        uses: juliangruber/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="07756266632a616e6b622a6664736e6869477136">[email protected]</a>
+        with:
+          path: version1.txt
+      - name: Update version in YAML
+        run: sed -i 's/99.99.99+99/${{ steps.version.outputs.content }}+${{ github.run_number }}/g' pubspec.yaml
+      - name: Download Android keystore
+        id: android_keystore
+        uses: timheuer/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e280839187d4d6cf968dcf848b8e87a294d3ccd2ccd1">[email protected]</a>
+        with:
+          fileName: upload-keystore.jks
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+      - name: Create key.properties
+        run: |
+          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" &gt; android/key.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" &gt;&gt; android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" &gt;&gt; android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" &gt;&gt; android/key.properties
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3f4c5a4b4a4f12555e495e7f490c">[email protected]</a>
+        with:
+          distribution: 'zulu'
+          java-version: "12.x"
+          cache: gradle
+      - uses: subosito/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593f352c2d2d3c2b74383a2d303637192f6b">[email protected]</a>
+        with:
+          flutter-version: "3.0.0"
+          channel: 'stable'
+          cache: true
+      
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Start Android Release Build
+        run: flutter build appbundle
+
+      - name: Upload Android Release
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6712170b0806034a0615130e01060413271155">[email protected]</a>
+        with:
+          name: android-release
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  deploy:
+    name: Deploy Android Build
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="20434845434b4f5554605611">[email protected]</a>
+    - name: Get Android Build from artifacts
+      uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0c68637b6260636d68216d7e78656a6d6f784c7a3e">[email protected]</a>
+      with:
+        name: android-release
+    - name: Release Build to internal track
+      uses: r0adkll/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f48184989b9590d9939b9b939891d98498958db482c5">[email protected]</a>
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.PLAYSTORE_ACCOUNT_KEY }}
+        packageName: &lt;YOUR_PACKAGE_NAME&gt;
+        releaseFiles: app-release.aab
+        track: alpha
+        status: completed
+</pre>
+<p><em>注:</em></p>
+<ul>
+<li><em>您可以将所有这些作业合并到一个单独的作业中，这样在作业之间共享文件就不需要发布工件，这会消耗一个免费使用限制</em></li>
+<li><em>有一个已知的问题，有时应用程序在首次运行时不会发布。因此，上传一个从这个管道构建的APKor appbundle，并向内部用户推出。之后，该工作流将能够毫无问题地发布应用程序</em></li>
+<li><em>如果您在部署期间仍然遇到问题，请确保所有配置和权限都是正确的，或者检查此<a href="https://github.com/r0adkll/upload-google-play/issues/55">问题页面</a> </em></li>
+</ul>
+<h2>将web发布到GitHub页面</h2>
+<p>现在创建一个新的<code>web-release.yml</code>工作流并粘贴以下代码:</p>
+<pre class="language-yaml hljs">name: Web Release
+
+on:
+  push:
+    branches:  [ "master" ]
+
+  pull_request:
+    branches: [ "master" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Create Web Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="99faf1fcfaf2f6ecedd9efaa">[email protected]</a>
+      - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a5d6c0d1d0d588cfc4d3c4e5d396">[email protected]</a>
+        with:
+          distribution: 'zulu'
+          java-version: "12.x"
+          cache: gradle
+      - uses: subosito/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7412180100001106591517001d1b1a340246">[email protected]</a>
+        with:
+          flutter-version: "3.0.0"
+          channel: 'stable'
+          cache: true
+      
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Start Web Release Build
+        run: flutter build web --release
+     
+      - name: Upload Web Build Files
+        uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="afdadfc3c0cecb82cedddbc6c9ceccdbefd99d">[email protected]</a>
+        with:
+          name: web-release
+          path: ./build/web
+
+  deploy:
+    name: Deploy Web Build
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Web Release
+      uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="96f2f9e1f8faf9f7f2bbf7e4e2fff0f7f5e2d6e0a4">[email protected]</a>
+      with:
+        name: web-release
+
+    - name: Deploy to gh-pages
+      uses: peaceiris/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0c6d6f786563627f216b64217c6d6b697f4c7a3f">[email protected]</a>
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./</pre>
+<p>上面的工作流与Android工作流非常相似，但这里您使用的是Flutter web <code>build</code>命令，然后使用<a href="https://github.com/peaceiris/actions-gh-pages"> peaceiris/ <span class="__cf_email__" data-cfemail="335250475a5c5d401e545b1e4352545640734500">【电子邮件保护】</span> </a>工作流将web构建部署到GitHub页面。</p>
+<p><em>注:</em></p>
+<ul>
+<li><em><code>GITHUB_TOKEN</code>不是个人访问令牌。它会自动创建并在您的工作流程中进行认证</em></li>
+<li><em>确保<strong>设置</strong>中</em> GitHub页面<em>部分的</em>分支<em>设置为<code>gh-pages </code> </em></li>
+</ul>
+<h2>结论</h2>
+<p>在本教程中，您了解了如何设置GitHub Actions工作流来跨Web和Android部署您的Flutter应用程序。下一步，您可以复制并修改工作流，以直接将应用程序发布到应用程序商店，或者了解GitHub操作的其他替代方案，如<a href="https://blog.logrocket.com/ci-cd-and-react-create-a-pipeline-using-heroku-and-circleci/"> CircleCI </a>、GitLab CI、Jenkins等。</p>
+<p>我们希望你喜欢这个教程。如果您有任何疑问，请随时联系我们。谢谢大家！</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

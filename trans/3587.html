@@ -1,0 +1,253 @@
+<html>
+<head>
+<title>A guide to Vitest automated testing with Vue components </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Vue组件的Vitest自动化测试指南</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/#0001-01-01">https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在开发Vue应用时，我们使用一个或多个组件来确保我们的代码易于阅读和维护。在应用程序功能和性能很重要的情况下，验证组件是否按预期无误地执行是至关重要的。</p>
+<p>使用Vue组件测试，我们可以测试我们的单个组件，以验证它们是否正常工作以及异步操作是否被正确触发。组件测试捕捉与组件的属性、事件、风格、类、生命周期挂钩等相关的问题。</p>
+<p>有很多自动化测试框架可以用来测试Vue组件，比如Vitest、Jest、Cypress等。，但是Vue团队推荐使用Vitest来测试Vue应用程序，因为它具有独特的功能。Vitest由Vue和Vite团队成员创建和维护。</p>
+<p>在本教程中，我们将探索Vitest框架，如何配置它，以及如何使用它来测试Vue组件。我们还将介绍如何使用快照和代码覆盖率。</p>
+<p>作为本教程的先决条件，我假设您的计算机上已经安装了Node.js，并且熟悉<a href="https://vuejs.org/"> Vue </a>。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="what-is-vitest">什么是Vitest？</h2>
+<p>Vitest是一个超级快速的测试框架，几乎不需要配置。因为Vitest和Vite使用相同的配置文件，所以很容易将Vitest集成到Vue应用程序中。</p>
+<p>根据<a href="https://vitest.dev/guide/why.html"> Vitest团队</a>的说法，“Vitest的目标是将自己定位为Vite项目的首选测试运行者，甚至是不使用Vite的项目的可靠替代者。”</p>
+<h2 id="vitest-features">最重要的特征</h2>
+<p>Vitest与<a href="https://jestjs.io/"> Jest API </a>兼容。如果你已经熟悉Jest，你将知道如何使用Vitest。除了Vitest与Jest API的相似之处，让我们看看使它成为更好的测试框架的一些特性:</p>
+<ul>
+<li>Vitest与Vite共享相同的配置文件，测试配置在<code>vite.config.js</code>文件中完成，以确保测试环境与构建环境相似</li>
+<li>Vitest与大多数Jest APIs和库兼容，使得从Jest移植到Vitest变得容易</li>
+<li>Vitest支持HMR，每当测试文件被修改时，它允许新的变化被反映到服务器上</li>
+</ul>
+<h2 id="creating-vue-project">创建Vue项目</h2>
+<p>为了理解如何在Vue中运行自动化组件测试，让我们用以下命令建立一个Vue程序:</p>
+<pre class="language-bash hljs">npm create <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="691f001d0c2905081d0c1a1d">[email protected]</a> vue-app -- --template vue
+cd vue-app
+npm install
+</pre>
+<p>项目安装完成后，运行下面的命令来启动应用程序:<br/> npm run dev</p>
+<p>打开<code><a href="http://127.0.0.1:5173/" rel="nofollow">http://127.0.0.1:5173/</a></code>浏览器。您应该会看到应用程序成功运行。</p>
+<h2 id="vitest-installation-configuration">VI测试安装和配置</h2>
+<p>现在，让我们用下面的命令安装Vitest:</p>
+<pre class="language-bash hljs">npm install -D vitest
+</pre>
+<p>安装完成后，我们需要将Vitest添加到<code>package.json</code>文件中。在<code>package.json</code>文件中，添加如下测试脚本:</p>
+<pre class="language-JSON hljs">// ...
+"scripts": {
+  // ...
+   "test": "vitest"
+ },
+// ...
+</pre>
+<p>接下来，打开<code>vitest.config.js</code>文件并向其中添加以下代码:</p>
+<pre class="language-javascript hljs">import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+ plugins: [vue()],
+ test:{
+   globals:true,
+ }
+})
+</pre>
+<p>将<code>globals</code>属性设置为<code>true</code>将允许在测试文件中访问Vitest APIs，而无需导入它们。</p>
+<h2 id="installing-test-utils-happy-dom">安装测试工具和happy-dom</h2>
+<p>Test Utils 是一个Vue测试库，它提供了安装和交互Vue组件的方法。使用以下命令安装测试til:</p>
+<pre class="language-bash hljs">npm install --save-dev @vue/test-utils
+</pre>
+<p>在我们的组件测试中，我们应该能够模拟DOM API。Vitest目前同时支持<code><a href="https://github.com/capricorn86/happy-dom">happy-dom</a></code>和<code><a href="https://github.com/jsdom/jsdom">jsdom</a></code>。在本教程中，我们将使用<code>happy-dom</code>。运行下面的命令来安装<code>happy-dom</code>:</p>
+<pre class="language-bash hljs">npm install happy-dom
+</pre>
+<p>安装完成后，将<code>–dom</code>添加到<code>package.json</code>文件中的测试脚本中:</p>
+<pre class="language-json hljs">// …
+"scripts": {
+   // …
+   "test": "vitest --dom" 
+ },
+// …
+</pre>
+<p>此外，我们需要将<code>happ``y``-dom</code>添加到<code>vite.config.js</code>文件中，使其在我们的测试文件中全局可用:</p>
+<pre class="language-json hljs">// …
+ test:{
+   // …
+   environment: 'happy-dom',
+ }
+// …
+</pre>
+<h2 id="creating-vue-component">创建Vue组件</h2>
+<p>让我们创建一个名为<code>GuessAge.vue</code>的简单组件，使用户能够输入他们的姓名，并根据使用<code><a href="https://agify.io/">Agify.io</a></code> API输入的姓名猜测用户的年龄。</p>
+<p>在<code>src/components</code>文件夹中，创建<code>GuessAge.vue</code>文件并添加以下代码:</p>
+<pre class="language-javascript hljs">&lt;template&gt;
+  &lt;h1&gt;{{ title }}&lt;/h1&gt;
+  &lt;div class="card"&gt;
+   &lt;div style="width:400px;height:130px;margin-top:20px;border-style: dotted;" &gt;
+   &lt;br&gt;
+    &lt;span&gt;Firstmame: {{firstname}}&lt;/span&gt; &lt;br&gt;
+    &lt;span&gt;Age: {{age}}&lt;/span&gt; &lt;br&gt;
+
+    &lt;/div&gt;&lt;br&gt;&lt;br&gt;
+     &lt;label&gt; Enter Firstname &lt;/label&gt;&lt;br&gt;
+     &lt;input type="text" v-model="search" style="font-size:20px;border-radius:10px;" placeholder=" Name ..."&gt; &lt;br&gt; &lt;br&gt;
+    &lt;button type="button" @click="getAge"&gt;Guess Age&lt;/button&gt;
+    &lt;br&gt; &lt;br&gt; &lt;br&gt;
+    &lt;input type="radio" value="pop"&gt; &lt;label&gt;Save my data&lt;/label&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+&lt;script setup&gt;
+import { ref } from 'vue'
+defineProps({
+  title: String
+})
+&lt;/script&gt;
+&lt;script&gt;
+export default {
+    data() {
+        return {
+            search:"",
+            firstname:"",
+            age:"",
+        }
+    },
+    computed: {
+       getAge() {
+        fetch('https://api.agify.io/?name='+ this.search)
+        .then(response =&gt; response.json())
+        .then(data =&gt; {
+            this.age = data.age
+            this.firstname = data.name
+            this.search=""
+        })
+        }
+    }
+}
+&lt;/script&gt;
+</pre>
+<h2 id="testing-vue-components-props">测试Vue组件和道具</h2>
+<p>我们需要为我们的组件创建一个测试文件。作为命名惯例，测试文件名必须以组件名开始，以<code>.spec.js</code>或<code>.test.js</code>结束。测试多个组件时，每个组件都应该有一个测试文件。</p>
+<p>现在，在<code>components</code>文件夹中，创建一个名为<code>GuessAge.spec.js</code>的测试文件。该文件将包含我们的<code>GuessAge</code>组件的简单测试脚本。</p>
+<p>让我们测试一下<code>GuessAge</code>组件，看看它在安装时是否接受了正确的道具。我们可以在挂载时通过向<code>GuessAge.spec.js</code>文件添加以下代码来测试标题属性的值:</p>
+<pre class="language-javascript hljs">import {mount} from "@vue/test-utils";
+import GuessAge from "../components/GuessAge.vue";
+// import { expect, test } from "vitest";
+test("mount component",async()=&gt;{
+   expect(GuessAge).toBeTruthy();
+
+   const wrapper = mount(GuessAge,{
+       props:{
+          title:"Guess User Age App",
+       },
+   });
+   expect(wrapper.text()).toContain("Guess User Age App");
+})
+</pre>
+<p>我们从<code>@vue/test-utils</code>导入<code>mount</code>，这允许我们将组件包装到一个名为<code>Wrapper</code>的特殊对象中，这为我们提供了各种测试选项。</p>
+<p>如果您在Vite配置文件中将globals的值设置为<code>false</code>,您应该使用<code>import { expect, test } from "vitest";</code>。</p>
+<p>运行以下命令，在监视模式下测试组件:</p>
+<pre class="language-bash hljs">npm run test
+</pre>
+<p><img data-attachment-id="141724" data-permalink="https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/attachment/running-command-watch-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="running-command-watch-mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png" decoding="async" class="aligncenter wp-image-141724 size-full jetpack-lazy-image" src="../Images/2238897cba4b39ccf8a69f84ab82114d.png" alt="Running command on watch mode " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="141724" data-permalink="https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/attachment/running-command-watch-mode/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="running-command-watch-mode" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png" decoding="async" loading="lazy" class="aligncenter wp-image-141724 size-full" src="../Images/2238897cba4b39ccf8a69f84ab82114d.png" alt="Running command on watch mode " srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/running-command-watch-mode.png"/></noscript>
+<h2 id="snapshot-test-cases">使用快照测试用例</h2>
+<p>一个<a href="https://vitest.dev/guide/snapshot.html"> s </a> <a href="https://vitest.dev/guide/snapshot.html"> napshot </a>用于跟踪UI中的变化。一个典型的快照测试用例呈现一个UI组件，获取一个快照，并将其与测试旁边的一个参考快照文件进行比较。它将用户界面的当前状态与已建立的快照进行比较。如果当前状态与建立的状态不匹配，测试将失败。</p>
+<p>要运行快照测试并跟踪UI中的变化，请将下面的代码添加到测试文件中(<code>GuessAge.spec.js</code>)。</p>
+<pre class="language-javascript hljs">test('snapshot UI testing', () =&gt; {
+   const wrapper = mount(GuessAge,{});
+   expect(wrapper.text()).toMatchSnapshot()
+  })
+</pre>
+<p>因为Vitest支持热模块重载，所以不必在每次修改测试文件时都运行test命令。下面是您应该在终端中看到的内容:</p>
+<p><img data-attachment-id="141730" data-permalink="https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/attachment/testing-click-events/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-click-events" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png" decoding="async" class="aligncenter wp-image-141730 size-full jetpack-lazy-image" src="../Images/42137207f457086c58e65de170e165f3.png" alt="Testing click events" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="141730" data-permalink="https://blog.logrocket.com/guide-vitest-automated-testing-vue-components/attachment/testing-click-events/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png" data-orig-size="730,511" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-click-events" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png" decoding="async" loading="lazy" class="aligncenter wp-image-141730 size-full" src="../Images/42137207f457086c58e65de170e165f3.png" alt="Testing click events" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/testing-click-events.png"/></noscript>
+<h2 id="mocking-http-requests">模仿HTTP请求</h2>
+<p>用HTTP请求测试Vue组件时，我们首先需要模拟网络请求；否则，测试将失败。</p>
+<p>使用<a href="https://mswjs.io/">Mock Service Worker</a><a href="https://mswjs.io/">(MSW)</a>进行模拟，可以在不改变任何应用程序代码的情况下，通过拦截测试请求来轻松测试HTTP请求。</p>
+<p>使用以下命令安装MSW:</p>
+<pre class="language-bash hljs">npm install msw --save-dev
+</pre>
+<p>为了使用MSW，我们必须在测试文件(<code>GuessAge.spec.js</code>)中导入以下两个依赖项。</p>
+<pre class="language-javascript hljs">import { setupServer } from 'msw/node'
+import { rest } from 'msw'
+</pre>
+<p>让我们通过将下面的代码添加到我们的测试文件(<code>GuessAge.spec.js</code>)来创建一个模拟服务器的实例，该实例将拦截HTTP请求。</p>
+<pre class="language-javascript hljs">export const restHandlers = [
+   rest.get('https://api.agify.io/', (req, res, ctx) =&gt; {
+      return res(ctx.status(200), ctx.json([
+         {
+            age: 55,
+            name: "tope"
+         }
+      ]))
+   }),
+]
+const server = setupServer(...restHandlers)
+// Start server before all tests
+beforeAll(() =&gt; server.listen({ onUnhandledRequest: 'error' }))
+//  Close server after all tests
+afterAll(() =&gt; server.close())
+// Reset handlers after each test `important for test isolation`
+afterEach(() =&gt; server.resetHandlers())
+</pre>
+<h2 id="testing-click-events">测试点击事件</h2>
+<p>让我们验证一下，当我们点击<strong> Guess Age </strong>按钮时，在获取用户年龄之后，输入标签是空的。</p>
+<pre class="language-javascript hljs">test("Button clicked", async () =&gt; {
+   expect(GuessAge).toBeTruthy();
+
+   const wrapper = mount(GuessAge, {
+      props: {
+         title: "Guess User Age App",
+      },
+   });
+   const ac = await wrapper.get("button").trigger("click")
+   expect(wrapper.vm.search).toEqual("")
+})
+</pre>
+<p>下面是您应该在终端中看到的内容:</p>
+<p><img decoding="async" src="../Images/1ff2d607d89086ef52537866761e90fd.png" alt="" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666737633750_Screen+Shot+2022-10-25+at+11.40.26+PM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666737633750_Screen+Shot+2022-10-25+at+11.40.26+PM.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/1ff2d607d89086ef52537866761e90fd.png" alt="" data-original-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666737633750_Screen+Shot+2022-10-25+at+11.40.26+PM.png"/></noscript>
+<h2 id="coverage-testing-vitest">用Vitest进行覆盖率测试</h2>
+<p>为了报告和分析代码性能，以确定您的代码有多有效和写得多好，Vitest通过c8和伊斯坦布尔支持本机代码<a href="https://vitest.dev/guide/coverage.html">覆盖率</a>。</p>
+<p>为了配置和运行覆盖率测试，我们需要向<code>vite.configure.js</code>文件添加覆盖率，如下所示:</p>
+<pre class="language-javascript hljs">export default defineConfig({
+  plugins: [vue()],
+  test:{
+    globals:true,
+    coverage: {
+      provider: 'istanbul'
+    },
+    environment: 'happy-dom',
+  }
+})
+</pre>
+<p>此外，我们需要将覆盖率添加到<code>package.json</code>文件，将覆盖率添加到脚本中，如下所示:</p>
+<pre class="language-json hljs">// ...
+"scripts": {
+  // ...
+   "coverage": "vitest run --coverage"
+ },
+// ...
+</pre>
+<p>既然我们已经配置了覆盖率测试，接下来的事情就是使用下面的命令安装伊斯坦布尔。</p>
+<pre class="language-bash hljs">npm i -D @vitest/coverage-istanbul
+</pre>
+<p>当下面的命令被执行时，测试文件被运行，Vitest将在终端上显示覆盖报告矩阵。</p>
+<pre class="language-bash hljs">npm run coverage 
+</pre>
+<p><img decoding="async" src="../Images/7df7dafb427a90c0f8f6de8d179bbc4d.png" alt="" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666739148831_Screen+Shot+2022-10-26+at+12.05.30+AM.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666739148831_Screen+Shot+2022-10-26+at+12.05.30+AM.png"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/7df7dafb427a90c0f8f6de8d179bbc4d.png" alt="" data-original-src="https://paper-attachments.dropboxusercontent.com/s_27407D65DFDBA397FEAEFA2FCE1F0E9665E2B9AB7EA9E282DA4E1984EB427A01_1666739148831_Screen+Shot+2022-10-26+at+12.05.30+AM.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>我们已经使用Vitest成功地为我们的Vue组件编写了自动化测试。</p>
+<p>借助自动化测试，我们可以快速而自信地防止Vue应用中的倒退，并确保我们将无错代码推向生产。</p>
+<p>本教程教我们如何配置和使用Vitest来测试Vue组件。你可以在他们的<a href="https://vitest.dev/guide/">官方文档</a>中了解更多关于Vitest以及如何从Jest迁移到Vitest的信息。</p><div class="code-block code-block-20">
+<div class="blog-plug inline-plug vue-inline"><h2>像用户一样体验您的Vue应用</h2><p>调试Vue.js应用程序可能会很困难，尤其是当用户会话期间有几十个(如果不是几百个)突变时。如果您对监视和跟踪生产中所有用户的Vue突变感兴趣，</p><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/0d269845910c723dd7df26adab9289cb.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://files.readme.io/00591d0-687474703a2f2f692e696d6775722e636f6d2f6a3049327856572e706e67.png"/></noscript></a><a href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Vue应用程序中发生的一切，包括网络请求、JavaScript错误、性能问题等等。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。</p><p>LogRocket Vuex插件将Vuex突变记录到LogRocket控制台，为您提供导致错误的环境，以及出现问题时应用程序的状态。</p><p>现代化您调试Vue应用的方式- <a class="signup" href="https://lp.logrocket.com/blg/vue-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

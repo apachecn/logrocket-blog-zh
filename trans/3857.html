@@ -1,0 +1,327 @@
+<html>
+<head>
+<title>Mocking GraphQL requests using the React Apollo library </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用React Apollo库模仿GraphQL请求</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/mock-graphql-requests-react-apollo-library/#0001-01-01">https://blog.logrocket.com/mock-graphql-requests-react-apollo-library/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>在本文中，我们将讨论如何测试React组件，其中组件中的数据和数据更改依赖于GraphQL API。在开始之前，让我们快速回顾一下我们对GraphQL和React库的理解，我们将使用React库与graph QL API React Apollo进行交互。</p>
+<p><em>向前跳跃</em>:</p>
+
+<h2 id="graphql">GraphQL</h2>
+<p>GraphQL是一种灵活而高效的与API交互的方式，它允许客户端准确地指定他们需要什么数据，并接收带有所请求信息的响应。GraphQL可以从客户端(如前端web应用程序)或服务器的角度使用。</p>
+<p>为了在GraphQL中检索数据，使用了查询。例如，以下查询可用于向服务器请求待办事项列表:</p>
+<pre class="language-javascript hljs">query TodoList {
+  todoList {
+    id
+    title
+    description
+  }
+}
+</pre>
+<p>上面的查询将返回一个包含<code>id</code>、<code>title</code>、<code>description</code>和<code>date</code>字段的<code>todo</code>条目对象列表。</p>
+<p>除了检索数据，GraphQL还支持对服务器进行变更。从数据库中删除特定待办事项的简单变异示例可能如下所示:</p>
+<pre class="language-javascript hljs">mutation deleteTodo($id: ID!) {
+  deleteTodo(id: $id) {
+    id
+  }
+}
+</pre>
+<p>这种变异接受要删除的待办事项的<code>id</code>，成功后返回已删除事项的<code>id</code>。</p>
+<h2 id="react-apollo-library">反应阿波罗图书馆</h2>
+<p>由<a href="https://www.apollographql.com/"> Apollo GraphQL </a>团队构建的Apollo Client 是一个工具包，旨在使客户端应用程序易于与GraphQL API通信。React Apollo库提供了一组可以集成到React组件中的特定工具。</p>
+<h3 id="usequery"><code>useQuery()</code></h3>
+<p>React Apollo提供的执行GraphQL查询的主要功能之一是<code>useQuery()</code>钩子。这个钩子将GraphQL文档作为它的第一个参数，并返回一个包含查询请求的<code>data</code>、<code>loading</code>和<code>error</code>状态的<code>result</code>对象。</p>
+<p>例如，考虑下面的<code>TodoList</code>组件，它使用<code>useQuery()</code>钩子从我们上面分享的<code>TodoList</code>查询示例中请求数据:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { useQuery } from "@apollo/react-hooks";
+
+const TODO_LIST = `
+  query TodoList {
+    todoList {
+      id
+      title
+      description
+    }
+  }
+`;
+
+export const TodoList = () =&gt; {
+  const { loading, data, error } = useQuery(TODO_LIST);
+
+  if (loading) {
+    return &lt;h2&gt;Loading...&lt;/h2&gt;
+  }
+
+  if (error) {
+    return &lt;h2&gt;Uh oh. Something went wrong...&lt;/h2&gt;
+  }
+
+  const todoItems = data.map((todo) =&gt; {
+    return &lt;li&gt;{todo.title}&lt;/li&gt;
+  })
+
+  return (
+    &lt;ul&gt;{todoItems}&lt;/ul&gt;
+  )
+}
+</pre>
+<p>在此示例中，组件在查询请求进行过程中显示加载消息，如果请求失败则显示错误消息，如果请求成功则显示待办事项列表。</p>
+<p>试图在单元测试中呈现上述组件可能会由于缺少查询或其结果的上下文(<code>loading</code>、<code>data</code>、<code>error</code>等)而导致失败。).正因为如此，我们可以使用<a href="https://www.apollographql.com/docs/react/v2/api/react-testing/"> @apollo/react-testing </a>库来模拟GraphQL请求。模拟请求允许我们正确地测试组件，而不依赖于到API的实时连接。</p>
+<h3 id="mockedprovider"><code>MockedProvider</code></h3>
+<p><code>@apollo/react-testing</code>库包括一个名为<code>MockedProvider</code>的工具，它允许我们创建一个用于测试目的的<code>ApolloProvider</code>组件的模拟版本。<code>ApolloProvider</code>组件是一个顶级组件，它包装了我们的React应用程序，并在整个应用程序中提供Apollo客户端作为上下文。</p>
+<p>使我们能够在测试中从我们的GraphQL请求中指定我们想要的确切响应，允许我们模拟这些请求，而无需实际向API发出网络请求。</p>
+<p>让我们看看如何在加载、错误和成功状态下模拟GraphQL请求。</p>
+<h2 id="mocking-graphql-requests">模仿GraphQL请求</h2>
+<h3 id="loading-state">装载状态</h3>
+<p>为了在加载状态模拟GraphQL请求，我们可以用<code>MockedProvider</code>包装组件，并提供一个空数组作为<code>mocks</code>属性的值:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+  it("renders the expected loading message when the query is loading", async () =&gt; {
+    const {
+      /* get query helpers*/
+    } = render(
+      &lt;MockedProvider mocks={[]}&gt;
+        &lt;TodoList&gt;&lt;/TodoList&gt;
+      &lt;/MockedProvider&gt;
+    );
+
+    // assertions to test component under loading state
+  });
+});
+</pre>
+<p>假设我们使用<a href="https://jestjs.io/"> Jest </a>作为单元测试框架，使用<a href="https://testing-library.com/docs/react-testing-library/intro/"> react-testing-library </a>作为测试工具，我们可以断言组件在其标记中呈现了预期的文本:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+  it("renders the expected loading message when the query is loading", async () =&gt; {
+    const { queryByText } = render(
+      &lt;MockedProvider mocks={[]}&gt;
+        &lt;TodoList /&gt;
+      &lt;/MockedProvider&gt;
+    );
+
+    // assert the loading message is shown
+    expect(queryByText('Loading...')).toBeVisible();
+  });
+});
+</pre>
+<h3 id="error-state">错误状态</h3>
+<p>通过用<code>MockedProvider</code>包装我们的组件并提供模拟<code>request</code>和<code>error</code>(或<code>errors</code>)属性值，我们可以通过为我们的GraphQL请求指定准确的错误响应来模拟错误状态:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+const TODO_LIST = `
+  query TodoList {
+    todoList {
+      id
+      title
+      description
+    }
+  }
+`;
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+  // ...
+
+  it('renders the expected error state', async () =&gt; {
+    const todoListMock = {
+      request: {
+        query: TODO_LIST,
+      },
+      error: new Error('Network Error!'),
+    };
+
+    const { /* queries */ } = render(
+      &lt;MockedProvider mocks={[todoListMock]}&gt;
+        &lt;TodoList&gt;&lt;/TodoList&gt;
+      &lt;/MockedProvider&gt;,
+    );
+    // assertions to test component under error state
+  });
+});
+</pre>
+<p>我们将让我们的单元测试断言当<code>TodoList</code> GraphQL查询因网络错误而失败时,<code>&lt;TodoList /&gt;</code>组件正确地显示预期的错误消息:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+const TODO_LIST = `
+  query TodoList {
+    todoList {
+      id
+      title
+      description
+    }
+  }
+`;
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+  // ...
+
+  it('renders the expected error state', async () =&gt; {
+    const todoListMock = {
+      request: {
+        query: TODO_LIST,
+      },
+      error: new Error('Network Error!'),
+    };
+
+    const { queryByText } = render(
+      &lt;MockedProvider mocks={[todoListMock]}&gt;
+        &lt;TodoList&gt;&lt;/TodoList&gt;
+      &lt;/MockedProvider&gt;,
+    );
+
+    // assert the error message is shown
+    expect(queryByText('Uh oh. Something went wrong...')).toBeVisible();
+  });
+});
+</pre>
+<h3 id="success-state">成功状态</h3>
+<p>最后，为了在成功状态下测试GraphQL请求，我们可以使用<code>MockedProvider</code>实用程序组件来包装我们的组件，并为模拟GraphQL对象中的<code>request</code>和<code>result</code>属性提供模拟值。<code>result</code>属性用于在我们的测试中模拟GraphQL请求的预期成功结果:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+const TODO_LIST = `
+  query TodoList {
+    todoList {
+      id
+      title
+      description
+    }
+  }
+`;
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+
+  // ...
+
+  // ...
+
+  it('renders the expected UI when data is available', async () =&gt; {
+    const todoListMock = {
+      request: {
+        query: TODO_LIST,
+      },
+      result: {
+        data: {
+          todos: [
+            { 
+              id: '1',
+              title: 'Todo Item #1',
+              description: 'Description for Todo Item #1',
+            },
+            { 
+              id: '2',
+              title: 'Todo Item #2',
+              description: 'Description for Todo Item #2',
+            }
+          ]
+        },
+      },
+    };
+
+    const { /* queries */ } = render(
+      &lt;MockedProvider mocks={[todoListMock]}&gt;
+        &lt;TodoList&gt;&lt;/TodoList&gt;
+      &lt;/MockedProvider&gt;,
+    );
+
+    // assertions
+    // ...
+  });
+});
+</pre>
+<p>GraphQL API请求是异步的，这意味着在断言请求的结果之前，我们通常需要在测试中指定一段等待时间。React测试库提供了<code><a href="https://testing-library.com/docs/dom-testing-library/api-async/#waitfor">waitFor</a></code>工具来处理这种情况。</p>
+<p>当模仿API调用并等待模仿承诺解决时，可以在单元测试中使用。在上面的单元测试中使用<code>waitFor</code>的一个例子是:</p>
+<pre class="language-javascript hljs">import * as React from 'react';
+import { render, waitFor } from "@testing-library/react";
+import { TodoList } from '../TodoList';
+
+const TODO_LIST = `
+  query TodoList {
+    todoList {
+      id
+      title
+      description
+    }
+  }
+`;
+
+describe("&lt;TodoList /&gt;", () =&gt; {
+
+  // ...
+
+  // ...
+
+  it('renders the expected UI when data is available', async () =&gt; {
+    const todoListMock = {
+      request: {
+        query: TODO_LIST,
+      },
+      result: {
+        data: {
+          todos: [
+            { 
+              id: '1',
+              title: 'Todo Item #1',
+              description: 'Description for Todo Item #1',
+            },
+            { 
+              id: '2',
+              title: 'Todo Item #2',
+              description: 'Description for Todo Item #2',
+            }
+          ]
+        },
+      },
+    };
+
+    const { queryByText } = render(
+      &lt;MockedProvider mocks={[todoListMock]}&gt;
+        &lt;TodoList&gt;&lt;/TodoList&gt;
+      &lt;/MockedProvider&gt;,
+    );
+
+    // use the waitFor utility to wait for API request to resolve
+    await waitFor(() =&gt; {
+      // assert the title for each todo item is visible
+      expect(queryByText('Todo Item #1')).toBeVisible();
+      expect(queryByText('Todo Item #2')).toBeVisible();
+    });
+  });
+});
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>单元测试是软件开发的一个重要方面。它验证我们的代码正在做我们期望它做的事情，并确保它与它交互的其他代码一起正确工作。</p>
+<p>当测试与API通信的React组件时，重要的是避免在我们的单元测试中发出实际的API请求，以节省时间和资源。如本文所述，模拟GraphQL API请求允许我们有效地测试React组件的行为，而不会增加实际API请求的开销。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

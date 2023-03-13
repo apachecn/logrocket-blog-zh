@@ -1,0 +1,415 @@
+<html>
+<head>
+<title>Understanding controllers and routes in NestJS </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>理解NestJS中的控制器和路由</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/understanding-controllers-routes-nestjs/#0001-01-01">https://blog.logrocket.com/understanding-controllers-routes-nestjs/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>NestJS是用TypeScript <a href="https://blog.logrocket.com/build-server-side-application-ts-ed-mysql/" target="_blank" rel="noreferrer noopener">构建的Node.js web框架，用于构建可伸缩的服务器端应用</a>。应用程序的服务器端没有UI元素，它执行重要的逻辑，比如处理请求、发送响应、在数据库中存储数据等等。</p>
+<p>控制器和路由在服务器端应用中扮演着重要的角色。在本文中，我们将看看NestJS中的路由和控制器。我们将涵盖:</p>
+
+<p>接下来，你需要安装<a href="https://nodejs.org/" target="_blank" rel="noreferrer noopener"> Node.js </a>，一个<a href="https://blog.logrocket.com/javascript-package-managers-compared/" target="_blank" rel="noreferrer noopener"> JavaScript包管理器</a>——我用的是<a href="https://yarnpkg.com/" target="_blank" rel="noreferrer noopener">Yarn</a>——和一个你选择的IDE或文本编辑器，比如Sublime Text或<a href="https://code.visualstudio.com/" target="_blank" rel="noreferrer noopener"> Visual Studio代码</a>。确保您使用的是Node v12或更新版本。</p>
+<h2 id="brief-review-server-side-http-requests">服务器端(HTTP)请求的简要回顾</h2>
+<p>服务器端或HTTP请求是指用户请求应用程序执行与资源相关的操作。这些用户请求是通过客户端(如浏览器或应用程序)发出的。</p>
+<p>当我们要求我们的应用程序执行某些动作时，这些HTTP请求是按动词分类的。以下是一些常用的动词以及它们所涉及的请求:</p>
+<ul>
+<li>GET:用于检索资源或资源列表的请求<ul>
+<li>列出应用程序用户的请求可能类似于:<code>GET /users</code></li>
+<li>提供用户A的详细资料的请求可能看起来像:<code>GET /users/A</code></li>
+</ul>
+</li>
+<li>POST:用于创建资源条目的请求<ul>
+<li>创建新用户的请求可能看起来像:<code>*POST /users*</code></li>
+</ul>
+</li>
+<li>PUT:用于更新现有资源的请求<ul>
+<li>更新用户A的电子邮件和电话号码的请求可能类似于:<code>PUT /users/A</code></li>
+</ul>
+</li>
+<li>删除:用于删除现有资源的请求<ul>
+<li>删除用户A的请求可能类似于:<code>DELETE /users/A</code></li>
+</ul>
+</li>
+</ul>
+<p>您可能已经注意到，在上面的例子中，我们用复数<code>users</code>来指代我们的资源。命名资源没有对错之分，但这是一个表示所有资源的流行约定。对于一个特定的资源，您可以在复数资源名称后面加上一个唯一的标识符——例如，<code>users/A</code>或<code>users/1</code>。</p>
+<p>这些是最常用的HTTP动词，但还有一些其他动词，如PATCH、OPTIONS等等。您可以在MDN文档中阅读所有的<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods" target="_blank" rel="noreferrer noopener"> HTTP动词和方法。</a></p>
+<h2 id="defining-nestjs-routes-controllers">定义NestJS路由和控制器</h2>
+<p>现在我们已经回顾了HTTP请求，让我们来谈谈在Nest中路由和控制器是如何使用的。</p>
+<p>路由是HTTP方法、路径和应用程序中定义的处理它的函数的组合。它们帮助确定哪些控制器接收某些请求。</p>
+<p>控制器是用处理一个或多个请求的方法定义的类。控制器为路由提供处理程序功能。</p>
+<p>注意，在NestJS中，路由是在控制器中使用decorators与处理程序方法一起定义的。</p>
+<p>了解更多关于使用嵌套中的<a href="https://docs.nestjs.com/controllers" target="_blank" rel="noreferrer noopener">控制器和路由处理请求和响应的信息。</a></p>
+<h2 id="creating-nestjs-project">创建我们的NestJS项目</h2>
+<p>我们将使用NestJS CLI创建我们的项目。让我们现在安装它:</p>
+<pre class="language-bash hljs">$ npm i -g @nestjs/cli
+</pre>
+<p>安装完成后，我们可以运行Nest命令来创建一个新项目:</p>
+<pre class="language-javascript hljs">$ nest new fruit-tree
+</pre>
+<p>在这种情况下，<code>fruit-tree</code>是我们的项目名称。这是一个简单的项目，它返回<code>Tree</code>元数据，并说明了NestJS中的路由是如何工作的。</p>
+<p>运行Nest命令后，按照给出的提示进行操作。Nest会问你想用什么作为你的包管理器。我选择了纱线。就这样，我们的项目准备好了！</p>
+<p>Nest在我们项目的<code>src/</code>目录中创建一些核心文件。让我们看一下这些文件:</p>
+<ul>
+<li><code>app.controller.ts</code>是具有单一路线定义的基本控制器类</li>
+<li><code>app.controller.spec.ts</code>是控制器类<code>app.controller.ts</code>的单元测试文件</li>
+<li>这是我们应用程序的根模块。我们创建的所有其他模块都将在这里注册</li>
+<li>是我们的控制器用来执行一些逻辑的基本服务</li>
+<li><code>main.ts</code>是我们应用程序的入口点</li>
+</ul>
+<p><code>main.ts</code>文件是创建Nest应用程序实例并注册到一个端口以便从我们的客户端应用程序访问的地方。</p>
+<h2 id="creating-nestjs-routes-controllers">创建我们自己的NestJS路线和控制器</h2>
+<p>让我们开始在我们的Nest项目中创建我们自己的资源、路线和控制器。</p>
+<h3 id="setting-up-database-orm">设置数据库和ORM</h3>
+<p>让我们建立一个MySQL数据库和ORM来检索和更新数据。首先，我们将通过运行以下命令来安装<code>@nestjs/typeform</code>、<code>typeform</code>和<code>mysql2</code>:</p>
+<pre class="language-bash hljs">$ yarn add @nestjs/typeorm typeorm mysql2
+</pre>
+<p>现在我们需要的库已经安装好了，让我们在核心模块<code>AppModule</code>中导入并注册<code>TypeOrmModule</code>:</p>
+<pre class="language-typescript hljs">// app.module.ts
+
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+@Module({
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'mysql',
+      host: 'localhost',
+      port: 3306,
+      username: 'root',
+      password: 'xxxx',
+      database: 'fruit-tree',
+      entities: [],
+      synchronize: true,
+    }),
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<p>一旦<code>TypeOrmModule</code>在<code>AppModule</code>中注册，我们就不需要在我们创建的任何其他模块中注册它。注意，你可能想设置一个像<a href="https://github.com/motdotla/dotenv" target="_blank" rel="noreferrer noopener"> Dotenv </a>这样的配置，这样你就不会提交你的MySQL凭证。</p>
+<p>在我们的核心模块中注册了<code>TypeOrmModule</code>之后，我们可以在项目的其他模块中注入来自TypeOrm的<code>DataSource</code>和<code>EntityManager</code>对象。</p>
+<h3 id="creating-tree-entity-treeservice">创建我们的<code>Tree</code>实体和<code>TreeService</code></h3>
+<p>TypeORM使用<a href="https://blog.logrocket.com/implementing-repository-pattern-flutter/" target="_blank" rel="noreferrer noopener">存储库设计模式</a>，这是一种设计范式，允许您抽象与数据层的通信，将业务逻辑与数据对象和用于管理它们的数据库类型分开。</p>
+<p>首先，我们将为我们的树模块创建一个<code>tree</code>目录。该目录将存放树实体，并最终存放树请求的路由、控制器和服务:</p>
+<pre class="language-typescript hljs">$ cd src/
+$ mkdir tree
+$ cd tree/
+$ touch tree.entity.ts
+</pre>
+<p>在我们的<code>tree.entity.ts</code>中，我们将指定一些简单的列和属性:</p>
+<pre class="language-typescript hljs">// tree.entity.ts
+
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity()
+export class Tree {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column()
+  age: number;
+
+  @Column()
+  isEndangered: boolean;
+}
+</pre>
+<p>让我们为在我们的<code>Tree</code>实体上运行操作创建我们的<code>TreeService</code>:</p>
+<pre class="language-typescript hljs">$ touch tree.service.ts
+</pre>
+<p>我们将在我们的<code>TreeService</code>中注入我们的<code>treeRepository</code>,以对实体执行操作:</p>
+<pre class="language-typescript hljs">// tree.service.ts
+
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Tree } from './tree.entity';
+
+@Injectable()
+export class TreeService {
+  constructor(
+    @InjectRepository(Tree)
+    private treeRepository: Repository&lt;Tree&gt;,
+  ) {}
+
+  findAll(): Promise&lt;Tree[]&gt; {
+    return this.treeRepository.find();
+  }
+
+  findOne(id: number): Promise&lt;Tree&gt; {
+    return this.treeRepository.findOneBy({ id });
+  }
+
+  async deleteById(id: number): Promise&lt;void&gt; {
+    await this.treeRepository.delete(id);
+  }
+}
+</pre>
+<p>现在我们将创建我们的<code>TreeModule</code>并注册我们的<code>Tree</code>实体和<code>TreeService</code>:</p>
+<pre class="language-typescript hljs">$ touch tree.module.ts
+
+
+// tree.module.ts
+
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Tree])],
+  providers: [TreeService],
+})
+export class TreeModule {}
+</pre>
+<p>我们还将在<code>app.module.ts</code>中的核心模块中注册<code>TreeModule</code>:</p>
+<pre class="language-typescript hljs">// app.module.ts
+
+...
+import { TreeModule } from './tree/tree.module';
+
+@Module({
+  imports: [
+    ...
+    TreeModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</pre>
+<h3 id="defining-routes-controllers">定义我们的路线和控制器</h3>
+<p>到目前为止，在我们的项目中，我们已经建立了一个MySQL数据库、处理DB操作的TypeORM、一个定义了数据实体属性的<code>TreeEntity</code>类，以及一个我们可以读取或写入数据实体的服务。</p>
+<p>现在我们将创建一些嵌套路由，以及处理这些路由的控制器方法！请记住:路由是一种媒介，用户可以通过它请求应用程序执行某些操作，而控制器是一个类，我们通过它来处理这些路由请求。</p>
+<p>让我们定义一个获取数据库中所有树的路径。首先，我们将创建控制器文件:</p>
+<pre class="language-typescript hljs">$ cd src/trees/
+$ touch tree.controller.ts
+</pre>
+<p>在我们的<code>tree.controller.ts</code>文件中，我们将从<code>@nestjs/common</code>导入所需的装饰器。然后，我们将使用预期的HTTP动词decorator以及处理该路由的控制器方法来定义我们的路由:</p>
+<pre class="language-typescript hljs">// tree.controller.ts
+
+import { Controller, Get } from '@nestjs/common';
+
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+
+@Controller('trees')
+export class TreeController {
+  constructor(private readonly treeService: TreeService) {}
+
+  @Get()
+  getTrees(): Promise&lt;Tree[]&gt; {
+    return this.treeService.findAll();
+  }
+}
+</pre>
+<p>注意在 <code><a href="https://blog.logrocket.com/node-back-end-next-level-nestjs/" target="_blank" rel="noreferrer noopener">@Controller</a></code> <a href="https://blog.logrocket.com/node-back-end-next-level-nestjs/" target="_blank" rel="noreferrer noopener">装饰器</a>中的<a href="https://blog.logrocket.com/node-back-end-next-level-nestjs/" target="_blank" rel="noreferrer noopener">，我们为将在该文件中定义的所有路径设置了路径前缀。例如，我们在上面的文件中定义的路线是<code>GET /trees</code>。</a></p>
+<p>我们的控制器方法调用<code>treeService</code>的<code>findAll()</code>方法来返回我们的树实体列表。</p>
+<p>不要忘记在模块中注册控制器:</p>
+<pre class="language-typescript hljs">// tree.module.ts
+
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { TreeController } from './tree.controller';
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Tree])],
+  providers: [TreeService],
+  controllers: [TreeController],
+})
+export class TreeModule {}
+</pre>
+<h3 id="passing-parameters-routes">在路线中传递参数</h3>
+<p>我们在上面定义了一个非常简单的路径来获取和返回资源列表。如果我们想要在一个特定的资源项目上定义一个路由—例如，使用它的惟一标识符来检索一个项目，该怎么办？我们来看看吧！</p>
+<p>在我们的控制器中——在本例中是<code>tree.controller.ts</code>——我们将从<code>@nestjs/common</code>导入一个名为<code>Param</code>的附加装饰器，并在我们的控制器中使用它，如下所示:</p>
+<pre class="language-typescript hljs">// tree.controller.ts
+
+import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+
+@Controller('trees')
+export class TreeController {
+  constructor(private readonly treeService: TreeService) {}
+
+  @Get()
+  getTrees(): Promise&lt;Tree[]&gt; {
+    return this.treeService.findAll();
+  }
+
+  @Get('/:id')
+  getSingleTree(@Param() params: { id: number }): Promise&lt;Tree&gt; {
+    return this.treeService.findOne(params.id);
+  }
+}
+</pre>
+<p>在上面的代码片段中，我们用装饰器<code>@Get('/:id')</code>定义了一条路由，以表示参数<code>id​</code>将被传入。为了访问我们的处理程序控制器方法中的参数<code>id​</code>，我们将<code>@Param()​</code> decorator作为我们方法的参数传递。</p>
+<p>为了实际使用<code>@Param()</code>的内容，我们给它分配了一个变量名<code>params</code>。另外，因为它是TypeScript，我们将<code>params​</code>的内容定义为一个接口<code>{ id: number }</code>。</p>
+<p>现在在方法中，我们可以使用<code>params.id</code>引用ID。我们定义的路线将与<code>GET /trees/:id</code>匹配。</p>
+<p>注意，在上面的例子中，我们传入并引用了整个<code>param</code>对象。另一种选择是只将我们需要的<code>id</code>参数传递给控制器方法。我们可以通过使用<code>@Param('id') id: string</code>并在我们的控制器方法中只引用<code>id</code>来做到这一点。</p>
+<h3 id="passing-request-payload-body">传递带有有效负载正文的请求</h3>
+<p>我们定义了没有参数的简单路线；我们已经用参数定义了路线。但是，我们如何处理接受有效负载的路由呢——例如，用该有效负载创建一个实体？让我们来看看。</p>
+<p>对于这个例子，我们将定义一条<code>POST</code>路线。第一步是将<code>Post</code>添加到我们从<code>@nestjs/common</code>的进口清单中。我们还将从<code>@nestjs/common</code>中导入<code>Body</code>，通过它我们将把有效载荷主体传递给路由的控制器方法。</p>
+<p>首先，我们将做一个小的迂回来保持事物的整洁，并定义一个DTO类。这个类将定义我们期望在有效负载体中包含的属性:</p>
+<pre class="language-typescript hljs">$ cd src/trees
+$ mkdir dto
+$ cd dto/
+$ touch create-tree.dto.ts
+</pre>
+<p>在我们的DTO文件中，我们需要添加以下内容:</p>
+<pre class="language-typescript hljs">// create-tree.dto.ts
+
+export class CreateTreeDTO {
+  _id?: number;
+
+  name: string;
+
+  age: number;
+
+  isEndangered?: boolean;
+}
+</pre>
+<p>在定义DTO时，我决定将<code>isEndangered</code>设为可选字段，因此我们将更新实体，以便在设置<code>none</code>时为该属性设置默认值:</p>
+<pre class="language-typescript hljs">// tree.entity.ts
+
+ ...
+ @Column({ default: false })
+  isEndangered: boolean;
+}
+</pre>
+<p>现在，我们可以在路由定义中使用这个DTO类:</p>
+<pre class="language-typescript hljs">// tree.controller.ts
+
+import { Controller, Get, Param, Post, Body } from '@nestjs/common';
+
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+import { CreateTreeDTO } from './dto/create-tree.dto';
+
+@Controller('trees')
+export class TreeController {
+  constructor(private readonly treeService: TreeService) {}
+
+  ...
+
+  @Post()
+  createTree(@Body() body: CreateTreeDTO): Promise&lt;Tree&gt; {
+    return this.treeService.create(body);
+  }
+}
+</pre>
+<h3 id="passing-query-parameters-routes">在路由中传递查询参数</h3>
+<p>接下来，让我们看看如何将查询发送到路由中。我们将扩展所有端点的列表以接受查询，我们可以使用这些查询来过滤列表结果。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>首先，我们将从<code>@nestjs/common</code>导入<code>Query</code>。然后我们将它传递给我们的控制器方法，就像这样:</p>
+<pre class="language-typescript hljs">// tree.controller.ts
+
+import { Controller, Get, Param, Post, Body, Query } from '@nestjs/common';
+
+import { Tree } from './tree.entity';
+import { TreeService } from './tree.service';
+import { CreateTreeDTO } from './dto/create-tree.dto';
+
+@Controller('trees')
+export class TreeController {
+  constructor(private readonly treeService: TreeService) {}
+
+  @Get()
+  getTrees(@Query() query: { isEndangered?: boolean }): Promise&lt;Tree[]&gt; {
+    return this.treeService.findAll({ isEndangered: query.isEndangered });
+  }
+  ...
+</pre>
+<p>既然我们已经传入了查询选项<code>isEndangered</code>——正如我们所定义的，它被传递给了我们的控制器方法和服务方法——我们将扩展<code>TreeService</code>和<code>TreeEntity</code>来通过查询选项接受和过滤结果:</p>
+<pre class="language-typescript hljs">// tree.service.ts
+
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { CreateTreeDTO } from './dto/create-tree.dto';
+import { TreeFilterOptions } from './interfaces/filters';
+import { Tree } from './tree.entity';
+
+@Injectable()
+export class TreeService {
+  constructor(
+    @InjectRepository(Tree)
+    private treeRepository: Repository&lt;Tree&gt;,
+  ) {}
+
+  findAll(filters: TreeFilterOptions): Promise&lt;Tree[]&gt; {
+    return this.treeRepository.find({
+      where: {
+        isEndangered: filters.isEndangered,
+      },
+    });
+  }
+</pre>
+<p>您会注意到，我们为过滤器选项<code>TreeFilterOptions</code>定义了一个接口，该接口匹配我们的路由查询对象，并且是将从控制器发送的内容。下面是界面:</p>
+<pre class="language-typescript hljs">// interfaces/filters.ts
+
+export interface TreeFilterOptions {
+  isEndangered?: boolean;
+}
+</pre>
+<h3 id="validating-route-parameters">验证路线参数</h3>
+<p>在NestJS中定义路由的一个重要部分是确保通过参数、查询或有效载荷主体发送的数据与我们的应用程序所期望的相匹配。</p>
+<p>首先，我们将通过运行以下命令来导入包<code>class-validator</code>和<code>class-transformer</code>:</p>
+<pre class="language-bash hljs">$ yarn add class-validator class-transformer
+</pre>
+<p>现在让我们为我们的<code>POST /trees</code>请求扩展我们的<code>CreateTreeDTO</code>类，以使用<code>class-validator</code>中可用的验证器装饰器:</p>
+<pre class="language-typescript hljs">// dto/tree.dto.ts
+
+import { IsNotEmpty, IsNumber } from 'class-validator';
+
+export class CreateTreeDTO {
+  _id?: number;
+
+  @IsNotEmpty()
+  name: string;
+
+  @IsNumber()
+  age: number;
+
+  isEndangered?: boolean;
+}
+</pre>
+<p>在上面的例子中，<code>IsNotEmpty</code> decorator确保请求不接受空字符串作为有效输入，即使它在技术上是长度为<code>0</code>的字符串。如果请求使用空字符串值，则响应将匹配:</p>
+<pre class="language-typescript hljs">{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": ["name must not be empty"]
+}
+</pre>
+<p>注意，NestJS还允许我们使用管道来<a href="https://docs.nestjs.com/pipes" target="_blank" rel="noreferrer noopener">验证路由参数。</a></p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们研究了如何在NestJS中定义路由和控制器。我们回顾了HTTP请求的例子，并探索了如何使用示例API应用程序在路由请求中传递有效负载体、查询和参数等选项。</p>
+<p>你可以在我的Github repo 中找到本文使用的<a href="https://github.com/ibywaks/fruit-tree" target="_blank" rel="noreferrer noopener">完整代码。</a></p>
+<p>我希望这篇文章对你有用。请在评论区分享你的想法或问题！</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,108 @@
+<html>
+<head>
+<title>Using npm query for better dependency management </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用npm查询实现更好的依赖性管理</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/npm-query-better-dependency-management/#0001-01-01">https://blog.logrocket.com/npm-query-better-dependency-management/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>从版本8.16.0开始，npm CLI上提供了一个新的子命令，<code>query</code>提供了一种强大的新方法来检查和了解Node.js项目的依赖关系。随之而来的是一个强大的新的<code>query</code>语法，基于一个熟悉的范例:CSS。没错，你现在可以使用带有<code><a href="https://docs.npmjs.com/cli/v8/commands/npm-query">npm query</a></code>的特殊CSS选择器来更好地理解你的项目的依赖树。</p>
+<p>在本文中，我们将讨论检查依赖关系的重要性，回顾<code>npm query</code>示例，深入研究这个新命令的语法，并探索格式化和操作其输出的不同方法。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="why-inspect-dependencies">为什么要检查依赖关系？</h2>
+<p>首先，这些为什么有用？以下是人们想要清楚了解其依赖关系的一些原因:</p>
+<ul>
+<li><strong>安全审计</strong>:掌握安全漏洞(以及后续补丁)对于交付高质量的现代软件至关重要。围绕依赖性检查的良好工具使得修复这些问题更加容易和快速</li>
+<li><strong>稳定性</strong>:当项目依赖关系中的错误导致问题时，能够快速识别受影响的版本并推出修复程序是至关重要的</li>
+<li><strong>捆绑包大小</strong>:强大的依赖检查工具可以帮助软件团队将较小的捆绑包交付给最终用户并提高性能</li>
+<li>清晰明了:更好地掌握安装了哪些软件包以及它们的预期用途，有助于工程师做出更好的决策，编写更好的代码</li>
+</ul>
+<h2 id="basic-examples">基本示例</h2>
+<p>在深入到命令参数和基于CSS的语法的本质之前，这里有一些基本的例子来展示这个新的<code>npm query</code>命令提供的能力和精确性。</p>
+<h3 id="license-audit">许可证审计</h3>
+<p>假设您正在编写闭源、盈利的软件，并且需要确保您的依赖项都没有在GPL许可下发布(这要求下游用户也在GPL或兼容许可下发布他们的软件)。要暴露潜在的问题包，您可以使用下面的<code>query</code>命令:</p>
+<pre class="language-css hljs">npm query "[license=GPL]"
+</pre>
+<p><strong> <em>注意，</em> </strong> <em>此处无意作为法律意见；如果你有关于软件许可的具体问题，你应该咨询律师</em></p>
+<h3 id="post-install-script-inspection">安装后脚本检查</h3>
+<p>一些软件包在安装后运行脚本，您可能想要检查这些脚本以确保它们没有做任何邪恶的事情。使用<code>npm query</code>，您可以很容易地找到任何注册了<code>postinstall</code>脚本的依赖项:</p>
+<pre class="language-css hljs">npm query ":attr(scripts, [postinstall])"
+</pre>
+<p>查看<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/attr"> MDN文档</a>来复习CSS <code>:attr()</code>函数是如何工作的。</p>
+<h2 id="syntax">句法</h2>
+<p>选择特定依赖项的主要方法类似于CSS ID选择器。该命令将列出安装的<code>lodash</code>的所有副本:</p>
+<pre class="language-css hljs">npm query "#lodash"
+</pre>
+<p>如果您想验证是否安装了某个特定的版本，比如说<code>4.17.21</code>，只需修改命令如下:</p>
+<pre class="language-css hljs">npm query "#<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d0bcbfb4b1a3b890e4fee1e7fee2e1">[email protected]</a>"
+</pre>
+<p><code>npm query</code>也支持semver范围，只要您使用以上命令的更详细版本(它使用了一个<code>name</code>属性选择器和一个<code>semver</code>伪选择器):</p>
+<pre class="language-css hljs">npm query "[name=lodash]:semver(^4)"
+</pre>
+<p>我们已经开始看到这种基于CSS的语法所提供的灵活性。只需几个核心概念(如下所述)，您就能够利用以前的CSS经验来构造查询，回答关于依赖树的非常具体的问题。</p>
+<h3 id="dependency-groups">依赖组</h3>
+<p>依赖组(例如，<code>prod</code>依赖和<code>dev</code>依赖)用熟悉的CSS类语法表示。所以下面是如何对所有<code>dev</code>依赖的<code>query</code>:</p>
+<pre class="language-css hljs">npm query ".dev"
+</pre>
+<p>这个<code>query</code>也返回<code>dev</code>组中的所有可传递依赖关系。但是，假设您想将列表限制为项目的直接<code>dev</code>依赖项。</p>
+<p>您可以利用代表您的项目的<code>:root</code>伪选择器和CSS子组合子<code>&gt;</code>来限制<code>query</code>的范围:</p>
+<pre class="language-css hljs">npm query ":root &gt; .dev"
+</pre>
+<h3 id="special-pseudo-selectors">特殊伪选择器</h3>
+<p>除了标准的CSS伪选择器(如<code>:not()</code>、<code>:has()</code>、<code>:empty</code>等)。)，<code>npm query</code>添加了一些特殊的伪选择器，专门用于查询依赖关系树:</p>
+<ul>
+<li><code>:private</code>–选择在package.json文件中标记为私有的依赖项(<code>"private": true</code>)</li>
+<li><code>:deduped</code>–选择重复数据删除的依赖项</li>
+<li><code>:overridden</code>–选择已被覆盖的依赖项</li>
+<li><code>:extraneous</code>–选择先前状态留下的依赖关系，因为它们不再依赖于依赖关系树中的任何包</li>
+<li><code>:missing</code>–选择其他程序包请求但在磁盘上找不到的依赖项</li>
+<li><code>:semver(&lt;spec&gt;)</code>–选择符合指定语义版本规范的依赖项</li>
+<li><code>:path(&lt;path&gt;)</code>–选择与指定路径匹配的依赖项</li>
+<li><code>:type(&lt;type&gt;)</code>–选择给定类型的依赖项，如<code>git</code>(对于git repo)、<code>directory</code>(对于本地目录)等。；参见这份全面的<a href="https://github.com/npm/npm-package-arg#result-object">可能类型列表</a></li>
+</ul>
+<h3 id="familiar-css-paradigms">熟悉的CSS范例</h3>
+<p>有了上面列出的特殊伪选择器，可以充分利用CSS的全部能力来解锁一些真正强大的查询，深入到依赖关系树中。下面是一些特别有用的CSS概念的复习:</p>
+<ul>
+<li><strong>组合子</strong>:我们之前使用的<code>&gt;</code>组合子选择与右边选择器匹配的依赖项，只要它们是左边选择器的直接后代(子代)。<code> </code>组合子是相似的，但是它作用于所有的后代(子代、孙代等等)。<code>~</code>组合器允许选择兄弟姐妹</li>
+<li><strong>属性选择器</strong>:属性选择器，像<code>[key=value]</code>一样，选择具有被设置为<code>value</code>的属性<code>key</code>的依赖项。这只对<code>package.json</code>中的字符串值有效；对于更强大的属性选择，使用<code>:attr()</code> CSS函数</li>
+<li><strong>高级选择器</strong> : <code>*</code>是一个特殊的选择器，就像在CSS中一样，选择所有的依赖项。可以使用<code>,</code>选择器将多个选择器序列连接在一起，这将产生来自任一侧选择器的结果的联合</li>
+</ul>
+<h2 id="formatting-and-manipulating-the-output">格式化和操作输出</h2>
+<p>默认情况下，<code>npm query</code>输出大量的JSON，使用换行符和两个空格的缩进级别进行格式化。这非常适合将数据发送到JSON文件供其他程序使用，但是对于希望在控制台中阅读输出的人来说就不太好了。</p>
+<h3 id="usage-in-the-terminal-with-jq">在带有<code>jq</code>的终端中使用</h3>
+<p><code><a href="https://stedolan.github.io/jq/">jq</a></code>是一个流行且快速的JSON处理器，通常直接在命令行中使用。关于如何使用<code>jq</code>，网上有很多很棒的教程和例子，包括<a href="https://stedolan.github.io/jq/manual/">官方jq手册</a>，但是这里有一个快速的例子来展示它的威力。</p>
+<p>让我们重用本文前面的<code>query</code>来选择所有使用<code>postinstall</code>脚本(<code>npm query ":attr(scripts, [postinstall])"</code>)的依赖项，这次只显示它们的名称、版本和磁盘上的路径:</p>
+<pre class="language-css hljs">npm query ":attr(scripts, [postinstall])" | jq '.[] | "\(.name)@\(.version) - \(.path)"'
+</pre>
+<p>以下是一些输出示例:</p>
+<pre class="language-css hljs">"<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ea8f99889f83868eaadac4dbdec4d9dc">[email protected]</a> - /workspaces/proutils.dev/node_modules/esbuild"
+"<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c6b5b0a3aab2a3ebb6b4a3b6b4a9a5a3b5b586f2e8f7f6e8f0">[email protected]</a> - /workspaces/proutils.dev/node_modules/svelte-preprocess"
+</pre>
+<h3 id="programmatic-usage">程序用法</h3>
+<p>为了更好的控制，以及对结果进行高级处理和分析的能力，npm发布了一个名为<a href="https://www.npmjs.com/package/@npmcli/arborist"> Arborist </a>的包，用于Node.js程序中。它具有基于promise的API，并支持与CLI版本相同的CSS选择器。想了解更多关于树木学家的细节，请看一下<a href="https://docs.npmjs.com/cli/v8/using-npm/dependency-selectors#programmatic-usage">的官方文件</a>。</p>
+<h2 id="how-to-improve-dependency-management-with-npm-query">如何用<code>npm query</code>改进依赖管理</h2>
+<p>在本文中，我们快速浏览了功能强大的新<code>npm query</code> CLI命令。通过精心制作的<code>query</code>，您可以更容易地深入了解依赖关系树。</p>
+<p>有很多用例，包括<a href="https://docs.npmjs.com/cli/v8/commands/npm-query#extended-use-cases--queries"/><code><a href="https://docs.npmjs.com/cli/v8/commands/npm-query#extended-use-cases--queries">npm query</a></code><a href="https://docs.npmjs.com/cli/v8/commands/npm-query#extended-use-cases--queries">文档</a>中的一大串。为了让你的思维车轮开启可能性，这里只是一些用例，作为开发团队可能对他们的依赖栈的问题。还提供了有助于回答这些问题的查询:</p>
+<ul>
+<li>我是否需要运行<code>npm install</code>因为我丢失了队友添加的一些依赖项？</li>
+<li>有没有既依赖<code>lodash</code>又依赖<code>underscore</code>的包？<ul>
+<li><code>npm query "*:has(&gt; #lodash ~ #underscore)"</code></li>
+</ul>
+</li>
+<li>哪些包是依赖关系树中的叶节点？<ul>
+<li><code>npm query "*:not(*:has(&gt; *))"</code></li>
+</ul>
+</li>
+</ul>
+<p>你还能想到哪些有用的查询？</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

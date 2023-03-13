@@ -1,0 +1,253 @@
+<html>
+<head>
+<title>Build an internal error notification system in Go and Svelte </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>在Go和Svelte中构建内部错误通知系统</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/#0001-01-01">https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>内部错误通知系统是任何大型系统的重要组成部分。它通过各种方式(如电子邮件、Slack等)报告日志，帮助开发人员识别和修复系统中可能出现的问题。在本文中，我们将看看如何使用<code>notify</code>库在Golang中构建一个简单的内部错误通知系统。</p>
+<p>Notify是一个简单的Go库，用于向各种消息服务发送通知。它支持Slack、email、Amazon SES、Amazon SNS、Bark、DingTalk、MailGrid、Discord、Reddit、Viber、Twilio等等。</p>
+<p><em>向前跳跃</em>:</p>
+
+<h2 id="comparison-notify-sentry">Notify和Sentry的比较</h2>
+<p><code>notify</code>包提供了一个独立于平台的接口，用于向一个或多个消息服务发送消息。这对于触发某些操作或实现通知系统非常有用。</p>
+<p><a href="https://sentry.io/"> Sentry </a>是一个基于云的错误跟踪平台，帮助开发人员跟踪和修复他们应用程序中的错误。它提供实时错误报告、警报和洞察，帮助开发人员尽快识别和修复错误。Sentry支持多种语言和平台。</p>
+<p><code>notify</code>和Sentry的主要区别在于<code>notify</code>是一个用于向一个或多个消息服务发送通知的包，而Sentry是一个用于跟踪和修复应用程序中错误的平台。它们服务于不同的目的，不具有直接的可比性，但是围绕Notify构建一个系统使它更有能力作为一个工具来报告多个消息服务上的错误。</p>
+<h2 id="prerequisites">本教程的先决条件</h2>
+<p>要继续学习本教程，您需要安装以下软件:</p>
+
+<h2 id="setting-up-project">设置我们的项目</h2>
+<p>为了利用Notify的强大功能，我们将构建一个简单的内部错误通知系统，它将能够:</p>
+<ul>
+<li>记录错误并向电子邮件和Slack发送通知</li>
+<li>显示显示通知日志列表的仪表板</li>
+</ul>
+<p>该项目将在以下堆栈/框架中实现:</p>
+
+<h2 id="setting-up-backend-services">设置后端和服务</h2>
+<p>我们需要创建一个名为<code>alert.go</code>的文件来处理错误日志、发送通知和仪表板的API端点。</p>
+<p>我们将从设置环境和安装包开始:</p>
+<pre class="language-bash hljs">go mod init main
+</pre>
+<p>我们将使用Golang包管理器<code>go get</code>来安装<a href="https://github.com/nikoksr/notify">通知</a>:</p>
+<pre class="language-bash hljs">go get -u github.com/nikoksr/notify
+</pre>
+<p>接下来，我们需要设置我们的服务。设置服务包括配置包以向各种外部服务发送通知，如电子邮件、Slack等。</p>
+<p>要通过电子邮件发送通知，您需要安装一个软件包:</p>
+<pre class="language-bash hljs">go get github.com/jordan-wright/email
+</pre>
+<p>然后，配置SMTP服务器，并为包提供必要的凭据，如服务器地址、端口号和登录凭据:</p>
+<pre class="language-golang hljs">email := NewMailService("<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bad0d5d2d494ded5dffaddd7dbd3d694d9d5d7">[email protected]</a>", "&lt;host&gt;:&lt;port&gt;")
+email.AddReceivers("&lt;email&gt;")
+email.AuthenticateSMTP("", "&lt;username&gt;", "&lt;password&gt;", "&lt;host&gt;")
+</pre>
+<p>要向Slack发送通知，您需要在Slack中创建一个webhook，它将为您提供一个惟一的URL，我们将需要这个URL来配置这个包。或者，您可以决定使用通知建议，它可以与以下内容一起安装:</p>
+<pre class="language-bash hljs">go get github.com/slack-go/slack
+</pre>
+<p>然而，到目前为止，这个包包含了一个bug。为了解决这个问题，我专门为此项目实施了一个解决方案:</p>
+<pre class="language-golang hljs">func (s Slack) Send(ctx context.Context, subject, message string) error {
+    data := map[string]string{
+        "text": "```\n" + message + "\n```",
+    }
+    j, err := json.Marshal(data)
+    if err != nil {
+        log.Fatal(err)
+    }
+    url := "https://hooks.slack.com/services/..."
+    resp, err := http.Post(url, "application/json", bytes.NewBuffer(j))
+    if err != nil {
+        return err
+    }
+    var res map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&amp;res)
+    return nil
+}
+</pre>
+<p>查看Notify 支持的<a href="https://github.com/nikoksr/notify/tree/main/service">外部服务列表。</a></p>
+<h2 id="adding-services-notify">添加要通知的服务</h2>
+<p>在添加要通知的服务之前，必须实例化每个服务库，这将需要一个或多个API键或一些其他设置。可以使用<code>UseServices()</code>添加这些服务:</p>
+<pre class="language-golang hljs">notify.UseService(slack, telegram, ...) 
+
+
+slack := SlackService()
+slack.AddReceiver("CHANNEL_ID")
+notify.UseServices(slack, ...)
+
+
+email := emailService()
+email.AddReceivers("<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4a20252224642e252f0a2d272b232664292527">[email protected]</a>")
+notify.UseServices(email)
+</pre>
+<h2 id="sending-notifications">发送通知</h2>
+<p>添加服务后，Notify将使用以下方式向外部服务发送消息:</p>
+<pre class="language-golang hljs">err := notify.Send(
+    context.Background(),
+    "Demo App:: Attention required", // notification title
+    message,
+)
+if err != nil {
+    log.Fatal(err.Error())
+}
+</pre>
+<h2 id="logger">记录器</h2>
+<p><code>Logger</code>是一个处理向各种服务发送错误消息的功能。它还允许我们将消息记录到一个文件中，该文件随后通过一个端点提供给我们的仪表板:</p>
+<pre class="language-golang hljs">func (l *Logger) Log(message string) {
+    services := map[string]notify.Notifier{
+        "email": mailService(),
+        "slack": slackService(),
+    }
+    var wg sync.WaitGroup
+    for _, v := range l.services {
+        if _, ok := services[v]; !ok {
+            continue
+        }
+        wg.Add(1)
+        v := v
+        go (func() {
+            defer wg.Done()
+            notify.UseServices(services[v])
+            err := notify.Send(
+                context.Background(),
+                "Demo App:: Attention required",
+                message,
+            )
+            if err != nil {
+                log.Fatal(err.Error())
+            }
+            now := time.Now()
+            logToFile(&amp;LocalLog{
+                ServiceName: v,
+                Date:        now.Format(time.RFC3339),
+                Environment: "production", // staging, dev, etc.
+                Message:     message,
+            })
+        })()
+    }
+    wg.Wait()
+}
+
+
+func logToFile(payload *LocalLog) {
+    f, err := os.OpenFile("local.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        log.Fatal(err)
+    }
+    res := fmt.Sprintf("[%v]::[%s]::[%s]:: %s", payload.ServiceName, payload.Environment, payload.Date, payload.Message)
+    _, err = f.WriteString(res + "\n")
+    if err != nil {
+        log.Fatal(err)
+    }
+    f.Close()
+}
+</pre>
+<p>端点是<code>alert.go</code>文件的一部分，它需要一个服务器。为了确保它与我们的测试环境服务器并发运行，我们将它包含在一个goroutine中。</p>
+<p>下面的代码演示了端点处理程序如何从日志文件中读取数据流。请注意，文件记录器可以用其他形式的数据库代替，如MongoDB、Firebase等:</p>
+<pre class="language-golang hljs">func (a *Alert) Server(port string) {
+    e := echo.New()
+    UseCors(e)
+    e.GET("/logs", handleLogs)
+
+    go func() {
+        e.Logger.Fatal(e.Start(port))
+    }()
+}
+</pre>
+<h2 id="using-svelte-tailwind-css-frontend">在前端使用苗条和顺风CSS</h2>
+<p>要设置前端的苗条，我们建议遵循<a href="https://svelte.dev/">苗条网站</a>上的说明。Svelte是一个强大而高效的JavaScript框架，使开发人员能够构建高性能的web应用程序。</p>
+<p>为了增加趣味，我们将结合使用Svelte和一个流行的实用优先的CSS框架Tailwind，来创建一个简单且响应迅速的仪表板。Tailwind通过提供可轻松应用于组件的预设计CSS类，支持快速开发和原型制作:</p>
+<pre class="language-golang hljs">&lt;script lang="ts"&gt;
+import TableList from "./components/TableList.svelte";
+  import Tailwindcss from "./components/Tailwind.svelte";
+  import Layout from "./components/Layout.svelte";
+  import Modal from "./components/Modal.svelte";
+  import Footer from "./components/Footer.svelte";
+&lt;/script&gt;
+&lt;main&gt;
+  &lt;Tailwindcss /&gt;
+  &lt;Modal /&gt;
+  &lt;Layout&gt;
+  &lt;TableList /&gt;
+  &lt;/Layout&gt;
+  &lt;Footer /&gt;
+&lt;/main&gt;
+
+
+
+
+&lt;table
+    class="w-full border-collapse bg-white text-left text-sm text-gray-500"
+  &gt;
+    &lt;thead class="bg-gray-50"&gt;
+      &lt;tr&gt;
+        &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900"&gt;Service&lt;/th&gt;
+        &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900"
+          &gt;Environment&lt;/th
+        &gt;
+        &lt;!-- &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900"&gt;Status&lt;/th&gt; --&gt;
+        &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900"&gt;Message&lt;/th&gt;
+        &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900"&gt;Date&lt;/th&gt;
+        &lt;th scope="col" class="px-6 py-4 font-medium text-gray-900" /&gt;
+      &lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody class="divide-y divide-gray-100 border-t border-gray-100"&gt;
+      {#each $logs as log}
+        &lt;TableRow payload={log} /&gt;
+      {/each}
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+</pre>
+<p>下面是一个简单的仪表板UI，它列出了从我们的测试环境服务器报告的错误:</p>
+<p><img data-attachment-id="159897" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/dashboard-ui-lists-errors/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png" data-orig-size="730,427" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Dashboard UI that lists the errors reported" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors-300x175.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png" decoding="async" class="aligncenter size-full wp-image-159897 jetpack-lazy-image" src="../Images/1952d0de9322ae77290f60ad43b865cd.png" alt="Dashboard UI That Lists The Errors Reported" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors-300x175.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159897" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/dashboard-ui-lists-errors/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png" data-orig-size="730,427" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Dashboard UI that lists the errors reported" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors-300x175.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159897" src="../Images/1952d0de9322ae77290f60ad43b865cd.png" alt="Dashboard UI That Lists The Errors Reported" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors-300x175.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/dashboard-ui-lists-errors.png"/></noscript>
+<h2 id="setting-up-test-environment">设置测试环境</h2>
+<p>为了测试我们的项目及其集成，我们需要实现一个测试环境。</p>
+<p>一个页面被创建并链接到<code>alert.Log()</code>，它也被添加到<a href="http://echo.labstack.com/">回送库</a> <code>HTTPErrorHandler</code>。这使我们能够捕获并记录所有页面错误，然后将这些错误作为消息发送给可用的消息服务:</p>
+<pre class="language-golang hljs">// integration
+var alert = NewAlert()
+
+func main() {
+    alert.Server(":1323")
+    alert.SetNotificationService("email", "slack", "telegram")
+
+   e := echo.New()
+    e.HTTPErrorHandler = CustomHTTPErrorHandler
+
+    e.GET("/", func(c echo.Context) error {
+    alert.Log(fmt.Sprintf("LOG:[%v] error occured here this is a sample for error logger", t))
+        return c.String(http.StatusOK, "alert-notify is integerated with the endpoint !")
+    })
+    e.Logger.Fatal(e.Start(":9000"))
+}
+
+func CustomHTTPErrorHandler(err error, c echo.Context) {
+    if er, ok := err.(*echo.HTTPError); ok {
+        alert.Log(string(er.Error()))
+        c.Logger().Error(err)
+    }
+}
+</pre>
+<p>下图显示了一个找不到的页面，导致了一个错误，需要使用Notify向我们的系统报告。为了实现这一点，我们使用Echo的<code>CustomHTTPErrorHandler(err error, c echo.Context)</code>函数，该函数捕获HTTP错误:</p>
+<p><img data-attachment-id="159899" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/error-pages-needs-reporting/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png" data-orig-size="730,505" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Error page that needs reporting" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting-300x208.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png" decoding="async" class="aligncenter size-full wp-image-159899 jetpack-lazy-image" src="../Images/f8ebfda59171ce65bfb6a40e31944c7a.png" alt="Error Page That Needs Reporting" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting-300x208.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159899" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/error-pages-needs-reporting/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png" data-orig-size="730,505" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Error page that needs reporting" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting-300x208.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159899" src="../Images/f8ebfda59171ce65bfb6a40e31944c7a.png" alt="Error Page That Needs Reporting" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting-300x208.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/error-pages-needs-reporting.png"/></noscript>
+<p>一旦系统报告了错误，定制的控制面板将显示相应的日志:</p>
+<p><img data-attachment-id="159901" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/custom-built-dashboard-displays-logs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png" data-orig-size="730,112" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Custom built dashboard displays corresponding logs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs-300x46.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png" decoding="async" class="aligncenter size-full wp-image-159901 jetpack-lazy-image" src="../Images/439eac00111fa3105a608e4e51198392.png" alt="Custom Built Dashboard Displays Corresponding Logs" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs-300x46.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159901" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/custom-built-dashboard-displays-logs/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png" data-orig-size="730,112" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Custom built dashboard displays corresponding logs" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs-300x46.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159901" src="../Images/439eac00111fa3105a608e4e51198392.png" alt="Custom Built Dashboard Displays Corresponding Logs" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs-300x46.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/custom-built-dashboard-displays-logs.png"/></noscript>
+<p>如果外部服务被适当地配置，我们应该看到我们的消息被传递🎉。</p>
+<p>下面是Slack和email ( <a href="http://mailtrap.io/"> Mailtrap </a>)的预览:</p>
+<p><img data-attachment-id="159903" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/slack-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png" data-orig-size="730,169" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Slack preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview-300x69.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png" decoding="async" class="aligncenter size-full wp-image-159903 jetpack-lazy-image" src="../Images/b8bcc4d5b1d82f67bddac6ae2fb5fe68.png" alt="Slack Preview" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview-300x69.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159903" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/slack-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png" data-orig-size="730,169" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Slack preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview-300x69.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159903" src="../Images/b8bcc4d5b1d82f67bddac6ae2fb5fe68.png" alt="Slack Preview" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview-300x69.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/slack-preview.png"/></noscript>
+<p><img data-attachment-id="159908" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/email-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png" data-orig-size="730,229" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Email preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview-300x94.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png" decoding="async" class="aligncenter size-full wp-image-159908 jetpack-lazy-image" src="../Images/7cb6a129926508f8afb37ac28c8ac14c.png" alt="Email Preview" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview-300x94.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="159908" data-permalink="https://blog.logrocket.com/build-internal-error-notification-system-go-svelte/attachment/email-preview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png" data-orig-size="730,229" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Email preview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview-300x94.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-159908" src="../Images/7cb6a129926508f8afb37ac28c8ac14c.png" alt="Email Preview" srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview-300x94.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/email-preview.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>使用Go构建内部错误通知系统可以为监控和处理应用程序中的错误提供一个强大而高效的解决方案。Go处理并发和高性能网络的能力以及Notify使它成为系统后端的一个很好的选择。有了这个系统，您的开发团队将能够快速有效地识别和解决错误，提高应用程序的整体稳定性和可靠性。</p>
+<p>查看该项目的<a href="https://github.com/iamhabbeboy/notify-system"> GitHub库</a>。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

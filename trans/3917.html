@@ -1,0 +1,99 @@
+<html>
+<head>
+<title>How to define higher-order functions in Rust </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Rust中如何定义高阶函数</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/define-higher-order-functions-rust/#0001-01-01">https://blog.logrocket.com/define-higher-order-functions-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>高阶函数是其参数和/或返回值本身就是函数的函数。换句话说，如果一种语言支持高阶函数，那么我们说这些函数是一等公民，也就是说它们是值。</p>
+<p>在本文中，我们将研究Rust如何支持高阶函数，以及我们如何定义它们。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="functions-rust">Rust中的函数</h2>
+<p>我们可以通过关键字<code>fn</code>在Rust中定义函数。通常，要定义一个函数，我们必须指定它的名称、参数和返回值的类型:</p>
+<pre class="language-rust hljs">fn plus_one(n: i32) -&gt; i32 {
+    n + 1
+}</pre>
+<p><code>return</code>关键字是可选的。如果我们不指定它，函数的最后一条语句被认为是返回语句。</p>
+<p>我们前面说过，Rust中的函数是一等公民。因此，我们可以将它们存储在一个变量中。一旦它存储在变量中，我们就可以像往常一样调用它:</p>
+<pre class="language-rust hljs">fn main() {
+    let add_one = plus_one;
+
+    println!("{}", add_one(1));
+}</pre>
+<h2 id="functions-parameters">作为参数的功能</h2>
+<p>在上一节中，我们演示了如何定义一个函数并将其存储在一个变量中。现在，让我们看看如何将一个函数作为参数传递给另一个函数。</p>
+<p>首先，我们必须创建高阶函数定义:</p>
+<pre class="language-rust hljs">fn binary_operator&lt;F&gt;(n: i32, m: i32, op: F) -&gt; i32 
+                     where F: Fn(i32, i32) -&gt; i32 {
+    op(n, m)
+}</pre>
+<p><code>binary_operator</code>输入两个数字<code>n</code>和<code>m</code>，以及一个函数<code>op</code>。它将<code>op</code>应用于<code>n</code>和<code>m</code>，返回结果。</p>
+<p>注意<code>op</code>参数的类型。它是一个通用类型<code>F</code>，在<code>binary_operator</code>的<code>where</code>子句中进行了细化。特别是，我们将它定义为一个带有两个数字参数(<code>(i32, i32)</code>)的函数(<code>Fn</code>，返回一个参数(<code>i32)</code>)。<code>Fn</code>这里代表一个函数指针，也就是存储函数的内存地址。</p>
+<h3 id="named-functions">命名函数</h3>
+<p>将函数作为参数传递的最简单方法是使用它的<code>name (named function)</code>:</p>
+<pre class="language-rust hljs"> add(n: i32, m: i32) -&gt; i32 {
+    n + m
+}
+
+fn binary_operator&lt;F&gt;(n: i32, m: i32, op: F) -&gt; i32 
+                     where F: Fn(i32, i32) -&gt; i32 {
+    op(n, m)
+}
+
+fn main() {
+    println!("{}", binary_operator(5, 6, add));
+}</pre>
+<p>在上面的例子中，我们首先定义了一个函数(<code>add</code>)来将两个数字相加，并将其用作<code>binary_operator</code>的参数。<code>main</code>印出<code>11</code>，不出所料。</p>
+<h3 id="anonymous-functions">匿名函数</h3>
+<p>有时没有必要命名函数。例如，我们可能想要动态定义一个函数，只在一个地方使用。这就是匿名函数发挥作用的地方:</p>
+<pre class="language-rust hljs">fn main() {
+    println!("{}", binary_operator(5, 6, |a: i32, b: i32| a - b));
+}</pre>
+<p>在上面的例子中，我们在对<code>binary_operator</code>的调用中直接定义了一个匿名函数。我们定义管道之间的参数列表(<code>||</code>)，后面是函数本身的主体。</p>
+<p>匿名函数是一个非常强大的工具，因为在Rust中，它们可以“捕获”周围的环境。在这种情况下，函数也称为闭包。</p>
+<p>上面的代码片段按照预期编译并打印了<code>-1</code>。</p>
+<h2 id="functions-returned-values">作为返回值运行</h2>
+<p>正如我们前面提到的，在Rust中一个函数也可以返回另一个函数。由于Rust中内存管理的后果，这有点复杂，我们很快就会看到。</p>
+<p>在下面的例子中，我们将修改上面定义的<code>binary_operator</code>，不应用操作符，而是返回一个代表未应用操作符的函数:</p>
+<pre class="language-rust hljs">fn unapplied_binary_operator&lt;'a, F&gt;(n:&amp; 'a i32, m:&amp; 'a i32, op:&amp; 'a F) 
+                                   -&gt; Box&lt;dyn Fn() -&gt; i32 + 'a&gt;
+                                   where F: Fn(i32, i32) -&gt; i32 {
+    Box::new(move || op(*n, *m))
+}</pre>
+<p><code>unapplied_binary_operator</code>的定义现在看起来复杂多了。</p>
+<p>返回函数的主要问题是定义该函数的生命周期。Rust中的生存期是借用检查器用来确保所有借用都有效的构造。</p>
+<p>借用检查器，更一般地说，借用在Rust中是如何工作的，超出了本文的范围。如果你对Rust借检查器不熟悉，或者想知道更多，请查看这篇文章。</p>
+<p>在上面的例子中，我们定义了一个生存期(<code>'a</code>)和通常的<code>F</code>类型(代表二元运算符)。然后，我们将<code>'a</code>与三个参数以及函数的返回值相关联。</p>
+<p>基本上，我们告诉借用检查器，只要三个参数(<code>n</code>、<code>m</code>和<code>op</code>)存在，就要考虑由<code>unapplied_binary_operator</code>返回的函数的生命周期。</p>
+<p>此外，锈蚀寿命可能只存在于参考文献中。因此，我们必须将我们的参数和返回值分别转换成带有<code>&amp;</code>和<code>Box</code>的引用。</p>
+<p>一般来说，<code>Box&lt;dyn Fn()&gt;</code>表示实现<code>Fn</code>特征的装箱值。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>引用使得函数体比以前更加复杂，因为我们现在必须取消对<code>n</code>和<code>m</code>的引用，并使用<code>Box::new()</code>显式地创建结果函数。</p>
+<p>上述实现中另一个有趣的事情是<code>move</code>的使用。该关键字表示所有捕获(即所有对封闭环境的引用)都是通过值发生的。否则，一旦返回的匿名函数存在，任何引用捕获都将被丢弃，从而使闭包带有无效的引用。换句话说，使用<code>move</code>，闭包获得了它所使用的变量的所有权。</p>
+<p><code>unapplied_binary_operator</code>返回一个函数，不带参数，返回<code>op</code>对<code>n</code>和<code>m</code>的应用结果。假设我们现在使用引用，我们必须使用借用来调用它:</p>
+<pre class="language-rust hljs">fn main() {
+    let n = 5;
+    let m = 6;
+    println!("{}", unapplied_binary_operator(&amp;n, &amp;m, &amp;add)());
+}</pre>
+<p>注意我们如何使用<code>&amp;</code>借用<code>n</code>、<code>m</code>和<code>add</code>(如上定义)。最后，由于<code>unapplied_binary_operator</code>返回一个不带参数的函数，我们可以使用空括号来调用它。上面的代码片段会打印出<code>11</code>，和预期的一样。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们快速浏览了Rust中的高阶函数。我们演示了如何定义一个简单的函数。然后，我们探索了将函数作为参数传递的方法。最后，我们研究了返回一个函数有多复杂，简单提到了Rust的一些关键特性，比如借用和生存期。</p>
+<p>高阶函数是Rust和许多其他编程语言的一个关键特性；Hof是函数式编程的一个基本概念。我们可以使用高阶函数来编写更简洁、更易于长期维护的代码。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,258 @@
+<html>
+<head>
+<title>Learn how to deploy a Rust web server to Heroku </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>了解如何将Rust web服务器部署到Heroku</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/deploy-rust-web-server-heroku-axum-tokio-github-actions/#0001-01-01">https://blog.logrocket.com/deploy-rust-web-server-heroku-axum-tokio-github-actions/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><code>axum</code>是来自<a href="https://tokio.rs/">T</a>T5】okio项目的一个异步web框架。它被设计成<a href="https://hyper.rs/"> hyper </a>上的一个非常薄的层，并且与<a href="https://docs.rs/tower/latest/tower/">T</a>T11】ower生态系统兼容，允许使用<code>tower-http</code>和<code>tower-web</code>提供的各种中间件。</p>
+<p>在这篇文章中，我们将为您的项目介绍如何使用<code>axum</code>、Tokio和GitHub动作将Rust web服务器部署到Heroku。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="simple-server-axum">使用<code>axum</code>设置服务器</h2>
+<p><code>axum</code>提供一个用户友好的界面，在服务器上安装路由并传递处理函数。</p>
+<p><code>axum</code>将处理对TCP套接字连接的侦听，并将HTTP请求多路复用到正确的处理器，并且正如我提到的，还允许使用由上述塔式生态系统提供的各种中间件。</p>
+<pre class="language-rust hljs">use std::{net::SocketAddr, str::FromStr};
+
+use axum::{
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Router,
+    Server,
+};
+
+
+// running the top level future using tokio main
+#[tokio::main]
+async fn main() {
+    // start the server
+    run_server().await;
+}
+async fn run_server() {
+    // Router is provided by Axum which allows mounting various routes and handlers.
+    let app = Router::new()
+        // `route` takes `/` and MethodRouter
+        .route("/", 
+        // get function create a MethodRouter for a `/` path from the `hello_world`
+        get(hello_world))
+
+    // create a socket address from the string address
+    let addr = SocketAddr::from_str("0.0.0.0:8080").unwrap();
+    // start the server on the address
+    // Server is a re-export from the hyper::Server
+    Server::bind(&amp;addr)
+    // start handling the request using this service
+        .serve(app.into_make_service())
+        // start polling the future
+        .await
+        .unwrap();
+}
+
+// basic handler that responds with a static string
+// Handler function is an async function whose return type is anything that impl IntoResponse
+async fn hello_world() -&gt; impl IntoResponse {
+    // returning a tuple with HTTP status and the body
+    (StatusCode::OK, "hello world!")
+}
+</pre>
+<p>这里，<code>Router</code>结构提供了一个<code>route</code>方法来添加新的路由和相应的处理程序。在上面的例子中，<code>get</code>被用来为<code>/</code>路由创建一个get处理程序。</p>
+<p><code>hello_world</code>是一个处理程序，它返回一个带有HTTP状态和主体的元组。这个元组实现了由<code>axum</code>提供的<code>IntoResponse</code>特征。</p>
+<p><code>Server</code>结构是<code>hyper::Server</code>的重新导出。随着<code>axum</code>试图成为hyper的一个非常薄的包装器，你可以期待它提供与<code>hyper</code>相当的性能。</p>
+<h2 id="handling-post-request">处理发布请求</h2>
+<p><code>post</code>函数用于在提供的路径上创建一个POST route与<code>get</code>函数一样，<code>post</code>也接受一个处理程序并返回<code>MethodRoute</code>。</p>
+<pre class="language-rust hljs">let app = Router::new()
+        // `route` takes `/` and MethodRouter
+        .route("/", 
+        // post function create a MethodRouter for a `/` path from the `hello_name`
+        post(hello_name))
+</pre>
+<p><code>axum</code>提供现成的JSON序列化和反序列化。<code>Json</code>类型实现了<code>FromRequest</code>和<code>IntoResponse</code>特征，允许您序列化响应和反序列化请求体。</p>
+<pre class="language-rust hljs">// the input to our `hello_name` handler
+// Deserialize trait is required for deserialising bytes to the struct
+#[derive(Deserialize)]
+struct Request {
+    name: String,
+}
+
+// the output to our `hello_name` handler
+// Serialize trait is required for serialising struct in bytes
+
+#[derive(Serialize)]
+struct Response{
+    greet:String
+}
+</pre>
+<p><code>Request</code>结构实现了<code>serde_json</code>用来反序列化请求体的<code>Deserialize</code>特征，而<code>Response</code>结构实现了<code>Serialize</code>特征来序列化响应。</p>
+<pre class="language-rust hljs">async fn hello_name(
+    // this argument tells axum to parse the request body
+    // as JSON into a `Request` type
+    Json(payload): Json&lt;Request&gt;
+) -&gt; impl IntoResponse {
+    // insert your application logic here
+    let user = Response {
+        greet:format!("hello {}",payload.name)
+    };
+    (StatusCode::CREATED, Json(user))
+}
+</pre>
+<p><code>Json</code>是由<code>axum</code>提供的一种类型，它在内部实现了<code>FromRequest</code>特征，并使用<code>serde</code>和<code>serde_json</code>机箱在对<code>Request</code>结构的请求中反序列化JSON主体。</p>
+<p>与GET请求处理程序类似，POST处理程序也可以返回一个带有响应状态代码和响应主体的元组。<code>Json</code>还实现了<code>IntoResponse</code>特征，允许它将<code>Response</code>结构转换成JSON响应。</p>
+
+<p>Axum提供了提取器作为在服务器上共享状态的抽象，并允许处理程序访问共享数据。</p>
+<pre class="language-rust hljs">// creating common state
+let app_state = Arc::new(Mutex::new(HashMap::&lt;String,()&gt;::new()));
+
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root))
+        // `POST /users` goes to `create_user`
+        .route("/hello", post(hello_name))
+        // Adding the state to the router.
+        .layer(Extension(app_state));
+</pre>
+<p><code>Extension</code>包装共享状态，负责与<code>axum</code>交互。在上面的例子中，共享状态被包装在<code>Arc</code>和<code>Mutex</code>中，以同步对内部状态的访问。</p>
+<pre class="language-rust hljs">async fn hello_name(
+    Json(payload): Json&lt;Request&gt;,
+    // This will extract out the shared state
+    Extension(db):Extension&lt;Arc&lt;Mutex&lt;HashMap&lt;String,()&gt;&gt;&gt;&gt;
+) -&gt; impl IntoResponse {
+    let user = Response {
+        greet:format!("hello {}",payload.name)
+    };
+
+   // we can use the shared state
+    let mut s=db.lock().unwrap();
+    s.insert(payload.name.clone(), ());
+    (StatusCode::CREATED, Json(user))
+}
+</pre>
+<p><code>Extension</code>还实现了将由<code>axum</code>调用的<code>FromRequest</code>特征，以从请求中提取共享状态，并将其传递给处理函数。</p>
+<h2 id="github-actions">GitHub操作</h2>
+<p>GitHub动作可用于测试、构建和部署Rust应用程序。在本节中，我们将重点关注Rust应用程序的部署和测试。</p>
+<pre class="language-yaml hljs"># name of the workflow
+name: Rust
+
+# run workflow when the condition is met
+on:
+# run when code is pushed on the `main` branch
+  push:
+    branches: [ "main" ]
+# run when a pull request to the `main` branch
+  pull_request:
+    branches: [ "main" ]
+
+# env variables
+env:
+  CARGO_TERM_COLOR: always
+
+# jobs
+jobs:
+# job name
+  build:
+  # os to run the job on support macOS and windows also
+    runs-on: ubuntu-latest
+# steps for job
+    steps:
+    # this will get the code and set the git
+    - uses: actions/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="84e7ece1e7efebf1f0c4f2b7">[email protected]</a>
+    # run the build
+    - name: Build
+    # using cargo to build
+      run: cargo build --release
+
+    # for deployment
+    - name: make dir
+    # create a directory
+      run: mkdir app
+    # put the app in it
+    - name: copy
+      run: mv ./target/release/axum-deom ./app/axum
+
+
+    # heroku deployment
+    - uses: akhileshns/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddb5b8afb2b6a8f0b9b8adb1b2a49dabeef3eceff3ecef">[email protected]</a>
+      with:
+      # key from repository secrets
+        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+        # name of the Heroku app
+        heroku_app_name: "axum-demo-try2"
+        # email from which the app is uploaded
+        heroku_email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8cede2ffe4f9e0ebe3e9e0bdb9bdb5b5b5ccebe1ede5e0a2efe3e1">[email protected]</a>"
+
+        # app directory
+        appdir: "./app"
+
+        # start command
+        procfile: "web: ./axum"
+        # buildpack is like environment used to run the app
+        buildpack: "https://github.com/ph3nx/heroku-binary-buildpack.git"
+</pre>
+<p>GitHub动作默认提供对Rust稳定版本的支持。默认情况下，GitHub Actions会将Cargo和rustc安装在所有受支持的操作系统上——这是一个在将代码推送到主分支或创建主分支的pull请求时运行的操作。</p>
+<pre class="language-yaml hljs">on:
+# run when code is pushed on the `main` branch
+  push:
+    branches: [ "main" ]
+# run when a pull request to the `main` branch
+  pull_request:
+    branches: [ "main" ]
+</pre>
+<p>工作流将首先检查代码，然后运行Cargo test来对代码运行测试。然后，它将使用cargo-build构建代码。</p>
+<p>Cargo release将在目标文件夹中创建一个二进制文件，然后这个操作将这个二进制文件从目标文件夹复制到<code>./app</code>文件夹，以便在Heroku部署步骤中进一步使用，我们现在将继续这个步骤。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h2 id="heroku-deployment">Rust的Heroku部署</h2>
+<p>Heroku没有Rust的官方构建包，所以Heroku没有Rust应用的官方构建环境。</p>
+<p>因此，我们将使用GitHub Actions来构建应用程序，并将其部署到Heroku。</p>
+<p>Heroku要求每个应用都有一个buildpack，所以<a href="https://github.com/ph3nx/heroku-binary-buildpack.git">二进制buildpack </a>用于Rust应用。Rust有社区构建包，由于GitHub动作已经被用于构建应用程序，直接使用Heroku上的二进制构建可以节省时间。</p>
+<p>GitHub Actions市场有一个非常有用的<code>akhileshns/heroku-deploy</code>使用GitHub Actions部署Heroku应用。结合<code>binary-buildpack</code>，成为部署代码的有力工具。</p>
+<pre class="language-yaml hljs">    - uses: akhileshns/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="543c31263b3f2179303124383b2d1422677a65667a6566">[email protected]</a>
+      with:
+      # key from repository secrets
+        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+        # name of the Heroku app
+        heroku_app_name: "axum-demo-try2"
+        # email from which the app is uploaded
+        heroku_email: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="45242b362d3029222a20297470747c7c7c052228242c296b262a28">[email protected]</a>"
+
+        # app directory
+        appdir: "./app"
+
+        # start command
+        procfile: "web: ./axum"
+        # buildpack is like environment used to run the app
+        buildpack: "https://github.com/ph3nx/heroku-binary-buildpack.git"
+</pre>
+<p>要使用此操作，需要一个Heroku API密钥。可以使用Heroku控制台在您的<a href="https://dashboard.heroku.com/account">帐户设置中生成密钥。</a></p>
+<p>此操作将为您创建并部署应用程序。它获取应用程序的目录并启动应用程序的命令，您还可以指定您想要使用的构建包。</p>
+<p>在Rust应用程序可以部署到Heroku之前，需要进行一些代码更改。目前，该应用程序使用一个<code>8080</code>端口，但Heroku将提供一个不同的端口供该应用程序使用，因此Rust应用程序应读取环境变量<code>PORT</code>。</p>
+<pre class="language-rust hljs">    // read the port from env or use the port default port(8080)
+    let port = std::env::var("PORT").unwrap_or(String::from("8080"));
+    // convert the port to a socket address
+    let addr = SocketAddr::from_str(&amp;format!("0.0.0.0:{}", port)).unwrap();
+    // listen on the port
+    Server::bind(&amp;addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>是一个非常好的web服务器框架，支持更广泛的塔式rs生态系统。它允许构建可扩展和可组合的web服务，并通过在<code>hyper</code>上提供一个薄层来提供性能优势。</p>
+<p>GitHub动作对于CI/CD来说非常棒，并且允许执行各种自动化任务，例如在各种平台上构建和测试代码以及生成文档。GitHub动作还支持缓存货物依赖关系，以加快动作速度。</p>
+<p>Heroku支持自动扩展连续部署，也支持托管资源，例如数据库和存储。GitHub Actions和Heroku是独立于框架的，这意味着同一个动作可以测试和部署用Rocket或Actix web编写的Web服务器——所以可以随意试验任何适合你的东西！</p>
+<p>当所有这些工具一起使用时，它们成为开发和托管Rust web服务器的杀手组合。我希望你喜欢这个教程，请在下面留下你的经历。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

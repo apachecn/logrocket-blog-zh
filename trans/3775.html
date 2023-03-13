@@ -1,0 +1,246 @@
+<html>
+<head>
+<title>Optimizing your Rust code with closures: Environment capturing </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用闭包优化Rust代码:环境捕获</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/optimizing-rust-code-with-closures-environment-capturing/#0001-01-01">https://blog.logrocket.com/optimizing-rust-code-with-closures-environment-capturing/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>函数式编程的概念，即函数接受一个参数的类型或返回一个函数的类型，在Rust中形成了一个更广泛的闭包讨论，这对开发人员理解今天的内容很重要。</p>
+<p>闭包是匿名的类似函数的构造，可以作为参数传递，存储在变量中，或者作为命名函数的值返回。</p>
+<p>在本文中，我们将在<a href="https://blog.logrocket.com/tag/rust/"> Rust </a>中探索和学习闭包及其相关概念——例如，在Rust中使用带有迭代器的闭包，或者<code>move</code>关键字如何获得从闭包环境中捕获的值的所有权。我们将在Rust with closures中检查环境捕获的关键方面，并使用示例演示如何使用闭包来优化代码。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="closures-vs-functions-in-rust">Rust中的闭包与函数</h2>
+<p>在Rust中，闭包和函数是两种不同类型的代码块，服务于不同的目的。</p>
+<p>以下是您需要了解的Rust中闭包和函数之间的主要区别:</p>
+<h3 id="Syntax">句法</h3>
+<p>Rust定义闭包和函数的语法略有不同。</p>
+<p>闭包使用语法<code>|parameters| -&gt; return_type { body }</code>，其中参数在竖线(<code>||</code>)之间传递，主体用花括号(<code>{}</code>)括起来。</p>
+<p>另一方面，函数使用语法<code>fn name(parameters: type) -&gt; return_type { body }</code>，其中参数在括号(<code>()</code>)之间传递，返回类型在箭头(<code>-&gt;</code>)之后指定。</p>
+<h3 id="Body">身体</h3>
+<p>闭包的主体可以是单个语句，也可以是多个语句。</p>
+<p>如果闭包只包含一条语句，花括号是可选的；但是，如果闭包由多个语句组成，那么主体必须用花括号括起来。</p>
+<p>相反，函数体必须始终用花括号括起来，不管它是由单个语句还是多个语句组成。</p>
+<h3 id="return-type">返回类型</h3>
+<p>在Rust中，闭包的返回类型是可选的——这意味着您不必指定闭包返回的值类型。</p>
+<p>然而，函数的返回类型是强制的——您必须使用语法<code>-&gt; return_type</code>指定函数返回的值类型。</p>
+<h3 id="data-types">数据类型</h3>
+<p>在Rust中，您不必指定闭包中参数的数据类型。但是，您必须使用类型参数语法指定函数中参数的数据类型。</p>
+<h3 id="environment-capturing">环境捕捉</h3>
+<p>Rust中的闭包可以从它们的环境中捕获变量，而函数却不能。这意味着闭包可以引用外部定义的变量。</p>
+<h2 id="closure-syntax">闭包语法</h2>
+<p>让我们先快速看一下闭包的语法定义:</p>
+<pre class="language-rust hljs">let closure = |...| {...}
+</pre>
+<p>在上面的语法中，您可以在定义的<code>|…|</code>部分中为闭包定义不同的参数，闭包的主体在<code>{…}</code>部分中定义。</p>
+<p>看一下这个代码块，了解我的意思:</p>
+<pre class="language-rust hljs">fn main() {
+  let closure = |x, y| { x + y };
+  println!("{}", closure(1, 2)) // 3
+}
+</pre>
+<p>就像函数一样，闭包使用名字和两个括号来执行。</p>
+<p>这些参数在管道语法<code>||</code>之间定义。此外，您会注意到闭包中的参数和返回类型是推断出来的。</p>
+<h2 id="closure-type-inference-and-annotation">闭包类型推理和注释</h2>
+<p>上面的代码定义了一个名为“closure”的闭包，它接受两个参数<code>x</code>和<code>y</code>，并返回它们的和。闭包体由一条语句<code>x + y</code>组成，这条语句没有用花括号括起来，因为它是一条语句。</p>
+<p>在Rust中，闭包的类型是基于其参数和返回值的类型来推断的。在这种情况下，闭包带两个类型为<code>i32</code>的参数，并返回一个类型为<code>i32</code>的值，因此闭包的类型被推断为<code>|x: i32, y: i32| -&gt; i32</code>。</p>
+<p>有时，您可能希望使用闭包类型注释来明确指定闭包类型；当Rust编译器不能推断闭包类型，或者当您想要为闭包指定一个更具体的类型时，这很有用。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>要指定闭包类型注释，可以使用语法<code>|parameters: types| -&gt; return_type</code>。例如:</p>
+<pre class="language-rust hljs">fn main() {
+  let closure: |x: i32, y: i32| -&gt; i32 = |x, y| { x + y };
+  println!("{}", closure(1, 2)) // 3
+}
+</pre>
+<p>在这种情况下，闭包类型被显式指定为<code>|x: i32, y: i32| -&gt; i32</code>，这与推断的闭包类型相匹配。</p>
+<p>总的来说，闭包类型推断和注释允许您在Rust中指定闭包的类型，这对于确保类型安全和代码整洁非常有用。</p>
+<p>如前所述，闭包相对于函数的一个优点是，它们可以在定义变量的环境中捕获和封装变量。</p>
+<p>让我们更详细地了解一下。</p>
+<h2 id="environment-capturing-with-closures-in-rust">锈封环境捕捉</h2>
+<p>正如我们提到的，闭包可以从定义它们的环境中获取值——闭包可以借用或拥有这些周围的值。</p>
+<p>让我们构建一个代码场景，其中我们可以在Rust中执行一些环境捕获:</p>
+<pre class="language-rust hljs">use std::collections::HashMap;
+
+#[derive(Debug)]
+struct Nft {
+    tokens: Option&lt;HashMap&lt;String, u32&gt;&gt;
+}
+
+fn main() {
+    let x = Nft {
+        tokens: Some(HashMap::from([(String::from("string"), 32)]))
+    };
+
+    let slice = vec![1, 3, 5];
+
+    let print_to_stdout = || {
+        println!("Slice: {:?}", slice);
+        if let Some(tokens) = &amp;x.tokens {
+           println!("Nft supply --&gt; {:?}", tokens); 
+        }
+    };
+
+    print_to_stdout();
+    println!("{:?}", x);
+    print_to_stdout();
+}
+</pre>
+<p>下面是您应该收到的输出:</p>
+<pre class="language-bash hljs">Slice: [1, 3, 5]
+Nft supply --&gt; {"string": 32}
+Nft { tokens: Some({"string": 32}) }
+Slice: [1, 3, 5]
+Nft supply --&gt; {"string": 32}
+</pre>
+<p>在上面的代码片段中，我们将<code>x</code>定义为<code>Nft</code>结构的一个实例。我们还定义了一个<code>slice</code>变量——一种类型的<code>Vec&lt;i32&gt;</code>。然后，我们定义了一个存储在<code>print_to_stdout</code>变量中的闭包。</p>
+<p>不用将两个变量(<code>x</code>和<code>slice</code>)作为参数传递给闭包，我们仍然可以在<code>print_to_stdout</code>闭包中不可变地访问它们。</p>
+<p><code>print_to_stdout</code>闭包捕获了对<code>x</code>和<code>slice</code>变量的不可变引用，因为它们是在与自身相同的作用域/环境中定义的。</p>
+<p>此外，因为<code>print_to_stdout</code>闭包只有对变量的不可变引用——这意味着它不能改变变量的状态——我们可以多次调用闭包来打印值。</p>
+<p>我们还可以通过稍微调整代码片段来重新定义闭包，以获取对变量的可变引用，如下所示:</p>
+<pre class="language-rust hljs">// --snip--
+fn main() {
+  // --snip--
+  let mut slice = vec![1, 3, 5];
+
+  let print_to_stdout = || {
+        slice.push(11);
+        // --snip--
+        println!("Slice: {:?}", slice);
+    };
+
+    print_to_stdout();
+    println!("{:?}", slice);
+}
+</pre>
+<p>以下是输出:</p>
+<pre class="language-rust hljs">Slice: [1, 3, 5, 11]
+[1, 3, 5, 11]
+</pre>
+<p>我们可以通过捕获对<code>slice</code>变量的可变引用来修改它的状态。</p>
+<p>在执行完<code>print_to_stdout</code>闭包之后，被借用的引用被返回，这使得我们可以将<code>slice</code>值打印到<code>stdout</code>。</p>
+<p>在我们想要获得周围变量的所有权的场景中，我们可以在闭包旁边使用<code>move</code>关键字。</p>
+<p>当我们在闭包中取得变量的所有权时，我们经常想要改变变量的状态。</p>
+<p>使用我们之前的示例，让我们看看这是如何工作的:</p>
+<pre class="language-rust hljs">// --snip--
+fn main() {
+  // --snip--
+
+  //Redefined the closure using move keyword
+  let print_to_stdout = move || {
+        slice.push(11);
+        // --snip--
+        println!("Slice: {:?}", slice);
+    };
+
+  print_to_stdout();
+}
+</pre>
+<p>现在，我们已经明确地将变量移动到闭包中，并取得它们的值的所有权。</p>
+<p>如果您尝试像前面的代码块一样调用<code>println!("{:?}", slice);</code>，您将得到一个错误，解释该变量由于在闭包中的使用而被移动(如下所示)。</p>
+<p><img data-attachment-id="153382" data-permalink="https://blog.logrocket.com/optimizing-rust-code-with-closures-environment-capturing/attachment/closure-variable-moved-error-rust-environment-capturing/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png" data-orig-size="730,217" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="closure-variable-moved-error-rust-environment-capturing" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png" decoding="async" class="aligncenter wp-image-153382 size-full jetpack-lazy-image" src="../Images/f055ad48082c03ce85c5428814b6e612.png" alt="Closure Variable Moved Error Rust Environment Capturing" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing-300x89.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="153382" data-permalink="https://blog.logrocket.com/optimizing-rust-code-with-closures-environment-capturing/attachment/closure-variable-moved-error-rust-environment-capturing/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png" data-orig-size="730,217" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="closure-variable-moved-error-rust-environment-capturing" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing-300x89.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png" decoding="async" loading="lazy" class="aligncenter wp-image-153382 size-full" src="../Images/f055ad48082c03ce85c5428814b6e612.png" alt="Closure Variable Moved Error Rust Environment Capturing" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing-300x89.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/closure-variable-moved-error-rust-environment-capturing.png"/></noscript>
+<h2 id="closure-as-a-functions-argument">闭包作为函数的参数</h2>
+<p>前面，我们解释了闭包如何作为参数传递给函数，甚至作为值从函数返回。</p>
+<p>让我们探索如何使用函数的不同定义和<a href="https://blog.logrocket.com/rust-traits-a-deep-dive/"> trait </a>界限来实现这些行为。</p>
+<p>首先，让我们看看三个<code>Fn</code>特征，因为由于函数签名定义或主体内容的性质，闭包会自动实现一个、两个或全部三个特征。所有闭包至少都实现了<code>FnOnce</code>特征。</p>
+<p>以下是对这三个特征的解释:</p>
+<ul>
+<li>任何将捕获的变量返回到其调用环境的闭包都实现了这一特性</li>
+<li>这个特性代表闭包，它可能会改变捕获的值，并且不会将捕获的值作为返回值移出闭包的主体</li>
+<li>这个特征既不变异，不返回捕获的值，也不从它的定义范围捕获变量</li>
+</ul>
+<p>这些规则是我们在项目中为不同用途定义闭包时的指路明灯。</p>
+<p>让我们通过实现上面提到的特征之一来演示一个样例用例:</p>
+<pre class="language-rust hljs">#[derive(Debug)]
+enum State&lt;T&gt; {
+    Received(T),
+    Pending,
+}
+
+impl&lt;T&gt; State&lt;T&gt; {
+    pub fn resolved&lt;F&gt;(self, f: F) -&gt; T
+    where F: FnOnce() -&gt; T
+    {
+        match self {
+            State::Received(v) =&gt; v,
+            State::Pending =&gt; f(),
+        }
+    }
+}
+
+fn main() {
+    let received_state = State::Received(String::from("LogRocket"));
+    println!("{:?}", received_state.resolved(|| String::from("executed closure")));
+
+    let pending_state = State::Pending;
+    println!("{:?}", pending_state.resolved(|| String::from("executed closure")))
+}
+</pre>
+<p>这是我们的输出:</p>
+<pre class="language-bash hljs">"LogRocket"
+"executed closure"
+</pre>
+<p>在上面的代码片段中，我们创建了一个示例<code>State</code> enum来假想地表示一个网络调用，该调用具有一个<code>Received(T)</code>状态和一个<code>Pending</code>状态。在enum上，我们实现了一个函数来检查网络调用的状态并相应地采取行动。</p>
+<p>查看函数签名，您会注意到函数的<code>f</code>参数是一个通用参数:一个<code>FnOnce</code>闭包。</p>
+<p>使用trait bounding ( <code>F: FnOnce() -&gt; T</code>)，我们为<code>f,</code>定义了可能的参数值，这意味着<code>F</code>最多只能被调用一次，不带任何参数，并返回一个泛型值<code>T</code>。</p>
+<p>如果我们有一个已实现的状态——<code>Received(T)</code>变量——我们返回已实现状态中包含的值，就像我们对<code>received_state</code>变量所做的那样。</p>
+<p>当状态恰好是<code>Pending</code>时，闭包参数将被调用，就像<code>pending_state</code>一样。</p>
+<h2 id="using-closures-with-iterators-for-processing-collections">使用带有迭代器的闭包来处理集合</h2>
+<p>在这一节中，您将了解闭包最常见的用例之一；使用带有<a href="https://blog.logrocket.com/rust-iterators-closures-deep-dive/">迭代器</a>的闭包来处理集合中的一系列顺序数据。</p>
+<p>迭代器模式对存储在Rust集合中的这个项目序列执行渐进式任务。</p>
+<blockquote><p><strong>注意，</strong>要进一步阅读迭代器，请查看<a href="https://doc.rust-lang.org/book/ch13-02-iterators.html"> Rust文档</a>。</p></blockquote>
+<p>让我们通过首先定义一个向量变量来进一步解释闭包如何与迭代器一起工作:</p>
+<pre class="language-rust hljs">#[derive(PartialEq, Debug)]
+struct MusicFile {
+    size: u32,
+    title: String,
+}
+
+fn main() {
+    let files = vec![
+            MusicFile {
+                size: 1024,
+                title: String::from("Last last"),
+            },
+            MusicFile {
+                size: 2048,
+                title: String::from("Influence"),
+            },
+            MusicFile {
+                size: 1024,
+                title: String::from("Ye"),
+            },
+        ];
+
+        let max_size = 1024;
+
+        let accepted_file_sizes: Vec&lt;MusicFile&gt; = files.into_iter().filter( |s| s.size == max_size).collect();
+
+        println!("{:?}", accepted_file_sizes);
+}
+</pre>
+<p>这是我们的输出:</p>
+<pre class="language-rust hljs">[MusicFile { size: 1024, title: "Last last" }, MusicFile { size: 1024, title: "Ye" }]
+</pre>
+<p>在上面的代码片段中，我们使用<code>into_iter</code>方法将<code>files</code>变量改编成迭代器，可以在<code>Vec&lt;T&gt;</code>类型上调用该方法。</p>
+<p><code>into_iter</code>方法创建迭代器类型的消费适配器类型。这个迭代器将每个值移出<code>files</code>变量(从开始到结束)，这意味着我们不能在调用变量后使用它。</p>
+<p>我们直接在<code>filter</code>函数中定义它，以调用闭包作为参数。然后，我们使用最后一个函数调用<code>collect()</code>，将迭代器消费并转换回Rust集合；在这种情况下，<code>Vec&lt;MusicFile&gt;</code>型。</p>
+<h2 id="conclusion">结论</h2>
+<p>闭包是与普通函数或迭代器一起使用的类似函数的结构，用于处理存储在Rust集合中的顺序项。</p>
+<p>您可以实现一个特定的闭包类型，这取决于您希望将它用于什么样的上下文——这使您可以灵活地获取被捕获变量的所有权，或者借用对变量的引用，或者两者都不做！</p>
+<p>根据您在Rust中的函数式编程需求，用于环境捕获的闭包会带来很大的好处，让您的生活变得更加轻松。让我知道你在Rust中使用闭包和环境捕捉的经历吧！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,282 @@
+<html>
+<head>
+<title>Automate image optimization using the TinyPNG API </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用TinyPNG API自动优化图像</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/automate-image-optimization-tinypng-api/#0001-01-01">https://blog.logrocket.com/automate-image-optimization-tinypng-api/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果您想学习自动化图像优化，那么您来对地方了，因为您可以使用TinyPNG API来实现这一点！这篇文章将清楚地展示如何做到这一点，这样你就可以在你的项目中轻松地优化你的图像。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="images-and-optimisation">图像和优化</h2>
+<p>图像是网络的一大部分——它们也是网络有效载荷的一大部分。如果我们不小心的话，我们最终会得到一个加载缓慢且托管费用昂贵的网站；一个非常糟糕的组合！</p>
+<p>我在我的博客上运行<a href="https://developer.chrome.com/docs/lighthouse/overview/"> Lighthouse </a>，我一直在寻找提高网站性能的方法；Lighthouse标记的事情之一是图像优化。最好<a href="https://blog.logrocket.com/ux-design/optimizing-images-mobile-browsers-ux-mindset/">优化我们的图片</a>，以确保它们不会无用地变大，妨碍我们项目的<a href="https://blog.logrocket.com/top-5-web-apis-performance-based-analysis/">表现</a>。</p>
+<p>我们可以使用像<a href="https://tinypng.com/"> TinyPNG </a>或<a href="https://squoosh.app/"> Squoosh </a>这样的工具手动完成这个过程，但是也有可能完全自动化这个过程。在这篇文章中，我将向您展示如何使用TinyPNG API自动优化图像。</p>
+<h2 id="tiny-png-api">TinyPNG API</h2>
+<p>TinyPNG API 是一个付费服务。我们可以获得一个免费的API密钥，允许我们每月优化500张图像。如果我们需要更多的优化，我们需要付费订阅。我个人很少发现我每月优化超过500张图片，所以我对免费计划很满意。</p>
+<p>值得注意的是，“TinyPNG”这个名字有点用词不当。该API支持多种图像格式，包括PNG、JPEG和WebP，因此它不仅仅适用于PNG——事实上，在本文中我们将使用WebP格式。</p>
+<p>如果您愿意，您可以直接使用API，但是我更喜欢使用客户端库——我们将使用<a href="https://tinypng.com/developers/reference/nodejs"> Node.js </a>库。</p>
+
+<p>我们将使用<a href="https://www.typescriptlang.org/">类型脚本</a>和<a href="https://typestrong.org/ts-node/"> <code>ts-node</code> </a>初始化一个名为tinify的简单Node.js控制台应用程序:</p>
+<pre class="language-bash hljs">mkdir tinify
+cd tinify
+npm init -y
+npm install @types/node tinify ts-node typescript
+npx tsc --init
+</pre>
+<p>你会注意到我们使用的是在这里开发的<code>tinify</code> npm包<a href="https://github.com/tinify/tinify-nodejs">。很方便，这个包附带了TypeScript定义，所以我们不需要安装单独的类型包。</a></p>
+<p>在我们的<code>package.json</code>文件中，我们将添加一个<code>start</code>脚本来运行我们的应用程序:</p>
+<pre class="language-json hljs">  "scripts": {
+    "start": "ts-node index.ts"
+  },
+</pre>
+<p>在我们的<code>tsconfig.json</code>文件中，我们还将把<code>target</code>升级到新的<a href="https://blog.logrocket.com/typescript-4-7-ecmascript-module-support/"> ECMAScript </a> emit版本，以允许我们使用一些更新的语言特性。对于TinyPNG，我们不需要这个，但是使用新的特性很好:</p>
+<pre class="language-json hljs">{
+  "compilerOptions": {
+    "target": "es2021"
+  }
+}
+</pre>
+<p>现在，我们可以创建我们的<code>index.ts</code>文件:</p>
+<pre class="language-typescript hljs">import fs from 'fs';
+import path from 'path';
+import tinify from 'tinify';
+
+function setUpTinify() {
+  if (!process.env.TINIFY_KEY) {
+    console.log(
+      'Run with: TINIFY_KEY=$YOUR_API_KEY IMAGE_DIR=$YOUR_IMAGE_DIRECTORY yarn start'
+    );
+    process.exit(1);
+  }
+
+  tinify.key = process.env.TINIFY_KEY;
+}
+
+function getImageFilesFromDirectory(dir: string) {
+  return fs
+    .readdirSync(dir)
+    .filter(
+      (file) =&gt;
+        file.endsWith('.jpg') ||
+        file.endsWith('.jpeg') ||
+        file.endsWith('.webp') ||
+        file.endsWith('.png')
+    )
+    .map((file) =&gt; path.resolve(dir, file))
+    .filter((file) =&gt; fs.statSync(file).size &gt; 0);
+}
+
+async function processImageFiles(imageFiles: string[]) {
+  let processed = 0;
+  let totalOriginalSizeKb = 0n;
+  let totalNewSizeKb = 0n;
+  let failed: string[] = [];
+
+  for (const imageFilePath of imageFiles) {
+    try {
+      console.log(`
+🖼️  Processing ${imageFilePath}
+`);
+      const originalImageFilePrefix = imageFilePath.substring(
+        0,
+        imageFilePath.lastIndexOf('.')
+      );
+
+      const originalStats = await fs.promises.stat(imageFilePath, {
+        bigint: true,
+      });
+      const originalSizeKb = originalStats.size / 1024n;
+
+      const source = tinify.fromFile(imageFilePath);
+      const converted = source.convert({ type: ['image/webp', 'image/png'] });
+      const convertedExtension = await converted.result().extension();
+      const newImageFilePath = `${originalImageFilePrefix}.${convertedExtension}`;
+      await converted.toFile(newImageFilePath);
+
+      const newStats = await fs.promises.stat(newImageFilePath, {
+        bigint: true,
+      });
+      const newSizeKb = newStats.size / 1024n;
+
+      const imageFileName = path.basename(imageFilePath);
+      const newImageFileName = path.basename(newImageFilePath);
+
+      totalOriginalSizeKb += originalSizeKb;
+      totalNewSizeKb += newSizeKb;
+
+      console.log(`- 🔴 ${originalSizeKb}kb - ${imageFileName}
+- 🟢 ${newSizeKb}kb - ${newImageFileName}
+- 🔽 ${calculatePercentageReduction({ originalSizeKb, newSizeKb }).toFixed(
+        2
+      )}% reduction
+
+✅ Processed! (${++processed} of ${imageFiles.length})
+
+----------------------`);
+    } catch (e) {
+      console.log(`\n❌ Failed to process ${imageFilePath}`);
+      failed.push(imageFilePath);
+    }
+  }
+
+  console.log(`
+************************************************
+* Total savings for ${imageFiles.length} images 
+- 🔴 ${totalOriginalSizeKb}kb
+- 🟢 ${totalNewSizeKb}kb
+- 🔽 ${calculatePercentageReduction({
+    originalSizeKb: totalOriginalSizeKb,
+    newSizeKb: totalNewSizeKb,
+  }).toFixed(2)}% reduction
+************************************************
+`);
+
+  if (failed.length &gt; 0) console.log('Failed to process', failed);
+}
+
+function calculatePercentageReduction({
+  originalSizeKb,
+  newSizeKb,
+}: {
+  originalSizeKb: bigint;
+  newSizeKb: bigint;
+}) {
+  return (
+    ((Number(originalSizeKb) - Number(newSizeKb)) / Number(originalSizeKb)) *
+    100
+  );
+}
+
+async function run() {
+  setUpTinify();
+
+  let directory = process.env.IMAGE_DIR;
+
+  if (!directory) {
+    console.log('No directory specified!');
+    process.exit(1);
+  }
+
+  const imageFiles = getImageFilesFromDirectory(directory);
+  console.log(`Found ${imageFiles.length} image files in ${directory}`);
+  await processImageFiles(imageFiles);
+}
+
+// do it!
+run();
+</pre>
+<p>这里发生了很多事情，所以让我更详细地介绍一下。</p>
+<p>每次运行它时，我们都会检查是否指定了TinyPNG API键和图像目录。如果没有，我们将退出并显示一条错误消息。</p>
+<p>然后，我们从指定的目录中获取图像文件的列表。我们搜索扩展名为<code>.jpg</code>、<code>.jpeg</code>、<code>.webp</code>和<code>.png</code>(TinyPNG支持的格式)的文件，并过滤掉任何空文件。</p>
+<p>接下来，我们将遍历图像文件并逐个处理它们。我们正在使用<code>tinify</code>包来缩小图像，我们说我们将接受<code>webp</code>或<code>png</code>作为我们的目标格式。Tinify将根据每个请求决定哪种格式是最佳的，并相应地进行呈现。</p>
+<p>最后，我们将新文件保存到与原始文件相同的目录中，并计算文件大小减少的百分比。</p>
+<p>为了了解这里发生了什么，我们可以看看进行转换的代码:</p>
+<pre class="language-typescript hljs">const source = tinify.fromFile(imageFilePath);
+const converted = source.convert({ type: ['image/webp', 'image/png'] });
+const convertedExtension = await converted.result().extension();
+const newImageFilePath = `${originalImageFilePrefix}.${convertedExtension}`;
+await converted.toFile(newImageFilePath);
+</pre>
+
+<p>工具编写完成后，我们现在需要测试它。我有一个要压缩的图像目录:</p>
+<p><code>~/code/github/open-graph-sharing-previews/images-to-shrink</code></p>
+<p><img data-attachment-id="154185" data-permalink="https://blog.logrocket.com/automate-image-optimization-tinypng-api/attachment/screenshot-of-images-before-optimization/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png" data-orig-size="730,320" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="screenshot-of-images-before-optimization" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png" decoding="async" class="aligncenter wp-image-154185 size-full jetpack-lazy-image" src="../Images/9bc489a97459bec81580964aa0f662d8.png" alt="Screenshot Of Images Before Optimization" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization-300x132.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="154185" data-permalink="https://blog.logrocket.com/automate-image-optimization-tinypng-api/attachment/screenshot-of-images-before-optimization/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png" data-orig-size="730,320" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="screenshot-of-images-before-optimization" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization-300x132.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png" decoding="async" loading="lazy" class="aligncenter wp-image-154185 size-full" src="../Images/9bc489a97459bec81580964aa0f662d8.png" alt="Screenshot Of Images Before Optimization" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization-300x132.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/screenshot-of-images-before-optimization.png"/></noscript>
+<p>现在，让我们针对该目录运行我们的工具，看看会发生什么。</p>
+<pre class="language-bash hljs">TINIFY_KEY=YOUR_API_KEY_GOES_HERE IMAGE_DIR=~/code/github/open-graph-sharing-previews/images-to-shrink yarn start
+
+yarn run v1.22.18
+$ ts-node index.ts
+Found 6 image files in /home/john/code/github/open-graph-sharing-previews/images-to-shrink
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/screenshot-of-demo-with-devtools-open.png
+
+- 🔴 253kb - screenshot-of-demo-with-devtools-open.png
+- 🟢 83kb - screenshot-of-demo-with-devtools-open.png
+- 🔽 67.19% reduction
+
+✅ Processed! (1 of 6)
+
+----------------------
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/screenshot-of-email-demonstrating-sharing-with-a-non-cropped-image.png
+
+- 🔴 158kb - screenshot-of-email-demonstrating-sharing-with-a-non-cropped-image.png
+- 🟢 50kb - screenshot-of-email-demonstrating-sharing-with-a-non-cropped-image.png
+- 🔽 68.35% reduction
+
+✅ Processed! (2 of 6)
+
+----------------------
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/screenshot-of-tweet-demonstrating-sharing-with-a-cropped-image.png
+
+- 🔴 391kb - screenshot-of-tweet-demonstrating-sharing-with-a-cropped-image.png
+- 🟢 64kb - screenshot-of-tweet-demonstrating-sharing-with-a-cropped-image.webp
+- 🔽 83.63% reduction
+
+✅ Processed! (3 of 6)
+
+----------------------
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/screenshot-of-tweet-demonstrating-sharing.png
+
+- 🔴 407kb - screenshot-of-tweet-demonstrating-sharing.png
+- 🟢 78kb - screenshot-of-tweet-demonstrating-sharing.webp
+- 🔽 80.84% reduction
+
+✅ Processed! (4 of 6)
+
+----------------------
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/screenshot-of-twitter-validator.png
+
+- 🔴 162kb - screenshot-of-twitter-validator.png
+- 🟢 49kb - screenshot-of-twitter-validator.webp
+- 🔽 69.75% reduction
+
+✅ Processed! (5 of 6)
+
+----------------------
+
+🖼️  Processing /home/john/code/github/open-graph-sharing-previews/images-to-shrink/title-image.png
+
+- 🔴 308kb - title-image.png
+- 🟢 49kb - title-image.webp
+- 🔽 84.09% reduction
+
+✅ Processed! (6 of 6)
+
+----------------------
+
+************************************************
+* Total savings for 6 images
+- 🔴 1679kb
+- 🟢 373kb
+- 🔽 77.78% reduction
+************************************************
+
+Done in 25.23s.
+</pre>
+<p>这难道不令人印象深刻吗？我们已经将所有这些图像的文件大小平均减少了77.78%！这是一笔巨大的节省！</p>
+<p>如果我们仔细观察，我们会发现在两种情况下，格式仍然是PNG文件，并且大小缩小了。在四种情况下，格式已更改为WebP文件。当我们再次查看我们的目录时，我们可以看到文件已经更新，并且创建了一些新的WebP文件:</p>
+<p><img data-attachment-id="154189" data-permalink="https://blog.logrocket.com/automate-image-optimization-tinypng-api/attachment/images-after-optimization-tinify-tiny-api-reduced-sizes/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png" data-orig-size="730,510" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="images-after-optimization-tinify-tiny-api-reduced-sizes" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png" decoding="async" class="aligncenter wp-image-154189 size-full jetpack-lazy-image" src="../Images/7a425b0f3d857c17eb9e879866365334.png" alt="Images After Optimization Tinify Tiny API Reduced Sizes" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes-300x210.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="154189" data-permalink="https://blog.logrocket.com/automate-image-optimization-tinypng-api/attachment/images-after-optimization-tinify-tiny-api-reduced-sizes/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png" data-orig-size="730,510" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="images-after-optimization-tinify-tiny-api-reduced-sizes" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes-300x210.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png" decoding="async" loading="lazy" class="aligncenter wp-image-154189 size-full" src="../Images/7a425b0f3d857c17eb9e879866365334.png" alt="Images After Optimization Tinify Tiny API Reduced Sizes" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes-300x210.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/images-after-optimization-tinify-tiny-api-reduced-sizes.png"/></noscript>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们看到了如何使用TinyPNG API来优化我们的图像。除此之外，我们还演示了如何构建一个工具，使用TinyPNG API自动优化给定目录中的图像。</p>
+<p>这一切都是自动化的，所以我们现在可以随时随地运行这个脚本来优化图像！</p>
+<p>如果你有兴趣学习其他图像优化的方法，你可能会发现<a href="https://johnnyreilly.com/2022/12/26/docusaurus-image-cloudinary-rehype-plugin">这篇关于使用Cloudinary作为你的图像CDN </a>的文章很有趣。</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

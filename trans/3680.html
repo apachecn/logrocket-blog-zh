@@ -1,0 +1,124 @@
+<html>
+<head>
+<title>How to run a Phoenix application with Docker </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>如何用Docker运行Phoenix应用程序</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/run-phoenix-application-docker/#0001-01-01">https://blog.logrocket.com/run-phoenix-application-docker/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>假设您刚刚在Phoenix中完成了一个应用程序的构建，现在，您准备与世界其他地方共享它。您可能想知道如何在发布环境中导航，以及在哪里发布您的应用程序。</p>
+<p>简单地说，你可以使用Docker 在任何地方发布你的项目。仙丹需要<a href="https://blog.logrocket.com/build-rest-api-elixir-phoenix/#what-is-elixir-and-phoenix-web-framework">一些运行时的依赖，主要是二郎神</a>，以便启动光束。在Phoenix发布文档的<a href="https://hexdocs.pm/phoenix/releases.html#containers"> <strong>版本</strong>部分</a>中，有一个很好的docker文件，可以作为一个很好的起点。在本教程中，我将剖析这个does文件，并解释每个步骤的作用，使您能够挑选您喜欢的部分，以及可能需要更改的部分，以满足您自己项目的需要。我们开始吧！</p>
+
+<h2 id="getting-started">入门指南</h2>
+<p>只是作为一个引子，我将在这篇文章中包括Node.js和npm，它们不包括在文档的官方docker文件中:</p>
+<pre class="language-bash docker">ARG ELIXIR_VERSION=1.14.0
+ARG OTP_VERSION=25.0.3
+ARG DEBIAN_VERSION=bullseye-20210902-slim
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
+</pre>
+<p>在上面的代码中，我们分别定义了每个步骤，这在本教程的后面部分会更有意义。现在，我们定义我们希望用哪个Elixir版本进行编译，我们希望用哪个Erlang OTP版本，以及我们希望用哪个Linux映像作为我们的主力。</p>
+<h2 id="build-step">构建步骤</h2>
+<p>我们将从使用一个构建器映像开始:</p>
+<pre class="language-bash docker">FROM ${BUILDER_IMAGE} as builder
+# install build dependencies
+RUN apt-get update -y &amp;&amp; apt-get install -y build-essential git nodejs npm curl \
+  &amp;&amp; apt-get clean &amp;&amp; rm -f /var/lib/apt/lists/*_*
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+  &amp;&amp; apt-get install -y nodejs
+# prepare build dir
+WORKDIR /app
+</pre>
+<p>上面的代码包含了我们需要的大部分依赖项，比如Node.js、npm和cURL。但是，如果你需要更多的，你可以在这里添加。请记住，不是每个图像都需要添加Node.js，所以如果您愿意，可以删除这一步。</p>
+<p>这就搞定了。从现在开始，一切都取决于我们的应用:</p>
+<pre class="language-bash docker"># install hex + rebar
+RUN mix local.hex --force &amp;&amp; \
+  mix local.rebar --force
+# set build ENV
+ENV MIX_ENV="prod"
+# install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
+RUN mkdir config
+# copy compile-time config files before we compile dependencies
+
+# to ensure any relevant config change will trigger the dependencies
+# to be re-compiled.
+COPY config/config.exs config/${MIX_ENV}.exs config/
+RUN mix deps.compile
+COPY priv priv
+COPY lib lib
+COPY assets assets
+WORKDIR assets
+RUN node --version
+RUN npm i -g yarn; yarn set version stable
+RUN yarn install
+WORKDIR ../
+# compile assets
+RUN mix assets.deploy
+# Compile the release
+RUN mix compile
+</pre>
+<p>首先，我们使用<a href="https://hexdocs.pm/phoenix/Mix.Tasks.Phx.New.html"> mix安装钢筋v3 </a>和<a href="https://hex.pm">六角</a>。Rebar处理原生Erlang库，而mix获取我们的Elixir依赖项；您可以将它与npm对于Node.js的意义进行比较。然后，我们复制我们的mixfile，它表示我们对项目的依赖，以及来自我们源代码的lockfile和configs。</p>
+<p>然后我们获取所有的依赖项并编译它们。请注意，这只编译依赖项，而不是我们的项目文件；这是两个独立的步骤。最后，我们复制我们的项目文件:</p>
+<ul>
+<li><code>priv</code>:迁移和静态文件</li>
+<li>我们的源代码</li>
+<li>我们的JavaScript和CSS代码</li>
+</ul>
+<p>接下来的五个步骤是可选的。如果您使用Node.js和npm，将您的<code>workdir</code>更改为<code>assets</code>文件夹，使用Yarn或npm安装依赖项，然后将<code>workdir</code>更改回<code>src/</code>。</p>
+<p>在这一点上，我们可以部署我们的资产，这是一个特殊的步骤，使我们所有的JavaScript和CSS文件为部署做好准备。</p>
+<p>接下来，我们编译余下的Elixir源代码，使项目中的每个文件都为最后的构建步骤，即发布构建做好准备:</p>
+<pre class="language-bash docker"># Changes to config/runtime.exs don't require recompiling the code
+COPY config/runtime.exs config/
+COPY rel rel
+RUN mix release
+</pre>
+<p>注意我们是如何在编译步骤之后复制运行时配置的。这是一个很好的提醒，所有其他配置文件中的所有配置都被编译到版本中，因此在这一点上是不可更改的。但是，运行时配置中的配置，顾名思义，是在运行时读取的。</p>
+<p>将构建一个发布文件，其中包含运行我们的应用程序所需的一切。</p>
+<h2 id="runtime-step">运行时步骤</h2>
+<pre class="language-bash docker"># start a new build stage so that the final image will only contain
+# the compiled release and other runtime necessities
+FROM ${RUNNER_IMAGE}
+RUN apt-get update -y &amp;&amp; apt-get install -y libstdc++6 openssl libncurses5 locales \
+  &amp;&amp; apt-get clean &amp;&amp; rm -f /var/lib/apt/lists/*_*
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen &amp;&amp; locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+WORKDIR "/app"
+RUN chown nobody /app
+# set runner ENV
+ENV MIX_ENV="prod"
+# Only copy the final release from the build stage
+COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/myapp ./
+USER nobody
+CMD ["/app/bin/server"]
+</pre>
+<p>同样，上面的代码是从官方的Phoenix文档中摘录的，但是我会再次澄清注释中的不足之处。</p>
+<p>在这里，我们引用我们之前的<code>ARGS</code>，但是这一次，我们只取Linux映像。这本身就使得我们的运行时Docker映像特别小。</p>
+<p>我们之前安装了<code>node_modules</code>、mix packages等等的设置的另一个好处是，为了运行我们的Elixir应用程序，我们只需要在构建部分的最后从我们的<code>mix release</code>步骤中创建二进制文件，这极大地减小了我们的构建映像大小。</p>
+<p>我们允许所有人接触我们的应用程序目录，将我们的用户更改为严格限制用户，然后运行应用程序。</p>
+<h2 id="conclusion">结论</h2>
+<p>尽管本文中的步骤很长，但基本上可以归结为以下几个可以运行的命令:</p>
+<pre class="language-bash docker">&gt; mix phx.gen.release --docker
+</pre>
+<p>上面的代码将生成一个docker文件，类似于我们在本文中讨论的文件，但是有一些不同。标准的Phoenix项目不使用Node.js，因此，它不包含我在docker文件中包含的Node.js步骤。</p>
+<p>这个docker文件是部署Phoenix应用程序的起点，在本文中，我展示了如何修改它以满足您的需求。在这种情况下，我们包括了npm和Node.js步骤。从这里开始，你所需要做的就是到处玩，找出你需要的细节。</p>
+<p>拥有一个独立的构建器和运行时映像最酷的一点是，在构建器映像中包含太多数据并没有实际成本。是的，它会减慢你的构建速度，但是大多数这些东西都可以在你的管道中被缓存，并且在本地，它会被自动缓存。不管怎样，您的运行时映像将会很小，并且可以快速发布，因为它是一个准系统的Linux发行版。</p>
+<p>我希望你喜欢这篇文章，如果你有任何问题，一定要留下评论。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

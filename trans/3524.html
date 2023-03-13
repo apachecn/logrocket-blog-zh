@@ -1,0 +1,381 @@
+<html>
+<head>
+<title>Exploring test-driven development methods in Deno </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>探索Deno中测试驱动的开发方法</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/test-driven-development-methods-deno/#0001-01-01">https://blog.logrocket.com/test-driven-development-methods-deno/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>您可能在某个地方听说过“测试驱动开发”这个术语，或者您可能有兴趣知道如何通过编写测试来使您的代码更加可靠。</p>
+<p>本文将解释什么是测试驱动开发(TDD ),什么时候可以使用它，以及我们如何使用Deno的内置测试API来编写测试，这可以帮助我们使我们的代码更加可靠。我们还将看到如何将使用Chai或Mocha等库编写的现有测试移植到Deno中。</p>
+<p>特别是，在本文中，我们将看到:</p>
+
+<p>请注意，您需要熟练阅读和编写基本的JavaScript代码。这包括变量和函数声明、基本的作用域属性以及导入/导出内容。<a href="https://blog.logrocket.com/getting-started-deno-fresh/">对Deno有一点了解有助于</a>阅读本指南，但不是必需的。</p>
+<p>如果你已经熟悉了测试驱动开发的概念，你可以<a href="#brief-introduction-deno">直接跳到我们关于Deno测试的章节</a>。否则，让我们从介绍测试驱动开发、测试类型以及何时使用TDD开始。</p>
+<h2 id="what-test-driven-development">什么是测试驱动开发？</h2>
+<p>想象你对下一个十亿美元的创业公司有一个好主意。为了让它成为现实，你必须写一些代码，并让它工作——简单！你开始写一些代码，运行它，看看它能做什么，修复一些错误，然后再写一些代码，等等。</p>
+<p>一开始，这种方法很棒。你正在生产一些工作代码，离十亿美元又近了一步，一切都很顺利。但是随着代码规模的增长和更多特性的增加，您开始遇到一些问题。</p>
+<p>有时，当添加一个新的特性时，您会不小心破坏现有的东西。由于您的产品现在变得越来越复杂，很难确保您检查了每一个可能的场景，以确保没有任何问题。</p>
+<p>您可能会保留一个需要注意的事项的列表，一个依赖关系的列表，这样您就知道哪些更改可能会潜在地影响代码的哪个部分。但是同样，手动操作会变得单调乏味，随着功能的增加，保持更新并确保每次都做好准备也变得有点麻烦。</p>
+<p>这正是测试的用武之地。</p>
+<p>您可以编写测试来确保每一个可能的场景都在运行，并且它们都如您的代码所预期的那样工作。使用一个简单的命令，您可以运行这些测试，所用的时间只是手动完成所有测试所需时间的一小部分。</p>
+<p>因为您可以编写一次测试，然后每次都运行它，所以您可以确保列表中没有项目被意外跳过。</p>
+<p>测试驱动开发(TDD)更进一步。思考TDD如何工作的一种方式是这样的:</p>
+<p>您通过编写测试来开始开发过程，甚至在实现一个特性之前。测试应该检查新特性在多个输入中是否如预期的那样工作。自然，由于实现尚不存在，测试将会失败。然后，您应该编写足够的代码来通过测试。</p>
+<p>所以，当你想在你的项目中添加一个新的特性时——比如说，一个用户注册功能——你首先会想到这个特性可能会遇到什么样的输入。然后，您将编写测试来检查这些输入是否给出了预期的输出，例如:</p>
+<ul>
+<li>如果名称输入为空，则出现错误</li>
+<li>另一个错误是，如果输入的名称超过了您可以接受的限制</li>
+<li>确保正确处理非拉丁Unicode字符的测试</li>
+<li>再进行一次测试，看看当所有输入都正确时，是否会创建一个新用户</li>
+</ul>
+<p>当然，注册功能本身还不存在，所以这些测试现在不会做任何事情。但是在编写这些测试的过程中，您已经确定了代码需要处理的各种情况，现在您有了测试来确保代码在编写后处理这些情况。</p>
+<p>下一步是编写足够通过这些测试的代码。这样，您就不会编写多余的代码，这些代码可能会被不必要地保存、遗忘、从未使用过。</p>
+<p>因为有了这些测试，每当您向一个新特性添加一些更改时，您可以确保它不会意外地破坏您现有的代码。此外，因为您总是在编写代码之前编写测试，所以您可以确保总是有测试来检查添加的代码是否按预期工作！</p>
+<p>此外，您可以在您的CI中添加各种步骤，以确保这些测试在每个pull请求上运行，并且只有当测试通过时，请求和更改才会被接受。这样，您就可以确保项目的主要分支在已知的输入和条件下始终正常工作。</p>
+<h2 id="exploring-types-testing">探索各种类型的测试</h2>
+<p>考虑到代码的多样性，测试代码的方法也是多种多样的。每种测试方法都有助于确保代码以不同的方式工作。例如，考虑<a href="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/">单元和集成测试</a>的不同用例。</p>
+<p>专注于组成整个应用程序的代码的小部分的测试被归类为单元测试。其他测试也可以将应用程序作为一个整体来考虑，并确保这些部分能够正确地协同工作。这些被归类为集成测试。</p>
+<h3 id="unit-tests">单元测试</h3>
+<p>顾名思义，<a href="https://blog.logrocket.com/unit-testing-node-js-applications-using-mocha-chai-and-sinon/">单元测试关注于</a>组成完整应用程序的单个小代码单元。这些测试检查对于给定的输入，单个单元产生正确的输出。</p>
+<p>例如，单元测试可以检查在DB中创建和存储用户的注册函数是否在传递空字符串作为名称时出错。您可以更进一步，编写单元测试来确保在调用<code>create</code>函数后，用户确实以正确的值存储在数据库中。</p>
+<p>您可以有多个测试，每个测试检查单独的、小的代码单元——甚至对相同的单元进行多个测试，测试不同的边缘条件。使用TDD，编写这些可以帮助您指出哪些单独的元素是需要的，以及它们对于不同的输入应该如何工作。</p>
+<p>单元测试将确保代码的每个单独部分都按预期工作。然而，系统作为一个整体仍然可能产生不正确的结果。</p>
+<p>考虑我们的注册函数示例。您可能已经检查了注册函数会根据需要抛出错误，并且DB会正确保存用户，但是应用程序作为一个整体可能无法创建新用户。这可能是因为您忘记了在应用程序启动时正确设置数据库。</p>
+<p>您对每个单独单元的测试将抽象出其余的参数。例如，当测试save函数时，您将为每个测试设置DB，然后再将其拆除。虽然测试没有给出任何失败，但是注册在应用程序本身中无法工作，因为您没有在实际的应用程序中正确地设置DB。</p>
+<p>为了确保应用程序作为一个整体按预期工作，您将需要集成测试。</p>
+<h3 id="integration-tests">集成测试</h3>
+<p>集成测试将您的应用程序视为一个整体，查看完整的系统，以确保各个较小的单元正确地组合在一起。</p>
+<p>这些测试并不关注单个单元，而是将它们视为黑盒。他们只关心确保对于给定的输入，系统作为一个整体给出适当的输出。</p>
+<p>例如，考虑之前的注册动作。一个集成测试将不会关心是否有一个单一的函数来验证输入和创建用户，或者多个函数一起工作来完成这个任务。</p>
+<p>相反，它将专注于确保在给出正确的注册输入后，用户可以稍后登录，而对于不正确的输入，尝试登录会给出适当的错误——例如<code>User does not exist</code>。</p>
+<p>这些测试对于确保较小代码单元中的任何更改不会在整个应用程序的体验中产生意想不到的后果非常重要。</p>
+<p>此外，还有其他类型的测试，如端到端测试，这涉及到在一个受控的环境中运行应用程序的完整副本，包括前端、后端、数据库和其他任何东西，以确保系统的所有移动部分都按预期工作。</p>
+<p>您可能已经注意到，不同类型的测试之间的界限有点模糊。根据代码的组织方式，一个应用程序可能考虑的集成测试可能是其他应用程序的单元测试，一个应用程序可能考虑端到端测试，另一个应用程序可能在他们的集成测试套件中运行。</p>
+<p>这里要注意的重要一点是，为了确保您的应用程序按预期工作，您需要在不同的粒度级别上测试它的每个单独部分以及所有部分的组合。</p>
+<p>当然，像许多事情一样，测试应用程序说起来容易做起来难，TDD可能并不总是最好的主意。让我们看看什么时候使用TDD有用，什么时候可能没用。</p>
+<h2 id="when-use-tdd">何时使用TDD</h2>
+<p>像任何其他技术一样，TDD只是开发人员工具箱中的另一个工具。开发人员必须判断用它来解决问题是否是件好事，并且尽量不要用锤子锯木头。</p>
+<p>我们现在将会看到一些关于TDD何时何地有用的指导方针，以及在哪些情况下它可能没有用。</p>
+<p>如前所述，在TDD中，我们从我们期望代码做什么开始，编写测试来确保代码做它期望做的事情，然后编写代码来做这些事情。自然地，如果我们对代码有好的、固定的规范和清晰的需求，编写测试就更容易了。</p>
+<p>在这种情况下，TDD是一个非常好的选择，因为它将帮助您确保代码不仅按预期工作，而且在引入任何更改时也能按预期工作。</p>
+<p>另一方面，如果来自代码的需求还不清楚，或者它们一直在变化，那么使用TDD可能不是一个好主意。</p>
+<h3 id="changing-requirements-why-tdd-not-useful">不断变化的需求:为什么使用TDD可能没有用</h3>
+<p>考虑之前的注册功能。开始时，您只希望表单接受用户的电子邮件和密码，验证它们，报告任何错误，并创建用户的帐户。</p>
+<p>然后，您意识到您还应该添加一个用户名字段，而不是随机生成一个，因此您进行了适当的更改并更新了测试。</p>
+<p>但是，您意识到每个用户名必须是唯一的，所以您编写了另一个测试来验证不允许重复用户名的规则，如果输入与现有用户名匹配，就会给出一个错误。</p>
+<p>后来要求变了；我们决定，多个用户可以输入相同的用户名，您只需在重复的用户名后面附加一个随机散列，使它们在您这边是唯一的。所以，你又更新了测试。</p>
+<p>但是后来出现了支持外部认证(比如OAuth)的需求，所以现在必须编写代码，并且必须再次更新测试。</p>
+<p>正如您可能已经注意到的那样，为以上任何一项编写测试都不是挑战。这里的问题是需求的不断变化，同时架构还没有固定下来。如果从一开始就确定了需求，您可能会在编写和更新测试上花费相当少的时间。</p>
+<p>这也增加了另一个考虑；即何时应该引入测试。</p>
+<p>如果我们试图在最开始的时候添加它们，当需求不固定时，它们将需要大量的工作来保持更新。然而，如果交付代码的需求超过了运行测试的需求，它们可能会被忽略，永远不会运行。</p>
+<p>另一方面，如果测试引入得太晚，项目的规模可能已经很大了，这意味着会有很多测试要添加。由于项目规模很大，团队可能会错过一些边缘案例，并且测试将需要大量的时间和资源来添加，导致他们被忽略，以利于编写实际的工作应用程序代码。</p>
+<p>保持测试的平衡是一件棘手的事情，既要足够早地添加测试，使项目不至于太大，又要足够晚地添加测试，使项目的规范在很大程度上是清晰和固定的。</p>
+<p>在另一种情况下，项目可能非常小，允许您舒适而彻底地手动跟踪所有执行路径。在这种情况下，编写测试可能会带来不必要的额外开销。</p>
+<p>对于这种简单的项目，最好在开始时跳过编写测试，而是随着项目的增长引入测试，以确保一切按预期运行。</p>
+<h2 id="brief-introduction-deno">Deno简介</h2>
+<p>Deno是一个Javascript运行时，与Node.js 有点类似。事实上，Node的创建者甚至帮助创建了Deno。将Deno与Node区分开来的一些功能包括:</p>
+<ul>
+<li>相同的JS，不同的运行时</li>
+<li>更严格的安全措施</li>
+<li>顶级等待</li>
+<li>现成的打字稿</li>
+<li>整合模块</li>
+</ul>
+<p>让我们更详细地回顾一下这些特性。</p>
+<p>Deno就像Node一样，是一个JavaScript运行时。任何不需要节点API的有效JS代码都可以在Deno上工作，就像在Node中一样。</p>
+<p>默认情况下，使用Deno运行的程序以类似沙箱的环境中所需的最低权限运行。这意味着，在默认情况下，如果没有单独的权限，它不能发出任何Internet请求、访问文件系统或运行任何后台进程，在运行Deno程序时，必须通过标志显式授予这些权限。</p>
+<p>与Node不同，在Deno中，您可以直接在顶层等待，而在顶层，您需要使用承诺或立即执行函数来编写异步代码。</p>
+<p>Deno可以运行TypeScript代码，不需要任何像Babel这样的中间transpiler先把你的TypeScript编译成JS。</p>
+<p>终于可以在各个单项项目中告别<code>node_modules</code>了！Deno将所需的模块缓存在一个地方，并在项目间重用它们。</p>
+<p>在下一节中，我们将深入探讨Deno如何支持原生测试；换句话说，您不必使用外部库来编写和运行测试。让我们从使用Deno内置的测试API编写简单的测试开始。</p>
+<h2 id="basic-deno-testing-inbuilt-api">使用内置API的基本Deno测试</h2>
+<p>首先，我们将为一个需要将用户数据存储在数据库中的应用程序编写一些简单的测试。这意味着将有添加、删除和更新用户的功能。出于演示的目的，我们将使用内存中的JS对象来模拟DB，而不是实际的DB。</p>
+<p>我们需要的第一个函数是<code>fetchUsers</code>，它应该根据用户与给定用户名的相似性来获取用户。出于我们的目的，我们只想获取用户名包含给定字符串的所有用户。</p>
+<p>根据TDD，我们需要首先考虑的情况是我们的函数应该返回:</p>
+<ul>
+<li>给定有效字符串时的适当用户</li>
+<li>如果给定一个空字符串，则不返回任何内容(否则将返回数据库中的所有用户)</li>
+<li>如果没有找到匹配的用户，则为空列表</li>
+</ul>
+<p>我们将从在测试文件中导入所需的模块开始:</p>
+<pre class="language-javascript hljs">import { assertEqual } from 'https://deno.land/std/testing/asserts.ts';
+import { fetchUsers } from './stubs.ts';
+</pre>
+<p>Deno的内置函数是用于断言的吗，有点像柴提供的。包含了我们所有的模拟API函数。</p>
+<p>在此之后，我们可以简单地使用<code>test</code> API来定义我们的测试，如下所示:</p>
+<pre class="language-javascript hljs">Deno.test('Testing user fetching',()=&gt;{
+    const name = 'testUser1';
+    const users = fetchUsers(name);
+    assertEquals(users.length,1);
+})
+</pre>
+<p>我们从调用<code>Deno.test</code>开始，将测试注册到Deno的运行时。我们给它起了一个描述性的名字<code>Testing User fetching</code>,以便在测试结果中更容易识别，也便于快速浏览时理解它的用途。</p>
+<p>然后，我们给我们的测试一个arrow函数，它将实际调用要测试的函数——在本例中是<code>fetchUsers</code>——并验证它的输出是否符合预期。在函数中，我们用<code>testUser1</code>的<code>name</code>调用了<code>fetchUsers</code>。我们希望它返回一个包含单个元素的数组，因为只有一个模拟用户的用户名包含该字符串。</p>
+<p>最后，我们用实际值(用一个<code>-</code>符号表示)和期望值(用一个<code>+</code>符号表示)来调用<code>assertEquals</code>。如果它们不相等，该函数将抛出一个<code>assertionError</code>，测试将失败。</p>
+<p>测试通过后，输出应该如下所示:</p>
+<pre class="language-javascript hljs">running 1 test from ./simple_test.ts
+testing user fetching ... ok (7ms)
+
+ok | 1 passed | 0 failed (30ms)
+</pre>
+<p>这显示了哪些测试是从哪个文件中运行的，每个测试花费了多少时间，多少测试通过，多少测试失败。</p>
+<p>如果测试失败了——比方说，因为<code>fetchUsers</code>没有正确实现或者模拟数据库没有正确填充——而是返回了一个空数组，我们将得到类似下面的输出:</p>
+<pre class="language-javascript hljs">running 1 test from ./simple_test.ts
+testing user fetching ... FAILED (9ms)
+
+ ERRORS 
+
+testing user fetching =&gt; ./simple_test.ts:6:6
+error: AssertionError: Values are not equal:
+
+
+    [Diff] Actual / Expected
+
+
+-   0
++   1
+
+  throw new AssertionError(message);
+        ^
+    at assertEquals (https://deno.land/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7e0d0a1a3e4e504f4b4b504e">[email protected]</a>/testing/asserts.ts:184:9)
+    at LogRocket-Blog-Code/tdd-in-deno/simple_test.ts:9:5
+
+ FAILURES 
+
+testing user fetching =&gt; ./simple_test.ts:6:6
+
+FAILED | 0 passed | 1 failed (32ms)
+
+error: Test failed
+</pre>
+<p>上面的输出显示来自文件<code>./simple_test.ts</code>的名为<code>test user fetching</code>的测试已经失败，失败是由于<code>assertEquals</code>抛出<code>assertionError</code>；它在预期值<code>1</code>处得到了实际值<code>0</code>。因此，我们可以看到到底有什么不同，我们可以尝试推理出哪里出错了。</p>
+<p>类似地，我们可以定义多个测试。如前所述，我们需要测试三个条件来测试我们的<code>fetchUsers</code>函数。我们可以为每个案例编写一个测试:</p>
+<pre class="language-javascript hljs">Deno.test('return empty array on empty string',()=&gt;{
+    const users = fetchUsers('');
+    assertEquals(users.length,0);
+});
+Deno.test('return all users matching given name',()=&gt;{
+    const users = fetchUsers('test');
+    assertEquals(users.length,3);
+    assertEquals(users[0].name,'testUser1');
+    assertEquals(users[1].name,'testUser2');
+    assertEquals(users[2].name,'testUser3');
+});
+Deno.test('return empty array on not matching name',()=&gt;{
+    const users = fetchUsers('abc');
+    assertEquals(users.length,0);
+})
+</pre>
+<p>给测试起一个描述性的名字可以帮助你快速理解它们的目的和预期的输出。当三个测试都通过时，您应该会看到类似如下的输出:</p>
+<pre class="language-javascript hljs">running 3 tests from ./simple_test.ts
+return empty array on empty string ... ok (5ms)
+return all users matching given name ... ok (4ms)
+return empty array on not matching name ... ok (4ms)
+
+ok | 3 passed | 0 failed (36ms)
+</pre>
+<p>这种方法允许我们编写简单的测试，不必为了运行而执行多个复杂的步骤。接下来，我们将看到如何在测试中使用Deno的step特性来编写这些测试。</p>
+<h2 id="step-by-step-testing-deno">Deno中的分步测试</h2>
+<p>当您必须在一个测试中执行多个复杂的操作并验证每个操作的结果时，将一个测试分成几个步骤会很有用。</p>
+<p>在这种情况下，使用与以前类似的简单方法编写测试，测试期间的一个操作失败将导致整个测试失败。这会让我们手忙脚乱地使用堆栈跟踪来找出测试失败的地方。</p>
+<p>相反，如果我们将每个操作及其断言编写为测试中它们自己的步骤，我们可以快速检查哪个特定的步骤失败了，以及该失败如何影响其他步骤。</p>
+<p>这里我们将考虑这样一种情况，我们希望以一种特定的方式更新用户:首先获取具有给定用户名的用户，然后更新一些数据并将其作为新用户插入到DB中，最后从DB中删除旧的用户数据。</p>
+<p>请注意，这不是用户更新的最佳实践，但对于我们的分步测试演示来说已经足够了。</p>
+<p>为了实现这个更新过程，我们必须首先获取一个用户，并断言我们已经得到了预期的结果。然后，我们必须更新数据并将其插入到DB中，断言存储了一个新用户。最后，我们必须删除旧的用户对象，并检查旧的用户对象是否不存在。</p>
+<p>作为测试函数给<code>Deno.test</code>的每个函数都有一个测试上下文参数。使用这些参数，我们可以通过调用<code>t.step</code>指定测试中的步骤，并将步骤名称和实际步骤作为一个函数:</p>
+<pre class="language-javascript hljs">import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
+import { fetchUsers,insertUser,deleteUser, User } from './stubs.ts';
+
+Deno.test('update User Name',async (t)=&gt;{
+    const name = 'testUser1';
+    const newName = 'testUserUpdated';
+    let user:User;
+
+    await t.step('fetch user',()=&gt;{
+        const temp = fetchUsers(name);
+        assertEquals(temp.length,1);
+        assertEquals(temp[0].name,name);
+        user = temp[0];
+    });
+    await t.step('update and store',()=&gt;{
+        const newUser:User = {
+            ...user,
+            name:newName,
+        }
+        insertUser(newUser);
+
+        let temp = fetchUsers(newName);
+        assertEquals(temp.length,1);
+        assertEquals(temp[0].name,newName);
+        assertEquals(temp[0].id,user.id);
+        assertEquals(temp[0].password,user.password);
+        temp = fetchUsers(name);
+        assertEquals(temp.length,1);
+        assertEquals(temp[0].name,name);
+    });
+    await t.step('delete old user data',()=&gt;{
+        deleteUser(user.name,user.id);
+        let temp = fetchUsers(name);
+        assertEquals(temp.length,0);
+        temp = fetchUsers(newName);
+        assertEquals(temp.length,1);
+    })
+})
+</pre>
+<p>注意，<code>t.step</code>是一个异步函数，在下一步调用它之前必须先调用<code>await</code>。上面将产生类似于下面的结果:</p>
+<pre class="language-javascript hljs">running 1 test from ./stepped_test.ts
+update User Name ...
+  fetch user ... ok (3ms)
+  update and store ... ok (3ms)
+  delete old user data ... ok (3ms)
+update User Name ... ok (15ms)
+
+ok | 1 passed (3 steps) | 0 failed (34ms)
+</pre>
+<p>在这里，我们可以看到，对于测试文件<code>stepped_test.ts</code>，运行了一个测试，它有三个步骤，每个步骤都通过了。</p>
+<h2 id="behavior-driven-testing-deno">Deno中的行为驱动测试</h2>
+<p>Deno还有一个BDD模块，它允许你以类似于Chai或Mocha等库的方式编写测试，并提供类似于<code>beforeEach</code>和<code>afterEach</code>的钩子。</p>
+<p>要使用BDD API，首先要导入它:</p>
+<pre class="language-javascript hljs">import {describe,it,afterEach,beforeEach} from "https://deno.land/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2457504064140a1511110a14">[email protected]</a>/testing/bdd.ts";
+import { assertEquals } from 'https://deno.land/std/testing/asserts.ts';
+</pre>
+<p>然后我们可以编写类似于这些库的测试:</p>
+<pre class="language-javascript hljs">import { fetchUsers,insertUser,deleteUser, User } from './stubs.ts';
+
+describe('User DB operations testing',()=&gt;{
+    it('fetches correct user based on username',()=&gt;{
+        const user = fetchUsers('testUser');
+        assertEquals(user.length,3);
+    });
+    it('inserts user correctly',()=&gt;{
+        const newUser:User ={
+            name:'newTestUser',
+            id:'newtestuser',
+            password:'newtestuser'
+        };
+        insertUser(newUser);
+        const user = fetchUsers('new');
+        assertEquals(user.length,1);
+        assertEquals(user[0].name, 'newTestUser');
+    });
+    it('deletes user correctly',()=&gt;{
+        deleteUser('newTestUser','newtestuser');
+        const user = fetchUsers('test');
+        assertEquals(user.length,3);
+    })
+});
+</pre>
+<p>上面的代码定义了一个名为<code>User DB operations testing</code>的测试套件，并在该套件中执行三个测试:获取用户、插入用户和删除用户。</p>
+<p>我们还可以使用<code>beforeEach</code>和<code>afterEach</code>定义一些在每个测试用例之前和之后运行的函数，以及使用<code>beforeAll</code>和<code>afterAll</code>定义在所有测试之前和之后运行的函数。这对于在每次测试前后设置和重置状态非常有用。</p>
+<p>例如，我们可能希望在每次测试后将数据库重置为空白，并在每次测试前用已知值填充它，这样我们就可以控制测试看到的数据。另一个例子是，如果测试需要一些资源，比如一个目录或某些文件，您可以使用<code>beforeAll</code>创建它们，并使用<code>afterAll</code>清理它们。</p>
+<p>在这里，我们将看到在模拟设置中设置和重置值的有用性。我们引入了一个<code>InventoryObject</code>，它存储了库存中某个商品的信息，以及它属于哪个用户。</p>
+<p>与之前的测试不同，在之前的测试中，我们直接在用户数据库上操作，在这个场景中，我们希望首先使用<code>getDefaultInventory</code>创建库存数据库的副本，然后使用它运行测试。</p>
+<p>为此，我们使用<code>beforeEach</code>来获取状态并为其设置一个内部变量，然后在<code>afterEach</code>中将该变量设置为一个空数组:</p>
+<pre class="language-javascript hljs">describe("Inventory operations", () =&gt; {
+  let inv:Array&lt;InventoryObject&gt;;
+  beforeEach(()=&gt;{
+    inv = getDefaultInventory();
+  });
+  afterEach(()=&gt;{
+    inv = [];
+  });
+  it('inserts object into inventory',()=&gt;{
+    insertIntoInventory(inv,{
+      ojbType:'book',
+      name:'just Another book',
+      id:4,
+      owner:'testUser3'
+    });
+    assertEquals(inv.length,4);
+    assertEquals(inv[3],{
+      ojbType:'book',
+      name:'just Another book',
+      id:4,
+      owner:'testUser3'
+    });
+  });
+
+  it('deletes object from inventory',()=&gt;{
+    inv = deleteFromInventory(inv,3);
+    assertEquals(inv.length,2);
+    const defaultInv = getDefaultInventory();
+    assertEquals(inv[0],defaultInv[0]);
+    assertEquals(inv[1],defaultInv[1]);
+  })
+
+});
+</pre>
+<p>这涵盖了使用Deno内置API编写测试的两种主要方式。在了解如何使用外部库(如Chai或Mocha)之前，我们将首先了解如何直接从Deno中获取代码覆盖信息。</p>
+<h2 id="getting-coverage-information-deno">从Deno获取覆盖信息</h2>
+<p>Deno提供了一种内置的方法，通过运行测试来生成代码覆盖率信息。为了生成这些信息，我们首先必须编写我们的测试，理想情况下应该覆盖代码中所有可能的路径。</p>
+<p>之后，我们可以简单地运行<code>deno test</code>并给它一个额外的标志:</p>
+<pre>--coverage=dir-name-to-store-info
+</pre>
+<p>Deno将运行测试，并使用给定的目录来存储覆盖信息。然后我们可以运行<code>deno coverage dir-name</code>，它打印出每个源文件的代码覆盖信息，如下所示:</p>
+<pre>cover LogRocket-Blog-Code/tdd-in-deno/stubs.ts ... 100.000% (65/65)
+</pre>
+<p>上面的打印结果显示，对于<code>stubs.ts</code>文件，测试已经运行了每个可能的代码行至少一次；因此，覆盖率是100%。</p>
+<p>在一些行从未在任何测试中运行的情况下，Deno也会在覆盖率信息中打印这些行。例如，如果我们用空字符串注释fetch用户测试，它将生成以下输出:</p>
+<pre>cover LogRocket-Blog-Code/tdd-in-deno/stubs.ts ... 95.385% (62/65)
+  54 |   if (name.length === 0) {
+  55 |     return [];
+  56 |   } else {
+</pre>
+<p>上面的打印结果告诉我们哪些代码行没有在测试中执行。</p>
+<p>注意，我们必须在再次生成覆盖数据之前删除<code>coverage dir</code>，因为Deno本身不会删除这个信息。如果不删除的话，先前运行的测试的覆盖率信息可能会与当前运行的混淆，所以给出的输出不一定是正确的。</p>
+<h2 id="using-external-libraries-chai-mocha-testing">使用Chai和Mocha等外部库进行测试</h2>
+<p>到目前为止，我们已经了解了如何使用Deno的内置API编写测试。但是，也许您习惯于使用外部库编写测试，或者您正在将一个节点项目转移到Deno，其中已经有用Chai和Mocha 编写的<a href="https://blog.logrocket.com/testing-node-js-mocha-chai/">测试，您希望在移植代码时使用这些测试作为验证。</a></p>
+<p>在这种情况下，Deno还允许使用其他库进行测试，而不需要我们做很多修改。</p>
+<p>要在Deno中使用外部库，我们只需导入它们，就像Deno内置的测试模块一样。请注意，如下所示的用于导入Chai的URL不同于用于Mocha的URL:</p>
+<pre class="language-javascript hljs">import chai from "https://cdn.skypack.dev/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f2919a939bb2c6dcc1dcc6">[email protected]</a>?dts";
+import { describe, it } from "https://deno.land/x/deno_mocha/mod.ts";
+const assert = chai.assert;
+const expect = chai.expect;
+</pre>
+<p>有了导入库的能力，我们可以轻松地编写和运行使用Chai和Mocha编写的测试。请参见下面的示例:</p>
+<pre class="language-javascript hljs">describe("User DB operations testing using chai/mocha", () =&gt; {
+  it("fetches correct user based on username", () =&gt; {
+    const user = fetchUsers("testUser");
+    assert(user.length === 3);
+  });
+
+  it("inserts user correctly", () =&gt; {
+    const newUser: User = {
+      name: "newTestUser",
+      id: "newtestuser",
+      password: "newtestuser",
+    };
+    insertUser(newUser);
+    const user = fetchUsers("new");
+    expect(user).to.have.lengthOf(1);
+    expect(user[0].name).to.be.a("string");
+    expect(user[0].name).to.equal("newTestUser");
+  });
+
+  it("deletes user correctly", () =&gt; {
+    deleteUser("newTestUser", "newtestuser");
+    const user = fetchUsers("test");
+    expect(user).to.have.lengthOf(3);
+  });
+});
+</pre>
+<p>这些测试的运行方式与其他测试相同:通过调用<code>deno test</code>。</p>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们从高层次上了解了什么是测试驱动开发，以及它如何对项目有用。我们已经探索了什么时候使用TDD是有益的，什么时候可能不是。</p>
+<p>关于Deno测试方法，我们已经看到了如何使用Deno的内置测试API编写和运行测试，以及如何从Deno获得代码覆盖信息。我们还看到了如何使用外部库(如Chai或Mocha)来运行测试。</p>
+<p>这方面的代码可以在Github repo 中找到。感谢您的阅读！</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

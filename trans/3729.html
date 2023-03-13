@@ -1,0 +1,1503 @@
+<html>
+<head>
+<title>Build a real-time chat app with Rust and React </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Rust和React构建一个实时聊天应用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/real-time-chat-app-rust-react/#0001-01-01">https://blog.logrocket.com/real-time-chat-app-rust-react/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如果你想开发一个既快速又可靠的实时聊天应用，可以考虑使用Rust和React。Rust以其速度和可靠性而闻名，而<a href="https://survey.stackoverflow.co/2022/#most-popular-technologies-webframe-prof"> React是构建用户界面最流行的前端框架之一</a>。</p>
+<p>在本文中，我们将演示如何使用Rust和React构建一个实时聊天应用程序，该应用程序提供聊天、检查用户状态和指示用户何时输入的功能。我们将使用WebSockets来实现双向的客户机-服务器通信。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="introduction-to-real-time-chat-applications">实时聊天应用简介</h2>
+<p>实时聊天应用程序允许用户通过文本、语音或视频进行实时交流。与电子邮件或即时消息等其他类型的通信相比，这种类型的应用程序允许更即时的消息传递。</p>
+<p>聊天应用程序必须实时工作有几个原因:</p>
+<ul>
+<li><strong>改进的性能</strong>:更即时的交流让对话更自然</li>
+<li><strong>更快的响应速度</strong>:实时功能改善了用户体验</li>
+<li><strong>卓越的可靠性</strong>:通过实时功能，减少了信息丢失或延迟的机会</li>
+</ul>
+<h2 id="introduction-to-websockets">WebSockets简介</h2>
+<p>WebSockets支持实时聊天应用程序中客户端和服务器之间的双向通信。使用Rust构建WebSocket服务器将使服务器能够处理大量连接而不会变慢。这是由于Rust的速度和可靠性。</p>
+<p>现在我们对WebSockets有了更好的理解，让我们开始构建我们的实时聊天应用程序吧！</p>
+<h2 id="getting-started">入门指南</h2>
+<p>首先，让我们回顾一些先决条件:</p>
+<ul>
+<li>Rust :确保你的电脑上安装了Rust。如果没有，使用下面的命令安装:<pre class="language-javascript hljs">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh // if you are in windows see more installation method here https://forge.rust-lang.org/infra/other-installation-methods.html</pre></li>
+<li><strong> React </strong>:确保您的环境为React开发做好了准备；如果您还没有React，请使用以下命令之一安装它:<pre class="language-javascript hljs">// on mac brew install node // on linux nvm install v14.10.0 // on windows you can download nodejs installer here https://nodejs.org/en/download/</pre></li>
+</ul>
+<p>接下来，运行以下命令，验证所有组件都已安装并正常工作:</p>
+<pre class="language-javascript hljs">rustc --version
+cargo --version
+node --version
+npm --version
+</pre>
+<h2 id="designing-the-real-time-chat-app-architecture">设计实时聊天应用程序架构</h2>
+<p>让我们为我们的实时聊天应用程序创建一些设计架构。我们将构建一个简单的服务器；我们的应用程序架构将涵盖以下特性:</p>
+<ul>
+<li><strong>聊天</strong>:两个用户之间通过直接信息交流</li>
+<li><strong>输入指示器</strong>:当用户开始输入聊天内容时通知接收者</li>
+<li><strong>用户状态</strong>:表示用户在线还是离线</li>
+</ul>
+<figure id="attachment_150938" aria-describedby="caption-attachment-150938" class="wp-caption aligncenter"><img data-attachment-id="150938" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/chat-app-architecture/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png" data-orig-size="730,413" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chat app architecture" data-image-description="" data-image-caption="&lt;p&gt;Real-time chat application system architecture.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture-300x170.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png" decoding="async" class="wp-image-150938 size-full jetpack-lazy-image" src="../Images/ca2f5d9d88a4a020534d64d29a426652.png" alt="Real-Time Chat App Architecture" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture-300x170.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="150938" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/chat-app-architecture/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png" data-orig-size="730,413" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Chat app architecture" data-image-description="" data-image-caption="&lt;p&gt;Real-time chat application system architecture.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture-300x170.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png" decoding="async" loading="lazy" class="wp-image-150938 size-full" src="../Images/ca2f5d9d88a4a020534d64d29a426652.png" alt="Real-Time Chat App Architecture" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture-300x170.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/chat-app-architecture.png"/></noscript><figcaption id="caption-attachment-150938" class="wp-caption-text">Real-time chat application system architecture.</figcaption></figure>
+<p>这种架构非常简单，易于遵循。它仅由几个组件组成:</p>
+<ul>
+<li>WebSocket服务器:这是我们应用程序中最重要的组件；它处理客户和房间之间的所有通信</li>
+<li>房间管理器:这个组件负责管理我们应用程序中的所有房间。它将创建、更新和删除房间。该组件将位于HTTP服务器上</li>
+<li>用户管理器:这个组件负责管理我们应用程序中的所有用户。它将创建、更新和删除用户。这个组件也将位于HTTP服务器上</li>
+<li>消息管理器:这个组件负责管理我们应用程序中的所有消息。它将创建、更新和删除消息。这个组件将位于WebSocket服务器和HTTP服务器上。它将用于存储从WebSockets传入的消息，并在用户通过Rest API打开聊天室时检索数据库中已经存在的所有消息</li>
+</ul>
+<h2 id="building-the-websocket-server-in-rust">在Rust中构建WebSocket服务器</h2>
+<p>我们可以用很多包来编写Rust中的WebSocket服务器。对于本教程，我们将使用<a href="https://actix.rs">Actix Web</a>；这是一个成熟的软件包，易于使用。</p>
+<p>首先，使用以下命令创建一个Rust项目:</p>
+<pre class="language-javascript hljs">cargo new rust-react-chat
+</pre>
+<p>接下来，将这个包添加到<code>Cargo.toml</code>文件中:</p>
+<pre class="language-javascript hljs">[package]
+name = "rust-react-chat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix = "0.13.0"
+actix-files = "0.6.2"
+actix-web = "4.2.1"
+actix-web-actors = "4.1.0"
+rand = "0.8.5"
+serde = "1.0.147"
+serde_json = "1.0.88"
+</pre>
+<p>现在，安装<code>diesel_cli</code>；我们将用它作为我们的ORM:</p>
+<pre class="language-javascript hljs">cargo install diesel_cli --no-default-features --features sqlite
+</pre>
+<p>项目结构应该是这样的:</p>
+<pre class="language-javascript hljs">.
+├── Cargo.lock
+├── Cargo.toml
+├── README.md
+├── chat.db
+├── .env
+└── src
+    ├── db.rs
+    ├── main.rs
+    ├── models.rs
+    ├── routes.rs
+    ├── schema.rs
+    ├── server.rs
+    └── session.rs
+└── static
+└── ui
+</pre>
+<p>现在，这里有一些关于文件夹的信息:</p>
+<ul>
+<li>这个文件夹包含了我们所有的Rust代码</li>
+<li>这个文件夹包含了我们所有的静态资产、HTML文件、JavaScript文件和图片</li>
+<li>这个文件夹包含了我们的React代码；稍后我们将把它编译成<code>static</code>文件，并导出到<code>static</code>文件夹</li>
+</ul>
+<p>接下来，让我们为WebSocket服务器编写入口点:</p>
+<pre class="language-javascript hljs">// src/main.rs
+#[macro_use]
+extern crate diesel;
+use actix::*;
+use actix_cors::Cors;
+use actix_files::Files;
+use actix_web::{web, http, App, HttpServer};
+use diesel::{
+    prelude::*,
+    r2d2::{self, ConnectionManager},
+};
+mod db;
+mod models;
+mod routes;
+mod schema;
+mod server;
+mod session;
+#[actix_web::main]
+async fn main() -&gt; std::io::Result&lt;()&gt; {
+    let server = server::ChatServer::new().start();
+    let conn_spec = "chat.db";
+    let manager = ConnectionManager::&lt;SqliteConnection&gt;::new(conn_spec);
+    let pool = r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
+    let server_addr = "127.0.0.1";
+    let server_port = 8080;
+    let app = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_origin("http://localhost:8080")
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
+        App::new()
+            .app_data(web::Data::new(server.clone()))
+            .app_data(web::Data::new(pool.clone()))
+            .wrap(cors)
+            .service(web::resource("/").to(routes::index))
+            .route("/ws", web::get().to(routes::chat_server))
+            .service(routes::create_user)
+            .service(routes::get_user_by_id)
+            .service(routes::get_user_by_phone)
+            .service(routes::get_conversation_by_id)
+            .service(routes::get_rooms)
+            .service(Files::new("/", "./static"))
+    })
+    .workers(2)
+    .bind((server_addr, server_port))?
+    .run();
+    println!("Server running at http://{server_addr}:{server_port}/");
+    app.await
+}
+</pre>
+<p>以下是我们正在使用的软件包的一些信息:</p>
+<ul>
+<li><code>actix_cors</code>:将用于调试UI；我们将接受来自<code>localhost:3000</code>或<code>localhost:8080</code>的帖子和请求</li>
+<li><code>actix_web</code>:针对Actix Web包中所有与HTTP相关的特性</li>
+<li><code>actix_files</code>:用于将静态文件嵌入到我们的一个路径中</li>
+<li><code>diesel</code>:将用于从我们的SQLite数据库中查询数据。如果您愿意，可以将它改为Postgres或MySQL</li>
+<li><code>serde_json</code>:将用于解析我们将发送给React应用程序的JSON数据</li>
+</ul>
+<h3 id="creating-the-routes">创建路线</h3>
+<p>现在让我们为我们的服务器创建路由。由于我们将使用REST HTTP和WebSocket服务器，因此可以很容易地将所有内容放在一个文件中。</p>
+<p>首先，添加我们需要的所有包:</p>
+<pre class="language-javascript hljs">// src/routes.rs
+use std::time::Instant;
+use actix::*;
+use actix_files::NamedFile;
+use actix_web::{get, post, web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web_actors::ws;
+use diesel::{
+    prelude::*,
+    r2d2::{self, ConnectionManager},
+};
+use serde_json::json;
+use uuid::Uuid;
+use crate::db;
+use crate::models;
+use crate::server;
+use crate::session;
+type DbPool = r2d2::Pool&lt;ConnectionManager&lt;SqliteConnection&gt;&gt;;
+</pre>
+<p>然后，添加一个将主页嵌入到根URL的路由:</p>
+<pre class="language-javascript hljs">// src/routes.rs
+pub async fn index() -&gt; impl Responder {
+    NamedFile::open_async("./static/index.html").await.unwrap()
+}
+</pre>
+<p>这是我们WebSocket服务器的入口点。现在它在<code>/ws</code>路线上，但是你可以把它改成你喜欢的任何路线名称。因为我们已经在<code>main.rs</code>文件中注册了我们需要的所有依赖项，所以我们可以将依赖项传递给函数参数，就像这样:</p>
+<pre class="language-javascript hljs">// src/routes.rs
+pub async fn chat_server(
+    req: HttpRequest,
+    stream: web::Payload,
+    pool: web::Data&lt;DbPool&gt;,
+    srv: web::Data&lt;Addr&lt;server::ChatServer&gt;&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    ws::start(
+        session::WsChatSession {
+            id: 0,
+            hb: Instant::now(),
+            room: "main".to_string(),
+            name: None,
+            addr: srv.get_ref().clone(),
+            db_pool: pool,
+        },
+        &amp;req,
+        stream
+    )
+}
+</pre>
+<p>接下来，我们需要向我们的路由添加一个REST API，以便获得必要的数据来使我们的聊天工作:</p>
+<pre class="language-javascript hljs">// src/routes.rs
+#[post("/users/create")]
+pub async fn create_user(
+    pool: web::Data&lt;DbPool&gt;,
+    form: web::Json&lt;models::NewUser&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    let user = web::block(move || {
+        let mut conn = pool.get()?;
+        db::insert_new_user(&amp;mut conn, &amp;form.username, &amp;form.phone)
+    })
+    .await?
+    .map_err(actix_web::error::ErrorUnprocessableEntity)?;
+    Ok(HttpResponse::Ok().json(user))
+}
+#[get("/users/{user_id}")]
+pub async fn get_user_by_id(
+    pool: web::Data&lt;DbPool&gt;,
+    id: web::Path&lt;Uuid&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    let user_id = id.to_owned();
+    let user = web::block(move || {
+        let mut conn = pool.get()?;
+        db::find_user_by_uid(&amp;mut conn, user_id)
+    })
+    .await?
+    .map_err(actix_web::error::ErrorInternalServerError)?;
+    if let Some(user) = user {
+        Ok(HttpResponse::Ok().json(user))
+    } else {
+        let res = HttpResponse::NotFound().body(
+            json!({
+                "error": 404,
+                "message": format!("No user found with phone: {id}")
+            })
+            .to_string(),
+        );
+        Ok(res)
+    }
+}
+#[get("/conversations/{uid}")]
+pub async fn get_conversation_by_id(
+    pool: web::Data&lt;DbPool&gt;,
+    uid: web::Path&lt;Uuid&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    let room_id = uid.to_owned();
+    let conversations = web::block(move || {
+        let mut conn = pool.get()?;
+        db::get_conversation_by_room_uid(&amp;mut conn, room_id)
+    })
+    .await?
+    .map_err(actix_web::error::ErrorInternalServerError)?;
+    if let Some(data) = conversations {
+        Ok(HttpResponse::Ok().json(data))
+    } else {
+        let res = HttpResponse::NotFound().body(
+            json!({
+                "error": 404,
+                "message": format!("No conversation with room_id: {room_id}")
+            })
+            .to_string(),
+        );
+        Ok(res)
+    }
+}
+#[get("/users/phone/{user_phone}")]
+pub async fn get_user_by_phone(
+    pool: web::Data&lt;DbPool&gt;,
+    phone: web::Path&lt;String&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    let user_phone = phone.to_string();
+    let user = web::block(move || {
+        let mut conn = pool.get()?;
+        db::find_user_by_phone(&amp;mut conn, user_phone)
+    })
+    .await?
+    .map_err(actix_web::error::ErrorInternalServerError)?;
+    if let Some(user) = user {
+        Ok(HttpResponse::Ok().json(user))
+    } else {
+        let res = HttpResponse::NotFound().body(
+            json!({
+                "error": 404,
+                "message": format!("No user found with phone: {}", phone.to_string())
+            })
+            .to_string(),
+        );
+        Ok(res)
+    }
+}
+#[get("/rooms")]
+pub async fn get_rooms(
+    pool: web::Data&lt;DbPool&gt;,
+) -&gt; Result&lt;HttpResponse, Error&gt; {
+    let rooms = web::block(move || {
+        let mut conn = pool.get()?;
+        db::get_all_rooms(&amp;mut conn)
+    })
+    .await?
+    .map_err(actix_web::error::ErrorInternalServerError)?;
+    if !rooms.is_empty() {
+        Ok(HttpResponse::Ok().json(rooms))
+    } else {
+        let res = HttpResponse::NotFound().body(
+            json!({
+                "error": 404,
+                "message": "No rooms available at the moment.",
+            })
+            .to_string(),
+        );
+        Ok(res)
+    }
+}
+</pre>
+<p>现在，让我们来处理WebSocket连接。首先，让我们再次导入我们需要的所有包:</p>
+<pre class="language-javascript hljs">// src/server.rs
+use std::collections::{HashMap, HashSet};
+use serde_json::json;
+use actix::prelude::*;
+use rand::{self, rngs::ThreadRng, Rng};
+use crate::session;
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Message(pub String);
+#[derive(Message)]
+#[rtype(usize)]
+pub struct Connect {
+    pub addr: Recipient&lt;Message&gt;,
+}
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Disconnect {
+    pub id: usize,
+}
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct ClientMessage {
+    pub id: usize,
+    pub msg: String,
+    pub room: String,
+}
+pub struct ListRooms;
+impl actix::Message for ListRooms {
+    type Result = Vec&lt;String&gt;;
+}
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Join {
+    pub id: usize,
+    pub name: String,
+}
+</pre>
+<p>接下来，让我们实现trait来管理WebSocket连接。这段代码将处理来自用户的所有消息，并将它们发送回聊天室的参与者:</p>
+<pre class="language-javascript hljs">// src/server.rs
+#[derive(Debug)]
+pub struct ChatServer {
+    sessions: HashMap&lt;usize, Recipient&lt;Message&gt;&gt;,
+    rooms: HashMap&lt;String, HashSet&lt;usize&gt;&gt;,
+    rng: ThreadRng,
+}
+impl ChatServer {
+    pub fn new() -&gt; ChatServer {
+        let mut rooms = HashMap::new();
+        rooms.insert("main".to_string(), HashSet::new());
+        Self {
+            sessions: HashMap::new(),
+            rooms,
+            rng: rand::thread_rng()
+        }
+    }
+    fn send_message(&amp;self, room: &amp;str, message: &amp;str, skip_id: usize) {
+        if let Some(sessions) = self.rooms.get(room) {
+            for id in sessions {
+                if *id != skip_id {
+                    if let Some(addr) = self.sessions.get(id) {
+                        addr.do_send(Message(message.to_owned()));
+                    }
+                }
+            }
+        }
+    }
+}
+impl Actor for ChatServer {
+    type Context = Context&lt;Self&gt;;
+}
+impl Handler&lt;Connect&gt; for ChatServer {
+    type Result = usize;
+    fn handle(&amp;mut self, msg: Connect, _: &amp;mut Context&lt;Self&gt;) -&gt; Self::Result {
+        let id = self.rng.gen::&lt;usize&gt;();
+        self.sessions.insert(id, msg.addr);
+        self.rooms
+            .entry("main".to_string())
+            .or_insert_with(HashSet::new)
+            .insert(id);
+        self.send_message("main", &amp;json!({
+            "value": vec![format!("{}", id)],
+            "chat_type": session::ChatType::CONNECT
+        }).to_string(), 0);
+        id
+    }
+}
+impl Handler&lt;Disconnect&gt; for ChatServer {
+    type Result = ();
+    fn handle(&amp;mut self, msg: Disconnect, _: &amp;mut Self::Context) -&gt; Self::Result {
+        let mut rooms: Vec&lt;String&gt; = vec![];
+        if self.sessions.remove(&amp;msg.id).is_some() {
+            for (name, sessions) in &amp;mut self.rooms {
+                if sessions.remove(&amp;msg.id) {
+                    rooms.push(name.to_owned());
+                }
+            }
+        }
+        for room in rooms {
+            self.send_message("main", &amp;json!({
+                "room": room,
+                "value": vec![format!("Someone disconnect!")],
+                "chat_type": session::ChatType::DISCONNECT
+            }).to_string(), 0);
+        }
+    }
+}
+impl Handler&lt;ClientMessage&gt; for ChatServer {
+    type Result = ();
+    fn handle(&amp;mut self, msg: ClientMessage, _: &amp;mut Self::Context) -&gt; Self::Result {
+        self.send_message(&amp;msg.room, &amp;msg.msg, msg.id);
+    }
+}
+impl Handler&lt;ListRooms&gt; for ChatServer {
+    type Result = MessageResult&lt;ListRooms&gt;;
+    fn handle(&amp;mut self, _: ListRooms, _: &amp;mut Self::Context) -&gt; Self::Result {
+        let mut rooms = vec![];
+        for key in self.rooms.keys() {
+            rooms.push(key.to_owned());
+        }
+        MessageResult(rooms)
+    }
+}
+impl Handler&lt;Join&gt; for ChatServer {
+    type Result = ();
+    fn handle(&amp;mut self, msg: Join, _: &amp;mut Self::Context) -&gt; Self::Result {
+        let Join {id, name} = msg;
+        let mut rooms = vec![];
+        for (n, sessions) in &amp;mut self.rooms {
+            if sessions.remove(&amp;id) {
+                rooms.push(n.to_owned());
+            }
+        }
+        for room in rooms {
+            self.send_message(&amp;room, &amp;json!({
+                "room": room,
+                "value": vec![format!("Someone disconnect!")],
+                "chat_type": session::ChatType::DISCONNECT
+            }).to_string(), 0);
+        }
+        self.rooms
+            .entry(name.clone())
+            .or_insert_with(HashSet::new)
+            .insert(id);
+    }
+}
+</pre>
+<h3 id="handling-the-user-session">处理用户会话</h3>
+<p>现在，让我们处理用户会话。在这里，我们将接收一条消息，将其保存到数据库中，然后将其发送回聊天室中的参与者。</p>
+<p>首先，导入所有包:</p>
+<pre class="language-javascript hljs">// src/session.rs
+use std::time::{Duration, Instant};
+use actix::prelude::*;
+use actix_web::web;
+use actix_web_actors::ws;
+use serde::{Deserialize, Serialize};
+use diesel::{
+    prelude::*,
+    r2d2::{self, ConnectionManager},
+};
+use crate::db;
+use crate::models::NewConversation;
+use crate::server;
+</pre>
+<p>您可以在此处更改连接到WebSocket的持续时间。因此<code>HEARTBEAT</code>是保持与客户端连接的持续时间。并且<code>CLIENT_TIMEOUT</code>是检查客户端是否仍然连接的持续时间:</p>
+<pre class="language-javascript hljs">// src/session.rs
+const HEARBEET: Duration = Duration::from_secs(5);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+type DbPool = r2d2::Pool&lt;ConnectionManager&lt;SqliteConnection&gt;&gt;;
+</pre>
+<p>现在让我们创建一些结构来存储我们需要的所有数据:</p>
+<pre class="language-javascript hljs">// src/session.rs
+#[derive(Debug)]
+pub struct WsChatSession {
+    pub id: usize,
+    pub hb: Instant,
+    pub room: String,
+    pub name: Option&lt;String&gt;,
+    pub addr: Addr&lt;server::ChatServer&gt;,
+    pub db_pool: web::Data&lt;DbPool&gt;,
+}
+#[derive(PartialEq, Serialize, Deserialize)]
+pub enum ChatType {
+    TYPING,
+    TEXT,
+    CONNECT,
+    DISCONNECT,
+}
+#[derive(Serialize, Deserialize)]
+struct ChatMessage {
+    pub chat_type: ChatType,
+    pub value: Vec&lt;String&gt;,
+    pub room_id: String,
+    pub user_id: String,
+    pub id: usize,
+}
+</pre>
+<p>此结构将用于以下用途:</p>
+<ul>
+<li><code>WsChatSession</code>:定制Actix Web actor的实现</li>
+<li><code>ChatMessage</code>:定义发送给用户和从用户接收的对象</li>
+</ul>
+<p>现在，让我们实现我们会话的<code>Actor</code>和流<code>Handler</code>:</p>
+<pre class="language-javascript hljs">// src/session.rs
+impl Actor for WsChatSession {
+    type Context = ws::WebsocketContext&lt;Self&gt;;
+    fn started(&amp;mut self, ctx: &amp;mut Self::Context) {
+        self.hb(ctx);
+        let addr = ctx.address();
+        self.addr
+            .send(server::Connect {
+                addr: addr.recipient(),
+            })
+            .into_actor(self)
+            .then(|res, act, ctx| {
+                match res {
+                    Ok(res) =&gt; act.id = res,
+                    _ =&gt; ctx.stop(),
+                }
+                fut::ready(())
+            })
+            .wait(ctx);
+    }
+    fn stopping(&amp;mut self, _: &amp;mut Self::Context) -&gt; Running {
+        self.addr.do_send(server::Disconnect { id: self.id });
+        Running::Stop
+    }
+}
+impl Handler&lt;server::Message&gt; for WsChatSession {
+    type Result = ();
+    fn handle(&amp;mut self, msg: server::Message, ctx: &amp;mut Self::Context) -&gt; Self::Result {
+        ctx.text(msg.0);
+    }
+}
+impl StreamHandler&lt;Result&lt;ws::Message, ws::ProtocolError&gt;&gt; for WsChatSession {
+    fn handle(&amp;mut self, item: Result&lt;ws::Message, ws::ProtocolError&gt;, ctx: &amp;mut Self::Context) {
+        let msg = match item {
+            Err(_) =&gt; {
+                ctx.stop();
+                return;
+            }
+            Ok(msg) =&gt; msg,
+        };
+        match msg {
+            ws::Message::Ping(msg) =&gt; {
+                self.hb = Instant::now();
+                ctx.pong(&amp;msg);
+            }
+            ws::Message::Pong(_) =&gt; {
+                self.hb = Instant::now();
+            }
+            ws::Message::Text(text) =&gt; {
+                let data_json = serde_json::from_str::&lt;ChatMessage&gt;(&amp;text.to_string());
+                if let Err(err) = data_json {
+                    println!("{err}");
+                    println!("Failed to parse message: {text}");
+                    return;
+                }
+                let input = data_json.as_ref().unwrap();
+                match &amp;input.chat_type {
+                    ChatType::TYPING =&gt; {
+                        let chat_msg = ChatMessage {
+                            chat_type: ChatType::TYPING,
+                            value: input.value.to_vec(),
+                            id: self.id,
+                            room_id: input.room_id.to_string(),
+                            user_id: input.user_id.to_string(),
+                        };
+                        let msg = serde_json::to_string(&amp;chat_msg).unwrap();
+                        self.addr.do_send(server::ClientMessage {
+                            id: self.id,
+                            msg,
+                            room: self.room.clone(),
+                        })
+                    }
+                    ChatType::TEXT =&gt; {
+                        let input = data_json.as_ref().unwrap();
+                        let chat_msg = ChatMessage {
+                            chat_type: ChatType::TEXT,
+                            value: input.value.to_vec(),
+                            id: self.id,
+                            room_id: input.room_id.to_string(),
+                            user_id: input.user_id.to_string(),
+                        };
+                        let mut conn = self.db_pool.get().unwrap();
+                        let new_conversation = NewConversation {
+                            user_id: input.user_id.to_string(),
+                            room_id: input.room_id.to_string(),
+                            message: input.value.join(""),
+                        };
+                        let _ = db::insert_new_conversation(&amp;mut conn, new_conversation);
+                        let msg = serde_json::to_string(&amp;chat_msg).unwrap();
+                        self.addr.do_send(server::ClientMessage {
+                            id: self.id,
+                            msg,
+                            room: self.room.clone(),
+                        })
+                    }
+                    _ =&gt; {}
+                }
+            }
+            ws::Message::Binary(_) =&gt; println!("Unsupported binary"),
+            ws::Message::Close(reason) =&gt; {
+                ctx.close(reason);
+                ctx.stop();
+            }
+            ws::Message::Continuation(_) =&gt; {
+                ctx.stop();
+            }
+            ws::Message::Nop =&gt; (),
+        }
+    }
+}
+impl WsChatSession {
+    fn hb(&amp;self, ctx: &amp;mut ws::WebsocketContext&lt;Self&gt;) {
+        ctx.run_interval(HEARBEET, |act, ctx| {
+            if Instant::now().duration_since(act.hb) &gt; CLIENT_TIMEOUT {
+                act.addr.do_send(server::Disconnect { id: act.id });
+                ctx.stop();
+                return;
+            }
+            ctx.ping(b"");
+        });
+    }
+}
+</pre>
+<h2 id="preparing-the-database-with-sqlite">准备数据库</h2>
+<p>接下来，让我们准备数据库。我们将使用SQLite来简化事情。下面是该模式的外观:</p>
+<p><img data-attachment-id="150940" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/database-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png" data-orig-size="730,455" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Database query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png" decoding="async" class="aligncenter wp-image-150940 size-full jetpack-lazy-image" src="../Images/06dcf2073030b0fa5e932c4b9b51ede8.png" alt="SQLite Database Query Schema" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/database-query-300x187.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="150940" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/database-query/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png" data-orig-size="730,455" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Database query" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query-300x187.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png" decoding="async" loading="lazy" class="aligncenter wp-image-150940 size-full" src="../Images/06dcf2073030b0fa5e932c4b9b51ede8.png" alt="SQLite Database Query Schema" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/database-query-300x187.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/database-query.png"/></noscript>
+<p>该表将用于以下目的:</p>
+<ul>
+<li><code>users</code>:存储用户数据。由于我们目前没有实现完整的身份验证系统，我们现在只保存用户名和电话号码</li>
+<li><code>rooms</code>:存储所有聊天室列表</li>
+<li>列出所有信息在我们数据库中的存储位置</li>
+</ul>
+<p>接下来，让我们为我们的模式生成数据库迁移:</p>
+<pre class="language-javascript hljs">// shell
+diesel migration generate create_users
+diesel migration generate create_rooms
+diesel migration generate create_conversations
+</pre>
+<p>下面是迁移SQL的外观:</p>
+<pre class="language-javascript hljs">-- migrations/2022-11-21-101206_create_users/up.sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY NOT NULL,
+  username VARCHAR NOT NULL,
+  phone VARCHAR NOT NULL,
+  created_at TEXT NOT NULL,
+  unique(phone)
+)
+
+-- migrations/2022-11-21-101215_create_rooms/up.sql
+CREATE TABLE rooms (
+  id TEXT PRIMARY KEY NOT NULL,
+  name VARCHAR NOT NULL,
+  last_message TEXT NOT NULL,
+  participant_ids TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)
+
+-- migrations/2022-11-21-101223_create_conversations/up.sql
+CREATE TABLE conversations (
+  id TEXT PRIMARY KEY NOT NULL,
+  room_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  content VARCHAR NOT NULL,
+  created_at TEXT NOT NULL
+)
+</pre>
+<p>我们还需要添加一些虚拟数据，以便稍后为客户端提供一些初始渲染示例:</p>
+<pre class="language-javascript hljs">diesel migration generate dummy_data
+</pre>
+<p>下面是数据的样子:</p>
+<pre class="language-javascript hljs">-- migrations/2022-11-24-034153_generate_dummy_data/up.sql
+INSERT INTO users(id, username, phone, created_at) 
+VALUES
+("4fbd288c-d3b2-4f78-adcf-def976902d50","Ahmad Rosid","123","2022-11-23T07:56:30.214162+00:00"),
+("1e9a12c1-e98c-4a83-a55a-32cc548a169d","Ashley Young","345","2022-11-23T07:56:30.214162+00:00"),
+("1bc833808-05ed-455a-9d26-64fe1d96d62d","Charles Edward","678","2022-12-23T07:56:30.214162+00:00");
+INSERT INTO rooms(id, name, last_message, participant_ids, created_at)
+VALUES
+("f061383b-0393-4ce8-9a85-f31d03762263", "Charles Edward", "Hi, how are you?", "1e9a12c1-e98c-4a83-a55a-32cc548a169d,1bc833808-05ed-455a-9d26-64fe1d96d62d", "2022-12-23T07:56:30.214162+00:00"),
+("008e9dc4-f01d-4429-ba31-986d7e63cce8", "Ahmad Rosid", "Hi... are free today?", "1e9a12c1-e98c-4a83-a55a-32cc548a169d,1bc833808-05ed-455a-9d26-64fe1d96d62d", "2022-12-23T07:56:30.214162+00:00");
+INSERT INTO conversations(id, user_id, room_id, content, created_at)
+VALUES
+("9aeab1a7-e063-40d1-a120-1f7585fa47d6", "1bc833808-05ed-455a-9d26-64fe1d96d62d", "f061383b-0393-4ce8-9a85-f31d03762263", "Hello", "2022-12-23T07:56:30.214162+00:00"),
+("f4e54e70-736b-4a79-a622-3659b0b555e8", "1e9a12c1-e98c-4a83-a55a-32cc548a169d", "f061383b-0393-4ce8-9a85-f31d03762263", "Hi, how are you?", "2022-12-23T07:56:30.214162+00:00"),
+("d3ea6e39-ed58-4613-8922-b78f14a2676a", "1bc833808-05ed-455a-9d26-64fe1d96d62d", "008e9dc4-f01d-4429-ba31-986d7e63cce8", "Hi... are free today?", "2022-12-23T07:56:30.214162+00:00");
+</pre>
+<h3 id="generating-the-schema">生成模式</h3>
+<p>现在让我们生成模式并运行迁移:</p>
+<pre class="language-javascript hljs">diesel database setup
+diesel migration run   
+</pre>
+<p>CLI自动生成的模式如下所示:</p>
+<pre class="language-javascript hljs">// src/schema.rs
+// @generated automatically by Diesel CLI.
+diesel::table! {
+    conversations (id) {
+        id -&gt; Text,
+        room_id -&gt; Text,
+        user_id -&gt; Text,
+        content -&gt; Text,
+        created_at -&gt; Text,
+    }
+}
+diesel::table! {
+    rooms (id) {
+        id -&gt; Text,
+        name -&gt; Text,
+        last_message -&gt; Text,
+        participant_ids -&gt; Text,
+        created_at -&gt; Text,
+    }
+}
+diesel::table! {
+    users (id) {
+        id -&gt; Text,
+        username -&gt; Text,
+        phone -&gt; Text,
+        created_at -&gt; Text,
+    }
+}
+diesel::allow_tables_to_appear_in_same_query!(
+    conversations,
+    rooms,
+    users,
+);
+</pre>
+<p>上面的代码是自动生成的，所以不要对这个文件做任何修改。</p>
+<h3 id="creating-the-structs">创建struts</h3>
+<p>让我们创建一些结构来存储所有的表。需要记住的一点是，属性在结构中的顺序应该与在架构文件中的顺序相同。如果订单不符，你会得到错误的数据。</p>
+<pre class="language-javascript hljs">// src/model.rs
+use serde::{Deserialize, Serialize};
+use crate::schema::*;
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Insertable)]
+pub struct User {
+    pub id: String,
+    pub username: String,
+    pub phone: String,
+    pub created_at: String
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Queryable, Insertable)]
+pub struct Conversation {
+    pub id: String,
+    pub room_id: String,
+    pub user_id: String,
+    pub content: String,
+    pub created_at: String
+}
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Insertable)]
+pub struct Room {
+    pub id: String,
+    pub name: String,
+    pub last_message: String,
+    pub participant_ids: String,
+    pub created_at: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewUser {
+    pub username: String,
+    pub phone: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewConversation {
+    pub user_id: String,
+    pub room_id: String,
+    pub message: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoomResponse {
+    pub room: Room,
+    pub users: Vec&lt;User&gt;,
+}
+</pre>
+<h3 id="setting-up-the-queries">设置查询</h3>
+<p>现在，让我们从数据库中获取数据。</p>
+<p>首先，导入依赖项:</p>
+<pre class="language-javascript hljs">// src/db.rs
+use chrono::{DateTime, Utc};
+use diesel::prelude::*;
+use std::{
+    collections::{HashMap, HashSet},
+    time::SystemTime,
+};
+use uuid::Uuid;
+use crate::models::{Conversation, NewConversation, Room, RoomResponse, User};
+type DbError = Box&lt;dyn std::error::Error + Send + Sync&gt;;
+</pre>
+<p>由于SQLite没有日期功能构建，我们将创建一个:</p>
+<pre class="language-javascript hljs">// src/db.rs
+fn iso_date() -&gt; String {
+    let now = SystemTime::now();
+    let now: DateTime&lt;Utc&gt; = now.into();
+    return now.to_rfc3339();
+}
+</pre>
+<h4 id="finding-users-by-phone-number">通过电话号码查找用户</h4>
+<p>这里，我们将设置一个查询，该查询将实现一个简单的登录特性，并使我们能够通过电话号码找到用户。我们使用这种登录方法只是作为一个例子。在生产中，您会希望使用一种易于验证和调试的方法:</p>
+<pre class="language-javascript hljs">// src/db.rs
+pub fn find_user_by_phone(
+    conn: &amp;mut SqliteConnection,
+    user_phone: String,
+) -&gt; Result&lt;Option&lt;User&gt;, DbError&gt; {
+    use crate::schema::users::dsl::*;
+    let user = users
+        .filter(phone.eq(user_phone))
+        .first::&lt;User&gt;(conn)
+        .optional()?;
+    Ok(user)
+}
+</pre>
+<h4 id="adding-a-new-user">添加新用户</h4>
+<p>这里有一个查询，用于存储注册我们应用程序的新用户。这也是我们认证系统的一部分。同样，请不要将这种方法用于您的生产应用程序:</p>
+<pre class="language-javascript hljs">// src/db.rs
+pub fn insert_new_user(conn: &amp;mut SqliteConnection, nm: &amp;str, pn: &amp;str) -&gt; Result&lt;User, DbError&gt; {
+    use crate::schema::users::dsl::*;
+    let new_user = User {
+        id: Uuid::new_v4().to_string(),
+        username: nm.to_owned(),
+        phone: pn.to_owned(),
+        created_at: iso_date(),
+    };
+    diesel::insert_into(users).values(&amp;new_user).execute(conn)?;
+    Ok(new_user)
+}
+</pre>
+<p>添加新用户后，我们现在插入新对话:</p>
+<pre class="language-javascript hljs">// src/db.rs
+pub fn insert_new_conversation(
+    conn: &amp;mut SqliteConnection,
+    new: NewConversation,
+) -&gt; Result&lt;Conversation, DbError&gt; {
+    use crate::schema::conversations::dsl::*;
+    let new_conversation = Conversation {
+        id: Uuid::new_v4().to_string(),
+        user_id: new.user_id,
+        room_id: new.room_id,
+        content: new.message,
+        created_at: iso_date(),
+    };
+    diesel::insert_into(conversations)
+        .values(&amp;new_conversation)
+        .execute(conn)?;
+    Ok(new_conversation)
+}
+</pre>
+<h4 id="finding-chat-rooms-and-participants">查找聊天室和参与者</h4>
+<p>接下来，让我们设置一个查询，从数据库中获取所有聊天室和参与者:</p>
+<pre class="language-javascript hljs">// src/db.rs
+pub fn get_all_rooms(conn: &amp;mut SqliteConnection) -&gt; Result&lt;Vec&lt;RoomResponse&gt;, DbError&gt; {
+    use crate::schema::rooms;
+    use crate::schema::users;
+    let rooms_data: Vec&lt;Room&gt; = rooms::table.get_results(conn)?;
+    let mut ids = HashSet::new();
+    let mut rooms_map = HashMap::new();
+    let data = rooms_data.to_vec();
+    for room in &amp;data {
+        let user_ids = room
+            .participant_ids
+            .split(",")
+            .into_iter()
+            .collect::&lt;Vec&lt;_&gt;&gt;();
+        for id in user_ids.to_vec() {
+            ids.insert(id.to_string());
+        }
+        rooms_map.insert(room.id.to_string(), user_ids.to_vec());
+    }
+    let ids = ids.into_iter().collect::&lt;Vec&lt;_&gt;&gt;();
+    let users_data: Vec&lt;User&gt; = users::table
+        .filter(users::id.eq_any(ids))
+        .get_results(conn)?;
+    let users_map: HashMap&lt;String, User&gt; = HashMap::from_iter(
+        users_data
+            .into_iter()
+            .map(|item| (item.id.to_string(), item)),
+    );
+    let response_rooms = rooms_data.into_iter().map(|room| {
+        let users = rooms_map
+            .get(&amp;room.id.to_string())
+            .unwrap()
+            .into_iter()
+            .map(|id| users_map.get(id.to_owned()).unwrap().clone())
+            .collect::&lt;Vec&lt;_&gt;&gt;();
+        return RoomResponse{ room, users };
+    }).collect::&lt;Vec&lt;_&gt;&gt;();
+    Ok(response_rooms)
+}
+</pre>
+<h2 id="building-the-client-ui-with-react">用React构建客户端UI</h2>
+<p>让我们为我们的客户端应用程序设计一个用户界面；最终结果将如下所示:</p>
+<p><img data-attachment-id="150942" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/client-ui-end-result/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Client UI end result" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png" decoding="async" class="aligncenter wp-image-150942 size-full jetpack-lazy-image" src="../Images/72c691484845f8cd3baadeb653c283ac.png" alt="CHat App Client UI Built with React" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result-300x191.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="150942" data-permalink="https://blog.logrocket.com/real-time-chat-app-rust-react/attachment/client-ui-end-result/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png" data-orig-size="730,464" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Client UI end result" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result-300x191.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png" decoding="async" loading="lazy" class="aligncenter wp-image-150942 size-full" src="../Images/72c691484845f8cd3baadeb653c283ac.png" alt="CHat App Client UI Built with React" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result-300x191.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/client-ui-end-result.png"/></noscript>
+<p>首先，用Next.js创建一个UI项目:</p>
+<pre class="language-javascript hljs">yarn create next-app --js ui
+</pre>
+<p>将顺风CSS添加到项目中:</p>
+<pre class="language-javascript hljs">npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+</pre>
+<p>现在，更改顺风<code>config</code>文件:</p>
+<pre class="language-javascript hljs">// ui/tailwind.config.js
+content: [
+  "./pages/**/*.{js,ts,jsx,tsx}",
+  "./components/**/*.{js,ts,jsx,tsx}",
+]
+</pre>
+<p>我们将添加这个<code>package.json</code>配置，以便将我们的Next.js应用程序导出为静态HTML页面，这样我们就可以使用Actix Web通过文件服务器访问它们:</p>
+<pre class="language-javascript hljs">// ui/package.json
+{
+  "name": "ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build &amp;&amp; next export -o ../static",
+...
+</pre>
+<p>接下来，将Tailwind CSS实用程序导入到<code>globals.css</code>文件中:</p>
+<pre class="language-javascript hljs">// ui/styles/global.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</pre>
+<p>现在，让我们为我们的客户端应用程序创建一些组件。</p>
+<h3 id="avatar-component"><code>avatar</code>组件</h3>
+<p>在这里，我们将为每个用户创建头像:</p>
+<pre class="language-javascript hljs">// ui/components/avatar.js
+function getShortName(full_name = '') {
+    if (full_name.includes(" ")) {
+        const names = full_name.split(" ");
+        return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase()
+    }
+    return `${full_name.slice(0,2)}`.toUpperCase()
+}
+export default function Avatar({ children, color = '' }) {
+  return (
+    &lt;div className='bg-blue-500 w-[45px] h-[45px] flex items-center justify-center rounded-full' style={{backgroundColor: color}}&gt;
+      &lt;span className='font-bold text-sm text-white'&gt;{getShortName(children)}&lt;/span&gt;
+    &lt;/div&gt;
+  )
+}
+</pre>
+<h3 id="login-component"><code>login</code>组件</h3>
+<p>在这里，我们将创建用户登录组件:</p>
+<pre class="language-javascript hljs">// ui/components/login.js
+import { useState } from "react";
+async function createAccount({ username, phone }) {
+    try {
+        const url = "http://localhost:8080/users/create";
+        let result = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ username, phone })
+        });
+        return result.json();
+    } catch (e) {
+        return Promise.reject(e);
+    }
+}
+async function signIn({ phone }) {
+    try {
+        const url = "http://localhost:8080/users/phone/" + phone;
+        let result = await fetch(url);
+        return result.json();
+    } catch (e) {
+        return Promise.reject(e);
+    }
+}
+export default function Login({ show, setAuth }) {
+    const [isShowSigIn, setShowSignIn] = useState(false);
+    const showSignIn = () =&gt; {
+        setShowSignIn(prev =&gt; !prev)
+    }
+    const FormCreateUsername = ({ setAuth }) =&gt; {
+        const onCreateUsername = async (e) =&gt; {
+            e.preventDefault();
+            let username = e.target.username.value;
+            let phone = e.target.phone.value;
+            if (username === "" || phone === "") {
+                return;
+            }
+            let res = await createAccount({ username, phone });
+            if (res === null) {
+                alert("Failed to create account");
+                return;
+            }
+            setAuth(res)
+        }
+        return (
+            &lt;form action="" className="mt-4 space-y-2" onSubmit={onCreateUsername}&gt;
+                &lt;div&gt;
+                    &lt;label className="text-sm font-light"&gt;Username&lt;/label&gt;
+                    &lt;input required type="text" name="username" placeholder="John Doe"
+                        className="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600" /&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                    &lt;label className="text-sm font-light"&gt;Phone&lt;/label&gt;
+                    &lt;input required type="text" name="phone" placeholder="+1111..."
+                        className="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600" /&gt;
+                &lt;/div&gt;
+                &lt;div className="flex items-baseline justify-between"&gt;
+                    &lt;button type="submit"
+                        className="px-6 py-2 mt-4 text-white bg-violet-600 rounded-lg hover:bg-violet-700 w-full"&gt;Submit&lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className="pt-2 space-y-2 text-center"&gt;
+                    &lt;p className="text-base text-gray-700"&gt;Already have a username? &lt;button onClick={showSignIn} className="text-violet-700 font-light"&gt;Sign In&lt;/button&gt;&lt;/p&gt;
+                &lt;/div&gt;
+            &lt;/form&gt;
+        )
+    }
+    const FormSignIn = ({ setAuth }) =&gt; {
+        const onSignIn = async (e) =&gt; {
+            e.preventDefault();
+            let phone = e.target.phone.value;
+            if (phone === "") {
+                return;
+            }
+            let res = await signIn({ phone });
+            if (res === null) {
+                alert("Failed to create account");
+                return;
+            }
+            if (!res.id) {
+                alert(`Phone number not found ${phone}`);
+                return;
+            }
+            setAuth(res)
+        }
+        return (
+            &lt;form action="" className="mt-4 space-y-2" onSubmit={onSignIn}&gt;
+                &lt;div&gt;
+                    &lt;label className="text-sm font-light"&gt;Phone&lt;/label&gt;
+                    &lt;input required type="text" name="phone" placeholder="+1111..."
+                        className="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600" /&gt;
+                &lt;/div&gt;
+                &lt;div className="flex items-baseline justify-between"&gt;
+                    &lt;button type="submit"
+                        className="px-6 py-2 mt-4 text-white bg-violet-600 rounded-lg hover:bg-violet-700 w-full"&gt;Submit&lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div className="pt-2 space-y-2 text-center"&gt;
+                    &lt;p className="text-base text-gray-700"&gt;Don't have username? &lt;button onClick={showSignIn} className="text-violet-700 font-light"&gt;Create&lt;/button&gt;&lt;/p&gt;
+                &lt;/div&gt;
+            &lt;/form&gt;
+        )
+    }
+    return (
+        &lt;div className={`${show ? '' : 'hidden'} bg-gradient-to-b from-orange-400 to-rose-400`}&gt;
+            &lt;div className="flex items-center justify-center min-h-screen"&gt;
+                &lt;div className="px-8 py-6 mt-4 text-left bg-white  max-w-[400px] w-full rounded-xl shadow-lg"&gt;
+                    &lt;h3 className="text-xl text-slate-800 font-semibold"&gt;{isShowSigIn ? 'Log in with your phone.' : 'Create your account.'}&lt;/h3&gt;
+                    {isShowSigIn ? &lt;FormSignIn setAuth={setAuth} /&gt; : &lt;FormCreateUsername setAuth={setAuth} /&gt;}
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+</pre>
+<h3 id="room-component"><code>room</code>组件</h3>
+<p>在这里，我们将创建聊天室组件:</p>
+<pre class="language-javascript hljs">// ui/components/room.js
+import React, { useState, useEffect } from "react";
+import Avatar from "./avatar";
+async function getRooms() {
+    try {
+        const url = "http://localhost:8080/rooms";
+        let result = await fetch(url);
+        return result.json();
+    } catch (e) {
+        console.log(e);
+        return Promise.resolve(null);
+    }
+}
+function ChatListItem({ onSelect, room, userId, index, selectedItem }) {
+    const { users, created_at, last_message } = room;
+    const active = index == selectedItem;
+    const date = new Date(created_at);
+    const ampm = date.getHours() &gt;= 12 ? 'PM' : 'AM';
+    const time = `${date.getHours()}:${date.getMinutes()} ${ampm}`
+    const name = users?.filter(user =&gt; user.id != userId).map(user =&gt; user.username)[0];
+    return (
+        &lt;div
+            onClick={() =&gt; onSelect(index, {})}
+            className={`${active ? 'bg-[#FDF9F0] border border-[#DEAB6C]' : 'bg-[#FAF9FE] border border-[#FAF9FE]'} p-2 rounded-[10px] shadow-sm cursor-pointer`} &gt;
+            &lt;div className='flex justify-between items-center gap-3'&gt;
+                &lt;div className='flex gap-3 items-center w-full'&gt;
+                    &lt;Avatar&gt;{name}&lt;/Avatar&gt;
+                    &lt;div className="w-full max-w-[150px]"&gt;
+                        &lt;h3 className='font-semibold text-sm text-gray-700'&gt;{name}&lt;/h3&gt;
+                        &lt;p className='font-light text-xs text-gray-600 truncate'&gt;{last_message}&lt;/p&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+                &lt;div className='text-gray-400 min-w-[55px]'&gt;
+                    &lt;span className='text-xs'&gt;{time}&lt;/span&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+export default function ChatList({ onChatChange, userId }) {
+    const [data, setData] = useState([])
+    const [isLoading, setLoading] = useState(false)
+    const [selectedItem, setSelectedItem] = useState(-1);
+    useEffect(() =&gt; {
+        setLoading(true)
+        getRooms()
+            .then((data) =&gt; {
+                setData(data)
+                setLoading(false)
+            })
+    }, [])
+    const onSelectedChat = (idx, item) =&gt; {
+        setSelectedItem(idx)
+        let mapUsers = new Map();
+        item.users.forEach(el =&gt; {
+            mapUsers.set(el.id, el);
+        });
+        const users = {
+            get: (id) =&gt; {
+                return mapUsers.get(id).username;
+            },
+            get_target_user: (id) =&gt; {
+                return item.users.filter(el =&gt; el.id != id).map(el =&gt; el.username).join("")
+            }
+        }
+        onChatChange({ ...item.room, users })
+    }
+    return (
+        &lt;div className="overflow-hidden space-y-3"&gt;
+            {isLoading &amp;&amp; &lt;p&gt;Loading chat lists.&lt;/p&gt;}
+            {
+                data.map((item, index) =&gt; {
+                    return &lt;ChatListItem
+                        onSelect={(idx) =&gt; onSelectedChat(idx, item)}
+                        room={{ ...item.room, users: item.users }}
+                        index={index}
+                        key={item.room.id}
+                        userId={userId}
+                        selectedItem={selectedItem} /&gt;
+                })
+            }
+        &lt;/div&gt;
+    )
+}
+</pre>
+<h3 id="conversation-component"><code>conversation</code>组件</h3>
+<p>在这里，我们将创建用户对话组件:</p>
+<pre class="language-javascript hljs">// ui/components/conversation.js
+import React, { useEffect, useRef } from "react";
+import Avatar from "./avatar"
+function ConversationItem({ right, content, username }) {
+    if (right) {
+        return (
+            &lt;div className='w-full flex justify-end'&gt;
+                &lt;div className='flex gap-3 justify-end'&gt;
+                    &lt;div className='max-w-[65%] bg-violet-500 p-3 text-sm rounded-xl rounded-br-none'&gt;
+                        &lt;p className='text-white'&gt;{content}&lt;/p&gt;
+                    &lt;/div&gt;
+                    &lt;div className='mt-auto'&gt;
+                        &lt;Avatar&gt;{username}&lt;/Avatar&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        )
+    }
+    return (
+        &lt;div className='flex gap-3 w-full'&gt;
+            &lt;div className='mt-auto'&gt;
+                &lt;Avatar color='rgb(245 158 11)'&gt;{username}&lt;/Avatar&gt;
+            &lt;/div&gt;
+            &lt;div className='max-w-[65%] bg-gray-200 p-3 text-sm rounded-xl rounded-bl-none'&gt;
+                &lt;p&gt;{content}&lt;/p&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    )
+}
+export default function Conversation({ data, auth, users }) {
+    const ref = useRef(null);
+    useEffect(() =&gt; {
+        ref.current?.scrollTo(0, ref.current.scrollHeight)
+    }, [data]);
+    return (
+        &lt;div className='p-4 space-y-4 overflow-auto' ref={ref}&gt;
+            {
+                data.map(item =&gt; {
+                    return &lt;ConversationItem
+                        right={item.user_id === auth.id}
+                        content={item.content}
+                        username={users.get(item.user_id)}
+                        key={item.id} /&gt;
+                })
+            }
+        &lt;/div&gt;
+    )
+}
+</pre>
+<p>现在让我们准备好与WebSocket服务器和REST API服务器交互所需的钩子。</p>
+<h3 id="usewebsocket-hook"><code>useWebsocket</code>挂钩</h3>
+<p>这个钩子用于连接WebSocket服务器，使我们能够发送和接收消息:</p>
+<pre class="language-javascript hljs">// ui/libs/websocket.js
+import { useEffect, useRef } from "react";
+export default function useWebsocket(onMessage) {
+    const ws = useRef(null);
+    useEffect(() =&gt; {
+        if (ws.current !== null) return;
+        const wsUri = 'ws://localhost:8080/ws';
+        ws.current = new WebSocket(wsUri);
+        ws.current.onopen = () =&gt; console.log("ws opened");
+        ws.current.onclose = () =&gt; console.log("ws closed");
+        const wsCurrent = ws.current;
+        return () =&gt; {
+            wsCurrent.close();
+        };
+    }, []);
+    useEffect(() =&gt; {
+        if (!ws.current) return;
+        ws.current.onmessage = e =&gt; {
+            onMessage(e.data)
+        };
+    }, []);
+    const sendMessage = (msg) =&gt; {
+        if (!ws.current) return;
+        ws.current.send(msg);
+    }
+    return sendMessage;
+}
+</pre>
+<h3 id="uselocalstorage-hook"><code>useLocalStorage</code>挂钩</h3>
+<p>这个钩子使我们能够从localStorage获取用户数据:</p>
+<pre class="language-javascript hljs">// ui/libs/useLocalStorage
+import { useEffect, useState } from "react";
+export default function useLocalStorage(key, defaultValue) {
+  const [storedValue, setStoredValue] = useState(defaultValue);
+  const setValue = (value) =&gt; {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+    }
+  };
+  useEffect(() =&gt; {
+    try {
+      const item = window.localStorage.getItem(key);
+      let data = item ? JSON.parse(item) : defaultValue;
+      setStoredValue(data)
+    } catch (error) {}
+  }, [])
+  return [storedValue, setValue];
+}
+</pre>
+<h3 id="useconversation-hook"><code>useConversation</code>挂钩</h3>
+<p>我们将使用这个钩子来获取基于给定房间<code>id</code>的对话:</p>
+<pre class="language-javascript hljs">import { useEffect, useState } from "react";
+const fetchRoomData = async (room_id) =&gt; {
+    if (!room_id) return;
+    const url = `http://localhost:8080/conversations/${room_id}`;
+    try {
+        let resp = await fetch(url).then(res =&gt; res.json());
+        return resp;
+    } catch (e) {
+        console.log(e);
+    }
+}
+export default function useConversations(room_id) {
+    const [isLoading, setIsLoading] = useState(true);
+    const [messages, setMessages] = useState([]);
+    const updateMessages = (resp = []) =&gt; {
+        setIsLoading(false);
+        setMessages(resp)
+    }
+    const fetchConversations = (id) =&gt; {
+        setIsLoading(true)
+        fetchRoomData(id).then(updateMessages)
+    }
+    useEffect(() =&gt; fetchConversations(room_id), []);
+    return [isLoading, messages, setMessages, fetchConversations];
+}
+</pre>
+<h2 id="building-the-chat-application">构建聊天应用程序</h2>
+<p>现在让我们连接所有的组件和钩子，在React with Next.js中构建我们的聊天应用程序。</p>
+<p>首先，让我们导入我们需要的所有依赖项:</p>
+<pre class="language-javascript hljs">// ui/pages/index.js
+import Head from 'next/head'
+import React, { useEffect, useState } from 'react'
+import Avatar from '../components/avatar'
+import ChatList from '../components/rooms'
+import Conversation from '../components/conversation'
+import Login from '../components/login'
+import useConversations from '../libs/useConversation'
+import useLocalStorage from '../libs/useLocalStorage'
+import useWebsocket from '../libs/useWebsocket'
+</pre>
+<p>现在，让我们为聊天页面设置状态:</p>
+<pre class="language-javascript hljs">// ui/pages/index.js
+...
+export default function Home() {
+  const [room, setSelectedRoom] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showLogIn, setShowLogIn] = useState(false);
+  const [auth, setAuthUser] = useLocalStorage("user", false);
+  const [isLoading, messages, setMessages, fetchConversations] = useConversations("");
+  ...
+}
+</pre>
+<p>以下函数将处理所有进出WebSocket服务器的消息:</p>
+<ul>
+<li><code>handleTyping</code>:更新状态显示打字指示器</li>
+<li><code>handleMessage</code>:处理状态的传入和传出消息</li>
+<li><code>onMessage</code>:处理从WebSocket服务器检索到的消息</li>
+<li><code>updateFocus</code>:告知WebSocket服务器当前用户是否仍在输入消息</li>
+<li><code>onFocusChange</code>:让WebSocket服务器知道当前用户何时完成输入</li>
+<li><code>submitMessage</code>:当用户点击<strong>发送</strong>按钮时，更新消息状态，然后将消息发送给服务器</li>
+</ul>
+<p>下面是我们如何在代码中使用这些函数:</p>
+<pre class="language-javascript hljs">// ui/pages/index.js
+  const handleTyping = (mode) =&gt; {
+    if (mode === "IN") {
+      setIsTyping(true)
+    } else {
+      setIsTyping(false)
+    }
+  }
+  const handleMessage = (msg, userId) =&gt; {
+    setMessages(prev =&gt; {
+      const item = { content: msg, user_id: userId };
+      return [...prev, item];
+    })
+  }
+  const onMessage = (data) =&gt; {
+    try {
+      let messageData = JSON.parse(data);
+      switch (messageData.chat_type) {
+        case "TYPING": {
+          handleTyping(messageData.value[0]);
+          return;
+        }
+        case "TEXT": {
+          handleMessage(messageData.value[0], messageData.user_id);
+          return;
+        }
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+  const sendMessage = useWebsocket(onMessage)
+  const updateFocus = () =&gt; {
+    const data = {
+      id: 0,
+      chat_type: "TYPING",
+      value: ["IN"],
+      room_id: room.id,
+      user_id: auth.id
+    }
+    sendMessage(JSON.stringify(data))
+  }
+  const onFocusChange = () =&gt; {
+    const data = {
+      id: 0,
+      chat_type: "TYPING",
+      value: ["OUT"],
+      room_id: room.id,
+      user_id: auth.id
+    }
+    sendMessage(JSON.stringify(data))
+  }
+  const submitMessage = (e) =&gt; {
+    e.preventDefault();
+    let message = e.target.message.value;
+    if (message === "") {
+      return;
+    }
+    if (!room.id) {
+      alert("Please select chat room!")
+      return
+    }
+    const data = {
+      id: 0,
+      chat_type: "TEXT",
+      value: [message],
+      room_id: room.id,
+      user_id: auth.id
+    }
+    sendMessage(JSON.stringify(data))
+    e.target.message.value = "";
+    handleMessage(message, auth.id);
+    onFocusChange();
+  }
+</pre>
+<p>我们将使用以下函数来处理更新消息以及用户登录和注销的状态:</p>
+<ul>
+<li><code>updateMessages</code>:当用户切换聊天室时，获取给定房间<code>id</code>的对话</li>
+<li><code>signOut</code>:将状态更新为注销，并从本地存储中删除用户数据</li>
+</ul>
+<p>我们将在代码中使用这些函数，如下所示:</p>
+<pre class="language-javascript hljs">// ui/pages/index.js
+  const updateMessages = (data) =&gt; {
+    if (!data.id) return;
+    fetchConversations(data.id)
+    setSelectedRoom(data)
+  }
+  const signOut = () =&gt; {
+    window.localStorage.removeItem("user");
+    setAuthUser(false);
+  }
+  useEffect(() =&gt; setShowLogIn(!auth), [auth])
+</pre>
+<p>现在，让我们向客户端显示所有数据:</p>
+<pre class="language-javascript hljs">  return (
+    &lt;div&gt;
+      &lt;Head&gt;
+        &lt;title&gt;Rust with react chat app&lt;/title&gt;
+        &lt;meta name="description" content="Rust with react chat app" /&gt;
+        &lt;link rel="icon" href="/favicon.ico" /&gt;
+      &lt;/Head&gt;
+      &lt;Login show={showLogIn} setAuth={setAuthUser} /&gt;
+      &lt;div className={`${!auth &amp;&amp; 'hidden'} bg-gradient-to-b from-orange-400 to-rose-400 h-screen p-12`}&gt;
+        &lt;main className='flex w-full max-w-[1020px] h-[700px] mx-auto bg-[#FAF9FE] rounded-[25px] backdrop-opacity-30 opacity-95'&gt;
+          &lt;aside className='bg-[#F0EEF5] w-[325px] h-[700px] rounded-l-[25px] p-4 overflow-auto relative'&gt;
+            &lt;ChatList onChatChange={updateMessages} userId={auth.id} /&gt;
+            &lt;button onClick={signOut} className='text-xs w-full max-w-[295px] p-3 rounded-[10px] bg-violet-200 font-semibold text-violet-600 text-center absolute bottom-4'&gt;LOG OUT&lt;/button&gt;
+          &lt;/aside&gt;
+          {room?.id &amp;&amp; (&lt;section className='rounded-r-[25px] w-full max-w-[690px] grid grid-rows-[80px_minmax(450px,_1fr)_65px]'&gt;
+            &lt;div className='rounded-tr-[25px] w-ful'&gt;
+              &lt;div className='flex gap-3 p-3 items-center'&gt;
+                &lt;Avatar color='rgb(245 158 11)'&gt;{room.users.get_target_user(auth.id)}&lt;/Avatar&gt;
+                &lt;div&gt;
+                  &lt;p className='font-semibold text-gray-600 text-base'&gt;{room.users.get_target_user(auth.id)}&lt;/p&gt;
+                  &lt;div className='text-xs text-gray-400'&gt;{isTyping ? "Typing..." : "10:15 AM"}&lt;/div&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+              &lt;hr className='bg-[#F0EEF5]' /&gt;
+            &lt;/div&gt;
+            {(isLoading &amp;&amp; room.id) &amp;&amp; &lt;p className="px-4 text-slate-500"&gt;Loading conversation...&lt;/p&gt;}
+            &lt;Conversation data={messages} auth={auth} users={room.users} /&gt;
+            &lt;div className='w-full'&gt;
+              &lt;form onSubmit={submitMessage} className='flex gap-2 items-center rounded-full border border-violet-500 bg-violet-200 p-1 m-2'&gt;
+                &lt;input
+                  onBlur={onFocusChange}
+                  onFocus={updateFocus}
+                  name="message"
+                  className='p-2 placeholder-gray-600 text-sm w-full rounded-full bg-violet-200 focus:outline-none'
+                  placeholder='Type your message here...' /&gt;
+                &lt;button type='submit' className='bg-violet-500 rounded-full py-2 px-6 font-semibold text-white text-sm'&gt;Sent&lt;/button&gt;
+              &lt;/form&gt;
+            &lt;/div&gt;
+          &lt;/section&gt;)}
+        &lt;/main&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  )
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们讨论了WebSockets的特性，它在Rust中的应用，以及如何在<code>actix-web</code>包中使用它。我们演示了如何创建一个高效的实时聊天应用程序，使用React和Next.js建立到Actix Web服务器的WebSocket连接。这篇文章的代码可以在<a href="https://github.com/ahmadrosid/rust-react-chat"> GitHub </a>上找到。</p>
+<p>为了进一步改进我们的示例实时聊天应用程序，您可以让它显示用户状态(即在线或离线)并为用户创建一个在线群聊。</p>
+<p>如果您对本文有任何疑问，请随时发表评论。编码快乐！</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720"><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener"> LogRocket </a>:全面了解您的生产React应用</h2><p>调试React应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监视和跟踪Redux状态、自动显示JavaScript错误以及跟踪缓慢的网络请求和组件加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" vwo-el-id="19356441070">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<p vwo-el-id="28675660440" class="">LogRocket 结合了会话回放、产品分析和错误跟踪，使软件团队能够创建理想的web和移动产品体验。这对你来说意味着什么？</p>
+<p>LogRocket不是猜测错误发生的原因，也不是要求用户提供截图和日志转储，而是让您回放问题，就像它们发生在您自己的浏览器中一样，以快速了解哪里出错了。</p>
+<p>不再有嘈杂的警报。智能错误跟踪允许您对问题进行分类，然后从中学习。获得有影响的用户问题的通知，而不是误报。警报越少，有用的信号越多。</p>
+<p vwo-el-id="28675660750">LogRocket Redux中间件包为您的用户会话增加了一层额外的可见性。LogRocket记录Redux存储中的所有操作和状态。</p>
+<p vwo-el-id="28675661060">现代化您调试React应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">开始免费监控</a>。</p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

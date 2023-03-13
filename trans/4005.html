@@ -1,0 +1,285 @@
+<html>
+<head>
+<title>ARIA-live regions for JavaScript frameworks </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>ARIA-JavaScript框架的实时区域</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/aria-live-regions-for-javascript-frameworks/#0001-01-01">https://blog.logrocket.com/aria-live-regions-for-javascript-frameworks/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>现代的网络应用充满了状态更新:祝酒词、通知、加载屏幕，以及通常你在屏幕上注意到的任何相关变化。视力正常的用户可以注意到这些状态更新，但是屏幕阅读器用户呢？您需要确保他们也能收到这些重要的更新。</p>
+<p>这就是咏叹调现场区域发挥作用的地方。它是标记和ARIA角色和属性的组合；当用JavaScript将内容注入其中时，它会向辅助技术设备宣布其内容的任何变化。对ARIA-live区域有一个坚实的理解有助于制作每个人都可以访问的应用程序和网站。</p>
+<p>在本文中，我将讨论可以用来创建ARIA-live区域的可用选项，每个选项都有不同的用途。我还将展示一些工具，您可以使用它们在React、Angular和Vue.js等现代JavaScript框架中创建ARIA-live区域。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="aria-live-region-attributes">ARIA-实时区域属性</h2>
+<p>创建ARIA-live区域有多种方法，包括一些带有现成标记的ARIA角色。但是，您也可以使用一个<code>&lt;div&gt;</code>和特定的ARIA-live区域属性来创建一个定制的live区域。这些属性在不同的辅助技术之间可能会产生非常不一致的结果，因此在尝试自己创建自定义活动区域标记之前，请记住这一点。在本文的稍后部分，我们将回顾ARIA角色。</p>
+<h3 id="aria-live"><code>aria-live</code></h3>
+<p><code>aria-live</code>属性定义了辅助技术将在什么时候宣布实况区域的内容变化。这个属性有三个值:<code>off</code>、<code>polite</code>和<code>assertive</code>。<code>off</code>意味着内容不会被公布，所以让我们关注另外两个属性:</p>
+<p>属性将设置区域等待，直到屏幕阅读器宣布内容正在阅读，以宣布在活动区域中注入的内容。</p>
+<p>另一方面，<code>assertive</code> live区域会立即宣布内容，打断屏幕阅读器正在做的任何其他动作。因此，当您需要向辅助技术用户提供关键或时间敏感信息时，应使用<code>assertive</code>实时区域。</p>
+<h3 id="aria-atomic"><code>aria-atomic</code></h3>
+<p><code>aria-atomic</code>属性将告诉屏幕阅读器，实时区域的内容是全部公布，还是只公布发生变化的部分。</p>
+<p>如果您将此属性设置为<code>false</code>，直播区域将只宣布已更改的内容。如果设置为<code>true</code>，它会一次性宣布所有内容。为了进一步澄清，让我们假设我们有这个活动区域:</p>
+<pre class="language-html hljs">&lt;div aria-live="polite"&gt;
+  &lt;p&gt;The amount spent is of &lt;span&gt;$25.00&lt;/span&gt;&lt;/p&gt;
+&lt;/div&gt;
+</pre>
+<p>如果我们添加了<code>aria-atomic</code>属性，然后将<code>span</code>中的内容更改为$30.00，应该是这样的:</p>
+<pre class="language-html hljs">&lt;div aria-live="polite" aria-atomic="false"&gt;
+  &lt;p&gt;The amount spent is of &lt;span&gt;$30.00&lt;/span&gt;&lt;/p&gt;
+&lt;/div&gt;
+</pre>
+<p>如果属性的值是<code>false</code>，如上所述，它将只在<code>span</code>中宣布内容。在这种情况下，它会显示“$30.00”如果属性的值是<code>true</code>，它将公布整个字符串。在这种情况下，它会说“花费的金额是$30.00。”</p>
+<p>至少理论上应该是这样的。根据a11ysupport 的aria-atomic测试，当属性设置为<code>false</code>时，一些屏幕阅读器(主要是JAWS)在读取内部内容的变化时会出现问题。所以如果你要使用这个属性，请记住这一点。</p>
+<h3 id="aria-relevant"><code>aria-relevant</code></h3>
+<p>属性允许你为辅助技术指定你想要实时区域宣布的更新类型。</p>
+<p>该属性有多个值，您可以添加多个值，并用空格分隔:</p>
+<table>
+<thead>
+<tr>
+<th>价值</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>additions</code></td>
+<td>当一个新的节点被添加到活动区域中时发出通知</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>当任何文本或文本替换(如<code>aria-label</code>或<code>alt</code>代表<code>img</code>元素)被添加到活动区域时，会发出通知</td>
+</tr>
+<tr>
+<td><code>removals</code></td>
+<td>当任何文本或替代文本从活动区域中删除时，会发出通知</td>
+</tr>
+<tr>
+<td><code>additions text</code>(默认)</td>
+<td>宣布文本更改和活动区域内节点的添加</td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>宣布活动区域内的任何变化(相当于编写<code>additions text removals</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>对该属性的支持相当不一致。在<a href="https://a11ysupport.io/tests/tech__aria__aria-relevant"> a11ysupport关于<code>aria-relevant</code> </a>的词条中可以看到，它只有部分支持。主要是，它没有区分<code>additions</code>和<code>additions text</code>的行为。更重要的是，对于大多数屏幕阅读器来说，它直接无法按照需要使用<code>removals</code>属性。因此，如果您计划使用这个属性，请记住这一点。</p>
+<h2 id="types-aria-live-regions">咏叹调的类型-现场区域</h2>
+<p>既然我们已经回顾了如何创建一个定制的ARIA-live区域，那么让我们看看如何使用ARIA <code>roles</code>和预构建的标记。</p>
+<h3 id="role-status"><code>role="status"</code></h3>
+<p>根据<a href="https://www.w3.org/WAI/WCAG22/Techniques/aria/ARIA22"> W3C规范</a>，创建<code>role="status"</code>是为了“为用户提供咨询信息，但并不重要到足以证明<code>alert</code>的合理性”，换句话说，创建该属性是为了向用户提供关于任何不需要立即关注或采取行动的相关变更的信息。</p>
+<p>对于消息通知、成功消息或任何类型的不紧急且可以随时处理的事件来说,<code>role="status"</code>非常有用。这个区域有<code>aria-live="polite"</code>和<code>aria-atomic="true"</code>的隐含属性。然而，根据<a href="https://a11ysupport.io/tests/tech__aria__status-role-named"> a11ysupport对<code>status</code>角色</a>的测试，Orca (Linux的屏幕阅读器)和NVDA不会考虑<code>role="status"</code>的<code>aria-atomic</code>隐含值。因此，我建议在使用这个活动区域时，以显式形式添加<code>aria-atomic="true"</code>属性，如下所示:</p>
+<pre class="language-html hljs">&lt;div role="status" aria-atomic="true"&gt;
+  Your message was successfully sent!
+&lt;/div&gt;
+</pre>
+<p>除此之外，<code>role="status"</code>是一个非常受支持的ARIA角色，很可能成为你创建现场区域的主要工具之一。</p>
+<h3 id="role-alert"><code>role="alert"</code></h3>
+<p><code>role="alert"</code>旨在为用户提供重要且具有时效性的信息。通知用户会话即将结束、信息未保存或任何其他重要错误消息的警报是<code>role="alert"</code>的良好用例。</p>
+<p>该区域具有隐式值<code>aria-atomic="true"</code>和<code>aria-live="assertive"</code>。由于它的“侵入性”感觉——它会停止屏幕阅读器正在做的任何动作——记住要谨慎使用它，只在需要的时候使用。这种活动区域的标记应该是这样的:</p>
+<pre class="language-html hljs">&lt;div role="alert"&gt;
+  Your changes were not saved due to a network error. Please try again
+&lt;/div&gt;
+</pre>
+<p>如果您需要为该角色的状态消息添加交互元素，请使用<a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alertdialog_role"> <code>role="alertdialog"</code> </a>而不是<code>role="alert"</code>。例如，可以预期用户将使用<code>&lt;button&gt;</code>关闭状态消息。</p>
+<h3 id="role-log"><code>role="log"</code></h3>
+<p>根据W3C规范的说法，<code>role="log"</code>角色创建了一个活跃的区域，“新信息以有意义的顺序添加进来，旧信息可能会消失。”这在旧信息存储在活动区域中并且需要遵循某种顺序的情况下非常有用，比如消息历史或更改日志。</p>
+<p>这个活动区域具有隐式值<code>aria-live="polite"</code>和<code>aria-atomic="false"</code>，这意味着所有的改变都被宣布而不中断任何动作。此外，它将只宣布被更改的标记部分。</p>
+<p>如果将<code>aria-atomic</code>值改为<code>true</code>，它会在每次注入新内容时宣布所有内容，这是不可取的。这种活动区域的标记可能是这样的:</p>
+<pre class="language-html hljs">&lt;div role="log"&gt;
+  &lt;ul aria-label="Message story"&gt;
+    &lt;li&gt;
+      &lt;span&gt;Gabrielle: &lt;/span&gt; Hi, I'm Gabrielle from XYZ Co. How may I help you?
+    &lt;/li&gt;
+    &lt;li&gt;
+      &lt;span&gt;Diana: &lt;/span&gt; Hi, I'm Diana. I need to cancel my appointment.
+    &lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+</pre>
+<p><code>role="log"</code> live区域得到了不错的支持，除了带微软Edge的旁白，你可以在<a href="https://a11ysupport.io/tests/tech__aria__log-role-named"> a11ysupport对<code>role="log"</code> </a>的测试中看到。如果需要考虑讲述人和Microsoft Edge这两种场景，那么您最好使用带有<code>aria-live="polite"</code>和<code>aria-atomic="false"</code>的自定义区域。<code>log</code>角色不像<code>status</code>和<code>alert</code>角色那样经常需要，但是在某些用例中记住它仍然很重要。</p>
+<h2 id="other-live-region-roles">其他实时区域角色</h2>
+<p>有几个额外的活区域角色，<a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/marquee_role"> <code>marquee</code> </a>和<a href="%22https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/timer_role"> <code>timer</code> </a>，但是由于它们的支持较差，所以不推荐使用它们。默认情况下，两者都有属性<code>aria-live="off"</code>，这意味着它们不会宣布直播区域内容的任何变化。</p>
+<p>根据<a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/timer_role"> W3C规范</a>，<code>role="timer"</code>被创建来包含“一个数字计数器，指示从一个起点开始经过的时间，或者到一个终点剩余的时间。”因此，这个角色非常适合计时器功能(指示经过的时间)或秒表功能(指示剩余时间)。</p>
+<p><code>role="marquee"</code>是为了添加持续更新的不重要信息而创建的。像股票价格变化或图表这样的东西对于这种类型的实时区域来说是理想的。</p>
+<p>由于不支持这些角色，因此使用变通方法可能会有所帮助。例如，要提供关于完成任务剩余时间的警告，您可以使用<code>role="status</code>或<code>role="alert"</code>来代替。</p>
+<h3 id="output"><code>&lt;output&gt;</code></h3>
+<p>根据<a href="https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element"> HTML规范</a>的说法，<code>&lt;output&gt;</code> HTML元素旨在公开“应用程序执行的计算结果，或者用户操作的结果”</p>
+<p>此元素不是ARIA-live角色。它应该只在表单内部或外部使用，以向屏幕阅读器用户显示表单内计算或操作的结果。该元素具有以下属性:</p>
+<ul>
+<li><code>for</code>:这是由空格分隔的相关表单元素id的列表</li>
+<li><code>form</code>:该属性有助于将<code>output</code>元素与任何表单相关联；只有在表单元素之外使用它时才有必要</li>
+<li><code>name</code>:表示元素的名称；它的工作原理和表单中的任何<code>input</code>元素一样</li>
+</ul>
+<p>下面是一些<code>&lt;output&gt;</code>元素的例子:</p>
+<pre class="language-html hljs">&lt;form&gt;
+  &lt;input type="number" id="b" name="b" value="1" /&gt; +
+  &lt;input type="number" id="a" name="a" value="3" /&gt; =
+  &lt;output name="result" for="a b"&gt;4&lt;/output&gt;
+&lt;/form&gt;
+</pre>
+<p>在这种情况下，<code>&lt;output&gt;</code>元素在一个表单中，所以它只需要有一个<code>for</code>属性，该属性包含您想要的对其值有贡献的元素列表:</p>
+<pre class="language-html hljs">&lt;form action="/results" role="search" id="search-form"&gt;
+  &lt;label for="search-input"&gt;Search articles&lt;/label&gt;
+  &lt;input type="search" id="search-input" /&gt;
+  &lt;input type="submit" value="Submit search" /&gt;
+&lt;/form&gt;
+&lt;p&gt;There are &lt;output for="search" form="search-form"&gt;&lt;/output&gt; articles&lt;/p&gt;
+</pre>
+<p>这里的<code>&lt;output&gt;</code>元素在表单之外，所以最好不仅使用<code>f</code>或属性，还使用<code>form</code>属性来创建活动区域和表单之间的关系。</p>
+<p>这个元素非常有用，有些人甚至用它来创建通常用<code>role="status"</code>或<code>role="alert"</code>制作的活动区域。然而，记住它的屏幕阅读器支持需要一些额外的工作。如果你想知道更多，你可以查看斯科特·奥哈拉关于T2元素T4的文章。</p>
+<p>现在，在解释了ARIA-live区域的所有可能性之后，是时候研究在现代JavaScript框架中有哪些选项可以用来制作live区域了！</p>
+<h2 id="creating-aria-live-regions-javascript-frameworks">用JavaScript框架创建ARIA-live区域</h2>
+<p>在这里，我将向您展示如何使用三个最流行的前端框架创建实时区域:React、Angular和Vue。经过一些研究，我决定使用三个依赖项——每个框架一个:</p>
+
+<p>这是我们演示的场景。我们将有一个<code>&lt;button&gt;</code>让我们结束购物过程。当用户点击<code>&lt;button&gt;</code>时，信息“您的购买已经成功！”将出现在活动区域内。</p>
+<p>但首先，我想定几条基本规则:</p>
+<ol>
+<li>我将严格按照它们各自文档中的解释来使用这些工具。这些工具中的一些可能可以以更高级的方式使用以获得更好的结果，但是通过坚持使用文档，我们将能够检查默认实现是否工作良好</li>
+<li>我想检查这些工具是否允许我创建<code>polite</code>和<code>assertive</code>活动区域，所以我将评估这些工具生成的标记</li>
+</ol>
+<p>解释完之后，让我们开始吧！</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<h3 id="liveannouncer-angular"><code>LiveAnnouncer</code>–棱角分明</h3>
+<p>Angular在其组件开发工具包中提供了<code>LiveAnnouncer</code>包来创建活动区域。我从在<code>app.component.html</code>文件中添加这个标记开始:</p>
+<pre class="language-html hljs">&lt;div&gt;
+  &lt;h1&gt;Aria Live region text with <code>LiveAnnouncer</code>&lt;/h1&gt; &lt;button (click)="announce()"&gt;Complete your purchase!&lt;/button&gt; &lt;/div&gt;</pre>
+<p>然后，我转到<code>app.components.ts</code>文件，导入<code>LiveAnnouncer</code>创建<code>announce()</code>函数:</p>
+<pre class="language-typescript hljs">import { Component } from "@angular/core";
+import { LiveAnnouncer } from "@angular/cdk/a11y";
+
+@Component({
+  selector: "app-root",
+  templateUrl: "./app.component.html",
+})
+export class AppComponent {
+  constructor(private announcer: LiveAnnouncer) {}
+
+  public announce() {
+    this.announcer.announce("Your purchase has been successful!");
+  }
+}</pre>
+<p>让我们看看它为我们的活动区域创建了什么样的标记:</p>
+<pre class="language-html hljs">&lt;div class="cdk-live-announcer-element cdk-visually-hidden" aria-atomic="true" aria-live="polite" id="cdk-live-announcer-6"&gt;&lt;/div&gt;
+</pre>
+<p>当用户点击<code>&lt;button&gt;</code>时，字符串“您的购买已经成功！”将被添加到元素中，有效地向辅助技术宣布内容:</p>
+<pre class="language-html hljs">&lt;div class="cdk-live-announcer-element cdk-visually-hidden" aria-atomic="true" aria-live="polite" id="cdk-live-announcer-6"&gt;
+  Your purchase has been successful!
+&lt;/div&gt;
+</pre>
+<p>如果我们需要创建一个<code>assertive</code>实时区域，我们可以给<code>this.announcer.announce</code>添加一个参数来指定我们想要一个<code>assertive</code>实时区域:</p>
+<pre class="language-typescript hljs">public announce() {
+  this.announcer.announce("Your purchase has been successful!", "assertive");
+}
+</pre>
+<p>下面是生成的标记:</p>
+<pre class="language-html hljs">&lt;div class="cdk-live-announcer-element cdk-visually-hidden" aria-atomic="true" aria-live="assertive" id="cdk-live-announcer-7"&gt;
+  Your purchase has been successful!
+&lt;/div&gt;
+</pre>
+<p><code>LiveAnnouncer</code>根据您的需要，通过添加属性<code>aria-atomic="true"</code>和<code>aria-live</code> ( <code>polite</code>或<code>assertive</code>)来完成创建活动区域的任务。</p>
+<p>这种方法适用于辅助技术，但正如我之前提到的，最好使用更合适的ARIA角色，如<code>status</code>或<code>alert</code>，因为它们为辅助技术用户添加了更多的上下文。仅举一个例子，<code>alert</code>角色将被NVDA通过叙述“警报”有效地宣布为警报消息。您的购买已经成功！”</p>
+<p>我可能遗漏了更多的设置，但据我所知，这些都是我们从<code>LiveAnnouncer</code>中得到的选项，而且很有效！不过，就个人而言，我更喜欢使用自定义标记，以确保屏幕阅读器用户在活动区域出现时不会错过任何重要的上下文。</p>
+<h3 id="live-utils-vue-js">live utils-view . js</h3>
+<p>Live Utils是<a href="https://github.com/Jinjiang/vue-a11y-utils"> <code>vue-a11y-utils</code> </a>库的一部分。它由两个名为<code>Live</code>的实用程序组成，创建一个添加活动区域的上下文和一个名为<code>useLive()</code>的创建活动区域的函数。</p>
+<p>我首先创建了一个名为<code>LiveExample.vue</code>的单文件组件:</p>
+<pre class="language-typescript hljs">&lt;template&gt;
+  &lt;h1&gt;Vue live region example with Live Utils&lt;/h1&gt;
+  &lt;button @click="announce(message, isAssertive)"&gt;
+    Complete your purchase!
+  &lt;/button&gt;
+&lt;/template&gt;
+
+&lt;script setup&gt;
+  import { ref } from "vue";
+  import { useLive } from "vue-a11y-utils";
+  const message = ref("Your purchase has been successful");
+  const isAssertive = ref(false);
+  const [announce] = useLive();
+&lt;/script&gt;
+</pre>
+<p>在这个组件中，我使用了<code>useLive</code>来创建用户点击<code>&lt;button&gt;</code>时的活动区域。该函数有两个参数:一个<code>message</code>和一个决定活动区域是<code>assertive</code>(如果是<code>true</code>)还是<code>polite</code>(如果是<code>false</code>)的布尔值。</p>
+<p>接下来，我将组件导入到<code>App.vue</code>文件中。我需要创建显示实时区域的上下文，所以我必须调用组件<code>Live</code>使其工作:</p>
+<pre class="language-typescript hljs">&lt;template&gt;
+  &lt;Live&gt;
+    &lt;live-example /&gt;
+  &lt;/Live&gt;
+&lt;/template&gt;
+
+&lt;script setup&gt;
+  import { Live } from "vue-a11y-utils";
+  import LiveExample from "@/components/LiveExample.vue";
+&lt;/script&gt;
+</pre>
+<p>这是我面临的第一个问题，因为在Vue a11y utils的文档中，这个上下文显示为<code>&lt;VueLive&gt;</code>，而不是<code>&lt;Live&gt;</code>，但是如果你尝试使用<code>VueLive</code>，你会在你的控制台中看到错误消息:</p>
+<p><code>“export 'VueLive' (imported as 'VueLive') was not found in 'vue-a11y-utils' (possible exports: FocusTrap, Live, ariaToAttrs, directiveAria, genId, getTabindexByRole, useGlobalHotkey, useHotkey, useLive, useTravel)”</code></p>
+<p>这个错误不难修复。让我们直奔主题，检查现场区域输出:</p>
+<pre class="language-html hljs">&lt;div style="position: absolute; height: 1px; width: 1px; margin: -1px; clip: rect(0px, 0px, 0px, 0px); overflow: hidden;"&gt;
+  &lt;div role="log" aria-live="assertive" aria-busy="false"&gt;&lt;/div&gt;
+  &lt;div role="log" aria-live="assertive" aria-busy="false"&gt;&lt;/div&gt;
+  &lt;div role="log" aria-live="polite" aria-busy="false"&gt;&lt;/div&gt;
+  &lt;div role="log" aria-live="polite" aria-busy="false"&gt;&lt;/div&gt;
+&lt;/div&gt;
+</pre>
+<p>这个输出有相当多的问题！</p>
+<p>首先，<code>style</code>属性中的规则是为了在视觉上隐藏这个容器，而不是对屏幕阅读器隐藏。隐藏某些具有语义值的元素(如标题)是一种很好的可访问性技术。然而，对于实时区域，这种策略是有争议的。在大多数情况下，您还需要创建视觉反馈。</p>
+<p>其次，由于某种原因，这个容器有四个活动区域，每个区域有两个副本。这可能与文档中提到的<code>isBusy</code>属性有些关系。然而，由于同一文档提到它是实验性的，我不会考虑它。感觉没必要的多余。</p>
+<p>最后，那些活动区域包括<code>log</code>角色，由于其隐含的值<code>aria-atomic="false"</code>，该角色只对一些非常特殊的情况有用。我个人认为这个工具本应该尝试用更灵活的用例来创建live区域。</p>
+<p>在本例中，如果<code>assertive</code>属性为<code>false</code>，当用户点击<code>&lt;button&gt;</code>时，消息将被注入第三个活动区域(具有<code>aria-live="polite"</code>属性的区域)。如果<code>assertive</code>属性设置为<code>true</code>，第一个直播区域将接收内容。</p>
+<p>从最基本的意义上来说，这个工具只适用于一些不需要视觉反馈的特定情况。我不会在一般情况下使用这个工具。如果我要使用Vue，我更愿意为这个任务创建一个自定义工具，或者使用另一个依赖项，比如<a href="https://github.com/vue-a11y/vue-announcer/tree/next"> <code>vue-announcer</code> </a>。我决定在本文中使用Live Utils，因为它似乎有更多的更新，但是对于常见的用例来说，结果并不理想。</p>
+<h3 id="react-a11y-announcer-react"><code>react-a11y-announcer</code>–做出反应</h3>
+<p><a href="https://github.com/thinkcompany/react-a11y-announcer"> <code>react-a11y-announcer</code> </a>是由思公司创建的。它创建了一个名为<code>Announcer</code>的组件，您可以在其中添加活动区域的内容。这很容易实现，你只需要这个组件和一个<code>useState</code>。</p>
+<p>文档仍然使用类语法。这是可以的(意味着它会工作)，但以现代标准来看，它只是感觉有点过时。相反，我决定用更现代的语法创建这个例子。</p>
+<p>下面是我在我的<code>App.jsx</code>文件中使用的代码:</p>
+<pre class="language-javascript hljs">import Announcer from 'react-a11y-announcer';
+import { useState } from "react";
+
+export default function App() {
+
+  const [announcement, setAnnouncement] = useState("")
+
+  const handleClick = () =&gt; {
+    setAnnouncement("Your purchase has been successful!")
+  }
+
+  return (
+    &lt;div className="App"&gt;
+      &lt;h1&gt;<code>react-a11y-announcer</code> test&lt;/h1&gt; &lt;button onClick={handleClick}&gt;Complete your purchase!&lt;/button&gt; &lt;Announcer text={announcement} /&gt; &lt;/div&gt; ); }</pre>
+<p>在这里，我将活动区域的内容添加到一个<code>useState</code>中，创建一个函数来改变该状态，然后用属性<code>text</code>将它添加到<code>Announcer</code>组件中。</p>
+<p>好了，让我们检查一下现场区域的输出:</p>
+<pre class="language-html hljs">&lt;div aria-atomic="true" aria-live="polite" style="position: absolute; visibility: visible; overflow: hidden; display: block; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; clip: rect(0px, 0px, 0px, 0px); clip-path: polygon(0px 0px, 0px 0px, 0px 0px, 0px 0px); white-space: nowrap;"&gt;
+  &lt;p&gt;Your purchase has been successful!&amp;nbsp;&lt;/p&gt;
+&lt;/div&gt;
+</pre>
+<p>就像来自Vue的Live Utils一样，<code>react-a11ly-announcer</code>创建了一个视觉上隐藏的Live区域，由于我之前解释的原因，这并不理想。但是不像活的实用程序，如果活的区域是<code>polite</code>或<code>assertive</code>，它没有任何种类的道具可以改变。</p>
+<p><code>react-a11ly-announcer</code>创建了一个默认为<code>polite</code>且(根据文档)不能更改的活动区域。因此，根据我对这个项目的最初规则，我不得不说这种依赖可能不是最好的。</p>
+<p>然而，在做了一点试验后，我注意到你可以给<code>Announcer</code>组件添加更多的道具。您可以添加您想要的<code>role</code>，属性，甚至是一个<code>className</code>，它将删除<code>style</code>属性，使其可见。因此，理论上，如果我想要一个有<code>alert</code>角色的活动区域，我可以这样做:</p>
+<pre class="language-html hljs">&lt;Announcer text={announcement} role="alert" aria-live="assertive" className="status" /&gt;
+</pre>
+<p>记住，它默认有属性<code>aria-live="polite"</code>，需要手动更改。这种变通方法解决了我们的问题，但是我有两个问题:</p>
+<ol>
+<li>它不在文档中，所以大多数人可能会错过这个功能</li>
+<li>如果我需要添加这些道具来创建一个活动区域，那么我为什么需要这种依赖呢？我最好自己创建一个组件，而不是使用第三方的包。为我的示例创建一个组件会更实际，因为我不需要添加<code>aria-live="assertive"</code>属性(因为我自己添加了一个<code>role="alert"</code>)</li>
+</ol>
+<p>你可以修复<code>react-a11y-announcer</code>已经默认的错误，但是感觉还是不太直观。如果你需要用它来创建一个不需要在屏幕上显示的<code>polite</code>实时区域，那么使用这个包。否则，你最好自己创建它。</p>
+<h2 id="conclusion">结论</h2>
+<p>我写这篇文章的目的绝不是贬低人们为构建使用ARIA-live区域来帮助创建更易访问的应用程序的工具所做的努力。然而，正如我们在本文中看到的，还有很大的改进空间。</p>
+<p>当您创建可访问的应用程序并使用任何外部包时，测试结果并确保包适合您的用例是非常重要的。只有当你对你想测试的东西有了基本的了解，这才有可能。我希望这篇文章对ARIA-live区域以及如何根据您的具体需求构建一个区域提供了一些见解。</p><div class="code-block code-block-28">
+<div class="blog-plug inline-plug js-libraries-plug"><h2>您是否添加了新的JS库来提高性能或构建新特性？如果他们反其道而行之呢？</h2><p>毫无疑问，前端变得越来越复杂。当您向应用程序添加新的JavaScript库和其他依赖项时，您将需要更多的可见性，以确保您的用户不会遇到未知的问题。</p>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放JavaScript错误，就像它们发生在您自己的浏览器中一样，这样您就可以更有效地对错误做出反应。</p><a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/e8a0ab42befa3b3b1ae08c1439527dc6.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/errors-screenshot.png"/></noscript></a>
+<a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p><a href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>自信地构建— <a class="signup" href="https://lp.logrocket.com/blg/javascript-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+ <p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

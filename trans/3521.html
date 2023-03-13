@@ -1,0 +1,258 @@
+<html>
+<head>
+<title>Introduction to snapshot flags in Node.js v18.8.0 </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Node.js v18.8.0中的快照标志简介</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/snapshot-flags-node-js-v18-8/#0001-01-01">https://blog.logrocket.com/snapshot-flags-node-js-v18-8/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://nodejs.org/ar/blog/release/v18.8.0/"> Node.js </a>最近在v18.8.0中引入了一个生成运行时用户界面(用户脚本)快照的实验性特性。在本帖中，我们将看看这个特性的重要性，以及它提供的一些选项。我们还将这个快照功能与其他打包解决方案进行比较，例如<a href="https://www.npmjs.com/package/pkg"> pkg </a>。</p>
+<p>向前跳:</p>
+
+<h2 id="understanding-node-js-startup">了解Node.js启动</h2>
+<p>为了理解生成运行时用户界面快照的需要，我们需要理解Node.js启动的方式。</p>
+<p>Node.js在启动时构建一个<code>v8::Isolate</code>、<code>v8::context</code>和<code>node::Environment</code>。然后它构造一个<code>process</code>对象并启动bootstrap Node.js来准备环境。Node.js只在所有这些完成后执行用户脚本。</p>
+<p>新的快照标志功能使节点可执行文件能够创建包含Node.js和嵌入式快照的单个二进制文件，而无需从源代码构建Node.js。这意味着二进制文件已经包含了Node，所以不需要再进行一次初始化(比如创建<code>v8::Isolate</code>、<code>v8::context</code>以及启动用户脚本通常需要的所有其他进程)，这会增加脚本的启动时间。</p>
+<h2 id="node-js-flags">Node.js标志</h2>
+<p>为了使Node.js可执行文件能够实现这个特性，引入了两个新标志:<code>--snapshot-blob</code>和<code>--build-snapshot</code>标志。在这一节中，我们将看到如何使用这些新标志。</p>
+<h2 id="build-snapshot-flag"><code>--build-snapshot</code>旗</h2>
+<p><code>--build-snapshot</code>标志告诉Node.js构建文件的快照，该快照作为标志的参数提供:</p>
+<pre class="language-javascript hljs">--build-snapshot snapshot.js
+</pre>
+<p>Snapshot.js充当入口点脚本。</p>
+<h2 id="snapshot-blob-flag"><code>--snapshot-blob</code>旗</h2>
+<p><code>--snapshot-blob</code>标志允许我们告诉Node.js可执行文件将快照blob保存到什么位置。如果快照blob文件存在，Node只需用新的blob覆盖其内容，如果不存在，Node将创建一个新的blob文件，并将其保存到磁盘的当前工作目录中:</p>
+<pre class="language-javascript hljs">--snapshot-blob snapshot.blob
+</pre>
+<p><code>snapshot.blob</code>作为保存生成的blob的二进制文件的名称。</p>
+<p>既然已经了解了这些标志的功能，我们可以尝试构建我们自己的快照。</p>
+<h2 id="building-snapshot">构建快照</h2>
+<ol>
+<li>打开终端并创建一个<code>snapshot_test</code>文件夹</li>
+<li>在您喜欢的代码编辑器中打开<code>snapshot_test</code>文件夹，并使用<code>npm init -y</code>初始化npm</li>
+<li>创建一个名为<code>snapshot.js</code>的文件</li>
+<li>将下面几行代码复制到<code>snapshot.js</code> : <pre class="language-javascript hljs">const path = require('path')  console.log(process.cwd()) globalThis.path = process.cwd() globalThis.file = __dirname const name = 'I am geezy'  console.log(process.argv) globalThis.firstArg = process.argv[2] globalThis.secondArg = process.argv[3]</pre></li>
+</ol>
+<p>这是一个简单的脚本，使用<code>globalThis</code>设置几个<code>global</code>变量。<code>globalThis</code>为我们提供了一条通往<code>global variables(global object)</code>的道路。</p>
+<p>要构建此脚本及其当前Node.js运行时环境的快照，请运行以下命令:</p>
+<pre class="language-javascript hljs">node --snapshot-blob snapshot.blob --build-snapshot snapshot.js name home
+</pre>
+<p>通过<code>process.argv</code>我们可以获得给命令的额外的<code>name</code>和<code>home</code>参数。</p>
+<p>这是输出:</p>
+<pre class="language-javascript hljs">/home/phantom/Documents/node_js_projects/node_testing
+[
+  '/home/phantom/.nvm/versions/node/v18.9.1/bin/node',
+  '/home/phantom/Documents/node_js_projects/node_testing/snapshot.js',
+  'name',
+  'home'
+]
+</pre>
+<p>Node.js照常执行Snapshot.js，然后创建脚本状态的快照。</p>
+<p>检查当前工作目录，我们找到Node.js生成的<code>snapshot.blob</code>文件。当我们打开文件时，我们看到的是乱码:</p>
+<p><img data-attachment-id="138859" data-permalink="https://blog.logrocket.com/snapshot-flags-node-js-v18-8/attachment/opened-snapshot-blob-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png" data-orig-size="730,291" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Opened snapshot-blob file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png" decoding="async" class="aligncenter size-full wp-image-138859 jetpack-lazy-image" src="../Images/94b880ce2bcc050a98c7386b5d8d5a21.png" alt="Opened Snapshot-Blob File" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file-300x120.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="138859" data-permalink="https://blog.logrocket.com/snapshot-flags-node-js-v18-8/attachment/opened-snapshot-blob-file/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png" data-orig-size="730,291" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Opened snapshot-blob file" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file-300x120.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-138859" src="../Images/94b880ce2bcc050a98c7386b5d8d5a21.png" alt="Opened Snapshot-Blob File" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file-300x120.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/opened-snapshot-blob-file.png"/></noscript>
+<p>这就提出了一个问题:我们如何执行生成的blob？</p>
+<h2 id="running-snapshot-blob">运行快照blob</h2>
+<p>这个新特性使得运行快照blob变得很容易——我们所需要的就是为我们的<code>snapshot.blob</code>文件创建一个条目文件。这个文件将试图从<code>Global</code> <code>Object</code>中读取。</p>
+<p>在<code>snapshot_test</code>目录中创建一个<code>index.js</code>文件，并向其中添加以下代码行:</p>
+<pre class="language-javascript hljs">console.log('current working directory', globalThis.path)
+console.log('First Arg', globalThis.firstArg)
+console.log('Second Argument', globalThis.secondArg)
+console.log('current process Argv', process.argv)
+console.log('Global Object', globalThis)
+</pre>
+<p>然后，运行以下命令:</p>
+<pre class="language-javascript hljs">node --snapshot-blob snapshot.blob index.js
+</pre>
+<p>这是输出:</p>
+<pre class="language-javascript hljs">current working directory /home/phantom/Documents/node_js_projects/node_testing
+First Arg name
+Second Argument home
+current process Argv [
+  '/home/phantom/.nvm/versions/node/v18.9.1/bin/node',
+  '/home/phantom/Documents/node_js_projects/node_testing/index.js'
+]
+Global Object &lt;ref *1&gt; Object [global] {
+  global: [Circular *1],
+  queueMicrotask: [Function: queueMicrotask],
+  clearImmediate: [Function: clearImmediate],
+  setImmediate: [Function: setImmediate] {
+    [Symbol(nodejs.util.promisify.custom)]: [Getter]
+  },
+  structuredClone: [Function: structuredClone],
+  clearInterval: [Function: clearInterval],
+  clearTimeout: [Function: clearTimeout],
+  setInterval: [Function: setInterval],
+  setTimeout: [Function: setTimeout] {
+    [Symbol(nodejs.util.promisify.custom)]: [Getter]
+  },
+  atob: [Function: atob],
+  btoa: [Function: btoa],
+  performance: Performance {
+    nodeTiming: PerformanceNodeTiming {
+      name: 'node',
+      entryType: 'node',
+      startTime: 0,
+      duration: 99.07323400303721,
+      nodeStart: 3.987049002200365,
+      v8Start: 31.41652700304985,
+      bootstrapComplete: 89.83720200136304,
+      environment: 66.75902900099754,
+      loopStart: -808954.4995539971,
+      loopExit: -808949.1088810004,
+      idleTime: 0
+    },
+    timeOrigin: 1665479964732.965
+  },
+  fetch: [AsyncFunction: fetch],
+  path: '/home/phantom/Documents/node_js_projects/node_testing',
+  file: '/home/phantom/Documents/node_js_projects/node_testing',
+  firstArg: 'name',
+  secondArg: 'home'
+}
+</pre>
+<p>虽然我们没有运行<code>snapshot.js</code>文件，但是通过运行带有入口点的blob文件，变量<code>globalThis.path</code>、<code>globalThis.firstArg</code>和<code>globalThis.secondArg</code>被赋值，就像我们运行<code>snapshot.js</code>文件一样。这证明了我们的应用程序的状态是在<code>snapshot.blob</code>文件中捕获的。</p>
+<p>要知道<code>snapshot.blob</code>文件是否正在运行，我们可以尝试运行<code>index.js</code>文件，而不指定blob。</p>
+<p>运行以下命令:</p>
+<pre class="language-javascript hljs"> node index.js
+</pre>
+<p>这是输出:</p>
+<pre class="language-javascript hljs">current working directory undefined
+First Arg undefined
+Second Argument undefined
+current process Argv [
+  '/home/phantom/.nvm/versions/node/v18.9.1/bin/node',
+  '/home/phantom/Documents/node_js_projects/node_testing/index.js'
+]
+Global Object &lt;ref *1&gt; Object [global] {
+  global: [Circular *1],
+  queueMicrotask: [Function: queueMicrotask],
+  clearImmediate: [Function: clearImmediate],
+  setImmediate: [Function: setImmediate] {
+    [Symbol(nodejs.util.promisify.custom)]: [Getter]
+  },
+  structuredClone: [Function: structuredClone],
+  clearInterval: [Function: clearInterval],
+  clearTimeout: [Function: clearTimeout],
+  setInterval: [Function: setInterval],
+  setTimeout: [Function: setTimeout] {
+    [Symbol(nodejs.util.promisify.custom)]: [Getter]
+  },
+  atob: [Function: atob],
+  btoa: [Function: btoa],
+  performance: Performance {
+    nodeTiming: PerformanceNodeTiming {
+      name: 'node',
+      entryType: 'node',
+      startTime: 0,
+      duration: 104.0962289981544,
+      nodeStart: 15.742054000496864,
+      v8Start: 21.813469998538494,
+      bootstrapComplete: 88.35036600008607,
+      environment: 66.38047299906611,
+      loopStart: -1,
+      loopExit: -1,
+      idleTime: 0
+    },
+    timeOrigin: 1665480382060.152
+  },
+  fetch: [AsyncFunction: fetch]
+}
+</pre>
+<p>检查这两个输出，我们注意到一些差异:</p>
+<ol>
+<li>在第二种情况下，<code>globalThis.path</code>、<code>globalThis.firstArg</code>和<code>globalThis.secondArg</code>值未定义，因为这些值仅在<code>snapshot.js</code>运行时设置</li>
+<li><code>Global</code> <code>Object</code>不包含我们在<code>snapshot.js</code>文件中初始化的额外的键值对</li>
+</ol>
+<h2 id="alternative-using-separate-entry-script">使用单独输入脚本的替代方法</h2>
+<p>我们可以在不使用入口脚本的情况下恢复应用程序状态，方法是在构建快照时使用<code>v8.startupSnapshot</code> API来指定入口点。</p>
+<p>在当前目录中，创建一个<code>second_snapshot.js</code>文件，并添加以下代码行:</p>
+<pre class="language-javascript hljs">const path = require('path')
+
+console.log(process.cwd())
+globalThis.path = process.cwd()
+globalThis.file = __dirname
+const name = 'I am geezy'
+
+console.log(process.argv)
+globalThis.firstArg = process.argv[2]
+globalThis.secondArg = process.argv[3]
+
+require('v8').startupSnapshot.setDeserializeMainFunction(() =&gt; {
+    console.log('firstArg', this.firstArg)
+    console.log('secondArg', this.secondArg)
+    console.log('I am from the second snapshot')
+})
+</pre>
+<p>使用以下命令构建快照blob:</p>
+<pre class="language-javascript hljs">node --snapshot-blob second_snapshot.blob --build-snapshot second_snapshot.js name home
+</pre>
+<p>要从<code>second_snapshot.blob</code>恢复脚本状态，运行以下命令:</p>
+<pre class="language-javascript hljs">node --snapshot-blob second_snapshot.blob
+</pre>
+<p>这是输出:</p>
+<pre class="language-javascript hljs">firstArg name
+secondArg home
+I am from the second snapshot
+</pre>
+<p>请注意，在尝试恢复应用程序状态时，我们不必指定入口脚本。</p>
+<h2 id="snapshot-blob-build-snapshot-vs-node-snapshot-main"><code>--snapshot-blob</code>和<code>--build-snapshot</code>对<code>--node-snapshot-main</code></h2>
+<p>这些新标志允许运行时快照，但是从node v18.0.0开始，通过使用<code>--node-snapshot-main</code>标志来拍摄快照的能力就已经存在了。但是，该标志仅支持构建时快照。它还需要从源构建节点，这对于用户来说并不友好，并且需要相当长的时间，具体取决于主机。</p>
+<p>为了理解运行时快照和构建时快照的性能差异，让我们来看看这两个特性的作者提供的指标:</p>
+<p><img data-attachment-id="138861" data-permalink="https://blog.logrocket.com/snapshot-flags-node-js-v18-8/attachment/node-js-snapshot-metrics/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg" data-orig-size="730,142" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Node.js snapshot metrics" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics-300x58.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg" decoding="async" class="aligncenter size-full wp-image-138861 jetpack-lazy-image" src="../Images/7b602f340119b9a45afb46802d8b7d4f.png" alt="Node.js Snapshot Metrics" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics-300x58.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="138861" data-permalink="https://blog.logrocket.com/snapshot-flags-node-js-v18-8/attachment/node-js-snapshot-metrics/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg" data-orig-size="730,142" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;1&quot;}" data-image-title="Node.js snapshot metrics" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics-300x58.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-138861" src="../Images/7b602f340119b9a45afb46802d8b7d4f.png" alt="Node.js Snapshot Metrics" srcset="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics-300x58.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/10/node-js-snapshot-metrics.jpeg"/></noscript>
+<p>查看上面的指标，很容易发现运行时快照(<code>--snapshot-blob</code>)版本执行了19次运行，性能优于构建时快照(11次运行)，同时花费的时间也少得多。</p>
+<table>
+<thead>
+<tr>
+<th><strong>支持</strong></th>
+<th><code>--snapshot-blob</code> <strong>和</strong> <code>--build-snapshot</code></th>
+<th><code>--node-snapshot-main</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>运行时快照</td>
+<td>是</td>
+<td>不</td>
+</tr>
+<tr>
+<td>使用配置脚本</td>
+<td>不</td>
+<td>是</td>
+</tr>
+<tr>
+<td>用户土地模块</td>
+<td>不</td>
+<td>不</td>
+</tr>
+<tr>
+<td>需要单独的启动脚本</td>
+<td>没有必要</td>
+<td>是</td>
+</tr>
+<tr>
+<td>从源构建节点</td>
+<td>不</td>
+<td>是</td>
+</tr>
+<tr>
+<td>构建时快照</td>
+<td>不</td>
+<td>是</td>
+</tr>
+</tbody>
+</table>
+<h2 id="node-js-snapshot-feature-vs-other-packaging-solutions">Node.js快照功能与其他打包解决方案的对比</h2>
+<p>使用打包解决方案(比如<a href="https://www.npmjs.com/package/pkg"> pkg </a>)，可以将app源码捆绑成二进制。但是为了在加载二进制文件后启动应用程序，您仍然需要解析源代码。</p>
+<p>另一方面，使用Node.js快照，由代码初始化的堆状态包含在二进制文件中，从而不需要在加载时运行初始化代码。</p>
+<h2 id="conclusion">结论</h2>
+<p>Node.js快照特性是高度试验性的，在撰写本文时还很有限，但是随着时间的推移，将会添加更多的特性。这个特性对Node.js社区来说是一个很有前景的特性，希望你在阅读完这篇文章后对这个主题有更好的理解。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

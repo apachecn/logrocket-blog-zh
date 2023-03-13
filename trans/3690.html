@@ -1,0 +1,218 @@
+<html>
+<head>
+<title>Exploring React Router’s data, navigation, and error handling APIs </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>探索React路由器的数据、导航和错误处理API</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/react-router-data-navigation-error-handling-apis/#0001-01-01">https://blog.logrocket.com/react-router-data-navigation-error-handling-apis/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>React Router的v6.4是2022年早些时候的一个小版本，为<code>react-router-dom</code>包引入了一些突破性的变化。新添加的一组API和数据获取模式是从<a href="remix.run"> Remix </a>获得的。因为这两个库是由同一作者编写的，<a href="https://reactrouter.com/en/main/start/overview"> React router v6.4 </a>提供了直观的方法来处理数据获取，并对单页面应用程序中的错误管理进行更多的控制。要从React路由器v5迁移到v6，请查看本<a href="https://blog.logrocket.com/migrating-react-router-v6-guide/">指南</a>。</p>
+<p>在本文中，您将看到React Router v6.4中引入的新API和模式，它们简化了基于React的应用程序的路由。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="data-fetching-react-router-v-6-4">React路由器6.4中的数据获取</h2>
+<p>让我们从一个非常简单的数据获取逻辑开始。您可能熟悉下面给出的模式。毕竟，这就是我们在React组件中从API获取数据的方式。</p>
+<p>您只需创建一个调用API的<code>fetch</code>函数(在本例中为<code>getBlog</code>)并将它传递给<code>useEffect</code>钩子。每当来自<code>URL</code>的ID改变时，该钩子将重新获取，反映你正在写的博客文章。如果您需要复习使用带挂钩的React路由器的<a href="https://blog.logrocket.com/using-hooks-react-router/">知识，请查看本指南。</a></p>
+<p>最后，您可以借助<code>useState</code>钩子手动处理加载和错误状态:</p>
+<pre class="language-javascript hljs">import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getBlog } from './utils/api'
+
+function BlogDetail(){
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setError] = useState(null);
+    const [blog, setBlog] = useState(null);
+
+// fetching id from URL dynamically //
+const params = useParams();
+const id = params.id;
+
+async function getBlogs(){
+    setIsLoading(true)
+    try {
+        const blog = await getBlog(id);
+        setBlog(blog)
+    }
+    catch(error) {
+        setError(error.message) 
+    }
+    finally{
+        setIsLoading(false)
+    }
+}
+
+useEffect(() =&gt; {
+  getBlogs()
+}, [id])
+
+return (
+    &lt;&gt;
+        {isLoading &amp;&amp; &lt;p&gt;Loading...&lt;/p&gt;}
+        {isError &amp;&amp; !isLoading &amp;&amp; &lt;p&gt;Oops! An Error has Occurred, Try Again&lt;/p&gt;}
+        &lt;BlogPost heading={blog.heading} detail={blog.detail} /&gt;
+    &lt;&gt;
+)
+}
+</pre>
+<h2 id="refactoring-react-component">重构您的React组件</h2>
+<p>虽然这种模式受到鼓励并且运行良好，但它有一些缺点，React Router v6.4旨在解决这些缺点。首先，数据获取对于单个请求来说需要大量代码。乍一看，处理所有这些错误、加载器等的状态值看起来相当标准。</p>
+<p>然而，随着应用程序的增长，它会对代码库造成严重破坏。像这样的React应用程序的另一个大缺点是获取本身。<code>useEffect()</code>钩子只在组件被渲染后运行。所以，换句话说，只有在屏幕上打印出基本的UI之后，才能开始获取。在这段时间内，你只会看到装载机，这不是一个好的UX。</p>
+<p>React Router鼓励移除所有这些代码块以获取组件来解决这个问题。取而代之的是，使用在<a href="remix.run"> Remix </a>和React router v6.4中引入的加载器模式。</p>
+<p>您可以通过移除所有加载和错误状态以及<code>return</code>方法中的条件逻辑来开始重构:</p>
+<pre class="language-javascript hljs">function BlogDetail(){
+    const [blog, setBlog] = useState(null);
+    const params = useParams();
+    const id = params.id;
+return (
+    ...
+    )
+}
+
+export function BlogDetailLoader(id){
+    return getBlog(id)
+}
+</pre>
+<p>新的加载器和数据API现在将处理组件中的数据获取。注意上面重构组件中的<code>BlogDetailLoader</code>函数。现在可以使用它向<code>BlogDetail</code> React组件公开由<code>getBlog</code>(即调用API)接收的数据。</p>
+<p>现在，为了让您的<code>BlogDetailLoader</code>函数工作，传递一个新的<code>loader</code> API，您已经在其中定义了所有的路线(可能在<code>App.js</code>文件中):</p>
+<pre class="language-javascript hljs">import { BlogDetailLoader, BlogDetail } from ''../BlogDetail";
+
+&lt;Route path="/blog" element={&lt;GenericBlogLayout /&gt;}&gt;
+    &lt;Router path=":id" element={&lt;BlogDetail /&gt;}  
+        loader={BlogDetailLoader} /&gt;
+&lt;/Route&gt;
+</pre>
+<p>通过使用React Router v6.4中的<code>loader</code> API，您的<code>BlogDetail</code>组件现在可以轻松访问由<code>BlogDetailLoader</code>返回的数据:</p>
+<pre class="language-javascript hljs">import { useDataLoader } from 'react-router-dom';
+
+function BlogDetail(){
+
+// data variable has now access to whatever the loader has returned (in this case getBlog) //
+    const data = useDataLoader(); 
+    const params = useParams();
+    const id = params.id;
+return (
+    &lt;&gt;
+        &lt;BlogPost heading={data.heading} detail={data.detail} /&gt;
+    &lt;&gt;
+    )
+}
+
+export function BlogDetailLoader(id){
+    return getBlog(id)
+}
+</pre>
+<p>您可以通过将来自<code>params</code>的<code>ID</code>传递给React Router公开给<code>loader</code>函数来进一步改进这一点，如下所示:</p>
+<pre class="language-javascript hljs">export function BlogDetailLoader({params}){
+    return getBlog(params.id)
+}
+</pre>
+<p>现在，您已经完全重构了React组件，并通过使用新的React Router v6.4 <code>useDataLoader</code> API清理了所有不必要的<code>useEffect()</code>挂钩和显式<code>isLoading</code>状态。</p>
+<p>这种模式消除了加载状态的使用，因为页面只需要在从API获取数据后加载。你可以把它想象成那些服务器端渲染的页面。这创建了一个很好的UX，没有烦人的微调器和加载器等待数据加载。</p>
+<p>但是等等！那<code>isError</code>状态呢？无论请求是否成功发出，我们仍然需要显式地处理React组件中的错误状态。</p>
+<h2 id="new-navigation-apis">新导航API</h2>
+<p>值得注意的是，这些新的API不是向后兼容的，并且需要在根级别定义路由的方式上稍作改变。</p>
+<p>首先，React Router v6.4建议将<code>BrowserRouter</code>替换为<code>RouterProvider</code>，这只是一个以<code>router</code>为道具的自闭组件:</p>
+<pre class="language-javascript hljs">import { RouterProvider, createBrowserRouter, } from 'react-router-dom';
+
+const router = createBrowserRouter()
+
+function App(){
+    return(
+        &lt;RouterProvider router={router} /&gt;
+        // move all routes defined here, and pass it             `createBrowserRouter`
+    )
+}
+</pre>
+<p><code>createBrowserRouter()</code>可以简单地接受一个对象数组，你可以像这样传递你的路线和路径:</p>
+<pre class="language-javascript hljs">const router = createBrowserRouter([
+    { element={ &lt;Welcome /&gt; }, path="/" },
+    { element={ &lt;BlogHome /&gt; }, path="/blog" },
+    { element={ &lt;About /&gt; }, path="/about" },
+]);
+
+// pass this `router` variable to the `RouterProvider` API //
+&lt;RouterProvider router={router} /&gt;
+</pre>
+<p>但是，您希望传递您为页面定义的复杂路线，包括动态路线(如带有<code>ID</code>的路线)，</p>
+<p>在这种情况下，您可以将另一个函数<code>createRoutesFromElements</code>传递给<code>createBrowserRouter</code> API，如下所示:</p>
+<pre class="language-javascript hljs">const router = createBrowserRouter(createRoutesFromElements(
+    // pass all the Routes as it was defined before
+));
+
+// later, passing the `router` to the provider as it was
+&lt;RouterProvider router={router} /&gt;
+</pre>
+<h3 id="changes-outlet-api">对<code>Outlet</code> API的更改</h3>
+<p>虽然您已经设置了所有的路由并将它们迁移到了v6.4，但是请记住，在v6.4中有一个重要的东西发生了变化，那就是<code>Outlet</code> API。通常，您可能已经使用了某种共享根布局组件，该组件通过使用React的<code>children</code>属性来使用所有子路由。</p>
+<p>React Router v6.4使得使用<code>Outlet</code> API定义根布局变得更加容易。你可以在<code>Route</code>(而不是6.4之前的<code>Routes</code>)下包装你的整个路线，并通过一个<code>&lt;SharedRootLayout /&gt;</code>组件:</p>
+<pre class="language-javascript hljs">const router = createBrowserRouter(createRoutesFromElements(
+    &lt;Route path="/" element={&lt;SharedRootLayout /&gt;}&gt;
+        &lt;Route path="/blog" element={&lt;GenericBlogLayout /&gt;}&gt;
+        &lt;Router path=":id" element={&lt;BlogDetail /&gt;}  
+            loader={BlogDetailLoader} /&gt;
+        &lt;/Route&gt;
+    &lt;/Route&gt;
+));
+</pre>
+<p>在<code>SharedRootLayout</code>组件中，您可以在下面的代码中使用新的outlet API:</p>
+<pre class="language-javascript hljs">import { Outlet } from 'react-router-dom';
+
+function SharedRootLayout(){
+    return(
+        &lt;&gt;
+            &lt;Navbar /&gt;
+            // replacing {children} with &lt;Outlet /&gt;, this Outlet API has //now access to all the `children` Routes under the Root `&lt;Route /&gt;` //
+            &lt;Outlet /&gt; 
+        &lt;/&gt;
+    )
+}
+</pre>
+<p>因此，这些API<code>createBrowserRouter</code>、<code>createRoutesFromElements</code>和<code>&lt;Outlet /&gt;</code>完全改变了我们在React Router v6.4中定义路由的方式。这些改变使React Router v6.4在执行复杂路由时更加健壮。</p>
+<h2 id="handling-error-states">处理错误状态</h2>
+<p>到目前为止，您已经将加载器状态、路由等重构到了最新的v6.4，但是错误状态呢？如果网络请求失败，您仍然需要某种检查。在这种情况下，下面的代码不再相关，因为您已经脱离了<code>useEffect</code>挂钩和这些状态值的手动处理:</p>
+<pre class="language-javascript hljs">{isError &amp;&amp; &lt;p&gt;Oops! an Error has Occured&lt;/p&gt;}
+</pre>
+<p>幸运的是，React Router v6.4提供了错误处理API，使得处理这样的情况变得轻而易举。您需要在<code>Route</code>中添加一个<code>errorElement</code>属性，以便在出错时自动处理错误状态:</p>
+<pre class="language-javascript hljs">&lt;Router path=":id" element={&lt;BlogDetail /&gt;} loader={BlogDetailLoader} 
+    errorElement={&lt;p&gt;Oops! Something Went Wrong&lt;/p&gt;}
+/&gt;
+// or even pass an Error page component to the `errorElement` prop
+&lt;Router path=":id" element={&lt;BlogDetail /&gt;} loader={BlogDetailLoader} 
+    errorElement={&lt;404Page /&gt;}
+/&gt;
+</pre>
+<p>React Router v6.4还提供了在根级别<code>Route</code>添加<code>errorElement</code>的灵活性，与<code>&lt;SharedRootLayout /&gt;</code>组件相同。</p>
+<p>如果您需要访问错误消息并将其呈现在UI页面上，您可以使用错误挂钩<code>useRouteError()</code>来获取实际原因或错误消息，并将其记录到屏幕上:</p>
+<pre class="language-javascript hljs">import { useRouteError } from 'react-router-dom';
+
+function BlogDetail(){
+    const error = useRouteError()
+    return(
+        //rest of the UI
+        &lt;div&gt;Error : {error.status}, Sorry {error.message}&lt;/div&gt;
+    )
+}
+</pre>
+<p>如您所见，它的模式类似于6.4版之前的React路由器，但是允许更多的灵活性和控制。</p>
+<h2>结论</h2>
+<p>在本文中，您看到React Router v6.4被证明是React Router团队最重要的版本之一。它引入了一堆直接来自Remix的新API和想法。虽然所有这些新的实践一开始可能看起来很陌生，但毫无疑问，它极大地改善了开发人员和最终用户的体验。React Router v6.4提供的远不止这些。要了解更多信息，请查看他们的官方发布文档。</p><div class="code-block code-block-17">
+<div class="blog-plug inline-plug react-plug" vwo-el-id="26283398190">
+<h2 vwo-el-id="41600691720">使用LogRocket消除传统反应错误报告的噪音</h2>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" vwo-el-id="19356441070">LogRocket
+</a><p>是一款React analytics解决方案，可保护您免受数百个误报错误警报的影响，只针对少数真正重要的项目。LogRocket告诉您React应用程序中实际影响用户的最具影响力的bug和UX问题。</p><a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441380">
+<img class="first-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/f300c244a1a1cf916df8b4cb02bec6c6.png" vwo-el-id="18272717540" data-lazy-loaded="1" data-original-src="https://files.readme.io/27c94e7-Image_2017-06-05_at_9.46.04_PM.png"/>
+</a>
+<a class="signup" href="https://lp.logrocket.com/blg/react-signup-general" target="_blank" rel="noopener noreferrer" vwo-el-id="19356441690">
+<img class="second-react-image alignnone size-full wp-image-46 jetpack-lazy-image jetpack-lazy-image--handled" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" vwo-el-id="30720362350" data-lazy-loaded="1" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/>
+</a>
+<a href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="35866400580">LogRocket
+</a><p>自动聚合客户端错误、反应错误边界、还原状态、缓慢的组件加载时间、JS异常、前端性能指标和用户交互。然后，LogRocket使用机器学习来通知您影响大多数用户的最具影响力的问题，并提供您修复它所需的上下文。</p><p vwo-el-id="28675661060">关注重要的React bug—<a class="signup" href="https://lp.logrocket.com/blg/react-signup-issue-free" target="_blank" rel="noopener noreferrer" vwo-el-id="40093418840">今天就试试LogRocket】。</a></p>
+</div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

@@ -1,0 +1,262 @@
+<html>
+<head>
+<title>Implementing data parallelism with Rayon Rust </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用Rayon Rust实现数据并行</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implementing-data-parallelism-rayon-rust/#0001-01-01">https://blog.logrocket.com/implementing-data-parallelism-rayon-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>并发和并行计算是软件开发领域的热门话题。公平地说，这种流行是当之无愧的，因为它们为程序提供了显著的性能提升。然而，当不正确地实现时，它们会导致难以调试的问题，比如数据竞争和死锁。</p>
+<p>幸运的是，Rust编程语言配备了无所畏惧的并发性，这是通过Rust的<a href="https://blog.logrocket.com/understanding-ownership-in-rust/">所有权</a>和<a href="https://blog.logrocket.com/introducing-the-rust-borrow-checker/">借用检查器</a>模型实现的。因此，许多导致数据竞争和死锁的并发错误都是在编译时捕获的。</p>
+<p>在本文中，我们将探索如何用Rayon Rust实现数据并行，以及<a href="https://crates.io/crates/rayon"> rayon crate </a>如何通过使顺序迭代器转换成相似的对应物变得更容易来改进Rust编程语言的并行特性。</p>
+<p>在开始之前，确保您熟悉Rust编程语言，并对Rust迭代器有基本的了解。要重温Rust基础知识，请查看我们的<a href="https://blog.logrocket.com/getting-up-to-speed-with-rust/">指南，了解Rust </a>的最新进展。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="sequential-interators-rust">理解Rust中的顺序迭代器</h2>
+<p>默认情况下，Rust标准库提供的迭代器按顺序执行操作。假设我们有一个1000人的名单。现在，假设我们想检查名字<code>Alice</code>是否能在列表中找到。为此，我们可以使用标准库中的各种迭代器方法，如下所示:</p>
+<pre class="language-rust hljs">let names = vec![ ... ]; 
+let is_present = names.iter().any(|name| name == "Alice"); 
+</pre>
+<p>虽然这种方法有效，但是列表中的名字是按照数字顺序遍历的，直到找到<code>Alice</code>为止。如果在列表的后面找到了<code>Alice</code>，这可能不是最好的方法。那么，我们来看一个更实际的例子。假设我们想下载一个2000 MB的大图像。下面是我们可能如何按顺序进行(<em>原型</em>):</p>
+<pre class="language-rust hljs">/** !! Does not compile !! **/ 
+
+
+
+
+// Using reqwest crate 
+
+
+
+
+fn main()-&gt; reqwest::Result&lt;()&gt; { 
+    let ranges = &amp;[(0, 249MB), (250MB, 499MB), (500MB, 749 MB), (750MB, 999MB), (1000MB,1249MB), (1250MB, 1499MB), (1500MB, 1749MB), (1750MB, 2000MB)]; 
+ranges.iter().for_each(|(start, end)| { 
+        let client = reqwest::blocking::Client::new(); 
+        let response = client.get("random_video_url.mp4").header(RANGE, RangeHeader((start, end))).send().unwrap(); 
+        std::fs::write(format!("file{}", a), response.bytes().unwrap()) 
+}); 
+// finally, join all files 
+Ok(()) 
+} 
+</pre>
+<p>即使我们将文件分成了块，这种方法也可以顺序下载文件。首先下载第一个块，第二个和第三个，依此类推。所有这些都发生在一个线程上。然而，这种方法有几个缺点。假设服务器只允许每个线程每秒最多1MB。这意味着在最大网络连接下，下载大约需要2000秒。已经超过33分钟了！</p>
+<h2 id="parallel-iterators">实现并行迭代器</h2>
+<p>并行执行操作通常会提高进程的速度。回到我们之前的例子，每兆字节需要一秒钟来下载。让我们假设文件被分成八个相等的块，每个块都有250MB，这样每个块都有自己的线程。</p>
+<p>这意味着每个线程需要大约250秒来下载它的块。因为线程同时运行(并行运行)，所以总时间仍然是250秒——大约4分钟！可能需要几秒钟来合并文件以获得完整的文件。</p>
+<p>用原型代码来说:</p>
+<pre class="language-rust hljs">/** !! Does not compile !! **/ 
+use rayon::prelude::*; 
+use reqwest::header::RANGE; 
+
+
+
+
+// — Snip – // 
+let ranges = &amp;[(0, 249MB), (250MB, 499MB), (500MB, 749 MB), (750MB, 999MB), (1000MB,1249MB), (1250MB, 1499MB), (1500MB, 1749MB), (1750MB, 2000MB)]; 
+ranges.par_iter().for_each(|(start, end)| { 
+        let client = reqwest::blocking::Client::new(); 
+        let response = client.get("random_video_url.mp4").header(RANGE, RangeHeader((start, end))).send().unwrap(); 
+        std::fs::write(format!("file{}", a), response.bytes().unwrap()) 
+}); 
+// finally, join all files  
+</pre>
+<p>你可能已经注意到了<code>par_iter</code>方法的使用。这种方法是由<a href="https://docs.rs/rayon/1.6.1/rayon/index.html">人造丝</a>货箱提供的。Rayon允许程序员轻松地将标准库提供的各种迭代器方法转换成并行执行的迭代器。要将顺序迭代器代码片段转换成并行代码片段，首先用<code>use rayon::prelude::*;</code>导入rayon crate，并用相应的并行版本的<code>into_par_iter</code>或<code>par_iter</code>替换<code>into_iter</code>或<code>iter</code>方法。以下是一些例子:</p>
+<pre class="language-rust hljs">use rayon::prelude::*; 
+let names = vec![ ... ]; 
+let is_present = names.par_iter().any(|name| name == "Alice"); 
+
+// sequential 
+fn sum_of_char_len(list: &amp;[&amp;str]) -&gt; usize { 
+    list.iter().map(|word| word.len()).sum() 
+} 
+
+
+
+
+// parallel 
+fn par_sum_of_char_len(list: &amp;[&amp;str]) -&gt; usize { 
+    list.par_iter().map(|word| word.len()).sum() 
+} 
+</pre>
+<h2 id="rayon-par-bridge-method">使用人造丝的<code>par_bridge</code>方法</h2>
+<p><code>par_iter</code>和<code>into_par_iter</code>方法通常作用于内置集合，比如列表和散列表。但是，它们不适用于自定义迭代器类型。对于并行执行的自定义迭代器来说，该方法非常方便。为了说明这一点，下面是一个简单的素数生成器:</p>
+<pre class="language-rust hljs">struct PrimeGenerator { 
+    start: usize, 
+    end: usize, 
+} 
+
+
+
+
+fn is_prime(num: usize) -&gt; bool { 
+    if num &lt;= 1 { 
+        return false; 
+    } 
+    for i in 2..num { 
+        if num % i == 0 { 
+            return false; 
+        } 
+    } 
+    true 
+} 
+
+
+
+
+impl Iterator for PrimeGenerator { 
+    type Item = usize; 
+
+
+
+
+    fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt; { 
+        while !is_prime(self.start) { 
+            self.start += 1; 
+        } 
+        if self.start &gt; self.end { 
+            None 
+        } else { 
+            let prime = self.start; 
+            self.start += 1; 
+            Some(prime) 
+        } 
+    } 
+} 
+</pre>
+<p>这里，我们创建了一个简单的<code>struct</code>并实现了<code>Iterator</code>特征。<code>iterator</code>在指定的范围内产生一个质数。要并行执行这个<code>iterator</code>，我们必须使用<code>par_bridge</code>方法，如下所示:</p>
+<pre class="language-rust hljs">fn get_primes() { 
+    let primes = PrimeGenerator { 
+        start: 0, 
+        end: 20, 
+    }; 
+    println!("ranges are {:?}", primes.par_bridge().collect::&lt;Vec&lt;_&gt;&gt;()) 
+} 
+</pre>
+<blockquote><p>注意:这将打印一个没有特定顺序的质数列表。</p></blockquote>
+<p>因为<code>par_bridge</code>产生一个<code>iterator</code>，几个<code>iterator</code>方法可以应用于它。这些包括，<code>map</code>，<code>for_each</code>，<code>sum</code>等等。你可以点击查看整个列表<a href="https://docs.rs/rayon/1.6.1/rayon/iter/trait.ParallelIterator.html">。</a></p>
+<p>让我们在下面想象一下:</p>
+<pre class="language-rust hljs">// sum prime numbers between a particular range 
+let primes = PrimeGenerator { 
+        start: 0, 
+        end: 20, 
+    }; 
+let sum_of_primes: usize = primes.par_bridge().sum(); 
+</pre>
+<h2 id="rayon-instances">探索人造丝的实例</h2>
+<p>并行迭代器是一种在应用程序中引入<a href="https://blog.logrocket.com/deep-dive-concurrency-rust-programming-language/">并发</a>的灵活方式，无需在几个线程间共享任务的麻烦。然而，rayon还提供了<code>join</code>、<code>scope</code>和<code>ThreadPoolBuilder</code>实例，允许您创建定制任务。让我们深入了解每一个问题。</p>
+<h3 id="join"><code>join</code>法</h3>
+<p><code><a href="https://docs.rs/rayon/latest/rayon/fn.join.html">join</a></code>函数允许程序员潜在地并行执行两个<a href="https://blog.logrocket.com/optimizing-rust-code-with-closures-environment-capturing/">闭包</a>。Rayon的<code>parallelization</code>方法是基于一个被称为<a href="https://en.wikipedia.org/wiki/Work_stealing">偷工减料</a>的原理。第一个闭包在当前线程上执行，而第二个闭包可以在另一个线程上执行。如果有一个空闲线程，该线程将执行闭包。</p>
+<p>然而，当没有空闲线程时，当第一个闭包返回时，第二个闭包在当前线程上执行。假设另一个空闲线程已经在执行第二个闭包(被盗)。在这种情况下，当前线程等待小偷(当前执行第二个闭包的空闲线程)完成。也就是说，传递给<code>join</code>方法的闭包应该是CPU绑定的任务，而不是像<a href="https://blog.logrocket.com/asynchronous-i-o-and-async-await-packages-in-rust/"> I/O </a>那样的阻塞任务。你可以在这里了解更多关于<a href="https://docs.rs/rayon/latest/rayon/fn.join.html#warning-about-blocking-io">的信息。下面是<code>join</code>的一些用法:</a></p>
+<pre class="language-rust hljs">fn strings_to_num(slice: &amp;[&amp;str]) -&gt; Vec&lt;usize&gt; { 
+    slice.iter().map(|s| { 
+        s.parse::&lt;usize&gt;().expect(&amp;format!("{} is not a number", s)) 
+    }).collect() 
+} 
+
+
+
+
+fn factorial(mut n: u128) -&gt; u128 { 
+    (1..=n).reduce(|multiple, next| multiple * next).unwrap() 
+} 
+
+
+
+
+fn test_join() { 
+    let (a, b) = rayon::join(|| factorial(30), 
+                            || strings_to_num(&amp;["12", "100", "19887870", "56", "9098"]), 
+    ); 
+    println!("factorial of 1000 is {}", a); 
+    println!("numbers are {:?}", b) 
+} 
+</pre>
+<blockquote><p>注意:因为闭包在不同的线程上执行，所以其中一个闭包的崩溃不会取消另一个闭包的执行。</p></blockquote>
+<h3 id="scope"><code>scope</code>法</h3>
+<p><code><a href="https://docs.rs/rayon/latest/rayon/fn.scope.html">scope</a></code>函数允许您异步生成任意数量的任务。类似于<code>join</code>，<code>scope</code>一旦所有的任务在其中产生，就返回。让我们看一个例子:</p>
+<pre class="language-rust hljs">fn test_scope() { 
+    let mut map: Option&lt;HashMap&lt;String, usize&gt;&gt; = None; 
+    let mut factorial = 1; 
+    let mut other = None; 
+    rayon::scope(|s| { 
+        s.spawn(|_s| { 
+            let iter = 
+                (0..10000).enumerate().map(|(a, b)| (format!("index {}", a), b)); 
+            map = Some(HashMap::from_iter(iter)); 
+        }); 
+        s.spawn(|_s| { 
+            factorial = factorial_sequential(30); 
+        }); 
+        s.spawn(|_s| { 
+            other = Some("value") 
+        }) 
+    }); 
+
+
+
+
+    println!("map {:?}", map.unwrap()); 
+    println!("factorial {:?}", factorial); 
+    println!("other {:?}", other); 
+} 
+</pre>
+<p>有几点你应该注意。第一，不像<code>join</code>，<code>scope</code>不返回任何东西。然而，将值写入比<code>scope</code>更长寿的局部变量是可能的。例如，上面定义的<code>map</code>变量比<code>scope</code>函数寿命长。这允许<code>scope</code>写入<code>map</code>。另外，<code>map</code>变量可以在<code>scope</code>之外读取。</p>
+<p>其次，遵循<a href="https://blog.logrocket.com/introducing-the-rust-borrow-checker/"> Rust borrow checker规则</a>，不允许多个spawn闭包修改同一个变量。此外，不能在一个闭包里有一个可变借位，而在另一个闭包里有一个不可变借位。因此，下面的代码不会编译:</p>
+<pre class="language-rust hljs">// !! Does not compile !!
+// — Snip — //
+rayon::scope(|s: &amp;Scope| {
+        s.spawn(|_s| { 
+            let iter = 
+                (0..10000).enumerate().map(|(a, b)| (format!("index {}", a), b)); 
+            map = Some(HashMap::from_iter(iter)); // first mutable usage occurs here 
+        }); 
+        s.spawn(|s: &amp;Scope| { 
+            factorial = factorial_sequential(30); 
+            println! ("my map is {:?}", map) // reading of variable here produces compile error (immutable borrow) 
+        }); 
+        s.spawn(|s: &amp;Scope| { 
+            other = Some("value") 
+        }) 
+    }); 
+// —- Snip —- // 
+</pre>
+<h2 id="non-send-non-sync-types">使用<code>non-Send</code>和<code>non-Sync</code>类型</h2>
+<p>在Rust中，实现了<code><a href="https://doc.rust-lang.org/core/marker/trait.Send.html">Send</a></code>和<code><a href="https://doc.rust-lang.org/core/marker/trait.Sync.html">Sync</a></code>特征的类型通常被认为是线程安全的。也就是说，它们可以在多个线程之间共享，而不会出现未定义的行为或数据竞争。如果在这种情况下合适，编译器会自动实现这些特征。因此，在上面的例子中，<code><a href="https://doc.rust-lang.org/core/marker/trait.Send.html">Send</a></code>和<code><a href="https://doc.rust-lang.org/core/marker/trait.Sync.html">Sync</a></code>特征被自动实现为<code>usize</code>和<code><a href="https://blog.logrocket.com/understanding-rust-string-str/">&amp;str</a></code>。</p>
+<p>上面的例子没有编译，因为一个线程可能正在读取<code>map</code>变量，而另一个线程可能正在写入它，这可能导致数据竞争。为了解决这个问题，go-to方法是将自定义类型的变量包装在<code>Arc</code>中。您可能想添加<code>Mutex</code>来使<code>atomic</code>变量可变。对于原始类型，比如整数，最好使用由<code><a href="https://doc.rust-lang.org/std/sync/atomic/index.html">std::sync::atomic</a></code>提供的类型。现在，让我们修改上面的代码，以便它可以编译:</p>
+<pre class="language-rust hljs">fn test_scope() { 
+    let map: Arc&lt;Mutex&lt;Option&lt;HashMap&lt;String, usize&gt;&gt;&gt;&gt; = Arc::new(Mutex::new(None)); 
+    let mut factorial = 1; 
+    let mut other = None; 
+    rayon::scope(|s: &amp;Scope| { 
+        s.spawn(|_s| { 
+            let iter = 
+                (0..10000).enumerate().map(|(a, b)| (format!("index {}", a), b)); 
+            let mut map = map.lock().unwrap(); 
+            *map = Some(HashMap::from_iter(iter)); //note the use of the "dereference" symbol * 
+        }); 
+        s.spawn(|_s| { 
+            factorial = factorial_sequential(30); 
+            println!("my map is  {:?}", map.lock().unwrap()) // "map" may or may not be None a 
+        }); 
+        s.spawn(|_s| { 
+            other = Some("value") 
+        }) 
+    }); 
+    println!("map {:?}", map.lock().unwrap()); 
+   // —- Snip —- // 
+} 
+</pre>
+<h2>结论</h2>
+<p>尽管并发和异步任务很难实现，但它们有可能提高您编写的程序的性能。幸运的是，Rust去掉了棘手的部分，让编写异步应用变得轻而易举。Rayon作为一个附件来进一步简化这项任务。通过其方便的并行迭代器实现，灵活性超出了您的想象。你越是尝试异步代码问题，你就会变得越好。编码快乐！</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

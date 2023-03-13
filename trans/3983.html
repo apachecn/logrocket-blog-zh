@@ -1,0 +1,378 @@
+<html>
+<head>
+<title>Communicating between Node.js microservices with gRPC </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用gRPC在Node.js微服务之间进行通信</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/#0001-01-01">https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>如今，大多数开发人员选择微服务模式来构建他们的web后端，以克服传统整体架构中的问题。在web开发中，微服务通常是web开发人员通过API网关集成的松散耦合的web服务。第三方库的可用性、功能全面的内置API和有用的开发工具使Node.js成为构建微服务的良好候选。</p>
+<p>即使微服务通常作为独立的服务工作，它们也可以通过各种通信机制相互通信。对于微服务间的通信，我们可以使用基于请求-响应的同步通信策略，也可以使用基于事件的异步通信策略。</p>
+<p>gRPC(又名，<a href="https://grpc.io/"> Google RPC </a>)为开发人员提供了一个功能全面的RPC框架，实现了几乎所有流行的编程语言，包括node . js。gRPC框架通过HTTP/2协议在客户端和服务器之间使用Protobuf序列化技术发送二进制消息。</p>
+<p>在本教程中，我将通过搭建三个微服务的实际通信系统来说明如何在Node.js中使用gRPC。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="highlighted-features-node-js-grpc">Node.js gRPC的突出特性</h2>
+<p>此前，gRPC团队通过Node.js附加系统将C++ gRPC实现与Node.js绑定，为Node.js开发者提供了<a href="https://www.npmjs.com/package/grpc"> <code>grpc</code>包</a>。最近，他们用纯JavaScript代码重写了Node.js包，没有添加C++插件。这就产生了<a href="https://www.npmjs.com/package/@grpc/grpc-js"> <code>@grpc/grpc-js</code>(节点gRPC)包</a>。</p>
+<p>在这一节中，我们将重点介绍<code>@grpc/grpc-js</code>提供的几个特性。</p>
+<h3 id="complete-official-grpc-implementation-node-js">Node.js的完整官方gRPC实现</h3>
+<p>理论上，gRPC是一个用HTTP/2协议和Protobuf序列化实现RPC框架的概念。Node.js gRPC实现是一个维护良好的官方项目，它允许您使用Node.js中gRPC概念的所有功能。例如，您可以使用Node gRPC实现以下通信类型:</p>
+<ul>
+<li>一元RPC:传统的请求-响应式通信</li>
+<li>服务器流RPC:服务器根据客户端的请求发送一个数据流</li>
+<li>客户端流RPC:客户端向服务器发送数据流</li>
+<li>双向流RPC:用两个独立的流将消息传送到两端</li>
+</ul>
+<p>除了这些基本的gRPC特性，这个节点包还支持自动重新连接、客户端拦截器等等。</p>
+<h3 id="developer-friendly-api">开发人员友好的API</h3>
+<p>当库开发人员提供最小的、自我解释的API时，其他开发人员能够使用该库进行生产。节点gRPC包提供了一个友好的API，支持运行时和静态代码生成。当我们对节点gRPC使用Protobuf定义时，它会在运行时将可用的过程附加到RPC接口。此外，如果您想在运行代码之前看到RPC方法，您可以使用静态代码生成(即，在使用<a href="https://github.com/improbable-eng/ts-protoc-gen"> TypeScript </a>时)。</p>
+<p>此外，节点gRPC API具有标准的、基于事件和基于回调的编程风格。所以任何Node.js开发者都可以快速上手。</p>
+<h3 id="pure-javascript-implementation">一个纯JavaScript实现</h3>
+<p><code>@grpc/grpc-js</code>包是使用内置Node.js APIs的纯JavaScript实现，就像<a href="https://nodejs.org/api/http2.html"> <code>http2</code> </a>。所以，这个包不会像遗留的<code>grpc</code>包那样触发额外的Node C++附加安装任务。同样，这个纯JavaScript实现使用TypeScript来包含类型数据，所以我们可以很容易地将<code>@grpc/grpc-js</code>与TypeScript一起使用。</p>
+<h2 id="node-js-grpc-tutorial-inter-microservice-communication">Node.js gRPC教程:微服务间通信</h2>
+<p>我们已经介绍了<code>@grpc/grpc-js</code>包的突出特性。总的来说，它提供了gRPC框架概念的全功能、官方、纯JavaScript实现。</p>
+<p>现在，让我们通过实现一个实际的系统来学习如何使用它！我们将使用gRPC为微服务间通信开发三个Node.js微服务:</p>
+<ol>
+<li><strong>主微服务(primary) </strong>:这个微服务通过RESTful API端点接受食品订单，然后与我们的两个辅助微服务通信来处理订单。RESTful API还提供了一个端点来检查订单的状态</li>
+<li><strong>配方选择器微服务(辅助)</strong>:主微服务与该微服务通信并搜索配方</li>
+<li><strong>订单处理器微服务(辅助)</strong>:该微服务接受订单请求，并根据订单状态变化事件提供当前订单状态</li>
+</ol>
+<h3 id="architecting-solution">设计解决方案</h3>
+<p>我们知道我们的产品需求，所以让我们定义项目架构。请看下面的概要设计图:</p>
+<figure id="attachment_160447" aria-describedby="caption-attachment-160447" class="wp-caption aligncenter"><img data-attachment-id="160447" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/demo-app-high-level-architecture/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png" data-orig-size="730,209" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demo-app-high-level-architecture" data-image-description="" data-image-caption="&lt;p&gt;Our demo food-ordering system’s high-level architecture. I designed this using &lt;a href=&quot;https://www.diagrams.net/&quot;&gt;diagrams.net&lt;/a&gt;.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture-300x86.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png" decoding="async" class="size-full wp-image-160447 jetpack-lazy-image" src="../Images/2257c27d4980cfcdac32935933082294.png" alt="Our demo food-ordering system's high-level architecture. " data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture-300x86.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png"/><noscript><img data-lazy-fallback="1" data-attachment-id="160447" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/demo-app-high-level-architecture/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png" data-orig-size="730,209" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="demo-app-high-level-architecture" data-image-description="" data-image-caption="&lt;p&gt;Our demo food-ordering system’s high-level architecture. I designed this using &lt;a href=&quot;https://www.diagrams.net/&quot;&gt;diagrams.net&lt;/a&gt;.&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture-300x86.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png" decoding="async" loading="lazy" class="size-full wp-image-160447" src="../Images/2257c27d4980cfcdac32935933082294.png" alt="Our demo food-ordering system's high-level architecture. " srcset="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png 730w, https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture-300x86.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/demo-app-high-level-architecture.png"/></noscript><figcaption id="caption-attachment-160447" class="wp-caption-text">Our demo food-ordering system’s high-level architecture. I designed this using <a href="https://www.diagrams.net/">diagrams.net</a>.</figcaption></figure>
+<p>如上图所示，我们将基于以下规范构建我们的解决方案:</p>
+<ul>
+<li>主微服务使用gRPC与辅助微服务通信，并为web客户端提供以下RESTful端点:<ul>
+<li><code>POST /orders</code>:创建新订单</li>
+<li><code>GET /orders/{orderId}</code>:返回订单明细(包括当前订单状态)</li>
+</ul>
+</li>
+<li>当配方选择器微服务收到新的gRPC消息时，它会选择一个配方并使用一元模式进行传输</li>
+<li>当订单处理器微服务收到新的gRPC消息时，它通过服务器流模式传输订单状态</li>
+</ul>
+<p>尽管现实世界中的微服务通常驻留在单独的计算机或容器中，但为了简化本教程，我们将为该解决方案创建一个面向monorepo的Node.js项目，并使用三个进程演示微服务系统。</p>
+<h2 id="creating-project-installing-dependencies">创建项目并安装依赖项</h2>
+<p>首先，创建三个目录来逻辑分离我们的微服务:</p>
+<pre class="language-bash hljs">mkdir {main,recipe,processor}-ms 
+</pre>
+<p>创建一个新的Node.js项目，如下所示:</p>
+<pre class="language-bash hljs">npm init 
+# --- or ---
+yarn init
+</pre>
+<p>接下来，安装<code>@grpc/grpc-js</code>、<code>@grpc/proto-loader</code>和<code>express</code>依赖项:</p>
+<pre class="language-bash hljs">npm install @grpc/grpc-js @grpc/proto-loader express
+# --- or ---
+yarn add @grpc/grpc-js @grpc/proto-loader express
+</pre>
+<blockquote><p>注意:我们使用<code>express</code>来实现RESTful API。<code>@grpc/proto-loader</code>包让你加载<code>.proto</code>文件。我们很快就会讨论<code>.proto</code>文件！</p></blockquote>
+<p>安装<a href="https://www.npmjs.com/package/concurrently"> <code>concurrently</code>包</a>用一个命令运行所有微服务:</p>
+<pre class="language-bash hljs">npm install concurrently -D
+# --- or ---
+yarn add concurrently -D
+</pre>
+<h2 id="defining-services-with-protocol-buffers">用协议缓冲区定义服务</h2>
+<p>RPC框架/库通常让开发人员执行远程过程，所以我们应该首先定义所需的过程。在gRPC框架中，我们必须用Protobuf定义预定义过程。创建一个新目录来存储Protobuf文件:</p>
+<pre class="language-bash hljs">mkdir protos
+</pre>
+<p>让我们为主微服务和配方选择器之间的通信线路创建一个Protobuf文件。将以下内容添加到<code>./protos/recipes.proto</code>文件中:</p>
+<pre class="language-protobuf hljs">syntax = "proto3";
+
+service Recipes {
+  rpc Find (ProductId) returns (Recipe) {}
+}
+
+message ProductId {
+  uint32 id = 1;
+}
+
+message Recipe {
+  uint32 id = 1;
+  string title = 2;
+  string notes = 3;
+}
+</pre>
+<p>这里，我们定义了<code>Find</code>过程，根据<code>ProductId</code>返回一个<code>Recipe</code>对象，这是一个食品的唯一标识符。注意，我们通常需要用一个服务定义对所有过程进行分组，比如<code>Recipes</code>。</p>
+<p>接下来，将以下定义添加到<code>./protos/processing.proto</code>:</p>
+<pre class="language-protobuf hljs">syntax = "proto3";
+
+service Processing {
+  rpc Process (OrderRequest) returns (stream OrderStatusUpdate) {}
+}
+
+message OrderRequest {
+  uint32 recipeId = 1;
+  uint32 orderId = 2;
+}
+
+enum OrderStatus {
+    NEW = 1;
+    QUEUED = 2;
+    PROCESSING = 3;
+    DONE = 4;
+}
+
+message OrderStatusUpdate {
+  OrderStatus status = 1;
+}
+</pre>
+<p>我们定义了<code>Process</code>过程来返回一串<code>OrderStatusUpdate</code>消息，以跟踪订单状态变更事件。此外，<code>Process</code>过程期望一个<code>OrderRequest</code>消息作为参数。</p>
+<h3 id="developing-grpc-servers">开发gRPC服务器</h3>
+<p>现在我们的Protobuf定义已经准备好了，我们可以开始开发gRPC服务器了。主微服务是一个gRPC客户端，它与两个辅助微服务通信。因此，首先，我们需要为二级微服务实现两个gRPC服务器。</p>
+<p>让我们从配方选择器微服务开始。将以下代码添加到<code>./recipe-ms/main.js</code>:</p>
+<pre class="language-javascript hljs">const path = require('path');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const packageDefinition = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/recipes.proto'));
+const recipesProto = grpc.loadPackageDefinition(packageDefinition);
+
+const RECIPES = [
+    {
+        id: 100,
+        productId: 1000,
+        title: 'Pizza',
+        notes: 'See video: pizza_recipe.mp4. Use oven No. 12'
+    },
+    {
+        id: 200,
+        productId: 2000,
+        title: 'Lasagna',
+        notes: 'Ask from John. Use any oven, but make sure to pre-heat it!'
+    }
+];
+
+function findRecipe(call, callback) {
+    let recipe = RECIPES.find((recipe) =&gt; recipe.productId == call.request.id);
+    if(recipe) {
+        callback(null, recipe);
+    }
+    else {
+        callback({
+            message: 'Recipe not found',
+            code: grpc.status.INVALID_ARGUMENT
+        });
+    }
+}
+
+const server = new grpc.Server();
+server.addService(recipesProto.Recipes.service, { find: findRecipe });
+server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () =&gt; {
+    server.start();
+});
+</pre>
+<p>上面的代码在端口<code>50051</code>上生成一个gRPC服务器实例，并根据<code>recipes.proto</code>文件中的服务定义处理gRPC消息。每当gRPC客户端使用有效的产品标识符执行<code>find</code>程序时，服务器就会找到合适的配方，并通过<code>callback</code>函数(使用一元模式)将其发送回来。</p>
+<p>我们在教程中使用一个服务，但是您可以将多个服务附加到服务器，如下所示:</p>
+<pre class="language-javascript hljs">server.addService(recipesProto.Recipes.service, { find: findRecipe });
+server.addService(ingredientsProto.Ingredients.service, { find: findIng });
+</pre>
+<p>您还可以添加多个过程，如下所示:</p>
+<pre class="language-javascript hljs">server.addService(recipesProto.Recipes.service, {
+    find: findRecipe,
+    add: addRecipe,
+    update: updateRecipe,
+    remove: remove Recipe
+});
+</pre>
+<p>在测试上面的微服务之前，让我们创建另一个辅助微服务。我将在下一节解释如何用<a href="https://blog.logrocket.com/how-automate-api-tests-postman/"> Postman </a>测试这两个微服务。</p>
+<p>将以下代码添加到<code>./processor-ms/main.js</code>中，以创建第二个辅助微服务:</p>
+<pre class="language-javascript hljs">const path = require('path');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const packageDefinition = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/processing.proto'));
+const processingProto = grpc.loadPackageDefinition(packageDefinition);
+
+function process(call) {
+    let orderRequest = call.request;
+    let time = orderRequest.orderId * 1000 + orderRequest.recipeId * 10;
+
+    call.write({ status: 2 });
+    setTimeout(() =&gt; {
+        call.write({ status: 3 });
+        setTimeout(() =&gt; {
+            call.write({ status: 4 });
+            call.end();
+        }, time);
+    }, time);
+}
+
+const server = new grpc.Server();
+server.addService(processingProto.Processing.service, { process });
+server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), () =&gt; {
+    server.start();
+});
+</pre>
+<p>在这个gRPC服务器中，我们还附加了一个程序；这里我们使用流模式。每当微服务收到新的订单请求要处理时，它就会通过<code>call.write</code>函数传输新创建的订单状态。我们使用了<code>call.end</code>函数调用来指示流的结束，而不是使用前面一元微服务通信实现中使用的<code>callback</code>。</p>
+<p>使用以下脚本更新您的<code>package.json</code>,以同时运行这两个微服务:</p>
+<pre class="language-json hljs">"scripts": {
+  "start-recipe-ms": "node ./recipe-ms/main.js",
+  "start-processor-ms": "node ./processor-ms/main.js",
+  "start": "concurrently 'npm run start-recipe-ms' 'npm run start-processor-ms'"
+},
+</pre>
+<p>现在，我们可以使用<code>npm start</code>或<code>yarn start</code>来启动这两个微服务。</p>
+<h2 id="testing-grpc-servers-with-postman">用Postman测试gRPC服务器</h2>
+<p>Postman app <a href="https://blog.postman.com/postman-now-supports-grpc/">在v9.7.1 </a>中增加了gRPC客户端支持，所以如果你使用的是较老的Postman版本，请先下载最新版本再继续本教程。</p>
+<p>使用<code>start</code> npm脚本启动两个辅助微服务。首先，我们可以测试配方选择器微服务。</p>
+<p>打开邮差app，点击<strong>文件</strong>，然后点击<strong>新建</strong>(或者，按Control+N/Command+N)，为<code>0.0.0.0:50051</code>新建一个gRPC请求:</p>
+<figure id="attachment_160450" aria-describedby="caption-attachment-160450" class="wp-caption aligncenter"><img data-attachment-id="160450" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/creating-new-grpc-request-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="creating-new-grpc-request-postman" data-image-description="" data-image-caption="&lt;p&gt;Creating a new gRPC request with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif" decoding="async" class="size-full wp-image-160450 jetpack-lazy-image" src="../Images/498718f8d45658bbcde583cc7c1f460f.png" alt="Creating a new gRPC request with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="160450" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/creating-new-grpc-request-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="creating-new-grpc-request-postman" data-image-description="" data-image-caption="&lt;p&gt;Creating a new gRPC request with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif" decoding="async" loading="lazy" class="size-full wp-image-160450" src="../Images/498718f8d45658bbcde583cc7c1f460f.png" alt="Creating a new gRPC request with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/creating-new-grpc-request-postman.gif"/></noscript><figcaption id="caption-attachment-160450" class="wp-caption-text">Creating a new gRPC request with Postman</figcaption></figure>
+<p>当我们使用Postman进行gRPC测试时，它作为一个客户端，所以它需要知道Protobuf服务定义。将<code>recipes.proto</code>文件导入到Postman客户端，如下所示:</p>
+<p><img data-attachment-id="160453" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/importing-protobuf-file-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="importing-protobuf-file-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif" decoding="async" class="aligncenter size-full wp-image-160453 jetpack-lazy-image" src="../Images/cf9295e92827cab38c093005b3439110.png" alt="Importing a Protobuf file into Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="160453" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/importing-protobuf-file-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="importing-protobuf-file-postman" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-160453" src="../Images/cf9295e92827cab38c093005b3439110.png" alt="Importing a Protobuf file into Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/importing-protobuf-file-postman.gif"/></noscript>
+<p>Postman会自动显示<code>Find</code>程序，所以你可以按如下测试:</p>
+<figure id="attachment_160455" aria-describedby="caption-attachment-160455" class="wp-caption aligncenter"><img data-attachment-id="160455" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-find-procedure-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-find-procedure-postman" data-image-description="" data-image-caption="&lt;p&gt;Testing the &lt;code&gt;find&lt;/code&gt; procedure with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif" decoding="async" class="size-full wp-image-160455 jetpack-lazy-image" src="../Images/8eccc17b1359487a2afbde1ecf307927.png" alt="Testing the find procedure with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="160455" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-find-procedure-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-find-procedure-postman" data-image-description="" data-image-caption="&lt;p&gt;Testing the &lt;code&gt;find&lt;/code&gt; procedure with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif" decoding="async" loading="lazy" class="size-full wp-image-160455" src="../Images/8eccc17b1359487a2afbde1ecf307927.png" alt="Testing the find procedure with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-find-procedure-postman.gif"/></noscript><figcaption id="caption-attachment-160455" class="wp-caption-text">Testing the <code>Find</code> procedure with Postman</figcaption></figure>
+<p>这里，我们发送产品标识符来接收配方对象。使用相同的步骤测试订单处理器微服务。它将通过gRPC服务器流式传输功能流式传输多个订单状态变更对象。看下面的预告:</p>
+<figure id="attachment_160459" aria-describedby="caption-attachment-160459" class="wp-caption aligncenter"><img data-attachment-id="160459" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-grpc-streaming-process-procedure-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-grpc-streaming-process-procedure-postman" data-image-description="" data-image-caption="&lt;p&gt;Testing gRPC streaming (with the &lt;code&gt;Process&lt;/code&gt; procedure) with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif" decoding="async" class="size-full wp-image-160459 jetpack-lazy-image" src="../Images/45cfb6173907ffaff8dfe0ac17bcd1c5.png" alt="Testing gRPC streaming (with the Process procedure) with Postman" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="160459" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-grpc-streaming-process-procedure-postman/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-grpc-streaming-process-procedure-postman" data-image-description="" data-image-caption="&lt;p&gt;Testing gRPC streaming (with the &lt;code&gt;Process&lt;/code&gt; procedure) with Postman&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif" decoding="async" loading="lazy" class="size-full wp-image-160459" src="../Images/45cfb6173907ffaff8dfe0ac17bcd1c5.png" alt="Testing gRPC streaming (with the Process procedure) with Postman" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-streaming-process-procedure-postman.gif"/></noscript><figcaption id="caption-attachment-160459" class="wp-caption-text">Testing gRPC streaming (with the <code>Process</code> procedure) with Postman</figcaption></figure>
+<h2 id="developing-grpc-client-communicating-with-servers">开发gRPC客户端并与服务器通信</h2>
+<p>我们基于gRPC的二级微服务在规范准备阶段就按预期工作。在这篇文章的开始，我们计划创建一个带有gRPC客户端的主微服务来与辅助微服务通信。主微服务的目标是接受一个食品订单请求，找到一个食谱，处理订单，并更新订单状态。</p>
+<p>在实现主微服务的RESTful接口之前，我们先把它和其他微服务连接起来，通过终端进行测试。</p>
+<p>将以下代码添加到<code>./main-ms/main.js</code>:</p>
+<pre class="language-javascript hljs">const path = require('path');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+
+const packageDefinitionReci = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/recipes.proto'));
+const packageDefinitionProc = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/processing.proto'));
+const recipesProto = grpc.loadPackageDefinition(packageDefinitionReci);
+const processingProto = grpc.loadPackageDefinition(packageDefinitionProc);
+
+
+const recipesStub = new recipesProto.Recipes('0.0.0.0:50051',
+                        grpc.credentials.createInsecure());
+const processingStub = new processingProto.Processing('0.0.0.0:50052',
+                        grpc.credentials.createInsecure());
+
+let productId = 1000;
+let orderId = 1;
+
+console.log(`Searching a recipe for the product: ${productId}`);
+
+recipesStub.find({ id: productId }, (err, recipe) =&gt; {
+    console.log('Found a recipe:');
+    console.log(recipe);
+    console.log('Processing...');
+    const call = processingStub.process({ orderId, recipeId: recipe.id });
+    call.on('data', (statusUpdate) =&gt; {
+        console.log('Order status changed:');
+        console.log(statusUpdate);
+    });
+    call.on('end', () =&gt; {
+        console.log('Processing done.');
+    });
+});
+</pre>
+<p>首先，上面的代码调用recipe selector微服务中的<code>find</code>过程来获取基于产品标识符的配方。接下来，它调用订单处理器微服务中的<code>process</code>过程来检测订单状态的变化。</p>
+<p>看客户端<a href="https://stackoverflow.com/a/69591570/3565513">存根</a>。对于一元模式，我们通常使用以下模式:</p>
+<pre class="language-javascript hljs">recipesStub.find({ id: productId }, (err, recipe) =&gt; {
+</pre>
+<p>对于流，我们可以将事件附加到RPC实例，如下所示:</p>
+<pre> class="language-javascript hljs"&gt;call.on('data', (statusUpdate) =&gt; {
+</pre>
+<p>启动两个辅助微服务。运行以下命令启动客户端:</p>
+<pre class="language-bash hljs">node ./main-ms/main.js
+</pre>
+<p>现在，您将看到示例食品加工系统的日志，如下所示:</p>
+<figure id="attachment_160457" aria-describedby="caption-attachment-160457" class="wp-caption aligncenter"><img data-attachment-id="160457" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-grpc-client-terminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-grpc-client-terminal" data-image-description="" data-image-caption="&lt;p&gt;Testing the gRPC client in the terminal&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif" decoding="async" class="size-full wp-image-160457 jetpack-lazy-image" src="../Images/9faa081df7d842b7eb07afd7e7270d57.png" alt="Testing the gRPC client in the terminal" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif"/><noscript><img data-lazy-fallback="1" data-attachment-id="160457" data-permalink="https://blog.logrocket.com/communicating-between-node-js-microservices-with-grpc/attachment/testing-grpc-client-terminal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif" data-orig-size="730,319" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="testing-grpc-client-terminal" data-image-description="" data-image-caption="&lt;p&gt;Testing the gRPC client in the terminal&lt;/p&gt;&#10;" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal-300x131.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif" decoding="async" loading="lazy" class="size-full wp-image-160457" src="../Images/9faa081df7d842b7eb07afd7e7270d57.png" alt="Testing the gRPC client in the terminal" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/02/testing-grpc-client-terminal.gif"/></noscript><figcaption id="caption-attachment-160457" class="wp-caption-text">Testing the gRPC client in the terminal</figcaption></figure>
+<h2 id="finalizing-microservices-with-restful-interface">使用RESTful接口完成微服务</h2>
+<p>早些时候，主微服务通过向终端写入日志来作为控制台程序工作。在web开发中，微服务通常使用web协议，并让web客户端与它们通信。</p>
+<p>让我们通过为主微服务实现一个RESTful API来完成演示订单处理系统。将以下代码添加到<code>./main-ms/main.js</code>文件中:</p>
+<pre class="language-javascript hljs">const path = require('path');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const express = require('express');
+
+const packageDefinitionReci = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/recipes.proto'));
+const packageDefinitionProc = protoLoader.
+                            loadSync(path.join(__dirname, '../protos/processing.proto'));
+const recipesProto = grpc.loadPackageDefinition(packageDefinitionReci);
+const processingProto = grpc.loadPackageDefinition(packageDefinitionProc);
+
+
+const recipesStub = new recipesProto.Recipes('0.0.0.0:50051',
+                        grpc.credentials.createInsecure());
+const processingStub = new processingProto.Processing('0.0.0.0:50052',
+                        grpc.credentials.createInsecure());
+
+
+const app = express();
+app.use(express.json());
+
+const restPort = 5000;
+let orders = {};
+
+function processAsync(order) {
+    recipesStub.find({ id: order.productId }, (err, recipe) =&gt; {
+        if(err) return;
+
+        orders[order.id].recipe = recipe;
+        const call = processingStub.process({
+            orderId: order.id,
+            recipeId: recipe.id
+        });
+        call.on('data', (statusUpdate) =&gt; {
+            orders[order.id].status = statusUpdate.status;
+        });
+    });
+}
+
+app.post('/orders', (req, res) =&gt; {
+    if(!req.body.productId) {
+        res.status(400).send('Product identifier is not set');
+        return;
+    }
+    let orderId = Object.keys(orders).length + 1;
+    let order = {
+        id: orderId,
+        status: 0,
+        productId: req.body.productId,
+        createdAt : new Date().toLocaleString()
+    };
+    orders[order.id] = order;
+    processAsync(order);
+    res.send(order);
+});
+
+app.get('/orders/:id', (req, res) =&gt; {
+    if(!req.params.id || !orders[req.params.id]) {
+        res.status(400).send('Order not found');
+        return;
+    }
+    res.send(orders[req.params.id]);
+});
+
+app.listen(restPort, () =&gt; {
+  console.log(`RESTful API is listening on port ${restPort}`)
+});
+</pre>
+<p>我们已经实现了两个RESTful API端点。每当微服务收到对具有有效产品标识符的<code>POST /orders</code>端点的新请求时，它就创建一个新订单并调用<code>processAsync</code>函数。<code>processAsync</code>功能通过gRPC协议与二级微服务通信，查找配方，并更新订单状态。</p>
+<p><code>POST /orders</code>端点返回新生成的订单标识符，我们可以用它和<code>GET /orders/{orderId}</code>端点一起获取订单细节。</p>
+<p>现在，我们可以通过让它同时运行我们所有的微服务来改进<code>start</code> npm脚本。在您的<code>package.json</code>中使用以下脚本定义:</p>
+<pre class="language-json hljs">"scripts": {
+  "start-recipe-ms": "node ./recipe-ms/main.js",
+  "start-processor-ms": "node ./processor-ms/main.js",
+  "start-main-ms": "node ./main-ms/main.js",
+  "start": "concurrently 'npm run start-recipe-ms' 'npm run start-processor-ms' 'npm run start-main-ms'"
+},
+</pre>
+<p>运行<code>npm start</code>或<code>yarn start</code>启动演示点餐系统。用Postman测试RESTful API，如下所示:</p>
+<p>首先，用<code>POST /orders</code>创建几个订单:</p>
+<p><img decoding="async" src="../Images/13e77fbe707d26e117f07ccd028b91c2.png" alt="Creating a new order with the POST endpoint" data-lazy-src="https://paper-attachments.dropboxusercontent.com/s_C06818A4E392BDB1D10C260DF32B618D3C36AECD350E0FA2201E7A2F509E111D_1672993454322_ms6.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://paper-attachments.dropboxusercontent.com/s_C06818A4E392BDB1D10C260DF32B618D3C36AECD350E0FA2201E7A2F509E111D_1672993454322_ms6.gif"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/13e77fbe707d26e117f07ccd028b91c2.png" alt="Creating a new order with the POST endpoint" data-original-src="https://paper-attachments.dropboxusercontent.com/s_C06818A4E392BDB1D10C260DF32B618D3C36AECD350E0FA2201E7A2F509E111D_1672993454322_ms6.gif"/></noscript>
+<p>接下来，用<code>GET /orders/{orderId}</code>检查订单状态:</p>
+<p><img decoding="async" src="../Images/c5727d3b057f145b0f056feec36509fd.png" alt="Checking order details with the GET endpoint" data-lazy-src="https://cdn-images-1.medium.com/max/800/1*-b_cFKwS28-rAVq8QCYvKQ.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://cdn-images-1.medium.com/max/800/1*-b_cFKwS28-rAVq8QCYvKQ.gif"/></p><noscript><img data-lazy-fallback="1" decoding="async" src="../Images/c5727d3b057f145b0f056feec36509fd.png" alt="Checking order details with the GET endpoint" data-original-src="https://cdn-images-1.medium.com/max/800/1*-b_cFKwS28-rAVq8QCYvKQ.gif"/></noscript>
+<p>您可以从<a href="https://github.com/codezri/node-grpc-demo"> my GitHub repository </a>下载完整的项目源代码。</p>
+<h2>结论</h2>
+<p>在本教程中，我们通过实现三个实际微服务的通信系统来练习在Node.js中使用gRPC。我们使用了三个本地进程来演示三个微服务，但是您可以在裸机服务器或容器系统上的本地网络端口或远程端口上使用gRPC，例如<a href="https://blog.logrocket.com/tag/docker/"> Docker </a>。</p>
+<p>您还可以使用WebSockets进行微服务间的通信，但是gRPC是一个具有RPC定义语言(Protobuf)的全功能框架，与WebSocket协议不同。WAMP在WebSockets上提供了一个类似gRPC的概念，但是它的实现并不像gRPC官方实现那样受欢迎。</p><div class="code-block code-block-23">
+<div class="blog-plug inline-plug node-plug"><h2>200只<img src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> <noscript> <img data-lazy-fallback="1" src="../Images/61167b9d027ca73ed5aaf59a9ec31267.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/10/green-check.png"/> </noscript>显示器出现故障，生产中网络请求缓慢</h2><p>部署基于节点的web应用程序或网站是容易的部分。确保您的节点实例继续为您的应用程序提供资源是事情变得更加困难的地方。如果您对确保对后端或第三方服务的请求成功感兴趣，</p><a href="https://lp.logrocket.com/blg/node-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer"><img src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/><noscript><img data-lazy-fallback="1" src="../Images/cae72fd2a54c5f02a6398c4867894844.png" alt="LogRocket Network Request Monitoring" data-original-src="https://blog.logrocket.com/wp-content/uploads/2019/12/network-request-filter-2-1.png"/></noscript></a><a href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">https://logrocket.com/signup/</a><p>LogRocket 就像是网络和移动应用程序的DVR，记录下用户与你的应用程序交互时发生的一切。您可以汇总并报告有问题的网络请求，以快速了解根本原因，而不是猜测问题发生的原因。</p><p>LogRocket检测您的应用程序以记录基线性能计时，如页面加载时间、到达第一个字节的时间、慢速网络请求，还记录Redux、NgRx和Vuex操作/状态。</p><a class="signup" href="https://lp.logrocket.com/blg/node-signup" target="_blank" rel="noopener noreferrer">Start monitoring for free</a><p>. </p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

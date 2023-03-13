@@ -1,0 +1,212 @@
+<html>
+<head>
+<title>panic! vs. error in Rust </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>慌！Rust与误差的关系</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/panic-vs-error-rust/#0001-01-01">https://blog.logrocket.com/panic-vs-error-rust/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>正如每个开发人员都知道的那样，在应用程序开发过程中，错误往往更容易发生。错误处理是大多数编程语言中的一个基本概念，它帮助开发人员在程序交付给最终用户之前发现并解决程序中的错误，从而提高UX。</p>
+<p>幸运的是，Rust以其对可靠性的承诺和对错误处理的支持而闻名。在本文中，我们将探索Rust如何使开发人员能够发现并处理他们代码中的错误，阐明<code>panic!</code>和错误之间的区别。我们开始吧！</p>
+<h2 id="tableofcontents">目录</h2>
+
+<h2 id="error-handling-rust-vs-javascript">错误处理:Rust与JavaScript</h2>
+<p>抛出错误在其他编程语言中很常见，意思是当代码中出现错误时，后续的进程<a href="https://blog.logrocket.com/exception-handling-in-javascript/">直到通过<code>try...catch</code> </a>得到正确处理后才会执行。</p>
+<p>但是，在《铁锈》中，没有<a href="https://blog.logrocket.com/ditching-try-catch-and-null-checks-in-rust/">也没有<code>try...catch</code> </a>。作为背景，我们将回顾一个其他编程语言通常如何使用<code>try...catch</code>处理错误的例子，稍后用另一个例子展示Rust如何区分<code>panic!</code>和错误:</p>
+<pre class="language-rust hljs">async function insertLaptop({ 
+  storageSize,  
+  model, 
+  ram, 
+  isRefurbished 
+  }) { 
+try { 
+  if (isRefurbished) { 
+    throw new Error("Cannot insert a Refurbished laptop"); 
+  } 
+const result = await db.laptop.add({ storage, model,ram }); 
+return { success: true, id: result.id }; 
+} catch(error) { 
+return { success: false, id: undefined }; 
+  }  
+} 
+</pre>
+<p>在上面的JavaScript代码片段中，<code>insertLaptop</code>函数向数据库添加一个新的笔记本实例，只要这台笔记本没有翻新。该函数包装有一个<code>try...catch</code>错误处理机制。<code>try</code>语句允许你定义一个代码块，在它被执行的时候对它进行错误测试，而<code>catch</code>语句允许你定义一个代码块，如果在<code>try</code>块中出现错误，就执行这个代码块。</p>
+<p>当错误发生时，JavaScript通常会停止并生成一条错误消息，其中包含一些关于错误原因的信息。用专业术语来说，JavaScript会抛出一个异常。这可以防止代码在出现错误时完全崩溃。这是大多数编程语言的普遍做法。但是，在Rust中，<code>panic!</code>和errors处理这样的异常。</p>
+<h2 id="errors-rust">生锈的错误</h2>
+<p>为了更好地理解Rust中的错误，我们需要理解Rust是如何对其错误进行分组的。与大多数不区分错误类型的编程语言不同，Rust将错误分为两大类，可恢复的和不可恢复的错误。此外，Rust也没有例外。它有可恢复错误的类型结果<code>&lt;T,</code> <code>E&gt;</code>和当程序遇到不可恢复的错误时停止进一步执行的<code>panic!</code>宏。</p>
+<h2 id="result-enum-recoverable-errors"><code>Result</code>枚举和可恢复错误</h2>
+<p>在Rust中，大多数错误都属于可恢复的类别。<a href="https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/second-edition/ch09-02-recoverable-errors-with-result.html">可恢复错误</a>不会严重到促使程序突然停止或失败，因为它们很容易被解释，因此可以被处理或纠正。对于可恢复的错误，应该向用户报告错误以重试操作，或者向用户提供替代的操作过程。</p>
+<p>一个很好的例子是当用户输入一个无效的电子邮件。错误消息可能类似于<code>please insert a valid email address and retry</code>。<code>Result</code>类型或<code>Result</code>枚举通常在Rust函数中使用，以返回一个<code>Ok</code>成功值或一个<code>Err</code>错误值，如下例所示:</p>
+<pre class="language-rust hljs">enum Result&lt;T,E&gt; { 
+    OK(T), 
+    Err(E) 
+} 
+</pre>
+<p><code>T</code>和<code>E</code>是泛型类型参数。<code>Ok(T)</code>代表案例成功时的返回值并包含一个值，而<code>Err(E)</code>代表错误案例并返回一个错误值。值得注意的是，当错误是预期的和可恢复的时，我们从函数中返回<code>Result</code>。</p>
+<p>因为<code>Result</code>有这些通用类型参数，我们可以在许多不同的情况下使用<code>Result</code>类型和在其上定义的函数，在这些情况下，我们想要返回的成功值和错误值可能不同:</p>
+<pre class="language-rust hljs">use std::fs::File; 
+fn main() { 
+    let f = File::open("main.jpg");  
+    //this file does not exist 
+    println!("{:?}",f); 
+} 
+
+Err(Error { repr: Os { code: 2, message: "No such file or directory" } }) 
+</pre>
+<p>上面的代码是一个打开指定文件的简单程序。如果文件已经存在，程序返回<code>OK(File)</code>,如果没有找到文件，程序返回<code>Err</code>。对于这个错误以及值类型为<code>Result &lt;T,</code> <code>E&gt;</code>的其他类型的错误，有一个可恢复的错误。它允许我们在不中断整个程序的情况下访问错误值。</p>
+<h2 id="matching-on-different-errors">不同错误的匹配</h2>
+<p>让我们重温一下前面的代码片段。不管<code>File::open</code>为什么失败，代码都会<code>panic!</code>。为了更好地调试我们的程序，我们可能需要根据失败的原因采取<a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#matching-on-different-errors">不同的步骤。例如，如果代码由于不存在的文件而失败，我们可以创建文件并返回新的文件。</a></p>
+<p>如果<code>File::open</code>由于其他原因失败，比如用户没有打开指定文件的权限，我们希望代码为<code>panic!</code>，就像它在前面的代码片段中所做的那样。为了达到这个结果，我们添加了一个内部的<code>match</code>表达式:</p>
+<pre class="language-rust hljs">use std::fs::File;
+use std::io::ErrorKind;
+
+fn main() {
+    let logo_image = File::open("main.jpg");
+
+    let logo_file = match logo_image {
+        Ok(file) =&gt; file,
+        Err(error) =&gt; match error.kind() {
+            ErrorKind::NotFound =&gt; match File::create("main.jpg") {
+                Ok(fc) =&gt; fc,
+                Err(e) =&gt; panic!("We encountered a problem creating this file: {:?}", e),},
+            other_error =&gt; {
+                panic!("There was a problem opening the specified file: {:?}", other_error);
+            }
+        },
+    };
+}
+</pre>
+<p>在上面的代码片段中，我们导入了<code>io::ErrorKind</code>，它包含了<code>io::Error</code>，一个来自Rust标准库的<a href="https://doc.rust-lang.org/book/ch05-01-defining-structs.html">结构</a>。<code>io::Error</code>是由<code>Err</code>变量中的<code>File::open</code>返回的值类型，有一个名为<code>kind</code>的方法。它包含几个变量，代表可能由<code>io</code>操作产生的不同种类的错误。在我们的例子中，我们得到<code>ErrorKind::NotFound</code>，这意味着我们试图打开的文件不存在。</p>
+<p>该函数在<code>error.kind()</code>上还有一个内部<code>match</code>表达式。我们正在检查条件，这意味着由<code>error.kind()</code>返回的值是否是<code>ErrorKind</code>枚举的<code>NotFound</code>变体。如果满足这个条件，使用<code>File::create</code>创建一个名为<code>main.jpg</code>的新文件。<code>File::create</code>也可能失败，所以我们为内部<code>match</code>表达式包含了另一个选项。</p>
+<p>如果<code>File::create</code>失败，我们打印一个不同的错误消息。外层<code>match</code>的第二个选项保持不变，这意味着当程序遇到除了<code>ErrorKind</code>枚举的<code>NotFound</code>变量之外的任何错误时，它都会死机。</p>
+<h2 id="result-t-e-type-helper-methods"><code>Result &lt;T,E&gt;</code>类型助手方法</h2>
+<p>还有其他<code>Result &lt;T, E&gt;</code>类型的<a href="https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html#shortcuts-for-panic-on-error-unwrap-and-expect">助手方法</a>，可以用来比<code>match</code>更好地传达意图。</p>
+<h3>生锈<code>unwrap</code></h3>
+<p><code>unwrap</code>方法更适合更具体的任务。在我们之前的例子中，我们可以使用<code>unwrap</code>。如果该值是一个<code>Ok</code>变量，<code>unwrap</code>将返回<code>Ok</code>中的值。如果<code>Result</code>是<code>Err</code>的变体，<code>unwrap</code>会为我们调用<code>panic!</code>宏。我们将使用上面的例子来展示<code>unwrap</code>的作用:</p>
+<pre class="language-rust hljs">use std::fs::File;
+
+fn main() {
+    let logo_image = File::open("main.jpg").unwrap();
+}
+</pre>
+<p>如果我们在没有<code>main.jpg</code>文件的情况下运行这段代码，我们会遇到来自<code>panic!</code>调用的错误消息，这个调用是由<code>unwrap</code>方法生成的:</p>
+<pre class="language-rust hljs">thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Os {
+code: 2, kind: NotFound, message: "No such file or directory" }',
+src/main.rs:4:49
+</pre>
+<h3>生锈<code>expect</code></h3>
+<p><code>expect</code>是另一个助手方法，它的工作方式类似于<code>unwrap</code>,但是可以定制<code>panic!</code>错误消息。让我们看看<code>expect</code>的行动:</p>
+<pre class="language-rust hljs">use std::fs::File;
+
+fn main() {
+    let logo_file = File::open("main.jpg")
+        .expect("main.jpg file should be included in the project for the program to run");
+}
+</pre>
+<p>在上面的代码中，我们使用了<code>expect</code>而不是<code>unwrap</code>。它返回文件句柄或在出错时调用<code>panic!</code>宏。不同之处在于，错误消息将是传递给<code>expect</code>的参数，而不是<code>unwrap</code>使用的默认<code>panic!</code>消息。</p>
+<p>让我们看看调用不存在的<code>main.jpg</code>文件时的输出:</p>
+<pre class="language-rust hljs">thread 'main' panicked at 'main.jpg file should be included in the project for the 
+program to run: Os {
+code: 2, kind: NotFound, message: "No such file or directory" }',
+src/main.rs:5:10
+</pre>
+<h2 id="panic-macro-unrecoverable-errors"><code>panic!</code>宏和不可恢复的错误</h2>
+<p>无法处理的不可恢复的错误通常是由bug引起的。当它们发生时，不可恢复的错误会导致程序突然失败。此外，程序不能恢复到正常状态，重试失败的操作，或撤消错误。不可恢复错误的一个例子是试图访问超出<code>array x</code>结尾的位置。</p>
+<p>在Rust中，<code>panic!</code>是一个<a href="https://doc.rust-lang.org/book/ch19-06-macros.html">宏</a>，当程序遇到不可恢复的错误时，它会终止程序。简单来说，<code>panic!</code>指的是一个关键性的错误。<code>panic!</code>宏允许程序立即终止，并向程序调用者提供反馈。</p>
+<h3 id="how-trigger-panic">如何触发<code>panic!</code></h3>
+<p>有两种方法可以触发<code>panic!</code>。第一种选择是手动<code>panic!</code>一个Rust程序。第二种是通过采取一个导致代码<code>panic!</code>的动作。</p>
+<p>为了手动<code>panic!</code>Rust程序，我们使用了<code>panic!</code>宏。像触发一个函数一样调用它:</p>
+<pre class="language-rust hljs">fn main() { 
+panic!("panic vs. error in rust"); // because of panic, the program will terminate 
+//immediately.  
+println!("I am the unreachable statement ");  
+} 
+</pre>
+<p>在上面的例子中，我们已经包含了一个<code>panic!</code>宏。一旦程序遇到它，它会立即终止:</p>
+<pre class="language-rust hljs">--&amp;gt; hello.rs:3:5 
+| 
+2 | panic!("panic vs. error in rust");// because of panic, the program will terminate immediately.  
+| --------------------------------- any code following this expression is unreachable 
+3 | println!("I am the unreachable statement ");  
+| ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable statement 
+| 
+= note: `#[warn(unreachable_code)]` on by default 
+= note: this warning originates in the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info) 
+warning: 1 warning emitted 
+</pre>
+<p>下面是调用<code>panic!</code>宏的条件语句:</p>
+<pre class="language-rust hljs">fn main() { 
+  let no = 112;  
+  //try with no above 100 and below 100  
+  if no&gt;=100 { 
+  println!("Thank you for inserting your number, Registration is successful "); 
+  } else { 
+  panic!("NUMBER_TOO_SHORT");  
+  } 
+  println!("End of main"); 
+} 
+</pre>
+<p>下面是变量小于100时的输出:</p>
+<pre class="language-rust hljs">thread 'main' panicked at 'NUMBER_TOO_SHORT', hello.rs:7:8 
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace 
+</pre>
+<p>当变量大于或等于100时，输出如下:</p>
+<pre class="language-rust hljs">Thank you for inserting your number, Registration is successful 
+End of main 
+</pre>
+<p>下面的例子显示了一个直接来自库的<code>panic!</code>调用的实例，这是一个bug的结果，而不是手动调用。下面的代码试图访问vector中的索引。该错误是由于向量超出了有效索引的范围:</p>
+<pre class="language-rust hljs">fn main() { 
+let f = vec![1, 2, 3]; 
+v[40]; 
+} 
+</pre>
+<p>程序试图访问我们的向量的第41个元素(索引为40的向量)，但是向量只有三个元素。在这种情况下，铁锈会<code>panic!</code>。使用<code>[]</code>应该返回一个元素，但是如果你传递一个无效的索引，Rust在这里不会返回正确的元素:</p>
+<pre class="language-rust hljs">thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 40', hello.rs:15:5 
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace  
+</pre>
+<h2 id="recover-stop-execution">恢复或停止执行</h2>
+<p>当决定你的代码是否应该<code>panic!</code>时，我们需要考虑我们的代码结束于一个糟糕状态的可能性。一个<a href="https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html#guidelines-for-error-handling">坏状态</a>是当一些假设、保证、契约或不变量被破坏时，例如当无效值、矛盾值或丢失值被传递到您的代码时，加上以下一个或多个:</p>
+<ul>
+<li>不良状态是意料之外的事情，而不是偶尔会发生的事情，比如用户以错误的格式输入数据</li>
+<li>在这之后，您的代码需要依赖于不处于这种糟糕的状态，而不是在每一步都检查问题</li>
+<li>没有一种好的方法将这些信息编码到您使用的类型中</li>
+</ul>
+<p>当用户向我们的代码传递没有意义的值时，最好尽可能返回一个错误。这为用户提供了决定下一步行动的选项。</p>
+<p>然而，在某些情况下，继续可能被证明是有害或不安全的。在这种情况下，最好打电话给<code>panic!</code>并提醒用户有一个bug，提示他们在开发阶段修复它。</p>
+<p>另一个适合调用<code>panic!</code>的情况是当你调用不受你控制的外部代码时，它返回一个你无法修复的无效状态。然而，当预计会失败时，返回一个<code>Result</code>比生成一个<code>panic!</code>更合适。</p>
+<h2 id="view-stack-trace-backtrace">查看堆栈跟踪或回溯跟踪</h2>
+<p>类似于其他编程语言，<code>panic!</code>提供了错误的堆栈跟踪或回溯跟踪<br/>。但是，除非将环境变量<code>RUST_BACKTRACE</code>设置为非零值，否则回溯不会显示在终端上。因此，如果在前面的代码示例中执行以下命令语句:</p>
+<pre class="language-rust hljs">RUST_BACKTRACE=1 ./hello  
+</pre>
+<h3>堆栈跟踪</h3>
+<pre class="language-rust hljs">RUST_BACKTRACE=1 cargo run 
+thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 40', hello.rs:15:5 
+stack backtrace: 
+0: rust_begin_unwind 
+at /rustc/a55dd71d5fb0ec5a6a3a9e8c27b2127ba491ce52/library/std/src/panicking.rs:584:5 
+1: core::panicking::panic_fmt 
+at /rustc/a55dd71d5fb0ec5a6a3a9e8c27b2127ba491ce52/library/core/src/panicking.rs:142:14 
+2: core::panicking::panic_bounds_check 
+at /rustc/a55dd71d5fb0ec5a6a3a9e8c27b2127ba491ce52/library/core/src/panicking.rs:84:5 
+3: &lt;usize as core::slice::index::SliceIndex&lt;[T]&gt;&gt;::index 
+4: core::slice::index::&lt;impl core::ops::index::Index&lt;I&gt; for [T]&gt;::index 
+5: &lt;alloc::vec::Vec&lt;T,A&gt; as core::ops::index::Index&lt;I&gt;&gt;::index 
+6: hello::main 
+7: core::ops::function::FnOnce::call_once 
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace. 
+</pre>
+<h2 id="summary">摘要</h2>
+<p>总而言之，Rust有两种错误，一种是从<code>Result</code>类型返回的错误值，一种是触发<code>panic!</code>宏产生的错误。<code>Result</code>类型返回一个可恢复的错误，或者换句话说，一个不会导致程序终止的错误。</p>
+<p>另一方面，<code>panic!</code>宏触发一个不可恢复的错误，或者导致Rust程序立即终止。</p><div class="code-block code-block-29">
+<div class="blog-plug inline-plug rust-plug"><h2><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">log rocket</a>:Rust应用的web前端的全面可见性</h2><p>调试Rust应用程序可能很困难，尤其是当用户遇到难以重现的问题时。如果您对监控和跟踪Rust应用程序的性能、自动显示错误、跟踪缓慢的网络请求和加载时间感兴趣，</p><a href="https://lp.logrocket.com/blg/rust-signup" target="_blank">try LogRocket</a><p>. </p><a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a><p>LogRocket 就像是网络和移动应用程序的DVR，记录你的Rust应用程序上发生的一切。您可以汇总并报告问题发生时应用程序的状态，而不是猜测问题发生的原因。LogRocket还可以监控应用的性能，报告客户端CPU负载、客户端内存使用等指标。</p><p>现代化调试Rust应用的方式— <a class="signup" href="https://lp.logrocket.com/blg/rust-signup" target="_blank" rel="noopener noreferrer">开始免费监控</a>。</p></div>
+
+
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

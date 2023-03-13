@@ -1,0 +1,249 @@
+<html>
+<head>
+<title>Incorporating machine learning into your Android app </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>将机器学习融入您的Android应用</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/incorporating-machine-learning-android-app/#0001-01-01">https://blog.logrocket.com/incorporating-machine-learning-android-app/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://developers.google.com/ml-kit"> ML Kit </a>是一个机器学习API的集合，可以用于Android和iOS。ML Kit允许开发人员轻松地将机器学习功能集成到他们的移动应用程序中，而无需广泛了解机器学习算法和技术。你可以使用这个库来执行机器学习任务，比如文本识别、图像标记、条形码扫描、文本翻译等等。</p>
+<p>在本文中，我们将演示如何在Android Studio中应用机器学习。在我们的教程中，我们将使用<a href="https://developers.google.com/ml-kit/vision/text-recognition">文本识别API </a>来扫描和提取文本。我们还将展示如何使用<a href="https://developers.google.com/ml-kit/vision/object-detection">对象检测和跟踪API </a>来识别和定位图像中的对象。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="getting-know-ml-kit">了解ML套件</h2>
+<p>ML Kit的一个关键优势是，它允许开发人员在设备上运行机器学习模型，而不是将数据发送到远程服务器进行处理。这在需要实时结果的情况下特别有用，因为它允许更快的数据处理。此外，在设备上运行模型有助于提高用户数据的隐私性，因为它减少了需要传输到远程服务器的数据量。</p>
+<p>ML Kit还有一个很大的好处就是不需要自己训练模型。相反，可以使用已经在大型数据集上训练过的预训练模型。</p>
+<p>在开发机器学习应用程序时，使用预先训练的模型可以节省时间和资源。这种策略可以帮助您的应用程序快速启动并运行，而不需要大量的训练数据或计算资源。但是，使用预训练模型也有一些潜在的限制。例如，它们可能不如针对您的应用程序的特定用例而训练的模型准确或高性能。</p>
+<h2 id="setting-up-android-project">设置Android项目</h2>
+<p>所有ML Kit APIs都需要Android API级别19或更高，所以要确保你的minSdkVersion至少设置为19。在本教程中，我将使用Android Studio作为我的IDE它在组织文件方面做得很好。</p>
+<p>如果您使用的是Gradle v7.6或更高版本，请修改您的<code>settings.gradle</code>以包含以下存储库:</p>
+<pre class="language-kotlin hljs">pluginManagement {
+   repositories {
+       google()
+    ...
+   }
+}
+
+dependencyResolutionManagement {
+   repositories {
+      google()
+    ...
+   }
+}</pre>
+<p>现在，在您的<code>app/build.gradle</code>文件中添加以下依赖项:</p>
+<pre class="language-kotlin hljs">dependencies {
+   // This is the dependency for text recognition
+   implementation 'com.google.android.gms:play-services-mlkit-text-recognition:18.0.2'
+   // This is the dependency for object detection
+   implementation 'com.google.mlkit:object-detection:17.0.0'
+}</pre>
+<p>接下来，将你的项目与Gradle文件同步，它将下载库。</p>
+<p>首次使用时，机器学习模型会通过Google Play服务动态下载，但您可以更改这一点，以便在安装应用程序时下载模型。为此，将以下代码添加到您的<code>AndroidManifest.xml</code>文件中:</p>
+<pre class="language-kotlin hljs">&lt;application ...&gt;
+   &lt;meta-data
+       android:name="com.google.mlkit.vision.DEPENDENCIES"
+       android:value="ocr" /&gt;
+   &lt;!-- This will cause the model for text recognition(ocr) to be downloaded --&gt;
+&lt;/application&gt;
+</pre>
+<h2 id="adding-text-recognition">添加文本识别</h2>
+<p>ML Kit文本识别API旨在从各种语言和格式的图像或视频中识别和提取文本。</p>
+<p>文本识别最常见的应用之一是光学字符识别(OCR)，它涉及使用机器学习算法来解释图像或扫描文档中的文本。OCR可用于从名片或扫描文档中自动提取信息，或将手写笔记转录为数字文本。</p>
+<p>鉴于我们之前已经导入了ML工具包库，我们不需要再这样做了。我将演示扫描和提取文本的两个选项。</p>
+
+<p>扫描和提取文本的第一种方法是使用文件选择器。</p>
+<p>首先，我将创建一个变量来获取文本识别客户端；我稍后会用它来处理图像。<code>TextRecognition</code>类充当机器学习模型的接口；它抽象了所有的复杂性:</p>
+<pre class="language-kotlin hljs">private val recognizer by lazy {
+   TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+}</pre>
+<p>如果您想设置自己的执行者，您可以向它传递自定义选项:</p>
+<pre class="language-kotlin hljs">val options = TextRecognizerOptions.Builder()
+   .setExecutor(executor)
+   .build()
+
+TextRecognition.getClient(options)</pre>
+<p>在这里，我在一个<code>Activity</code>中定义了这个变量，所以我使用了lazy函数来推迟这个对象的创建，直到它真正被需要的时候。在您的<code>Activity</code>或<code>Fragment</code>中，注册一个活动成果合同，用于拾取图像:</p>
+<pre class="language-kotlin hljs">private val pickImage = registerForActivityResult(
+   ActivityResultContracts.OpenDocument()
+) { uri -&gt;
+   if (uri != null) {
+       processImage(uri) // We'll define this later
+   } else {
+       Toast.makeText(this, "Error picking image", Toast.LENGTH_SHORT).show()
+   }
+}</pre>
+<p>如果你之前没用过活动结果API，可以在这里了解更多<a href="https://developer.android.com/training/basics/intents/result">。</a></p>
+<p>现在，决定你想从哪里启动图像拾取器并调用<code>pickImage.launch(arrayOf("image/*"))</code>。在我的例子中，我通过一个按钮启动它:</p>
+<pre class="language-kotlin hljs">pickImageButton.setOnClickListener { pickImage.launch(arrayOf("image/*")) }</pre>
+<p>接下来，定义使用我们之前创建的识别器来处理图像的方法:</p>
+<pre class="language-kotlin hljs">// uri of the file that was picked
+private fun processImage(uri: Uri) {
+   val image = InputImage.fromFilePath(this, uri)
+
+   recognizer.process(image)
+       .addOnSuccessListener { result -&gt; extractResult(result) }
+       .addOnFailureListener { Log.e("MainActivity", "Error processing image", it) }
+}</pre>
+<p><code>TextRecognizer.process</code>函数返回一个<code>Task</code>。您可以通过添加成功和失败侦听器来观察它的结果。现在，让我们创建一个接收成功结果的方法:</p>
+<pre class="language-kotlin hljs">private fun extractResult(result: Text) {
+   recognizedTextView.text = result.text
+}</pre>
+<p>现在，我只是从结果中提取文本并显示在一个<code>TextView.</code> <br/>中，让我们测试一下。这是它在我的设备主屏幕上的显示方式:</p>
+<p><img data-attachment-id="155305" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/ml-kit-extracted-text/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif" data-orig-size="400,844" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ML Kit extracted text" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif" decoding="async" class="aligncenter wp-image-155305 size-full jetpack-lazy-image" src="../Images/073e7353e35392d1e6eeb06d79255254.png" alt="ML Kit Extracted Text" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="155305" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/ml-kit-extracted-text/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif" data-orig-size="400,844" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ML Kit extracted text" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text-142x300.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif" decoding="async" loading="lazy" class="aligncenter wp-image-155305 size-full" src="../Images/073e7353e35392d1e6eeb06d79255254.png" alt="ML Kit Extracted Text" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-extracted-text.gif"/></noscript>
+<p>如你所见，这种方法在读取图像方面做得很好，即使它扫描的是图像中不存在的“B”。如前所述，机器学习模型不是100%准确的，所以这将是你必须自己处理的事情。</p>
+<p>这个结果很酷，但是我们能做得更多吗？是的，我们可以！</p>
+<p>除了给我们扫描的文本，库还返回图像中文本的位置。让我们在识别出的文本周围画一些边框。首先，让我们定义一下油漆:</p>
+<pre class="language-kotlin hljs">private val paint by lazy {
+   Paint().apply {
+       style = Paint.Style.STROKE
+       strokeWidth = 4f
+       color = Color.MAGENTA
+   }
+}</pre>
+<p>我会添加两个新变量。一个是对<code>rootView</code>的引用；另一个是我将添加到我们的布局中的<code>imageView</code>,这样我们可以看到修改后的图像:</p>
+<pre class="language-kotlin hljs">private val rootView by lazy { findViewById&lt;View&gt;(android.R.id.content).rootView }
+private val imageView by lazy { findViewById&lt;ImageView&gt;(R.id.image) }</pre>
+<p>接下来，修改processImage以显示在添加到布局的<code>ImageView</code>中拾取的图像:</p>
+<pre class="language-kotlin hljs">private fun processImage(uri: Uri) {
+   val image = InputImage.fromFilePath(this, uri)
+   imageView.setImageURI(uri)
+   ...
+}</pre>
+<p>现在，让我们修改提取结果的函数，以便在识别的文本周围绘制边框:</p>
+<pre class="language-kotlin hljs">private fun extractResult(result: Text) {
+   recognizedTextView.text = result.text
+
+   // I'm using post here to make sure this code runs on the main thread
+   rootView.post {
+     // Let's first convert the image to a bitmap so we can draw on it.
+       val bitmap = imageView.drawToBitmap()
+       val canvas = Canvas(bitmap)
+
+     // textBlocks is an array that contains all the individual blocks of text
+     // that were recognized
+     result.textBlocks
+          // the boundingBox represents where the given text is in the image
+        .mapNotNull { it.boundingBox }
+        .forEach { box -&gt; canvas.drawRect(box, paint)
+     }
+
+
+     // Set the modified bitmap in the ImageView
+       imageView.setImageBitmap(bitmap)
+   }
+}</pre>
+<p>这是结果。所有已识别的文本都有边框:</p>
+<p><img data-attachment-id="155312" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/ml-kit-recognized-text-border/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border.png" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ML Kit recognized text border" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png" decoding="async" class="aligncenter wp-image-155312 size-large jetpack-lazy-image" src="../Images/67651f81db50f5ea383e1687646a7a1e.png" alt="ML Kit Recognized Text Border" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border.png 720w" data-lazy-sizes="(max-width: 485px) 100vw, 485px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="155312" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/ml-kit-recognized-text-border/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border.png" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="ML Kit recognized text border" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png" decoding="async" loading="lazy" class="aligncenter wp-image-155312 size-large" src="../Images/67651f81db50f5ea383e1687646a7a1e.png" alt="ML Kit Recognized Text Border" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border.png 720w" sizes="(max-width: 485px) 100vw, 485px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/ml-kit-recognized-text-border-485x1024.png"/></noscript>
+<p>现在我们可以看到“B”是从哪里来的；它来自联系人应用程序图标。</p>
+
+<p>使用相机是我们用来扫描和提取文本的第二种方法。大部分代码与上一节非常相似，所以我在这里只描述不同之处。</p>
+<p>我将演示如何使用活动结果API来拍照，但是如果您愿意，您可以使用像<a href="https://developer.android.com/training/camerax"> CameraX </a>这样的库来创建自己的相机。</p>
+<p>首先将下面的代码添加到您的<code>AndroidManifest.xml</code>文件中:</p>
+<pre class="language-kotlin hljs">&lt;provider
+   android:name="androidx.core.content.FileProvider"
+   android:authorities="${applicationId}.provider"
+   android:exported="false"
+   android:grantUriPermissions="true"&gt;
+   &lt;meta-data
+       android:name="android.support.FILE_PROVIDER_PATHS"
+       android:resource="@xml/provider_paths" /&gt;
+&lt;/provider&gt;
+</pre>
+<p>接下来，在<code>res/xml</code>中，创建一个名为<code>provider_paths.xml</code>的文件，并添加以下内容:</p>
+<pre class="language-kotlin hljs">&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;paths&gt;
+   &lt;cache-path
+       name="cache_folder"
+       path="." /&gt;
+&lt;/paths&gt;
+</pre>
+<p>现在，返回到<code>Activity</code>或<code>Fragment</code>，为您想要存储图像的位置定义一个URI:</p>
+<pre class="language-kotlin hljs">private val imageUri by lazy {
+   val tempFile = File.createTempFile("ml_image", ".png", cacheDir).apply {
+       createNewFile()
+       deleteOnExit()
+   }
+
+   FileProvider.getUriForFile(
+       applicationContext,
+       "${BuildConfig.APPLICATION_ID}.provider",
+       tempFile
+   )
+}</pre>
+<p>我们也注册一下拍照的<code>takePicture</code>合同吧。这样做的好处是，您不需要编写自己的代码来拍照:</p>
+<pre class="language-kotlin hljs">private val takePicture = registerForActivityResult(
+   ActivityResultContracts.TakePicture()
+) { success -&gt;
+   if (success) {
+       processImage(imageUri)
+   } else {
+       Toast.makeText(this, "Error taking picture", Toast.LENGTH_SHORT).show()
+   }
+}</pre>
+<p>你以前看过<code>processImage</code>，之后的一切都是一样的。</p>
+<h2 id="adding-object-detection-tracking">添加对象检测和跟踪</h2>
+<p>对象检测和跟踪是一种特定类型的图像识别，涉及识别和定位图像或视频中的对象。</p>
+<p>一个常见的用例是在运输行业，其中对象检测和跟踪可用于提高任何车辆的安全性，尤其是那些使用自动驾驶技术的车辆。使用安装在车辆上的摄像头，机器学习模型可以检测和跟踪道路上的其他物体，如其他车辆、行人和交通标志。目标检测和跟踪可以帮助车辆安全导航和避免碰撞。</p>
+<p>我们之前已经添加了依赖项，所以不需要再次添加。让我们从配置对象检测器开始:</p>
+<pre class="language-kotlin hljs">private val objectDetector by lazy {
+   val options = ObjectDetectorOptions.Builder()
+       .setDetectorMode(ObjectDetectorOptions.SINGLE_IMAGE_MODE)
+       .enableMultipleObjects()
+       .build()
+
+   ObjectDetection.getClient(options)
+}</pre>
+<p>有几个选项可以设置；让我们回顾一下每一项，以了解它们的作用:</p>
+<ul>
+<li><code>setDetectorMode(ObjectDetectorOptions)</code>:有两种模式(<code>STREAM_MODE</code>和<code>SINGLE_IMAGE_MODE</code>)。有一种<code>STREAM_MODE</code>更快，但产生的结果不太准确；<code>SINGLE_IMAGE_MODE</code>运行时间稍长，但结果更好</li>
+<li><code>enableMultipleObjects()</code>:定义是只检测主物体还是检测更多物体</li>
+<li><code>enableClassification()</code>:定义是否将检测到的物体分成大类。如果启用，它会将对象分为五类:时尚商品、食物、家居用品、地点和植物。如果它不能对一个对象进行分类，结果可能为空</li>
+</ul>
+<p>现在在<code>processImage</code>函数中，您可以调用之前创建的<code>objectDetector</code>:</p>
+<pre class="language-kotlin hljs">rivate fun processImage2(uri: Uri) {
+   val image = InputImage.fromFilePath(this, uri)
+   imageView.setImageURI(uri)
+
+   objectDetector.process(image)
+       .addOnSuccessListener { result -&gt; extractResult(result) }
+       .addOnFailureListener { Log.e("MainActivity", "Error processing image", it) }
+}</pre>
+<p><code>extractResult</code>函数非常类似于前面文本识别部分使用的函数:</p>
+<pre class="language-kotlin hljs">private fun extractResult(result: List&lt;DetectedObject&gt;) {
+   rootView.post {
+       val bitmap = imageView.drawToBitmap()
+       val canvas = Canvas(bitmap)
+
+       result.forEach { box -&gt;
+           canvas.drawRect(box.boundingBox, paint)
+       }
+
+       imageView.setImageBitmap(bitmap)
+   }
+}</pre>
+<p>这是最终结果。它能识别两个物体——沙发和桌子:</p>
+<p> </p>
+<p><img data-attachment-id="155314" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/machine-learning-kit-image-detection-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example.png" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Machine Learning Kit image detection example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png" decoding="async" class="aligncenter wp-image-155314 size-large jetpack-lazy-image" src="../Images/3e1335aa3a9fbfb5dc23d3dcc4d9fa40.png" alt="Machine Learning Kit Image Detection Example" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example.png 720w" data-lazy-sizes="(max-width: 485px) 100vw, 485px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="155314" data-permalink="https://blog.logrocket.com/incorporating-machine-learning-android-app/attachment/machine-learning-kit-image-detection-example/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example.png" data-orig-size="720,1520" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Machine Learning Kit image detection example" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-142x300.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png" decoding="async" loading="lazy" class="aligncenter wp-image-155314 size-large" src="../Images/3e1335aa3a9fbfb5dc23d3dcc4d9fa40.png" alt="Machine Learning Kit Image Detection Example" srcset="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png 485w, https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-142x300.png 142w, https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example.png 720w" sizes="(max-width: 485px) 100vw, 485px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2023/01/machine-learning-kit-image-detection-example-485x1024.png"/></noscript>
+<p>如你所见，这个模型并不是100%准确。例如，它没有检测到绘画或书籍。尽管如此，它在识别物体在图像中的位置方面做得很好。</p>
+<h2 id="bonus-using-text-recognition">额外收获:使用文本识别V2 API</h2>
+<p>ML工具包文本识别v2 API 是文本识别API的改进版本。在撰写本文时，它仍处于测试阶段。</p>
+<p>这两个版本的最大区别之一是V2支持中文、梵文、日文和韩文文本。</p>
+<p>文本识别V2 API非常类似于V1，所以如果你熟悉V1，你应该不会有任何问题实现V2。你可以在这里阅读更多关于新版本<a href="https://developers.google.com/ml-kit/vision/text-recognition/v2/android#3_process_the_image">的信息。</a></p>
+<h2 id="ml-kit-alternative-firebase-machine-learning">ML工具包替代方案:Firebase机器学习</h2>
+<p><a href="https://firebase.google.com/docs/ml"> Firebase Machine Learning </a>和ML Kit都是允许开发人员将机器学习功能融入其Android和iOS应用程序的工具。</p>
+<p>Firebase机器学习提供了比ML Kit更广泛的功能集。除了为常见任务提供预先培训的模型之外，它还提供了用于培训和部署自定义机器学习模型的工具。</p>
+<p>如果你想从ML工具包迁移到Firebase机器学习，有一个<a href="https://developers.google.com/ml-kit/migration">迁移指南</a>可以遵循。</p>
+<h2 id="“conclusion”">结论</h2>
+<p>使用实时ML Kit APIs进行文本识别和对象检测是一种高效且有效的方式，可以为您的应用程序添加强大的机器学习功能。</p>
+<p>在本文中，我们演示了如何使用文件选择器和相机来选择输入图像。最后，两种方法产生了相同的结果。</p>
+<p>虽然机器学习可能非常强大，但它不是可以解决所有问题的灵丹妙药。为了在应用程序中有效地使用机器学习，了解它的局限性非常重要。</p><div class="code-block code-block-32">
+<div class="blog-plug inline-plug kotlin-plug"><h2>LogRocket :即时重现你的安卓应用中的问题。</h2><a class="signup" href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/b5ae4bd0ecde7aa9d5288746416d5e18.png" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/react-native-plug_android-1.png"/></noscript></a><p><a href="https://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一款Android监控解决方案，可以帮助您即时重现问题，确定bug的优先级，并了解您的Android应用程序的性能。</p><p>LogRocket还可以向你展示用户是如何与你的应用程序互动的，从而帮助你提高转化率和产品使用率。LogRocket的产品分析功能揭示了用户不完成特定流程或不采用新功能的原因。</p><p>开始主动监控您的Android应用程序— <a class="signup" href="hhttps://lp.logrocket.com/blg/kotlin-signup" target="_blank" rel="noopener noreferrer">免费试用LogRocket】。</a></p></div>
+</div>
+
+<p class="clearfix"/>
+ <p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

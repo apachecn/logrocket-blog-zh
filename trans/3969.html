@@ -1,0 +1,243 @@
+<html>
+<head>
+<title>Type checking with TypeRunner </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用TypeRunner进行类型检查</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/type-checking-typerunner/#0001-01-01">https://blog.logrocket.com/type-checking-typerunner/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://github.com/marcj/TypeRunner"> TypeRunner </a>是一个高性能的类型脚本编译器，支持类型检查，完全不需要<code>tsc</code>或JavaScript引擎。它通过将TypeScript源代码编译成字节码并在定制的虚拟机中运行，极大地加快了类型检查的速度。</p>
+<p>通过这种方式，TypeRunner使TypeScript语言在声明类型信息方面变得强大，然后使用这些定义在其他语言中执行类型检查——完全独立于Node.js、Deno或JavaScript引擎。TypeRunner使以TypeScript编写的类型信息可以移植到其他环境中。</p>
+<p>在撰写本文时，TypeRunner只是一个概念验证，仅支持一些基本的类型表达式(即原语、对象文字、泛型函数类型、模板文字、类型别名、数组、元组、交集、联合和rest参数)。尚不支持接口或类。该包的作者Marc J. Schmidt在回购中建议，当社区提供足够的资金时，开发将会继续。</p>
+<p>在本文中，我们将深入探讨TypeRunner背后的概念，演示如何使用TypeRunner对一个简单的项目进行类型检查，并将其功能与Deno和<code>tsc</code>进行比较。我们还将了解一项高级功能及其当前的局限性。</p>
+<p>我们开始吧！</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="understanding-performance-issue">了解性能问题</h2>
+<p>在过去的几年里，用JavaScript编写的被广泛采用的web开发工具受到了用更高性能语言编写的工具的激烈竞争，比如Go和Rust。一些突出的例子是用Go编写的esbuild，以及用Rust编写的swc或<a href="https://blog.logrocket.com/introducing-turbopack-rust-based-successor-webpack/"> Turbopack </a>。</p>
+<p>现在，随着<code>tsc</code>在幕后运行JavaScript进行类型检查，开发大型代码库的开发人员在编辑代码时会遇到来自编译器的延迟反馈。</p>
+<p>想象一下，改变一个函数参数的类型，然后等待几秒钟，红色的错误线就会出现！这不是我们要找的DX！</p>
+<p>由于TypeScript语言服务器在大型代码库中的低性能，公司和开发人员正在寻找解决方案。一名开发人员最近在关于<a href="https://github.com/marcj/TypeRunner"> TypeRunner repo </a>的GitHub问题中非常明确地表达了这一需求:</p>
+<blockquote><p>“我愿意花钱买一个速度更快的VS Code language服务器，我相信成千上万的开发人员也会这样做，即使它不能与TypeScript 100%对等。”</p></blockquote>
+<h2 id="introducing-typerunner">引入TypeRunner</h2>
+<p>TypeScript项目中定义的类型在开发过程中为开发人员提供帮助，但在运行前会被删除。然而，类型也在运行时为软件提供价值。</p>
+<p>例如，TypeScript接口可以用于HTTP端点的请求/响应验证。或者，假设我们用TypeScript接口定义了一个整体数据模型，并将这些类型声明为许多不同消费者(如微服务或前端应用程序)的单一真实来源。</p>
+<p>使用TypeRunner，在TypeScript中定义的数据模型的使用者不一定需要用TypeScript编写。TypeRunner可以独立于语言添加类型检查，因为它不依赖于<code>tsc</code>或JavaScript引擎。</p>
+<p>TypeRunner提取TypeScript代码的类型信息，编译成字节码，在自定义虚拟机中执行，进行类型检查。</p>
+<p>TypeRunner旨在满足两个主要目标:</p>
+<ul>
+<li>使TypeScript的类型信息在其他语言中可用</li>
+<li>提高类型检查的速度</li>
+</ul>
+<p><strong> <em>注意，</em> </strong> TypeRunner在运行时不执行类型检查，但其作者也是<a href="https://deepkit.io/library/type"> Deepkit Type </a>的开发者，该库使类型在运行时可用，以便将JSON反序列化为类(反之亦然)，根据接口验证对象或基于接口编写类型保护。如果您正在寻找TypeScript的类型信息的运行时用法，我强烈建议您查看一下</p>
+<h3 id="portability-types">类型的可移植性</h3>
+<p>数据模型通常用特定于领域的语言(DSL)来声明，通常只有很少的用例以及有限的工具。基于同一数据模型的服务必须根据模型中声明的类型和关系来验证它们的代码和特性。不同服务的API需要遵守一定的契约，以便一起正常工作。健壮的系统必须从运行时由于无效数据导致的错误中恢复。</p>
+<p>现在，假设我们能够用TypeScript接口、类型以及它们之间的关系来声明一个系统的数据模型。嗯，我们可以从今天开始做！但是为了使用这些信息，我们必须依赖JavaScript和TypeScript编译器。毕竟，对于用完全不同的语言编写但依赖于相同数据模型的服务来说，这种类型的信息可能是有用的。</p>
+<p>但是，使用TypeRunner，可以将声明的TypeScript数据模型编译成字节码，移植到任何地方，并通过CLI或作为库(例如，在CI/CD管道中)用于类型检查。</p>
+<h2 id="use-cases-typerunner">TypeRunner的用例</h2>
+<p>TypeRunner有几个真实的用例。以下是一些例子:</p>
+<ul>
+<li>非JavaScript环境中的类型检查</li>
+<li>用TypeScript接口和类型替换用于数据建模的DSL</li>
+<li>提高类型检查性能</li>
+</ul>
+<h2 id="typerunner-action">运行中的TypeRunner</h2>
+<p>截至本文撰写之时，TypeRunner只支持TypeScript的类型系统的一个子集，但我们仍然可以很好地利用它！</p>
+<p>为了实际演示TypeRunner，让我们从定义一个简单的用户数据模型开始。</p>
+<p>在构建TypeRunner之前，我们将首先定义模型。</p>
+<p>这是因为Docker容器(我们将在其中看到TypeRunner执行类型检查)不提供基于终端的文本编辑器。</p><div class="code-block code-block-54">
+<hr/>
+<h3>更多来自LogRocket的精彩文章:</h3>
+
+<hr/></div>
+<p>模型(在这种情况下，我们的TypeScript源代码)将作为卷添加到容器中。</p>
+<h3 id="cloning-typerunner-repo">克隆TypeRunner repo</h3>
+<p><a href="https://github.com/marcj/TypeRunner"> TypeRunner repo </a>包含构建Docker映像的C++源代码和指令。作为提示，您需要递归地克隆repo，如果您已经设置了GitHub SSH密钥，这只能在命令行上工作:</p>
+<pre class="language-typescript hljs">git clone <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dbbcb2af9bbcb2afb3aeb9f5b8b4b6">[email protected]</a>:marcj/TypeRunner.git
+cd TypeRunner
+git submodule update --init --recursive
+
+</pre>
+<h3 id="building-docker-image">建立码头工人形象</h3>
+<p>如果你还没有在你的系统上安装它，你可以<a href="https://www.docker.com/get-started">在这里</a>得到Docker。</p>
+<p>我们将把TypeRunner构建到Docker映像中，并运行装载了TypeScript源文件的一次性容器，以便进行类型检查:</p>
+<pre class="language-typescript hljs">docker build -t typerunner .
+
+</pre>
+<p>这里我们标记图像，<code>typerunner,</code>,我们将在运行图像外的容器时引用它。</p>
+<p><strong> <em>注意，</em> </strong>如果我们在交互模式下运行容器，我们可以检查《TypeRunner》的作者<a href="https://twitter.com/MarcJSchmidt"> Marc J. Schmidt </a>用来做基准测试的测试文件</p>
+<pre class="language-bash hljs">docker run -it typerunner
+cat tests/model.ts
+
+</pre>
+<h3 id="using-typerunner-type-checking">使用TypeRunner进行类型检查(没有<code>tsc)</code>的类型检查)</h3>
+<p>TypeRunner允许您在没有TypeScript编译器(也称为<code>tsc</code>)的情况下进行类型检查。一旦C++源代码在我们用Docker设置的环境中被编译，任何类型脚本代码都可以通过挂载到Docker容器中进行类型检查。</p>
+<p>让我们创建一个文件<code>main.ts</code>，并用TypeScript编写一个基本的HTTP处理程序。然而，我们不会看到VS代码或任何其他内置于TypeScript语言服务器的文本编辑器。相反，我们将让TypeRunner来做繁重的工作！😉</p>
+<pre class="language-typescript hljs">// main.ts
+type Phone = {
+  country: "US" | "FR" | "UK" | "DE";
+  phoneArea: number;
+  phoneNumber: number;
+};
+
+
+type User = {
+  id: string;
+  name: string;
+  age: number;
+  contact: Phone;
+};
+
+
+const lindasPhone: Phone = {
+  country: "FS",
+  phoneArea: 123,
+  phoneNumber: 4567,
+};
+
+
+const users: User[] = [
+  {
+    id: "abc",
+    name: "Linda",
+    age: 23,
+    contact: lindasPhone,
+  },
+  {
+    id: "def",
+    name: "Wendy",
+    age: 32,
+    contact: {
+      country: "UK",
+      phoneArea: 123,
+      phoneNumber: "4567",
+    },
+  },
+];
+
+</pre>
+<p>这段代码显然有一些类型错误。这是国际性的，所以我们可以看到像TypeRunner、Deno和<code>tsc</code>这样的类型检查工具如何帮助检测和修复这些错误。</p>
+<p>我鼓励您尝试使用TypeRunner并添加一些额外的类型错误，以便获得实践经验！</p>
+<p>要使用TypeRunner对示例代码进行类型检查，请运行以下命令:</p>
+<pre class="language-bash hljs"># Type check main.ts with TypeRunner
+docker run -v $(pwd)/main.ts:/typerunner/main_test.ts typerunner build/typescript_main main_test.ts
+
+</pre>
+<p><strong> <em>注意，</em> </strong> <code>build/typescript_main</code>是执行类型检查的TypeRunner可执行文件；<code>main_test.ts</code>是我们如何命名我们挂载的源文件<code>main.ts</code></p>
+<p>现在，让我们用Deno检查我们的<code>main.ts</code>文件并比较输出。</p>
+<h3 id="using-deno-type-checking">使用Deno进行类型检查</h3>
+<p>Deno可用于通过命令行对TypeScript文件进行类型检查:</p>
+<pre class="language-bash hljs">deno check main.ts
+
+# does the same as
+npx tsc --noEmit main.ts
+
+</pre>
+<p>Deno使用<code>tsc</code>进行类型检查，因此TypeRunner与Deno和<code>tsc</code>相比具有相同的性能优势。</p>
+<p>在运行<code>deno check main.ts</code>时，Deno在我们的代码中发现了两个类型错误，并返回一个用曲线和行号表示的错误的结构化概述。本质上，运行<code>deno check </code>和运行<code>npx tsc –noEmit </code>是一样的</p>
+<p><strong> <em>注意，</em> </strong>如果没有通过<code>--check</code>标志显式启用类型检查，Deno将在没有类型检查的情况下运行您的源代码，而不管潜在的类型错误</p>
+<pre class="language-bash hljs"># No type checking: This only compiles with tsc and runs in Deno
+deno run main.ts
+
+# Demand type checking
+deno run --check main.ts
+
+</pre>
+<h3 id="output-comparison-typerunner-deno-tsc">输出比较:TypeRunner vs. Deno和<code>tsc</code></h3>
+<p>TypeRunner将类型检查的结果输出到<code>stdout</code>，所以您会在终端中看到红色的曲线(表示错误):</p>
+<pre class="language-bash hljs"># [.... other logs ….]
+
+main_test.ts:188:199 - error TS0000: Type '{"country": "FS""phoneArea": 123"phoneNumber": 4567}' is not assignable to type '{"country": "US" | "FR" | "UK" | "DE""phoneArea": number"phoneNumber": number}'
+
+»const lindasPhone: Phone =
+»      ~~~~~~~~~~~
+
+main_test.ts:277:282 - error TS0000: Type '[{"id": "abc""name": "Linda""age": 23"contact": {"country": "US" | "FR" | "UK" | "DE""phoneArea": number"phoneNumber": number}}, {"id": "def""name": "Wendy""age": 32"contact": {"country": "UK""phoneArea": 123"phoneNumber": "4567"}}]' is not assignable to type 'Array&lt;{"id": string"name": string"age": number"contact": {"country": "US" | "FR" | "UK" | "DE""phoneArea": number"phoneNumber": number}}&gt;'
+
+»const users: User[] = [ // no squiggly lines from Deno/tsc
+»      ~~~~~
+
+Found 2 errors in main_test.ts
+
+</pre>
+<p>为了比较，下面是用Deno ( <code>tsc</code>)进行类型检查的输出:</p>
+<pre class="language-bash hljs"># Output from Deno / tsc
+
+error: TS2322 [ERROR]: Type '"FS"' is not assignable to type '"US" | "FR" | "UK" | "DE"'.
+  country: "FS",
+  ~~~~~~~
+    at file:///home/christian/projects/typerunner-demo-app/main.ts:15:3
+
+    The expected type comes from property 'country' which is declared here on type 'Phone'
+      country: "US" | "FR" | "UK" | "DE";
+      ~~~~~~~
+        at file:///home/christian/projects/typerunner-demo-app/main.ts:2:3
+
+TS2322 [ERROR]: Type 'string' is not assignable to type 'number'.
+      phoneNumber: "4567", // no squiggly lines from TypeRunner
+      ~~~~~~~~~~~
+    at file:///home/christian/projects/typerunner-demo-app/main.ts:34:7
+
+    The expected type comes from property 'phoneNumber' which is declared here on type 'Phone'
+      phoneNumber: number;
+      ~~~~~~~~~~~
+        at file:///home/christian/projects/typerunner-demo-app/main.ts:4:3
+
+Found 2 errors.
+
+</pre>
+<p>主要的区别是代码中的格式和曲线(表示错误)的位置。</p>
+<p>例如，看看我们的用户群。它在第二个对象中有一个错误的类型，嵌套在<code>contact.phoneNumber</code>属性中。Deno在设置了不正确的类型(它是一个字符串而不是一个数字)的地方标记这个类型错误，而TypeRunner将<code>users</code>数组标记为错误。</p>
+<h2 id="handling-complex-types">处理复杂类型</h2>
+<p><a href="https://github.com/marcj/TypeRunner"> TypeRunner自述文件</a>展示了TypeRunner能够检查的一些复杂类型:</p>
+<pre class="language-typescript hljs">type StringToNum&lt;T extends string, A extends 0[] = []&gt; = `${A['length']}` extends T ? A['length'] : StringToNum&lt;T, [...A, 0]&gt;;
+const var1: StringToNum&lt;'999'&gt; = 999;
+
+</pre>
+<p>这个特殊的<code>StringToNum</code>类型可能实际上并不相关，但是它很好地演示了复杂类型是如何被TypeRunner构造和类型检查的。</p>
+<h2 id="current-limitations">当前的限制</h2>
+<p>在使用TypeRunner时，我偶然发现了一些与源代码中的表达式相关的当前限制，在编写时TypeRunner无法处理这些限制。</p>
+<h3 id="support-import-statements">支持导入语句</h3>
+<p>TypeRunner目前不支持处理import语句，所以我们不能使用Deno标准库中的HTTP处理程序和服务器，正如我所希望的:</p>
+<pre class="language-typescript hljs">// TypeRunner cannot process import statements at the moment
+import { serve } from "https://deno.land/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3447405074041a0500021a04">[email protected]</a>/http/server.ts";
+import { type Handler } from "https://deno.land/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e7949383a7d7c9d6d3d1c9d7">[email protected]</a>/http/server.ts";
+</pre>
+<h3 id="usage-denos-global-namespace">Deno全局名称空间的使用</h3>
+<p>目前无法使用TypeRunner从Deno全局名称空间<code>Deno</code>启动HTTP服务器:</p>
+<pre class="language-typescript hljs">// TypeRunner cannot process references to the Deno global namespace
+const conn = Deno.listen({ port: 80 });
+
+// TypeRunner's output
+// terminate called after throwing an instance of 'std::runtime_error'
+//  what():  Property access to Never not supported
+
+</pre>
+<h2 id="advantages-typerunner">TypeRunner的优势</h2>
+<p>与类似于<code>tsc</code>的工具相比，TypeRunner提供了巨大的性能优势，因为它将TypeScript编译成字节码，并在一个定制的虚拟机中进行处理，而且是用C++编写的。</p>
+<p>作为一种静态类型的通用编译语言，C++提供了比JavaScript等解释型语言更好的性能。C++的性能与Rust等更年轻的编译语言不相上下。TypeRunner作者出于个人偏好明确选择C++而不是Rust:</p>
+<blockquote><p><a href="https://github.com/marcj/TypeRunner#why-c-and-not-rust">为什么C++不会生锈？</a>因为我比Rust懂C++多了。优秀C++开发人员的市场要大得多。TypeScript代码还可以很好地映射到C++，因此移植扫描器、解析器和AST结构实际上相当容易，这使得将TypeScript tsc的特性回移植到TypeRunner更加容易。我也觉得铁锈很丑。”</p></blockquote>
+<p>TypeRunner通过高效缓存解析后的AST和编译后的字节码(即热运行)进一步提高了性能。如果您有一个包含数百个文件的大型项目，并且在每次类型检查运行之间只有一两个更改，那么只有有更改的文件需要经过TypeRunner处理的所有三个阶段:</p>
+<ol>
+<li>解析AST</li>
+<li>编译成字节码</li>
+<li>在定制虚拟机中执行字节码</li>
+</ol>
+<h2 id="conclusion">结论</h2>
+<p>在本文中，我们探讨了TypeRunner的概念、特性、优点和局限性。我们还演示了它在实际中的使用，并将其性能与Deno和<code> tsc</code>进行了比较。</p>
+<p>在撰写本文时，TypeRunner项目仅仅是一个概念验证，因此它缺乏流畅的用户体验，并且不支持TypeScript语言的每个方面。</p>
+<p>我打赌开源社区未来会做出贡献来增强TypeRunner的可用性，所以在它的基础上构建并发布消息吧！我迫不及待地想看到TypeRunner获得牵引力，并看到它的采用飙升！</p><div class="code-block code-block-21">
+<div class="blog-plug inline-plug typescript-plug"><h2><a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>:全面了解您的网络和移动应用</h2>
+<a href="https://lp.logrocket.com/blg/typescript-signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p>LogRocket 是一个前端应用程序监控解决方案，可以让您回放问题，就像问题发生在您自己的浏览器中一样。LogRocket不需要猜测错误发生的原因，也不需要向用户询问截图和日志转储，而是让您重放会话以快速了解哪里出错了。它可以与任何应用程序完美配合，不管是什么框架，并且有插件可以记录来自Redux、Vuex和@ngrx/store的额外上下文。</p>
+<p>除了记录Redux操作和状态，LogRocket还记录控制台日志、JavaScript错误、堆栈跟踪、带有头+正文的网络请求/响应、浏览器元数据和自定义日志。它还使用DOM来记录页面上的HTML和CSS，甚至为最复杂的单页面和移动应用程序重新创建像素级完美视频。</p>
+<a class="signup" href="https://lp.logrocket.com/blg/typescript-signup" target="_blank" rel="noopener noreferrer">Try it for free</a><p>.</p></div>
+</div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+ </article>
+
+</div>    
+</body>
+</html>

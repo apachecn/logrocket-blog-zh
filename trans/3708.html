@@ -1,0 +1,305 @@
+<html>
+<head>
+<title>Using Docker containers to beat flaky tests </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>使用Docker容器击败片状测试</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/#0001-01-01">https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/#0001-01-01</a></blockquote><div><article class="article-post">
+<p>即使方法参数和源代码(断言是针对它们编写的)没有改变，易变的测试在不同的运行中也会产生不同的结果。剥落可能是由多种因素造成的，包括随机性、竞争条件或外部服务等依赖性。</p>
+<p>在本文中，我们将测试一个由<a href="https://blog.logrocket.com/organizing-express-js-project-structure-better-productivity/"> Express.js </a>驱动的<a href="https://blog.logrocket.com/tag/node/"> Node.js应用程序</a>，它能够存储和读取工作列表。我们将向您展示如何使用Docker容器来击败脆弱的测试。为了简洁起见，我们将只讨论主题范围内的相关代码。代码可以在<a href="https://github.com/creatrixity/simple-job-board"> GitHub库</a>中找到。</p>
+<p><em>向前跳转:</em></p>
+
+<h2 id="avoid-flaky-tests">为什么要避免古怪的测试？</h2>
+<p>避免不可靠的测试是至关重要的，因为不可靠的测试会损害软件的完整性。片状测试还会降低开发速度，因为在运行缓慢的CI环境中会发生多次失败。</p>
+<p>当特定的断言在被提供特定的参数时返回特定的结果时，测试就是确定的。函数式编程中的纯函数是用与确定性测试相同的规则编写的。软件模块与其他模块交互，并在应用程序生命周期内共享状态。写得不好的测试有时会通过交叉污染引入状态不一致，即前一次测试运行的状态会影响正在运行的测试。由于测试变得不确定，这可能导致测试剥落。</p>
+<p>易变行为的其他原因包括<code>async</code>行为、并发问题和网络交互(易变系统)。为了减轻这些场景的风险，我们必须确保测试被适当地隔离，并且共享的资源使用被最小化。</p>
+<h2 id="use-docker-containers-testing">测试时为什么要使用Docker容器？</h2>
+<p>Docker容器帮助我们保持测试环境的确定性。我们可以使用Docker容器将应用程序的运行时环境与其主机操作系统隔离开来。这允许我们隔离文件系统、网络、系统调用和资源使用。</p>
+<p>容器是轻量级的进程，成本低廉，易于创建和拆卸。这些品质使它们成为<a href="https://blog.logrocket.com/comparing-best-node-js-unit-testing-frameworks/">隔离测试</a>的理想选择。使用像<a href="https://docs.docker.com/compose/install/"> Docker Compose </a>这样的容器编排工具，我们可以在一个清单中定义依赖服务，这使得它非常适合为外部服务旋转模拟容器。</p>
+<p>本文的下一部分将演示用<a href="https://blog.logrocket.com/tag/docker/"> Docker </a>、<a href="https://blog.logrocket.com/node-js-docker-improve-dx-docker-compose/"> Docker Compose </a>、<a href="https://knexjs.org/"> Knex.js </a>和<a href="https://blog.logrocket.com/tag/postgresql/"> PostgreSQL </a>进行测试。</p>
+<h2 id="testing-node-js-application">测试Node.js应用程序</h2>
+<p>保证生产中运行的应用程序的行为非常重要。为了增加我们的信心水平，我们运行手动和<a href="https://blog.logrocket.com/how-automate-api-tests-postman/">自动测试</a>。为了在我们的测试套件中获得信心，我们需要测试输出是可预测的和确定的。</p>
+<p>在本文中，我们将测试一个基于Express.s的Node.js应用程序。我们将使用<code>Postgres</code>来实现持久性，但是我们将使用<code>knex</code>来管理迁移、种子和构建查询对象。</p>
+<h3 id="setup-installation">设置和安装</h3>
+<p>首先，克隆<code>simple-job-board</code> repo并安装必要的依赖项:</p>
+<pre class="language-bash hljs">git clone https://github.com/creatrixity/simple-job-board
+cd simple-job-board
+cp .env.example .env
+npm install</pre>
+<p>由于应用程序将<code>PostgreSQL</code>作为服务依赖项，我们将为<code>PostgreSQL</code>运行一个<a href="https://blog.logrocket.com/docker-for-front-end-developers/"> Docker容器</a>:</p>
+<pre class="language-bash hljs"># We need to create an isolated bridge network to allow us connect to our instances
+docker create network simple-job-board --driver bridge
+docker pull postgres
+docker run --name simple-job-board-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=5uperIn5ecurePa55word -e POSTGRES_DB=simple-job-board -p 5432:5432 -d postgres
+</pre>
+<p>在上面的代码片段中，我们为应用程序定义了一个<a href="https://docs.docker.com/network/bridge/">隔离网桥网络</a>。我们还提取了官方的<code>postgres</code>映像，并在容器初始化时传递了一些配置选项。</p>
+<p>在PostgreSQL容器运行并监听连接的情况下，我们将尝试连接到正在运行的实例。安装了<code>psql</code> CLI后，执行:</p>
+<pre class="language-bash hljs">psql -h 127.0.0.1 -p 5432 -U postgres -d simple-job-board</pre>
+<p>我们应该会看到下面的提示，表示连接成功:</p>
+<pre class="language-bash hljs"># psql (13.3, server 15.0 (Debian 15.0-1.pgdg110+1))
+# WARNING: psql major version 13, server major version 15.
+#         Some psql features might not work.
+# Type "help" for help.
+
+# simple-job-board=# 
+</pre>
+<h3 id="defining-application-testing-config">定义<code>application</code>和<code>testing</code>配置</h3>
+<p>接下来，我们将使用<code>dotenv</code>来获取环境变量。我们还将设置一个小的<code>getEnvVariable</code>助手来为环境变量提供后备。然后我们为<code>server port</code>和数据库主机定义键，用<code>localhost</code>作为<code>fallback</code>。<code>config</code>文件在<code>src/config.ts</code>可用:</p>
+<pre class="language-typescript hljs">import dotenv from "dotenv";
+dotenv.config();
+
+function getEnvVariable(name: string, fallback: string = ""): string {
+  const envVariable = process.env[name];
+  const fallbackProvided = fallback.length;
+  if (!envVariable &amp;&amp; !fallbackProvided) {
+    throw new Error(`Environment variable ${name} has not been set.`);
+  }
+  return envVariable || fallback;
+}
+
+const config = {
+  server: {
+    port: Number(getEnvVariable("PORT")),
+  },
+  database: {
+    host: getEnvVariable("DATABASE_HOST", "localhost"),
+  },
+};
+
+export default config;
+</pre>
+<p>然后，在<code>./knexfile.ts</code>中，定义<code>development</code>和<code>testing</code>环境的配置。定义这两种环境是相似的，除了在<code>testing</code>中定义<code>host</code>参数:</p>
+<pre class="language-typescript hljs">import type { Knex } from "knex";
+import appConfig from "./src/config";
+
+// Update with your config settings.
+
+const config: { [key: string]: Knex.Config } = {
+  development: {
+    client: "postgresql",
+    connection: {
+      user: "postgres",
+      password: "5uperIn5ecurePa55word",
+      port: 5432,
+    },
+    pool: {
+      min: 2,
+      max: 10,
+    },
+    migrations: {
+      tableName: "knex_migrations",
+    },
+  },
+
+  testing: {
+    client: "postgresql",
+    connection: {
+      user: "postgres",
+      password: "5uperIn5ecurePa55word",
+      host: appConfig.database.host,
+      port: 5432,
+    },
+    pool: {
+      min: 2,
+      max: 10,
+    },
+    migrations: {
+      tableName: "knex_migrations",
+    },
+  },
+};
+
+module.exports = config;
+</pre>
+<h3 id="bootstrapping-node-js-application">引导Node.js应用程序</h3>
+<p>接下来，我们将在<code>src/index.ts</code>中引导我们的应用程序。为了保持Node.js应用程序引导代码的可重用性，我们将在名为<code>createServer</code>的工厂函数中创建新的应用程序实例。</p>
+<p><code>createServer</code>工厂将接受一个数据库连接池文件描述符的引用和一个可选的<code>port</code>号，以在其中公开应用程序。</p>
+<p>幸运的是，<code>knex</code>提供了数据库连接的抽象:</p>
+<pre class="language-typescript hljs">// src/index.ts
+import knex from "knex";
+import config from "./config";
+import { createServer } from "./createServer";
+const knexConfig = require("../knexfile");
+const knexSetup = knex(knexConfig.development);
+
+createServer(knexSetup, config.server.port);
+</pre>
+<p>在检查了导出<code>createServer</code>工厂的<code>src/createServer.ts</code>文件后，我们将复制一份数据库连接引用。通过存储在<code>app.locals</code>内，其他<a href="https://blog.logrocket.com/nestjs-vs-express-js/">快速模块</a>也可以使用。</p>
+<p>我们也有条件地监听提供的<code>port</code>号。我们打算在我们的测试设置中重用<code>createServer</code>工厂，如果没有提供工厂，<code>superagent</code>将把应用程序绑定到一个随机的<code>port</code>:</p>
+<pre class="language-typescript hljs">// src/createServer.ts
+export function createServer(dbConnection: Knex, port?: number): Express {
+  const app: Express = express();
+  app.use(bodyParser.json());
+
+  // Cache a copy of the dbConnection socket
+  app.locals.dbConnection = dbConnection;
+
+  app.use("/jobs", jobsRouter);
+  app.get("/", (_req: Request, res: Response) =&gt; {
+    res.json({ message: "Hello 👋 ! Welcome to the simple job board app" });
+  });
+
+  if (port) {
+    app.listen(port, () =&gt; {
+      console.log(`☁️ Server is running at https://localhost:${port}`);
+    });
+  }
+
+  return app;
+}
+</pre>
+<h3 id="writing-integration-tests">编写集成测试</h3>
+<p>我们将为<code>job</code>模块添加几个<a href="https://blog.logrocket.com/unit-and-integration-testing-for-node-js-apps/">集成测试</a>。在每个测试套件运行之前，我们将:</p>
+<ul>
+<li>为短暂测试构造一个随机的唯一名称<code>database</code></li>
+<li>获得一个<code>Postgres</code>连接</li>
+<li>用生成的随机惟一名称创建一个临时测试<code>database</code></li>
+<li>获取一个引用<code>database</code>的新<code>Postgres</code>连接</li>
+<li>迁移并播种新创建的<code>database</code></li>
+<li>调用<code>createServer</code>来帮助创建Express应用程序的新实例，并将新实例分配给顶级<code>app</code>变量:</li>
+</ul>
+<pre class="language-typescript hljs">  // src/modules/job/job.test.ts
+  // -------------------------------------------------------------------------
+  // Setup up
+  // -------------------------------------------------------------------------
+  let app: Express;
+  let knexSetup: Knex;
+  let databaseName: string;
+
+  beforeAll(async () =&gt; {
+    databaseName = uniqueNamesGenerator({
+      dictionaries: [colors, adjectives, animals],
+    });
+    knexSetup = knex(knexConfig.testing);
+    await knexSetup.raw(`CREATE DATABASE ${databaseName}`);
+    knexSetup = knex({
+      ...knexConfig.testing,
+      database: databaseName,
+    });
+    await knexSetup.migrate.latest();
+    await knexSetup.seed.run();
+    app = createServer(knexSetup);
+  });
+</pre>
+<p>在每个测试套件运行之后，我们通过丢弃短暂的<code>database</code>并关闭到<code>database</code>的连接来进行清理，以避免池饥饿，并将资源利用率保持在最佳水平:</p>
+<pre class="language-typescript hljs">  // src/modules/job/job.test.ts
+  // -------------------------------------------------------------------------
+  // Tear Down
+  // -------------------------------------------------------------------------
+  afterAll(async () =&gt; {
+    await knexSetup.raw(`DROP DATABASE ${databaseName}`);
+    await knexSetup.destroy();
+  });
+</pre>
+<p>对于<code>test</code>的情况，我们对查询在前面步骤中植入到<code>database</code>中的<code>jobs</code>列表返回的数据运行断言。我们通过<code>superagent</code>发出<code>POST</code>请求来创建新的工作记录。我们还断言我们的新作业记录，该记录是在查询在<code>database</code>中可用的<code>jobs</code>列表时返回的:</p>
+<pre class="language-typescript hljs">// src/modules/job/job.test.ts
+import { jobData } from "../../../seeds/jobs";
+
+describe("/jobs", () =&gt; {
+  // -------------------------------------------------------------------------
+  // Test cases
+  // -------------------------------------------------------------------------
+  test("GET: / should return a success status", async () =&gt; {
+    await request(app).get("/").expect("Content-Type", /json/).expect(200);
+  });
+
+  test("GET: /jobs should return a list of jobs", async () =&gt; {
+    const result = await request(app).get("/jobs");
+    expect(
+      result.get("Content-Type").includes("application/json")
+    ).toBeTruthy();
+    expect(result.statusCode).toEqual(200);
+    expect(result.body.results).toEqual(
+      expect.arrayContaining(jobData.map((job) =&gt; expect.objectContaining(job)))
+    );
+  });
+
+  test("POST: /jobs should create a new job", async () =&gt; {
+    const jobCreationData = {
+      role: "Virtual Reality Designer",
+      location: "Seattle",
+      organization: "Microsoft",
+      description: "Reimagine virtual reality experiences",
+    };
+
+    const jobCreationResponse = await request(app)
+      .post("/jobs")
+      .send(jobCreationData)
+      .set("Accept", "application/json");
+
+    expect(jobCreationResponse.statusCode).toEqual(201);
+
+    const jobsResponse = await request(app).get("/jobs");
+    const jobs = jobsResponse.body.results;
+    expect(jobs[jobs.length - 1]).toMatchObject(jobCreationData);
+  });
+});
+</pre>
+<p>运行<code>npm test</code>应该会给出如下输出:</p>
+<pre class="language-typescript hljs">PASS  src/modules/job/job.test.ts
+  /jobs
+    ✓ GET: / should return a success status (267 ms)
+    ✓ GET: /jobs should return a list of jobs (64 ms)
+    ✓ POST: /jobs should create a new job (97 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        3.705 s, estimated 14 s
+Ran all test suites.
+
+Watch Usage: Press w to show more.
+</pre>
+<p>我们已经在本地开发环境中成功测试了我们的应用程序。接下来，我们将在Docker容器中运行我们的测试。</p>
+<h2 id="running-tests-docker-containers">在Docker容器中运行测试</h2>
+<p>首先，我们将从创建我们的<code>Dockerfile</code>开始，其中包含构建我们的<a href="https://blog.logrocket.com/node-js-docker-improve-dx-docker-compose/#dockerize-app-docker-multi-stage-build">应用程序映像</a>的指令:</p>
+<pre class="language-dockerfile hljs">FROM node:alpine
+
+WORKDIR /usr/app
+COPY ./ /usr/app
+
+RUN npm install
+
+# Define the command to run the test
+CMD ["npm", "test"]
+</pre>
+<p>接下来，让我们定义一个包含两个服务的<code>docker-compose.yml</code>清单:为我们的Express应用程序运行测试的<code>simple-job-board</code>服务和运行在容器中的PostgreSQL数据库<code>db</code>服务:</p>
+<pre class="language-yaml hljs">version: "3"
+services:
+  simple-job-board:
+    build: .
+    environment:
+      DATABASE_HOST: db
+    links:
+      - db
+  db:
+    image: postgres:11
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 5uperIn5ecurePa55word
+      POSTGRES_DB: simple-job-board
+    ports:
+      - "5432:5432"
+</pre>
+<p>然后，我们将通过运行<code>docker-compose run test</code>来启动测试运行，以确保我们的数据库服务在测试开始运行之前启动:</p>
+<p><img data-attachment-id="146117" data-permalink="https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/attachment/postgresql-running-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png" data-orig-size="730,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The running PostgreSQL container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png" decoding="async" class="aligncenter size-full wp-image-146117 jetpack-lazy-image" src="../Images/0c9fd86d554b6815b4da4e48c654e35c.png" alt="The Running PostgreSQL Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container-300x173.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="146117" data-permalink="https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/attachment/postgresql-running-container/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png" data-orig-size="730,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="The running PostgreSQL container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-146117" src="../Images/0c9fd86d554b6815b4da4e48c654e35c.png" alt="The Running PostgreSQL Container" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container-300x173.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/postgresql-running-container.png"/></noscript>
+<p>我们的测试结果将通过Docker容器中运行的绿色复选标记。您可能会注意到，在我们的测试运行之前，等待时间略有增加。这是因为当我们启动Docker容器时会产生开销:</p>
+<p><img data-attachment-id="146119" data-permalink="https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/attachment/docker-container-passing-tests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png" data-orig-size="730,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Passing tests running in a Docker container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png" decoding="async" class="aligncenter size-full wp-image-146119 jetpack-lazy-image" src="../Images/d81a34d3e7025de90083b5be607588a6.png" alt="Passing Tests Running in a Docker Container" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests-300x173.png 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="146119" data-permalink="https://blog.logrocket.com/using-docker-containers-beat-flaky-tests/attachment/docker-container-passing-tests/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png" data-orig-size="730,420" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Passing tests running in a Docker container" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests-300x173.png" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png" decoding="async" loading="lazy" class="aligncenter size-full wp-image-146119" src="../Images/d81a34d3e7025de90083b5be607588a6.png" alt="Passing Tests Running in a Docker Container" srcset="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png 730w, https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests-300x173.png 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/12/docker-container-passing-tests.png"/></noscript>
+<h2>结论</h2>
+<p>有了Docker容器和测试隔离，我们大大减少了遇到脆弱测试的机会。在本文中，我们为每个测试运行创建了新的连接和新的数据库，以保证每个运行都是干净的。我们还消除了作为片状剥落来源的州污染。然而，请记住，还有其他的剥落来源，比如<code>async</code>行为、并发问题和网络交互。重要的是要认识到测试碎片在本质上是多变量的。</p>
+<p>请随意从本教程中克隆这个项目并进行测试。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>

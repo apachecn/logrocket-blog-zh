@@ -1,0 +1,401 @@
+<html>
+<head>
+<title>Implementing serverless authentication with Netlify Identity </title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>用网络身份实现无服务器认证</h1>
+<blockquote>原文：<a href="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/#0001-01-01">https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/#0001-01-01</a></blockquote><div><article class="article-post">
+<p><a href="https://en.wikipedia.org/wiki/Serverless_computing">无服务器计算</a>继续证明对开发者来说是高效的，允许我们编写包含服务器端功能的应用程序，而没有管理物理服务器的麻烦。这种架构将服务器任务(如身份验证、数据库管理等)转移给供应商，从而加快开发速度并降低成本。这也是Jamstack社区采用的一种做法。</p>
+<p>先驱Jamstack平台Netlify创建了一个名为Netlify Identity的服务，您可以使用它在web应用程序中快速实现身份验证。<a href="https://docs.netlify.com/visitor-access/identity/"> Netlify Identity </a>是由<a href="https://github.com/netlify/gotrue"> Netlify GoTrue API </a>支持的即插即用微服务。该服务附带了一整套身份验证功能(登录、密码恢复、OAuth提供者)，从而避免了部署您的身份验证系统的需要。</p>
+<p>在本文中，您将了解如何使用Netlify Identity在Next.js应用程序中实现身份验证。</p>
+<h2 id="prerequisites">先决条件</h2>
+<p>要跟进，您需要:</p>
+
+<h2 id="deploying-a-nextjs-project-to-netlify">将Next.js项目部署到Netlify</h2>
+<p>对于本教程，我们将尝试在Netlify的模板<a href="https://github.com/netlify-templates/nextjs-blog-theme">库</a>中预先存在的<a href="https://bejamas-nextjs-blog.netlify.app/"> Jamstack博客</a>中设置身份。可以查看<a href="https://netlify-identity-auth.netlify.app/">成品项目</a>和<a href="https://github.com/Chinwike1/netlify-identity-blog">源代码</a>。</p>
+<p><img data-attachment-id="142429" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/deploy-to-netlify-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg" data-orig-size="575,426" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Deploy to Netlify button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button-300x222.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg" decoding="async" class="aligncenter size-full wp-image-142429 jetpack-lazy-image" src="../Images/27dee9cfce5c809a52f93f60d57018ef.png" alt="Deploy to Netlify Button" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg 575w, https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button-300x222.jpeg 300w" data-lazy-sizes="(max-width: 575px) 100vw, 575px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142429" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/deploy-to-netlify-button/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg" data-orig-size="575,426" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Deploy to Netlify button" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button-300x222.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142429" src="../Images/27dee9cfce5c809a52f93f60d57018ef.png" alt="Deploy to Netlify Button" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg 575w, https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button-300x222.jpeg 300w" sizes="(max-width: 575px) 100vw, 575px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/deploy-to-netlify-button.jpeg"/></noscript>
+<p>点击项目的<code>README.md</code>文件中的<strong> Deploy to Netlify </strong>按钮，将你的站点部署到Netlify。这将带你到Netlify的网站，提示你连接Netlify到你的GitHub账户。</p>
+<p><img data-attachment-id="142431" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/welcome-to-netlify-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg" data-orig-size="730,579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome to Netlify screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen-300x238.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg" decoding="async" class="aligncenter size-full wp-image-142431 jetpack-lazy-image" src="../Images/a280132b13e40a31415279879dba5816.png" alt="Welcome to Netlify Screen" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen-300x238.jpeg 300w" data-lazy-sizes="(max-width: 730px) 100vw, 730px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142431" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/welcome-to-netlify-screen/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg" data-orig-size="730,579" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Welcome to Netlify screen" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen-300x238.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142431" src="../Images/a280132b13e40a31415279879dba5816.png" alt="Welcome to Netlify Screen" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg 730w, https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen-300x238.jpeg 300w" sizes="(max-width: 730px) 100vw, 730px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/welcome-to-netlify-screen.jpeg"/></noscript>
+<p>链接您的帐户并遵循屏幕上的步骤后，将在您的GitHub个人资料下创建一个存储库，过一会儿，您的网站将在Netlify上上线。</p>
+<p><img data-attachment-id="142427" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/site-overview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg" data-orig-size="725,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Site overview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview-300x134.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg" decoding="async" class="aligncenter size-full wp-image-142427 jetpack-lazy-image" src="../Images/085f43c0a72f5244a052746ab442b6f0.png" alt="Site Overview" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg 725w, https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview-300x134.jpeg 300w" data-lazy-sizes="(max-width: 725px) 100vw, 725px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142427" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/site-overview/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg" data-orig-size="725,325" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Site overview" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview-300x134.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142427" src="../Images/085f43c0a72f5244a052746ab442b6f0.png" alt="Site Overview" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg 725w, https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview-300x134.jpeg 300w" sizes="(max-width: 725px) 100vw, 725px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/site-overview.jpeg"/></noscript>
+<p>请注意上面带下划线的站点的活动URL。保存此URL以备后用，因为Identity将需要它来定位您的应用程序。</p>
+<p>在Identity可以在您的项目中工作之前，Netlify要求您在项目设置中启用Identity功能。从您的仪表板中，导航到<strong>身份</strong>选项卡，然后单击<strong>启用身份</strong>按钮:</p>
+<p><img data-attachment-id="142425" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/identity-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg" data-orig-size="619,491" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Identity tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab-300x238.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg" decoding="async" class="aligncenter size-full wp-image-142425 jetpack-lazy-image" src="../Images/77e3f71e5e682f5c349a08a13936e40f.png" alt="Identity Tab" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg 619w, https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab-300x238.jpeg 300w" data-lazy-sizes="(max-width: 619px) 100vw, 619px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142425" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/identity-tab/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg" data-orig-size="619,491" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Identity tab" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab-300x238.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142425" src="../Images/77e3f71e5e682f5c349a08a13936e40f.png" alt="Identity Tab" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg 619w, https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab-300x238.jpeg 300w" sizes="(max-width: 619px) 100vw, 619px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/identity-tab.jpeg"/></noscript>
+<p>现在，您的应用程序设置为开始验证用户！接下来，我们将在这个项目中安装一个用于Netlify身份的JavaScript小部件。</p>
+
+<p><a href="https://github.com/netlify/netlify-identity-widget"> Netlify身份小部件</a>是围绕GoTrue.js构建的组件，GoTrue . js是GoTrue API的JavaScript客户端库。js公开了<a href="https://gotruejs-playground.netlify.app/">几个方法</a>，这些方法可以作为构建注册、登录流和注销流的UI的构件。您还可以使用该库来构建您的自定义身份验证UI。</p>
+<p>在GitHub概要文件下找到模板的存储库，并使用以下命令在本地克隆它:</p>
+<pre class="language-bash hljs">git clone https://github.com/{your-github-username}/nextjs-blog-theme.git
+</pre>
+<p>接下来，安装Netlify身份小部件:</p>
+<pre class="language-bash hljs">npm install netlify-identity-widget 
+or
+yarn install netlify-identity-widget
+</pre>
+<p>现在我们可以开始使用<code>React.createContext()</code>来设置认证上下文。</p>
+<h2 id="creating-the-authentication-context">创建身份验证上下文</h2>
+<p>React上下文API是一种跨React应用程序全局创建和共享数据的机制，无需通过组件树的许多层传递属性。</p>
+<p>使用<code>React.createContext</code>创建一个包含两个重要React组件的上下文对象:<code>Provider</code>和<code>Consumer</code>。包装在<code>Provider</code>组件中的子元素可以使用<code>React.useContext</code>访问和订阅状态变化。</p>
+<p>我们可以实现这个API来跟踪用户的身份验证状态。在项目的根目录下创建一个名为<code>context</code>的文件夹，并添加一个<code>AuthContext.js</code>文件:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, createContext } from 'react';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  const contextValues = { user };
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</pre>
+<p>这里我们创建并导出了一个用<code>createContext</code>创建的<code>AuthContext</code>对象。然后我们用<code>useState</code>钩子初始化了一个<code>user</code>状态。</p>
+<p><code>AuthContext</code>的<code>Provider</code>组件有一个<code>value</code>属性，接受全局状态的对象。我已经将上下文值总结成一个<code>contextValues</code>对象，并将它们分配给<code>value</code>。</p>
+<p><code>AuthContext.Provider</code>可用于包装整个应用程序，允许任何子组件访问其全局状态:</p>
+<pre class="language-javascript hljs">// _app.js
+import '../styles/globals.css';
+import 'prismjs/themes/prism-tomorrow.css';
+import { AuthContextProvider } from '../context/authContext';
+
+function MyApp({ Component, pageProps }) {
+  return (
+    &lt;&gt;
+      &lt;span className="theme-bejamas" /&gt;
+      &lt;AuthContextProvider&gt;
+        &lt;Component {...pageProps} /&gt;
+      &lt;/AuthContextProvider&gt;
+    &lt;/&gt;
+  );
+}
+export default MyApp;
+</pre>
+<h2 id="initializing-netlify-identity">初始化网络身份</h2>
+<p>要在您的项目中使用Netlify Identity小部件，您必须首先使用<code>init()</code>方法初始化它——在这里查看<a href="https://github.com/netlify/netlify-identity-widget#module-api">小部件的完整API</a>。我们可以在一个<code>useEffect</code>钩子中这样做:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, useEffect, createContext } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  useEffect(() =&gt; {
+    // initialize netlify identity
+    netlifyIdentity.init();
+  }, []);
+
+  const contextValues = { user };
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</pre>
+<p>当小部件在浏览器中初始化时，用户的身份验证状态是可用的。通过监听一个<code>init</code>事件并相应地更新状态，您可以将这个值与<code>user</code>上下文同步。Netlifiy身份库提供了一个用于绑定到身份验证事件的<code>on()</code>处理程序。它还返回一个回调函数，该函数包含当前通过身份验证的用户的数据。</p>
+<pre class="language-javascript hljs">netlifyIdentity.on("init" | "login" | "logout", (user) =&gt; {
+  console.log(user.email) // <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cca6a3a4a2a8a3a98caba1ada5a0e2afa3a1">[email protected]</a>
+})
+</pre>
+<p>这样，您可以监听一个<code>init</code>事件并更新<code>AuthContext</code>的<code>user</code>状态，如下所示:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, useEffect, createContext } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  useEffect(() =&gt; {
+    // initialize netlify identity
+    netlifyIdentity.init();
+  }, []);
+
+  useEffect(() =&gt; {
+    // update user state on init event
+    netlifyIdentity.on('init', (user) =&gt; {
+      setUser(user);
+    });
+  }, []);
+
+  const contextValues = { user };
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</pre>
+<p>为了更好的可读性，我在一个单独的<code>useEffect</code>钩子中编写了这个事件处理程序。接下来，您将看到如何注册和登录用户。</p>
+<h2 id="identity-registration-and-login">身份注册和登录</h2>
+<p>Netlify身份小部件API提供了一个<code>open()</code>方法来打开下面的注册/登录模式:</p>
+<p><img data-attachment-id="142423" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/login-modal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg" data-orig-size="463,506" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Login modal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal-275x300.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg" decoding="async" class="aligncenter size-full wp-image-142423 jetpack-lazy-image" src="../Images/1d33d7ca37e6bb61508fe6ee6fbe2a0f.png" alt="Login Modal" data-lazy-srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg 463w, https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal-275x300.jpeg 275w" data-lazy-sizes="(max-width: 463px) 100vw, 463px" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142423" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/login-modal/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg" data-orig-size="463,506" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Login modal" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal-275x300.jpeg" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142423" src="../Images/1d33d7ca37e6bb61508fe6ee6fbe2a0f.png" alt="Login Modal" srcset="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg 463w, https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal-275x300.jpeg 275w" sizes="(max-width: 463px) 100vw, 463px" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-modal.jpeg"/></noscript>
+<p>默认情况下，模式打开到<strong>登录</strong>选项卡，但是您可以指定想要打开哪个选项卡:</p>
+<pre class="language-javascript hljs">netlifyIdentity.open("login" | "signup")
+</pre>
+<p>在<code>AuthContext.js</code>中创建一个<code>login</code>函数，并调用<code>netlifyIdentity.open()</code>:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, useEffect, createContext } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  useEffect(() =&gt; {
+    // initialize netlify identity
+    netlifyIdentity.init();
+  }, []);
+
+  useEffect(() =&gt; {
+    // update user state on 'init event
+    netlifyIdentity.on('init', (user) =&gt; {
+      setUser(user);
+    });
+  }, []);
+
+  const login = () =&gt; {
+    netlifyIdentity.open('login');
+  };
+
+  const contextValues = { user, login };
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</pre>
+<p>记得在<code>contextValues</code>对象中包含这个函数，这样它在整个应用程序中都可用。接下来，我们将使用<code>netlifyIdentity.on()</code>方法监听一个<code>login</code>事件。当小部件检测到这个事件时，我们将更新上下文的<code>user</code>状态，如下所示:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, useEffect, createContext } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  useEffect(() =&gt; {
+    // initialize netlify identity
+    netlifyIdentity.init();
+  }, []);
+
+  useEffect(() =&gt; {
+    // update user state on 'init event
+    netlifyIdentity.on('init', (user) =&gt; {
+      setUser(user);
+    });
+     // update user state after login
+    netlifyIdentity.on('login', (user) =&gt; {
+      setUser(user);
+      // close the modal
+      netlifyIdentity.close();
+    });
+  }, []);
+
+  const login = () =&gt; {
+    netlifyIdentity.open('login');
+  };
+
+  const contextValues = { user, login };
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</pre>
+<p>请注意，Netlify Identity允许免费层上的每个站点最多有1000个注册用户。</p>
+<h2 id="accessing-context-values-with-use-context">使用<code>useContext</code>访问上下文值</h2>
+<p>子组件可以使用<code>React.useContext</code>钩子从传递给它的<code>Context</code>对象中读取和订阅状态变化:</p>
+<pre class="language-javascript hljs">const { user } = React.useContext(AuthContext)
+conosle.log(user.email) // <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="22484d4a4c464d4762454f434b4e0c414d4f">[email protected]</a>  
+</pre>
+<p>在<code>components</code>文件夹中创建一个<code>AuthButton.js</code>文件，并添加下面的代码块:</p>
+<pre class="language-javascript hljs">// components/AuthButton.js
+import { useContext } from 'react';
+import { AuthContext } from '../context/authContext';
+
+const AuthButton = () =&gt; {
+  const { user, login } = useContext(AuthContext);
+  return (
+    &lt;div className="absolute top-5 right-5"&gt;
+      {!user ? (
+        &lt;button
+          onClick={login}
+          className="py-2 px-4 mr-2 bg-sky-500 hover:bg-sky-600 font-semibold rounded-md"
+        &gt;
+          Login
+        &lt;/button&gt;
+      ) : (
+        &lt;button
+          className="py-2 px-4 mr-2 bg-sky-500 hover:bg-sky-600 font-semibold rounded-md"
+        &gt;
+          Logout
+        &lt;/button&gt;
+      )}
+    &lt;/div&gt;
+  );
+};
+export default AuthButton;
+</pre>
+<p>我们首先调用<code>useContext</code>并传入<code>AuthContext</code>对象。这样做，您可以析构当前在<code>AuthContext</code> — <code>user</code>和<code>login</code>中的两个值。接下来，我们使用<code>user</code>状态根据用户的身份验证状态有条件地呈现登录或注销按钮。<code>login</code>然后被附加到登录按钮的<code>onClick</code>处理程序。</p>
+<p>现在，让我们在主屏幕上呈现这个按钮组件:</p>
+<pre class="language-javascript hljs">// pages/index.js
+import { useContext } from 'react';
+import { getPosts } from '../utils/mdx-utils';
+import Header from '../components/Header';
+import Layout, { GradientBackground } from '../components/Layout';
+import { getGlobalData } from '../utils/global-data';
+import SEO from '../components/SEO';
+import { AuthContext } from '../context/authContext';
+import AuthButton from '../components/AuthButton';
+
+export default function Index({ posts, globalData }) {
+  const { user } = useContext(AuthContext);
+
+  return (
+    &lt;Layout&gt;
+      &lt;SEO title={globalData.name} description={globalData.blogTitle} /&gt;
+      &lt;Header name={user?.email} /&gt;
+      &lt;AuthButton /&gt;
+      &lt;main className="w-full"&gt;
+        {/* markup for main element */}
+      &lt;/main&gt;
+}
+
+export function getStaticProps() {
+  const posts = getPosts();
+  const globalData = getGlobalData();
+  return { props: { posts, globalData } };
+}
+</pre>
+<p>注意上面已经使用了<code>useContext</code>来读取和显示<code>Header</code>组件中用户的电子邮件。</p>
+<p>现在，您可以单击登录/注册按钮开始身份验证过程。</p>
+<p><img data-attachment-id="142420" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/login-for-authentication/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif" data-orig-size="730,563" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Login for authentication" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication-300x231.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif" decoding="async" class="aligncenter size-full wp-image-142420 jetpack-lazy-image" src="../Images/09362386677d69bfda965c172a971c50.png" alt="Login for Authentication" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif"/></p><noscript><img data-lazy-fallback="1" data-attachment-id="142420" data-permalink="https://blog.logrocket.com/implementing-serverless-authentication-netlify-identity/attachment/login-for-authentication/" data-orig-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif" data-orig-size="730,563" data-comments-opened="1" data-image-meta="{&quot;aperture&quot;:&quot;0&quot;,&quot;credit&quot;:&quot;&quot;,&quot;camera&quot;:&quot;&quot;,&quot;caption&quot;:&quot;&quot;,&quot;created_timestamp&quot;:&quot;0&quot;,&quot;copyright&quot;:&quot;&quot;,&quot;focal_length&quot;:&quot;0&quot;,&quot;iso&quot;:&quot;0&quot;,&quot;shutter_speed&quot;:&quot;0&quot;,&quot;title&quot;:&quot;&quot;,&quot;orientation&quot;:&quot;0&quot;}" data-image-title="Login for authentication" data-image-description="" data-image-caption="" data-medium-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication-300x231.gif" data-large-file="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif" decoding="async" loading="lazy" class="aligncenter size-full wp-image-142420" src="../Images/09362386677d69bfda965c172a971c50.png" alt="Login for Authentication" data-original-src="https://blog.logrocket.com/wp-content/uploads/2022/11/login-for-authentication.gif"/></noscript>
+<p>第一次打开身份验证模式时，小部件会提示您设置以前的Netlify实时站点URL。之后，您的应用程序可以开始收集用户信息。请注意，Netlify Identity允许免费层上的每个站点最多有一千个用户。</p>
+<p>接下来，让我们看看如何注销用户。</p>
+<h2 id="identity-logout">身份注销</h2>
+<p>我们将从向上下文添加一个<code>logout</code>函数开始，该函数将调用<code>netlifyIdentity.logout</code>:</p>
+<pre class="language-javascript hljs">// context/AuthContext.js
+import { useState, useEffect, createContext } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
+
+export const AuthContext = createContext();
+
+export const AuthContextProvider = ({ children }) =&gt; {
+  const [user, setUser] = useState(null);
+
+  useEffect(() =&gt; {
+    // initialize netlify identity
+    netlifyIdentity.init();
+  }, []);
+
+  useEffect(() =&gt; {
+    // update user state after login
+    netlifyIdentity.on('login', (user) =&gt; {
+      setUser(user);
+      netlifyIdentity.close();
+    });
+    netlifyIdentity.on('logout', () =&gt; {
+      setUser(null);
+    });
+    netlifyIdentity.on('init', (user) =&gt; {
+      setUser(user);
+    });
+  }, []);
+
+  const login = () =&gt; {
+    netlifyIdentity.open('login');
+  };
+
+  const logout = () =&gt; {
+    netlifyIdentity.logout();
+  };
+
+  const contextValues = { user, login, logout };
+
+  return (
+    &lt;AuthContext.Provider value={contextValues}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+\</pre>
+<p>我们还使用了<code>netlifyIdentity.on</code>方法来监听注销事件，并随后清除<code>user</code>状态。</p>
+<p>现在我们可以从<code>AuthButton</code>调用这个<code>logout</code>函数，如下所示:</p>
+<pre class="language-javascript hljs">// components/AuthButton.js
+import { useContext } from 'react';
+import { AuthContext } from '../context/authContext';
+
+const AuthButton = () =&gt; {
+  const { user, login, logout } = useContext(AuthContext);
+  return (
+    &lt;div className="absolute top-5 right-5"&gt;
+      {!user ? (
+        &lt;button
+          onClick={login}
+          className="py-2 px-4 mr-2 bg-sky-500 hover:bg-sky-600 font-semibold rounded-md"
+        &gt;
+          Login
+        &lt;/button&gt;
+      ) : (
+        &lt;button
+          onClick={logout}
+          className="py-2 px-4 mr-2 bg-sky-500 hover:bg-sky-600 font-semibold rounded-md"
+        &gt;
+          Logout
+        &lt;/button&gt;
+      )}
+    &lt;/div&gt;
+  );
+};
+export default AuthButton;
+</pre>
+<p><code>AuthButton</code>可以进一步简化为下面的代码块:</p>
+<pre class="language-javascript hljs">// components/AuthButton.js
+import { useContext } from 'react';
+import { AuthContext } from '../context/authContext';
+
+const AuthButton = () =&gt; {
+  const { user, login, logout } = useContext(AuthContext);
+
+  return (
+    &lt;div className="absolute top-5 right-5"&gt;
+      &lt;button
+        onClick={!user ? login : logout}
+        className="py-2 px-4 mr-2 bg-sky-500 hover:bg-sky-600 font-semibold rounded-md"
+      &gt;
+        {!user ? 'Login / Signup' : 'Logout'}
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};
+export default AuthButton;
+</pre>
+<h2 id="conclusion">结论</h2>
+<p>在任何主要的web应用程序中，身份验证都是一个重要而敏感的部分，让一个像Netlify Identity这样的外部服务来为您管理这个特性确实令人耳目一新。这些外部身份验证库不仅减轻了大部分负担，而且与您的专用身份验证实现相比，它们更安全，更不容易受到网络安全攻击。</p>
+<p>在本文中，您了解了如何使用Netlify Identity实现基本的身份验证功能，但是该服务的特性超出了本文的范围。您可以探索其他身份特性，如OAuth身份验证、使用提供的JWT创建<a href="https://www.netlify.com/blog/2018/01/23/getting-started-with-jwt-and-identity/">门控内容</a>等等。</p><div class="code-block code-block-4">
+<div class="blog-plug base-cta"><h2>使用<a class="signup" href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>消除传统错误报告的干扰</h2>
+<a href="https://lp.logrocket.com/blg/signup" class="signup" target="_blank" rel="noopener noreferrer"><img class="alignnone size-full wp-image-46 jetpack-lazy-image" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-lazy-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png?is-pending-load=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/><noscript><img data-lazy-fallback="1" class="alignnone size-full wp-image-46" src="../Images/d6f5a5dd739296c1dd7aab3d5e77eeb9.png" alt="LogRocket Dashboard Free Trial Banner" data-original-src="https://blog.logrocket.com/wp-content/uploads/2017/03/1d0cd-1s_rmyo6nbrasp-xtvbaxfg.png"/></noscript></a>
+<p><a href="https://lp.logrocket.com/blg/signup" target="_blank" rel="noopener noreferrer"> LogRocket </a>是一个数字体验分析解决方案，它可以保护您免受数百个假阳性错误警报的影响，只针对几个真正重要的项目。LogRocket会告诉您应用程序中实际影响用户的最具影响力的bug和UX问题。</p>
+<p>然后，使用具有深层技术遥测的会话重放来确切地查看用户看到了什么以及是什么导致了问题，就像你在他们身后看一样。</p>
+<p>LogRocket自动聚合客户端错误、JS异常、前端性能指标和用户交互。然后LogRocket使用机器学习来告诉你哪些问题正在影响大多数用户，并提供你需要修复它的上下文。</p>
+<p>关注重要的bug—<a class="signup" href="https://lp.logrocket.com/blg/signup-issue-free" target="_blank" rel="noopener noreferrer">今天就试试LogRocket】。</a></p></div></div>
+
+<p class="clearfix"/>
+<p class="clearfix"/>
+</article>
+
+</div>    
+</body>
+</html>
